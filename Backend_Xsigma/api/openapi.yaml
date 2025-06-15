@@ -1,0 +1,1359 @@
+openapi: 3.0.3
+info:
+  title: Analytical Sigma Volatility API
+  description: |
+    Advanced quantitative finance API for volatility modeling and risk analytics.
+
+    This API provides comprehensive volatility surface calculations, FX volatility modeling,
+    and advanced risk analytics using state-of-the-art mathematical frameworks including
+    Extended SVI models and quadratic smile interpolation.
+
+    ## Features
+    - Extended SVI volatility surface modeling
+    - FX volatility curve interpolation
+    - Multi-model volatility comparison
+    - Real-time market data integration
+    - Advanced caching and performance optimization
+    - Comprehensive error handling and validation
+
+    ## Models Supported
+    - Analytical Sigma Volatility (Extended SVI)
+    - FX Volatility Models (Call/Put, Instrument, Delta, SVI)
+    - Volatility Surface Generation
+    - Probability Density Functions
+    - Risk Analytics
+
+  version: 2.1.0
+  contact:
+    name: XSigma Team
+    email: support@xsigma.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:5005
+    description: Development server
+  - url: https://api.xsigma.com
+    description: Production server
+
+tags:
+  - name: Analytical Sigma
+    description: Analytical Sigma Volatility calculations using Extended SVI model
+  - name: FX Volatility
+    description: FX volatility modeling and market data
+  - name: TestHJM
+    description: Heath-Jarrow-Morton interest rate model calculations and simulations
+  - name: Health
+    description: Health checks and monitoring
+  - name: System
+    description: System information and metrics
+
+paths:
+  /:
+    get:
+      summary: API Information
+      description: Get basic API information and available endpoints
+      tags: [System]
+      responses:
+        '200':
+          description: API information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiInfo'
+
+  /health:
+    get:
+      summary: Health Check
+      description: Check the health status of the API and its services
+      tags: [Health]
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+
+  /metrics:
+    get:
+      summary: System Metrics
+      description: Get detailed system metrics and performance data
+      tags: [System]
+      responses:
+        '200':
+          description: System metrics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemMetrics'
+
+  /api/analytical-sigma:
+    get:
+      tags:
+        - Analytical Sigma
+      summary: Calculate Analytical Sigma Volatility
+      description: |
+        Calculate volatility surfaces using the Extended SVI model with 4 test cases.
+        
+        **Test Cases:**
+        - `test=1`: Basic volatility surface with default parameters for large forward values
+        - `test=2`: Sensitivity analysis comparing different ctrl_c values
+        - `test=3`: Probability density calculation with analytical and bump methods
+        - `test=4`: Cumulative probability analysis with monotonicity checks
+        
+        **Performance:** Results are cached for 5 minutes to improve response times.
+      parameters:
+        - name: test
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 4
+            default: 1
+          description: |
+            Test case number:
+            - 1: volatility_surface (default)
+            - 2: vols_plus_minus 
+            - 3: density
+            - 4: probability
+          example: 1
+        - name: n
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 10
+            maximum: 2000
+            default: 200
+          description: Number of data points to calculate
+          example: 200
+        - name: fwd
+          in: query
+          required: false
+          schema:
+            type: number
+            minimum: 0.001
+          description: |
+            Forward price. Defaults depend on test case:
+            - Test 1: 2245.07 (large forward scenario)
+            - Tests 2-4: 1.0 (normalized scenario)
+          example: 2245.0656707892695
+        - name: time
+          in: query
+          required: false
+          schema:
+            type: number
+            minimum: 0.001
+          description: |
+            Time to expiration. Defaults depend on test case:
+            - Test 1: 1.0 (1 year)
+            - Tests 2-4: 0.333 (4 months)
+          example: 1.0
+        - name: ctrl_p
+          in: query
+          required: false
+          schema:
+            type: number
+            default: 0.2
+          description: Control parameter P for SVI model
+          example: 0.2
+        - name: ctrl_c
+          in: query
+          required: false
+          schema:
+            type: number
+            default: 0.2
+          description: Control parameter C for SVI model (modified in test 2)
+          example: 0.2
+        - name: atm
+          in: query
+          required: false
+          schema:
+            type: number
+            minimum: 0.001
+          description: |
+            At-the-money volatility. Defaults depend on test case:
+            - Test 1: 1.1 (high volatility scenario)
+            - Tests 2-4: 0.1929 (low volatility scenario)
+          example: 1.1
+        - name: skew
+          in: query
+          required: false
+          schema:
+            type: number
+          description: |
+            Volatility skew parameter. Defaults depend on test case:
+            - Test 1: 3.5 (high skew)
+            - Tests 2-4: 0.02268 (low skew)
+          example: 3.5
+        - name: smile
+          in: query
+          required: false
+          schema:
+            type: number
+          description: |
+            Volatility smile parameter. Defaults depend on test case:
+            - Test 1: 17 (pronounced smile)
+            - Tests 2-4: 0.00317 (subtle smile)
+          example: 17
+        - name: put
+          in: query
+          required: false
+          schema:
+            type: number
+          description: |
+            Put wing parameter. Defaults depend on test case:
+            - Test 1: 0.7 (positive)
+            - Tests 2-4: -0.00213 (negative)
+          example: 0.7
+        - name: call
+          in: query
+          required: false
+          schema:
+            type: number
+          description: |
+            Call wing parameter. Defaults depend on test case:
+            - Test 1: 0.06 (positive)
+            - Tests 2-4: -0.00006 (negative)
+          example: 0.06
+      responses:
+        '200':
+          description: Successful calculation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VolatilityResponse'
+              examples:
+                test1_volatility_surface:
+                  summary: Test 1 - Basic volatility surface
+                  value:
+                    status: "success"
+                    data:
+                      strikes: [561.26, 573.45, 585.64]
+                      Tab_1: [1.2345, 1.2456, 1.2567]
+                      Tab_2: [1.1000, 1.1000, 1.1000]
+                      metadata:
+                        test_case: 1
+                        description: "Basic volatility surface"
+                        execution_time_ms: 2.01
+                        data_points: 200
+                    api:
+                      version: "2.0.0"
+                      testCase:
+                        number: 1
+                        name: "volatility_surface"
+                        description: "Basic volatility surface calculation"
+                      responseTime: 15
+                      cached: false
+                test2_sensitivity:
+                  summary: Test 2 - Sensitivity analysis
+                  value:
+                    status: "success"
+                    data:
+                      strikes: [0.3, 0.31, 0.32]
+                      Tab_1: [0.162, 0.161, 0.161]
+                      Tab_2: [0.162, 0.161, 0.161]
+                      metadata:
+                        test_case: 2
+                        description: "Sensitivity analysis (ctrl_c variations)"
+                        execution_time_ms: 2.00
+                        ctrl_c_original: 0.2
+                        ctrl_c_modified: 4.0
+                        sensitivity_metrics:
+                          average_difference: 0.0178
+                          maximum_difference: 0.0681
+                    api:
+                      version: "2.0.0"
+                      testCase:
+                        number: 2
+                        name: "vols_plus_minus"
+                        description: "Sensitivity analysis with ctrl_c variations"
+        '400':
+          description: Invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      tags:
+        - Volatility
+      summary: Calculate volatility surface (POST)
+      description: Same functionality as GET endpoint but with request body for complex parameters
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VolatilityRequest'
+            examples:
+              test1_basic:
+                summary: Test 1 - Basic volatility surface with defaults
+                value:
+                  test: 1
+                  n: 200
+              test2_sensitivity:
+                summary: Test 2 - Sensitivity analysis with custom parameters
+                value:
+                  test: 2
+                  n: 100
+                  fwd: 1.0
+                  time: 0.333
+                  atm: 0.1929
+                  skew: 0.02268
+              test3_density:
+                summary: Test 3 - Density analysis
+                value:
+                  test: 3
+                  n: 200
+                  fwd: 1.0
+                  time: 0.333
+                  ctrl_p: 0.2
+                  ctrl_c: 0.2
+                  atm: 0.1929
+                  skew: 0.02268
+                  smile: 0.00317
+                  put: -0.00213
+                  call: -0.00006
+              test4_probability:
+                summary: Test 4 - Probability analysis
+                value:
+                  test: 4
+                  n: 150
+                  fwd: 1.0
+                  time: 0.333
+                  atm: 0.1929
+                  skew: 0.02268
+      responses:
+        '200':
+          description: Successful calculation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VolatilityResponse'
+        '400':
+          description: Invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+
+
+
+  /api/analytical-sigma/test-cases:
+    get:
+      tags:
+        - Analytical Sigma
+      summary: Get available test cases
+      description: Returns information about all available test cases with their defaults and descriptions
+      responses:
+        '200':
+          description: Test cases information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TestCasesResponse'
+
+  /api/fx-volatility/atm-curve:
+    get:
+      summary: Get ATM Volatility Curve
+      description: Retrieve interpolated ATM volatility curve with market data points
+      tags: [FX Volatility]
+      parameters:
+        - name: refresh
+          in: query
+          description: Force refresh cache
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: ATM volatility curve data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FXVolatilityATMResponse'
+
+  /api/fx-volatility/models-comparison:
+    get:
+      summary: Compare FX Volatility Models
+      description: Compare Call/Put, Instrument, Delta, and SVI volatility models
+      tags: [FX Volatility]
+      parameters:
+        - name: expiry
+          in: query
+          description: Expiry time for comparison
+          schema:
+            type: number
+            minimum: 0.01
+            maximum: 10
+        - name: refresh
+          in: query
+          description: Force refresh cache
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Model comparison data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FXVolatilityModelsResponse'
+
+  /api/fx-volatility/market-data:
+    get:
+      summary: Get FX Market Data
+      description: Retrieve current FX market data and calibration parameters
+      tags: [FX Volatility]
+      responses:
+        '200':
+          description: Market data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FXVolatilityMarketDataResponse'
+
+  /api/fx-volatility/health:
+    get:
+      summary: FX Volatility service health check
+      description: Check the health status of FX volatility services
+      tags: [FX Volatility]
+      responses:
+        '200':
+          description: Service health status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+
+  /api/test-hjm:
+    get:
+      tags:
+        - TestHJM
+      summary: Calculate Heath-Jarrow-Morton Interest Rate Model
+      description: |
+        Perform HJM interest rate model calculations including calibration performance comparison
+        and Monte Carlo simulation analysis.
+
+        **Test Cases:**
+        - `test=1`: Calibration performance comparison (AAD vs Standard methods)
+        - `test=2`: Monte Carlo simulation with calibrated HJM parameters
+
+        **Performance:** Results are cached for 10-15 minutes due to computational intensity.
+      parameters:
+        - name: test
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 2
+            default: 1
+          description: |
+            Test case number:
+            - 1: calibration_comparison (default)
+            - 2: simulation_analysis
+          example: 1
+        - name: num_paths
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1000
+            maximum: 10000000
+            default: 524288
+          description: Number of Monte Carlo paths for simulation (Test 2 only)
+          example: 524288
+        - name: output_type
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [calibration_comparison, simulation_analysis]
+            default: calibration_comparison
+          description: Type of analysis to perform
+          example: calibration_comparison
+        - name: refresh
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+          description: Force cache refresh
+      responses:
+        '200':
+          description: Successful calculation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TestHJMResponse'
+              examples:
+                calibration_comparison:
+                  summary: Test 1 - Calibration Performance Comparison
+                  value:
+                    status: "success"
+                    data:
+                      aad_calibration_time: 0.054
+                      standard_calibration_time: 1.446
+                      performance_ratio: 26.86
+                      speedup_factor: "26.86x faster with AAD"
+                      calibration_successful: true
+                      valuation_date: "2024-01-15"
+                    message: "HJM calculation completed successfully"
+                    meta:
+                      cached: false
+                      testCase:
+                        name: "calibration_comparison"
+                        description: "HJM calibration performance comparison (AAD vs Standard)"
+                      responseTime: 1500
+                      executionTime: 1450
+                simulation_analysis:
+                  summary: Test 2 - Monte Carlo Simulation
+                  value:
+                    status: "success"
+                    data:
+                      simulation_successful: true
+                      num_paths: 524288
+                      simulation_dates_count: 120
+                      maturity: "2034-01-15"
+                      valuation_date: "2024-01-15"
+                      message: "Simulation completed successfully"
+                      parameters:
+                        num_paths: 524288
+                        frequency: "3M"
+                        simulation_length: 120
+                    message: "HJM simulation analysis completed successfully"
+                    meta:
+                      cached: false
+                      testCase:
+                        name: "simulation_analysis"
+                        description: "Monte Carlo simulation with HJM model"
+                      responseTime: 15000
+                      executionTime: 14800
+        '400':
+          description: Invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      tags:
+        - TestHJM
+      summary: Calculate HJM model (POST)
+      description: Same functionality as GET endpoint but with request body for complex parameters
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TestHJMRequest'
+            examples:
+              calibration_comparison:
+                summary: Test 1 - Calibration comparison with defaults
+                value:
+                  test: 1
+                  output_type: "calibration_comparison"
+              simulation_analysis:
+                summary: Test 2 - Monte Carlo simulation with custom paths
+                value:
+                  test: 2
+                  output_type: "simulation_analysis"
+                  num_paths: 1000000
+      responses:
+        '200':
+          description: Successful calculation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TestHJMResponse'
+        '400':
+          description: Invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/test-hjm/calibration:
+    get:
+      tags:
+        - TestHJM
+      summary: HJM Calibration Performance Comparison
+      description: Compare AAD vs Standard calibration methods for HJM interest rate models
+      responses:
+        '200':
+          description: Calibration comparison results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TestHJMResponse'
+
+  /api/test-hjm/simulation:
+    get:
+      tags:
+        - TestHJM
+      summary: HJM Monte Carlo Simulation
+      description: Run Monte Carlo simulation with calibrated HJM parameters
+      parameters:
+        - name: num_paths
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1000
+            maximum: 10000000
+            default: 524288
+          description: Number of Monte Carlo paths
+          example: 1000000
+      responses:
+        '200':
+          description: Simulation results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TestHJMResponse'
+
+  /api/test-hjm/test-cases:
+    get:
+      tags:
+        - TestHJM
+      summary: Get available TestHJM test cases
+      description: Returns information about all available TestHJM test cases with their defaults and descriptions
+      responses:
+        '200':
+          description: Test cases information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TestHJMTestCasesResponse'
+
+  /api/test-hjm/health:
+    get:
+      tags:
+        - TestHJM
+      summary: TestHJM service health check
+      description: Check the health status of TestHJM services and Python dependencies
+      responses:
+        '200':
+          description: Service health status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+        '503':
+          description: Service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/AnalyticalSigmaVolatilityCalibration:
+    post:
+      tags:
+        - Analytical Sigma
+      summary: Calibrate volatility models and compute volatility surfaces or density functions
+      description: |
+        Calibrates volatility models to market data and computes volatility surfaces or probability density functions.
+
+        ## Supported Computation Types
+        - **volatility_asv**: Analytical Sigma Volatility model calibration with implied volatilities
+        - **density**: Computes probability density functions based on calibrated model
+        - **volatility_svi**: Stochastic Volatility Inspired model calibration
+        - **dynamic_asv**: Interactive ASV with parameter sliders
+        - **dynamic_svi**: Interactive SVI with parameter sliders
+
+        ## Features
+        - Model calibration using Ceres solver
+        - Interactive parameter adjustment with sliders
+        - Real-time volatility smile and density plotting
+        - 5 graphs: 3 stable (calibration data) + 2 dynamic (interactive)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CalibrationRequest'
+      responses:
+        '200':
+          description: Calibration results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalibrationResponse'
+
+components:
+  schemas:
+    ApiInfo:
+      type: object
+      properties:
+        status:
+          type: string
+          example: success
+        data:
+          type: object
+          properties:
+            name:
+              type: string
+              example: Analytical Sigma Volatility API
+            version:
+              type: string
+              example: 2.1.0
+            description:
+              type: string
+            endpoints:
+              type: object
+
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, unhealthy]
+        timestamp:
+          type: string
+          format: date-time
+        uptime:
+          type: string
+        version:
+          type: string
+        metrics:
+          type: object
+
+    SystemMetrics:
+      type: object
+      properties:
+        status:
+          type: string
+        data:
+          type: object
+          properties:
+            server:
+              type: object
+            cache:
+              type: object
+            python:
+              type: object
+            memory:
+              type: object
+
+    TestCasesResponse:
+      type: object
+      properties:
+        status:
+          type: string
+        data:
+          type: object
+          properties:
+            testCases:
+              type: array
+              items:
+                type: object
+                properties:
+                  test:
+                    type: integer
+                  name:
+                    type: string
+                  description:
+                    type: string
+
+    FXVolatilityATMResponse:
+      type: object
+      properties:
+        status:
+          type: string
+        data:
+          type: object
+          properties:
+            expiries:
+              type: array
+              items:
+                type: number
+            interpolated_vols:
+              type: array
+              items:
+                type: number
+            market_expiries:
+              type: array
+              items:
+                type: number
+            market_vols:
+              type: array
+              items:
+                type: number
+
+    FXVolatilityModelsResponse:
+      type: object
+      properties:
+        status:
+          type: string
+        data:
+          type: object
+          properties:
+            strike_ratio:
+              type: array
+              items:
+                type: number
+            vol_call_put:
+              type: array
+              items:
+                type: number
+            vol_instrument:
+              type: array
+              items:
+                type: number
+            vol_delta:
+              type: array
+              items:
+                type: number
+            vol_svi:
+              type: array
+              items:
+                type: number
+
+    FXVolatilityMarketDataResponse:
+      type: object
+      properties:
+        status:
+          type: string
+        data:
+          type: object
+          properties:
+            calibration_tenors:
+              type: array
+              items:
+                type: string
+            vols_atm_mkt:
+              type: array
+              items:
+                type: number
+
+    CalibrationRequest:
+      type: object
+      required:
+        - computationType
+        - n
+        - spot
+        - expiry
+        - r
+        - q
+        - beta
+        - rho
+        - volvol
+      properties:
+        computationType:
+          type: string
+          enum: [volatility_asv, density, volatility_svi, dynamic_asv, dynamic_svi]
+          description: |
+            Type of computation to perform:
+            - volatility_asv: Analytical Sigma Volatility model calibration
+            - density: Probability density function calculation
+            - volatility_svi: Stochastic Volatility Inspired model
+            - dynamic_asv: Interactive ASV with parameter sliders
+            - dynamic_svi: Interactive SVI with parameter sliders
+          example: volatility_asv
+        n:
+          type: integer
+          minimum: 10
+          maximum: 2000
+          description: Number of data points to calculate
+          example: 200
+        spot:
+          type: number
+          minimum: 0.001
+          description: Current spot price
+          example: 2245.0656
+        expiry:
+          type: number
+          minimum: 0.001
+          description: Time to expiry in years
+          example: 1.0
+        r:
+          type: number
+          description: Risk-free interest rate
+          example: 0.003
+        q:
+          type: number
+          description: Dividend yield
+          example: 0.0022
+        beta:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: Beta parameter for SABR model (0 = normal, 1 = lognormal)
+          example: 0.4158
+        rho:
+          type: number
+          minimum: -1
+          maximum: 1
+          description: Correlation between asset and volatility
+          example: 0.2256
+        volvol:
+          type: number
+          minimum: 0.001
+          description: Volatility of volatility
+          example: 0.2256
+        # Dynamic parameters for interactive models
+        fwd:
+          type: number
+          description: Forward price for dynamic models
+          example: 1.0
+        time:
+          type: number
+          description: Time to expiry for dynamic models
+          example: 0.333
+        ctrl_p:
+          type: number
+          description: Control parameter P for ASV model
+          example: 0.2
+        ctrl_c:
+          type: number
+          description: Control parameter C for ASV model
+          example: 0.2
+        atm:
+          type: number
+          description: At-the-money volatility for ASV model
+          example: 0.1929
+        skew:
+          type: number
+          description: Volatility skew parameter for ASV model
+          example: 0.02268
+        smile:
+          type: number
+          description: Volatility smile parameter for ASV model
+          example: 0.00317
+        put:
+          type: number
+          description: Put wing parameter for ASV model
+          example: 0.00213
+        call:
+          type: number
+          description: Call wing parameter for ASV model
+          example: 0.00006
+        # SVI specific parameters
+        b:
+          type: number
+          description: SVI parameter b
+          example: 0.1
+        m:
+          type: number
+          description: SVI parameter m
+          example: 0.01
+        sigma:
+          type: number
+          description: SVI parameter sigma
+          example: 0.4
+      example:
+        computationType: "volatility_asv"
+        n: 200
+        spot: 2245.0656
+        expiry: 1.0
+        r: 0.003
+        q: 0.0022
+        beta: 0.4158
+        rho: 0.2256
+        volvol: 0.2256
+
+    CalibrationResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [success, error]
+        computationType:
+          type: string
+          enum: [volatility_asv, density, volatility_svi]
+        data:
+          type: object
+          properties:
+            calibration_strikes:
+              type: array
+              items:
+                type: number
+              description: Strike prices used for calibration
+            bid_values:
+              type: array
+              items:
+                type: number
+              description: Bid volatility values
+            ask_values:
+              type: array
+              items:
+                type: number
+              description: Ask volatility values
+            mid_values:
+              type: array
+              items:
+                type: number
+              description: Mid volatility values
+            strikes:
+              type: array
+              items:
+                type: number
+              description: Strike prices for computed values
+            vols:
+              type: array
+              items:
+                type: number
+              description: Computed volatility values (for volatility computations)
+            density:
+              type: array
+              items:
+                type: number
+              description: Probability density values (for density computations)
+        performance:
+          type: object
+          properties:
+            execution_time_ms:
+              type: number
+              description: Execution time in milliseconds
+        metadata:
+          type: object
+          properties:
+            execution_time_ms:
+              type: number
+            timestamp:
+              type: string
+              format: date-time
+            computation_type:
+              type: string
+            cached:
+              type: boolean
+            test_case:
+              type: string
+        error:
+          type: string
+          nullable: true
+      required:
+        - status
+    VolatilityRequest:
+      type: object
+      properties:
+        test:
+          type: integer
+          minimum: 1
+          maximum: 4
+          default: 1
+          description: Test case number
+        n:
+          type: integer
+          minimum: 10
+          maximum: 2000
+          default: 200
+          description: Number of data points
+        fwd:
+          type: number
+          minimum: 0.001
+          description: Forward price
+        time:
+          type: number
+          minimum: 0.001
+          description: Time to expiration
+        ctrl_p:
+          type: number
+          default: 0.2
+          description: Control parameter P
+        ctrl_c:
+          type: number
+          default: 0.2
+          description: Control parameter C
+        atm:
+          type: number
+          minimum: 0.001
+          description: At-the-money volatility
+        skew:
+          type: number
+          description: Volatility skew
+        smile:
+          type: number
+          description: Volatility smile
+        put:
+          type: number
+          description: Put wing parameter
+        call:
+          type: number
+          description: Call wing parameter
+      example:
+        test: 1
+        n: 200
+        fwd: 2245.07
+        time: 1.0
+        ctrl_p: 0.2
+        ctrl_c: 0.2
+        atm: 1.1
+        skew: 3.5
+        smile: 17
+        put: 0.7
+        call: 0.06
+
+    VolatilityResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [success, error]
+        data:
+          type: object
+          properties:
+            strikes:
+              type: array
+              items:
+                type: number
+              description: Strike prices array
+            Tab_1:
+              type: array
+              items:
+                type: number
+              description: Primary calculation results
+            Tab_2:
+              type: array
+              items:
+                type: number
+              description: Secondary calculation results
+            metadata:
+              type: object
+              description: Calculation metadata and analytics
+        error:
+          type: string
+          nullable: true
+        performance:
+          type: object
+          properties:
+            total_execution_time_ms:
+              type: number
+            python_overhead_ms:
+              type: number
+            memory_efficient:
+              type: boolean
+            cache_hits:
+              type: integer
+            optimization_level:
+              type: string
+        api:
+          type: object
+          properties:
+            version:
+              type: string
+            testCase:
+              type: object
+              properties:
+                number:
+                  type: integer
+                name:
+                  type: string
+                description:
+                  type: string
+            parameters:
+              type: object
+            responseTime:
+              type: number
+            cached:
+              type: boolean
+            cacheKey:
+              type: string
+
+    TestHJMRequest:
+      type: object
+      properties:
+        test:
+          type: integer
+          minimum: 1
+          maximum: 2
+          default: 1
+          description: Test case number (1=calibration, 2=simulation)
+        output_type:
+          type: string
+          enum: [calibration_comparison, simulation_analysis]
+          default: calibration_comparison
+          description: Type of analysis to perform
+        num_paths:
+          type: integer
+          minimum: 1000
+          maximum: 10000000
+          default: 524288
+          description: Number of Monte Carlo paths for simulation
+      example:
+        test: 1
+        output_type: "calibration_comparison"
+
+    TestHJMResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [success, error]
+        data:
+          type: object
+          properties:
+            # Calibration comparison fields
+            aad_calibration_time:
+              type: number
+              description: AAD calibration execution time in seconds
+            standard_calibration_time:
+              type: number
+              description: Standard calibration execution time in seconds
+            performance_ratio:
+              type: number
+              description: Performance ratio (standard/AAD)
+            speedup_factor:
+              type: string
+              description: Human-readable speedup description
+            calibration_successful:
+              type: boolean
+              description: Whether calibration completed successfully
+            # Simulation analysis fields
+            simulation_successful:
+              type: boolean
+              description: Whether simulation completed successfully
+            num_paths:
+              type: integer
+              description: Number of Monte Carlo paths used
+            simulation_dates_count:
+              type: integer
+              description: Number of simulation dates
+            maturity:
+              type: string
+              description: Simulation maturity date
+            valuation_date:
+              type: string
+              description: Valuation date used
+            message:
+              type: string
+              description: Additional information about results
+            parameters:
+              type: object
+              description: Parameters used in calculation
+            data_root:
+              type: string
+              description: XSIGMA data root path
+        message:
+          type: string
+          description: Success message
+        meta:
+          type: object
+          properties:
+            cached:
+              type: boolean
+              description: Whether result was retrieved from cache
+            testCase:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+            parameters:
+              type: object
+              description: Parameters used in calculation
+            responseTime:
+              type: number
+              description: Total response time in milliseconds
+            executionTime:
+              type: number
+              description: Python execution time in milliseconds
+            service:
+              type: string
+              description: Service name
+            operation:
+              type: string
+              description: Operation performed
+            timestamp:
+              type: string
+              format: date-time
+        error:
+          type: string
+          nullable: true
+      required:
+        - status
+
+    TestHJMTestCasesResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [success]
+        data:
+          type: object
+          properties:
+            testCases:
+              type: array
+              items:
+                type: object
+                properties:
+                  test:
+                    type: integer
+                  name:
+                    type: string
+                  description:
+                    type: string
+                  defaultParams:
+                    type: object
+            defaultParameters:
+              type: object
+              description: Default parameters for all test cases
+            examples:
+              type: object
+              description: Example API calls
+            documentation:
+              type: object
+              properties:
+                description:
+                  type: string
+                testCases:
+                  type: object
+                parameters:
+                  type: object
+        message:
+          type: string
+      required:
+        - status
+        - data
+
+    ErrorResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [error]
+        error:
+          type: string
+          description: Error message
+        details:
+          type: array
+          items:
+            type: object
+          description: Validation error details
+        timestamp:
+          type: string
+          format: date-time
+        responseTime:
+          type: number
+      required:
+        - status
+        - error
