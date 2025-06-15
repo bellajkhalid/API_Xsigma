@@ -2,6 +2,13 @@
 
 > Advanced Financial Modeling Platform with XVA Engine, ZABR/SABR Models, and Interactive Frontend
 
+[![Build Status](https://img.shields.io/github/actions/workflow/status/bellajkhalid/API_Xsigma/ci.yml?branch=main&logo=github)](https://github.com/bellajkhalid/API_Xsigma/actions)
+[![License](https://img.shields.io/github/license/bellajkhalid/API_Xsigma?color=blue)](https://github.com/bellajkhalid/API_Xsigma/blob/main/LICENSE)
+[![Version](https://img.shields.io/github/package-json/v/bellajkhalid/API_Xsigma?filename=Backend_Xsigma%2Fpackage.json&color=green)](https://github.com/bellajkhalid/API_Xsigma/releases)
+[![Documentation](https://img.shields.io/badge/docs-wiki-blue.svg)](https://github.com/bellajkhalid/API_Xsigma/wiki)
+[![Issues](https://img.shields.io/github/issues/bellajkhalid/API_Xsigma?color=red)](https://github.com/bellajkhalid/API_Xsigma/issues)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/bellajkhalid/API_Xsigma/blob/main/CONTRIBUTING.md)
+
 [![Node.js](https://img.shields.io/badge/Node.js-18.x-green.svg)](https://nodejs.org/)
 [![React](https://img.shields.io/badge/React-18.x-blue.svg)](https://reactjs.org/)
 [![Python](https://img.shields.io/badge/Python-3.11-yellow.svg)](https://python.org/)
@@ -85,17 +92,26 @@ npm run dev
 - Backend API: http://localhost:5005
 - API Documentation: http://localhost:5005/api-docs
 
-## 📚 API Endpoints
+## 📚 Documentation
 
-### ZABR Models
+### 📖 **Comprehensive Guides**
+- **[📚 Wiki Documentation](https://github.com/bellajkhalid/API_Xsigma/wiki)** - Complete guides and tutorials
+- **[🔌 API Reference](docs/API-Reference.md)** - Detailed API documentation
+- **[📊 ZABR Models Guide](docs/ZABR-Models.md)** - Financial models documentation
+- **[🤝 Contributing Guidelines](CONTRIBUTING.md)** - How to contribute
+
+### 🔗 **API Endpoints**
+
+#### ZABR Models
 - `POST /api/zabr-variables-impact/calculate` - Dynamic ZABR calculations
 - `GET /api/zabr-variables-impact/models` - Available model types
+- `GET /api/zabr-variables-impact/model-info/{type}` - Model information
 
-### HJM Models  
-- `POST /api/test-hjm/calibration` - HJM model calibration
+#### HJM Models
+- `GET /api/test-hjm/calibration` - HJM model calibration
 - `GET /api/test-hjm/simulation` - Interest rate simulations
 
-### ASV Calibration
+#### ASV Calibration
 - `POST /api/analytical-sigma` - Analytical sigma volatility
 
 ## 🎯 Usage Examples
@@ -139,11 +155,19 @@ const response = await fetch('/api/zabr-variables-impact/calculate', {
 
 ## 🤝 Contributing
 
+We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details.
+
+### 🚀 **Quick Contribution Steps**
 1. Fork the repository
 2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
 3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
+
+### 📋 **Issue Templates**
+- **🐛 [Bug Report](.github/ISSUE_TEMPLATE/bug_report.md)** - Report bugs with detailed information
+- **💡 [Feature Request](.github/ISSUE_TEMPLATE/feature_request.md)** - Suggest new features
+- **📊 [Financial Model Request](.github/ISSUE_TEMPLATE/financial_model.md)** - Request new financial models
 
 ## 📄 License
 
