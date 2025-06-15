@@ -151,7 +151,7 @@ const Index = () => {
         >
           <div className={`${theme.glassBg} backdrop-blur-lg ${theme.borderColor} border rounded-xl overflow-hidden`}>
             <img
-              src="/lovable-uploads/c32c6788-5e4a-4fee-afee-604b03113c7f.png"
+              src="/Image-uploads/c32c6788-5e4a-4fee-afee-604b03113c7f.png"
               alt="XSigma Risk Management Dashboard"
               className="w-full h-auto"
             />
@@ -510,7 +510,7 @@ const Index = () => {
         <div
           className={`absolute inset-0 ${isDark ? 'opacity-40' : 'opacity-20'}`}
           style={{
-            backgroundImage: 'url("/lovable-uploads/21f3edfb-62b5-4e35-9d03-7339d803b980.png")',
+            backgroundImage: 'url("/Image-uploads/21f3edfb-62b5-4e35-9d03-7339d803b980.png")',
             backgroundSize: 'cover',
             backgroundPosition: 'center',
           }}
