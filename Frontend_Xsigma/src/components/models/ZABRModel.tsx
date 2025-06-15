@@ -52,7 +52,7 @@ const ZABRModel = () => {
     N: 100,
     timesteps: 5,
     nd: 5,
-    // ZABR Mixture specific parameters
+    // ZABR Mixture specific parameters (exact values from notebook)
     beta1: 0.2,
     beta2: 1.25,
     d: 0.2,
@@ -279,7 +279,7 @@ const ZABRModel = () => {
         nd: 5
       });
     } else if (parameters.calibration_type === 'mixture') {
-      // ZABR Mixture defaults from notebook
+      // ZABR Mixture defaults from notebook (exact values)
       setParameters({
         forward: -0.0007,
         expiry: 30,
@@ -422,7 +422,7 @@ const ZABRModel = () => {
                 nd: 5
               });
             } else if (newType === 'mixture') {
-              // ZABR Mixture defaults from notebook
+              // ZABR Mixture defaults from notebook (exact values)
               setParameters({
                 forward: -0.0007,
                 expiry: 30,

@@ -33,13 +33,33 @@ For more complex scenarios, the PDE approach solves:
 
 ### ZABR Mixture Model
 
-The mixture model combines multiple beta regimes:
+The ZABR Mixture model uses a sophisticated volatility function designed for negative rate environments:
 
 ```
-σ_mix(K) = d * σ_β1(K) + (1-d) * σ_β2(K)
+σ(x) = {
+  α [ω tanh(x) + (1-ω) tanh(x)^β₂]^β₁,  if x ≥ x₀
+  v₁ + p exp[(d₁/p)(x-x₀) + ½(d₂/p - (d₁/p)²)(x-x₀)²],  if x < x₀
+}
 ```
 
-Where `d` is the mixture parameter (0 ≤ d ≤ 1).
+**Parameters:**
+- `α` - Controls overall smile level
+- `β₁` - Controls ATM skew
+- `β₂` - Controls high strike skew
+- `ω` (d) - Effective speed, controls transition from β₁ to β₂
+- `v₁` (vol_low) - Volatility level on left part of strike x₀
+- `x₀` (low_strike) - Strike level threshold
+
+**With Local Volatility Cap:**
+```
+σ(x) = {
+  σ(x_U),  if x ≥ x_U
+  σ(x),    if x ≤ x_U - S
+  σ(x)(1-K((x_U-x)/S)) + σ(x_U)K((x_U-x)/S),  else
+}
+```
+
+Where `x_U` (high_strike) is the strike threshold and `S` (smothing_factor) is the smoothing parameter.
 
 ## 🚀 API Usage
 
