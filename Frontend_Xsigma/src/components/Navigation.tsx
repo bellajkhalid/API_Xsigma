@@ -21,14 +21,7 @@ const Navigation = () => {
   }, []);
 
   const scrollToSection = (sectionId: string) => {
-    if (sectionId === 'testimonials') {
-      const testimonialSection = document.querySelector('.animate-marquee');
-      if (testimonialSection) {
-        const yOffset = -100; // Offset to account for the fixed header
-        const y = testimonialSection.getBoundingClientRect().top + window.pageYOffset + yOffset;
-        window.scrollTo({ top: y, behavior: 'smooth' });
-      }
-    } else if (sectionId === 'cta') {
+    if (sectionId === 'cta') {
       const ctaSection = document.querySelector('.button-gradient');
       if (ctaSection) {
         const yOffset = -100;
@@ -46,7 +39,7 @@ const Navigation = () => {
   const navItems = [
     { name: "Features", href: "#features", onClick: () => scrollToSection('features') },
     { name: "Prices", href: "#pricing", onClick: () => scrollToSection('pricing') },
-    { name: "Testimonials", href: "#testimonials", onClick: () => scrollToSection('testimonials') },
+    { name: "Documentation", href: "/sphinx-doc/xsigma-1.1-3/index.html", onClick: () => window.open('/sphinx-doc/xsigma-1.1-3/index.html', '_blank') },
   ];
 
   return (
@@ -119,11 +112,14 @@ const Navigation = () => {
               transition={{ duration: 0.2, ease: "easeOut" }}
             >
               <Button
-                onClick={() => scrollToSection('cta')}
+                onClick={() => {
+                  // Open PyPI link in new tab
+                  window.open('https://pypi.org/project/xsigma/', '_blank');
+                }}
                 size="sm"
                 className="button-gradient relative overflow-hidden group"
               >
-                <span className="relative z-10">Start Implementation</span>
+                <span className="relative z-10">Download</span>
                 <motion.div
                   className="absolute inset-0 bg-white/10 rounded"
                   initial={{ scale: 0, opacity: 0 }}

@@ -166,10 +166,22 @@ const DynamicAIChat = () => {
   );
 };
 
-// Animated Background Component - Goldman Sachs Style
+// XSigma Financial - Autonomous Flowing Network Background
 const AnimatedBackground = () => {
   const { isDark } = useTheme();
   const [scrollY, setScrollY] = useState(0);
+
+  // Network nodes for connection animations (fixed positions)
+  const networkNodes = Array.from({ length: 12 }, (_, i) => ({
+    id: i,
+    x: (i * 23 + 15) % 85 + 10, // Distributed positions
+    y: (i * 31 + 20) % 70 + 15,
+    size: Math.random() * 4 + 2,
+    speed: Math.random() * 0.5 + 0.2
+  }));
+
+  // Flowing particles for wave effect
+  const flowingParticles = Array.from({ length: 25 }, (_, i) => i);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -182,218 +194,308 @@ const AnimatedBackground = () => {
     };
   }, []);
 
-  // Create dynamic floating particles
-  const particles = Array.from({ length: 30 }, (_, i) => i);
-  const particleColors = [
-    isDark ? 'bg-blue-400/60' : 'bg-blue-600/40',
-    isDark ? 'bg-purple-400/60' : 'bg-purple-600/40',
-    isDark ? 'bg-green-400/60' : 'bg-green-600/40'
-  ];
+
 
   return (
     <div className="absolute inset-0 overflow-hidden">
-      {/* Dynamic gradient background with XSigma colors */}
+      {/* Flowing Wave Base Layer */}
       <motion.div
         className="absolute inset-0"
         animate={{
           background: isDark
             ? [
-                'linear-gradient(45deg, rgba(59, 130, 246, 0.3) 0%, rgba(139, 92, 246, 0.2) 30%, rgba(16, 185, 129, 0.2) 60%, rgba(0, 0, 0, 1) 100%)',
-                'linear-gradient(135deg, rgba(139, 92, 246, 0.3) 0%, rgba(16, 185, 129, 0.25) 30%, rgba(59, 130, 246, 0.2) 60%, rgba(0, 0, 0, 1) 100%)',
-                'linear-gradient(225deg, rgba(16, 185, 129, 0.3) 0%, rgba(59, 130, 246, 0.25) 30%, rgba(139, 92, 246, 0.2) 60%, rgba(0, 0, 0, 1) 100%)',
-                'linear-gradient(315deg, rgba(59, 130, 246, 0.25) 0%, rgba(139, 92, 246, 0.3) 30%, rgba(16, 185, 129, 0.2) 60%, rgba(0, 0, 0, 1) 100%)',
+                'radial-gradient(ellipse 120% 80% at 50% 0%, rgba(59, 130, 246, 0.15) 0%, rgba(6, 182, 212, 0.1) 30%, rgba(20, 184, 166, 0.08) 60%, rgba(0, 0, 0, 1) 100%)',
+                'radial-gradient(ellipse 100% 90% at 30% 20%, rgba(6, 182, 212, 0.15) 0%, rgba(20, 184, 166, 0.1) 30%, rgba(59, 130, 246, 0.08) 60%, rgba(0, 0, 0, 1) 100%)',
+                'radial-gradient(ellipse 110% 85% at 70% 10%, rgba(20, 184, 166, 0.15) 0%, rgba(59, 130, 246, 0.1) 30%, rgba(6, 182, 212, 0.08) 60%, rgba(0, 0, 0, 1) 100%)',
               ]
             : [
-                'linear-gradient(45deg, rgba(59, 130, 246, 0.4) 0%, rgba(139, 92, 246, 0.3) 30%, rgba(16, 185, 129, 0.25) 60%, rgba(219, 234, 254, 1) 100%)',
-                'linear-gradient(135deg, rgba(139, 92, 246, 0.4) 0%, rgba(16, 185, 129, 0.35) 30%, rgba(59, 130, 246, 0.3) 60%, rgba(224, 242, 254, 1) 100%)',
-                'linear-gradient(225deg, rgba(16, 185, 129, 0.4) 0%, rgba(59, 130, 246, 0.35) 30%, rgba(139, 92, 246, 0.3) 60%, rgba(239, 246, 255, 1) 100%)',
-                'linear-gradient(315deg, rgba(59, 130, 246, 0.35) 0%, rgba(139, 92, 246, 0.4) 30%, rgba(16, 185, 129, 0.25) 60%, rgba(219, 234, 254, 1) 100%)',
+                'radial-gradient(ellipse 120% 80% at 50% 0%, rgba(59, 130, 246, 0.25) 0%, rgba(6, 182, 212, 0.18) 30%, rgba(20, 184, 166, 0.15) 60%, rgba(240, 249, 255, 1) 100%)',
+                'radial-gradient(ellipse 100% 90% at 30% 20%, rgba(6, 182, 212, 0.25) 0%, rgba(20, 184, 166, 0.18) 30%, rgba(59, 130, 246, 0.15) 60%, rgba(236, 254, 255, 1) 100%)',
+                'radial-gradient(ellipse 110% 85% at 70% 10%, rgba(20, 184, 166, 0.25) 0%, rgba(59, 130, 246, 0.18) 30%, rgba(6, 182, 212, 0.15) 60%, rgba(240, 253, 255, 1) 100%)',
               ]
         }}
         transition={{
-          duration: 6,
+          duration: 12,
           repeat: Infinity,
           ease: "easeInOut"
         }}
       />
 
-      {/* Additional dynamic layer */}
+      {/* Flowing Wave Layers */}
       <motion.div
         className="absolute inset-0"
         animate={{
           background: isDark
             ? [
-                'radial-gradient(circle at 20% 50%, rgba(59, 130, 246, 0.2) 0%, transparent 50%)',
-                'radial-gradient(circle at 80% 20%, rgba(139, 92, 246, 0.2) 0%, transparent 50%)',
-                'radial-gradient(circle at 40% 80%, rgba(16, 185, 129, 0.2) 0%, transparent 50%)',
-                'radial-gradient(circle at 60% 30%, rgba(59, 130, 246, 0.2) 0%, transparent 50%)',
+                'linear-gradient(45deg, transparent 0%, rgba(59, 130, 246, 0.1) 25%, transparent 50%, rgba(6, 182, 212, 0.08) 75%, transparent 100%)',
+                'linear-gradient(135deg, transparent 0%, rgba(6, 182, 212, 0.1) 25%, transparent 50%, rgba(20, 184, 166, 0.08) 75%, transparent 100%)',
+                'linear-gradient(225deg, transparent 0%, rgba(20, 184, 166, 0.1) 25%, transparent 50%, rgba(59, 130, 246, 0.08) 75%, transparent 100%)',
+                'linear-gradient(315deg, transparent 0%, rgba(59, 130, 246, 0.1) 25%, transparent 50%, rgba(6, 182, 212, 0.08) 75%, transparent 100%)',
               ]
             : [
-                'radial-gradient(circle at 20% 50%, rgba(59, 130, 246, 0.25) 0%, transparent 50%)',
-                'radial-gradient(circle at 80% 20%, rgba(139, 92, 246, 0.25) 0%, transparent 50%)',
-                'radial-gradient(circle at 40% 80%, rgba(16, 185, 129, 0.2) 0%, transparent 50%)',
-                'radial-gradient(circle at 60% 30%, rgba(59, 130, 246, 0.25) 0%, transparent 50%)',
+                'linear-gradient(45deg, transparent 0%, rgba(59, 130, 246, 0.15) 25%, transparent 50%, rgba(6, 182, 212, 0.12) 75%, transparent 100%)',
+                'linear-gradient(135deg, transparent 0%, rgba(6, 182, 212, 0.15) 25%, transparent 50%, rgba(20, 184, 166, 0.12) 75%, transparent 100%)',
+                'linear-gradient(225deg, transparent 0%, rgba(20, 184, 166, 0.15) 25%, transparent 50%, rgba(59, 130, 246, 0.12) 75%, transparent 100%)',
+                'linear-gradient(315deg, transparent 0%, rgba(59, 130, 246, 0.15) 25%, transparent 50%, rgba(6, 182, 212, 0.12) 75%, transparent 100%)',
               ]
         }}
         transition={{
-          duration: 8,
+          duration: 15,
           repeat: Infinity,
           ease: "easeInOut",
-          delay: 1
+          delay: 2
         }}
       />
 
-      {/* Autonomous XSigma Blue Orb */}
-      <motion.div
-        className="absolute w-96 h-96 rounded-full blur-3xl"
-        animate={{
-          x: [0, 100, -50, 80, 0],
-          y: [0, -60, 40, -30, 0] + scrollY * 0.2,
-          scale: [1, 1.4, 0.8, 1.2, 1],
-          background: isDark
-            ? [
-                'radial-gradient(circle, rgba(59, 130, 246, 0.4) 0%, rgba(139, 92, 246, 0.2) 50%, transparent 100%)',
-                'radial-gradient(circle, rgba(139, 92, 246, 0.4) 0%, rgba(16, 185, 129, 0.2) 50%, transparent 100%)',
-                'radial-gradient(circle, rgba(16, 185, 129, 0.4) 0%, rgba(59, 130, 246, 0.2) 50%, transparent 100%)',
-              ]
-            : [
-                'radial-gradient(circle, rgba(59, 130, 246, 0.5) 0%, rgba(139, 92, 246, 0.3) 50%, transparent 100%)',
-                'radial-gradient(circle, rgba(139, 92, 246, 0.5) 0%, rgba(16, 185, 129, 0.3) 50%, transparent 100%)',
-                'radial-gradient(circle, rgba(16, 185, 129, 0.5) 0%, rgba(59, 130, 246, 0.3) 50%, transparent 100%)',
-              ]
-        }}
-        transition={{
-          x: { duration: 8, repeat: Infinity, ease: "easeInOut" },
-          y: { duration: 10, repeat: Infinity, ease: "easeInOut" },
-          scale: { duration: 5, repeat: Infinity, ease: "easeInOut" },
-          background: { duration: 4, repeat: Infinity, ease: "easeInOut" }
-        }}
-        style={{
-          left: '10%',
-          top: '15%',
-        }}
-      />
+      {/* Network Connection Lines */}
+      <svg className="absolute inset-0 w-full h-full opacity-30">
+        <defs>
+          <linearGradient id="connectionGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor={isDark ? "#3b82f6" : "#1d4ed8"} stopOpacity="0.6" />
+            <stop offset="50%" stopColor={isDark ? "#06b6d4" : "#0891b2"} stopOpacity="0.4" />
+            <stop offset="100%" stopColor={isDark ? "#14b8a6" : "#0d9488"} stopOpacity="0.2" />
+          </linearGradient>
+        </defs>
 
-      {/* Autonomous XSigma Purple Orb */}
-      <motion.div
-        className="absolute w-80 h-80 rounded-full blur-3xl"
-        animate={{
-          x: [0, -80, 60, -40, 0],
-          y: [0, 70, -45, 35, 0] - scrollY * 0.15,
-          scale: [1, 0.7, 1.3, 0.9, 1],
-          background: isDark
-            ? [
-                'radial-gradient(circle, rgba(139, 92, 246, 0.4) 0%, rgba(16, 185, 129, 0.2) 50%, transparent 100%)',
-                'radial-gradient(circle, rgba(16, 185, 129, 0.4) 0%, rgba(59, 130, 246, 0.2) 50%, transparent 100%)',
-                'radial-gradient(circle, rgba(59, 130, 246, 0.4) 0%, rgba(139, 92, 246, 0.2) 50%, transparent 100%)',
-              ]
-            : [
-                'radial-gradient(circle, rgba(139, 92, 246, 0.45) 0%, rgba(16, 185, 129, 0.25) 50%, transparent 100%)',
-                'radial-gradient(circle, rgba(16, 185, 129, 0.45) 0%, rgba(59, 130, 246, 0.25) 50%, transparent 100%)',
-                'radial-gradient(circle, rgba(59, 130, 246, 0.45) 0%, rgba(139, 92, 246, 0.25) 50%, transparent 100%)',
-              ]
-        }}
-        transition={{
-          x: { duration: 12, repeat: Infinity, ease: "easeInOut", delay: 1 },
-          y: { duration: 9, repeat: Infinity, ease: "easeInOut", delay: 0.5 },
-          scale: { duration: 6, repeat: Infinity, ease: "easeInOut", delay: 2 },
-          background: { duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1 }
-        }}
-        style={{
-          right: '15%',
-          bottom: '15%',
-        }}
-      />
+        {networkNodes.map((node, index) => {
+          const nextNode = networkNodes[(index + 1) % networkNodes.length];
+          const connectionNode = networkNodes[(index + 3) % networkNodes.length];
 
-      {/* Autonomous XSigma Green Orb */}
-      <motion.div
-        className="absolute w-72 h-72 rounded-full blur-3xl"
-        animate={{
-          x: [0, 60, -70, 50, 0],
-          y: [0, -50, 65, -35, 0] + scrollY * 0.25,
-          scale: [1, 1.1, 0.9, 1.2, 1],
-          background: isDark
-            ? [
-                'radial-gradient(circle, rgba(16, 185, 129, 0.35) 0%, rgba(59, 130, 246, 0.15) 50%, transparent 100%)',
-                'radial-gradient(circle, rgba(59, 130, 246, 0.35) 0%, rgba(139, 92, 246, 0.15) 50%, transparent 100%)',
-                'radial-gradient(circle, rgba(139, 92, 246, 0.35) 0%, rgba(16, 185, 129, 0.15) 50%, transparent 100%)',
-              ]
-            : [
-                'radial-gradient(circle, rgba(16, 185, 129, 0.4) 0%, rgba(59, 130, 246, 0.25) 50%, transparent 100%)',
-                'radial-gradient(circle, rgba(59, 130, 246, 0.4) 0%, rgba(139, 92, 246, 0.25) 50%, transparent 100%)',
-                'radial-gradient(circle, rgba(139, 92, 246, 0.4) 0%, rgba(16, 185, 129, 0.25) 50%, transparent 100%)',
-              ]
-        }}
-        transition={{
-          x: { duration: 7, repeat: Infinity, ease: "easeInOut", delay: 2 },
-          y: { duration: 11, repeat: Infinity, ease: "easeInOut", delay: 1.5 },
-          scale: { duration: 4.5, repeat: Infinity, ease: "easeInOut", delay: 3 },
-          background: { duration: 3.5, repeat: Infinity, ease: "easeInOut", delay: 2 }
-        }}
-        style={{
-          left: '60%',
-          top: '60%',
-        }}
-      />
+          return (
+            <g key={`connections-${index}`}>
+              <motion.line
+                x1={`${node.x}%`}
+                y1={`${node.y}%`}
+                x2={`${nextNode.x}%`}
+                y2={`${nextNode.y}%`}
+                stroke="url(#connectionGradient)"
+                strokeWidth="1"
+                initial={{ pathLength: 0, opacity: 0 }}
+                animate={{
+                  pathLength: [0, 1, 0],
+                  opacity: [0, 0.8, 0],
+                  x1: `${node.x + Math.sin(Date.now() * 0.001 + index) * 5}%`,
+                  y1: `${node.y + Math.cos(Date.now() * 0.001 + index) * 3}%`,
+                }}
+                transition={{
+                  duration: 4 + index * 0.5,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                  delay: index * 0.3
+                }}
+              />
 
-      {/* Autonomous XSigma colored particles */}
-      {particles.map((particle) => {
-        const randomStartX = Math.random() * 1200;
-        const randomStartY = Math.random() * 800;
-        const randomEndX = Math.random() * 1200;
-        const randomEndY = Math.random() * 800;
+              <motion.line
+                x1={`${node.x}%`}
+                y1={`${node.y}%`}
+                x2={`${connectionNode.x}%`}
+                y2={`${connectionNode.y}%`}
+                stroke="url(#connectionGradient)"
+                strokeWidth="0.5"
+                initial={{ pathLength: 0, opacity: 0 }}
+                animate={{
+                  pathLength: [0, 1, 0],
+                  opacity: [0, 0.5, 0]
+                }}
+                transition={{
+                  duration: 6 + index * 0.3,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                  delay: index * 0.5
+                }}
+              />
+            </g>
+          );
+        })}
+      </svg>
+
+      {/* Network Nodes */}
+      {networkNodes.map((node, index) => (
+        <motion.div
+          key={`node-${index}`}
+          className="absolute rounded-full"
+          style={{
+            left: `${node.x}%`,
+            top: `${node.y}%`,
+            width: node.size * 3,
+            height: node.size * 3,
+            background: isDark
+              ? `radial-gradient(circle, rgba(59, 130, 246, 0.8) 0%, rgba(6, 182, 212, 0.4) 70%, transparent 100%)`
+              : `radial-gradient(circle, rgba(59, 130, 246, 0.9) 0%, rgba(6, 182, 212, 0.5) 70%, transparent 100%)`
+          }}
+          animate={{
+            x: [0, Math.sin(index * 0.5) * 30, 0],
+            y: [0, Math.cos(index * 0.7) * 20, 0],
+            scale: [1, 1.5, 1],
+            opacity: [0.6, 1, 0.6]
+          }}
+          transition={{
+            duration: 8 + index * 0.5,
+            repeat: Infinity,
+            ease: "easeInOut",
+            delay: index * 0.3
+          }}
+        />
+      ))}
+
+      {/* Flowing Particles */}
+      {flowingParticles.map((particle) => {
+        const startX = Math.random() * 100;
+        const startY = Math.random() * 100;
+        const particleSize = Math.random() * 6 + 3;
+        const flowDirection = particle % 3; // 0: horizontal, 1: vertical, 2: diagonal
 
         return (
           <motion.div
-            key={particle}
-            className={`absolute rounded-full ${particleColors[particle % 3]}`}
+            key={`particle-${particle}`}
+            className="absolute rounded-full blur-sm"
             style={{
-              width: Math.random() * 4 + 2,
-              height: Math.random() * 4 + 2,
+              width: particleSize,
+              height: particleSize,
+              background: isDark
+                ? `radial-gradient(circle, rgba(${particle % 2 === 0 ? '59, 130, 246' : '6, 182, 212'}, 0.7) 0%, transparent 70%)`
+                : `radial-gradient(circle, rgba(${particle % 2 === 0 ? '59, 130, 246' : '6, 182, 212'}, 0.8) 0%, transparent 70%)`
             }}
             initial={{
-              x: randomStartX,
-              y: randomStartY,
+              x: `${startX}%`,
+              y: `${startY}%`,
               opacity: 0,
-              scale: 0,
+              scale: 0
             }}
             animate={{
-              x: [randomStartX, randomEndX, randomStartX + 100, randomEndX - 50, randomStartX],
-              y: [randomStartY, randomEndY, randomStartY - 100, randomEndY + 50, randomStartY],
-              opacity: [0, 1, 0.7, 1, 0],
-              scale: [0, 1, 1.2, 0.8, 0],
-              rotate: [0, 180, 360],
+              x: flowDirection === 0
+                ? [`${startX}%`, `${(startX + 50) % 100}%`, `${startX}%`]
+                : [`${startX}%`, `${(startX + 20) % 100}%`, `${startX}%`],
+              y: flowDirection === 1
+                ? [`${startY}%`, `${(startY + 60) % 100}%`, `${startY}%`]
+                : [`${startY}%`, `${(startY + 30) % 100}%`, `${startY}%`],
+              opacity: [0, 0.8, 0.4, 0.9, 0],
+              scale: [0, 1, 1.3, 0.8, 0],
             }}
             transition={{
-              duration: Math.random() * 8 + 12,
+              duration: 12 + Math.random() * 8,
               repeat: Infinity,
               ease: "easeInOut",
-              delay: Math.random() * 5,
+              delay: Math.random() * 10,
             }}
           />
         );
       })}
 
-      {/* Dynamic wave effects */}
+      {/* Morphing Gradient Blobs */}
       <motion.div
-        className="absolute inset-0 opacity-30"
+        className="absolute w-96 h-96 rounded-full blur-3xl opacity-40"
+        style={{
+          left: '10%',
+          top: '20%',
+        }}
         animate={{
+          x: [0, 100, -50, 80, 0],
+          y: [0, -60, 40, -30, 0],
+          scale: [1, 1.4, 0.8, 1.2, 1],
           background: isDark
             ? [
-                'radial-gradient(ellipse 800px 400px at 50% 0%, rgba(59, 130, 246, 0.1) 0%, transparent 50%)',
-                'radial-gradient(ellipse 600px 300px at 0% 50%, rgba(139, 92, 246, 0.1) 0%, transparent 50%)',
-                'radial-gradient(ellipse 700px 350px at 100% 100%, rgba(16, 185, 129, 0.1) 0%, transparent 50%)',
-                'radial-gradient(ellipse 800px 400px at 50% 0%, rgba(59, 130, 246, 0.1) 0%, transparent 50%)',
+                'radial-gradient(ellipse, rgba(59, 130, 246, 0.4) 0%, rgba(6, 182, 212, 0.2) 50%, transparent 100%)',
+                'radial-gradient(ellipse, rgba(6, 182, 212, 0.4) 0%, rgba(20, 184, 166, 0.2) 50%, transparent 100%)',
+                'radial-gradient(ellipse, rgba(20, 184, 166, 0.4) 0%, rgba(59, 130, 246, 0.2) 50%, transparent 100%)',
               ]
             : [
-                'radial-gradient(ellipse 800px 400px at 50% 0%, rgba(59, 130, 246, 0.15) 0%, transparent 50%)',
-                'radial-gradient(ellipse 600px 300px at 0% 50%, rgba(139, 92, 246, 0.15) 0%, transparent 50%)',
-                'radial-gradient(ellipse 700px 350px at 100% 100%, rgba(16, 185, 129, 0.12) 0%, transparent 50%)',
-                'radial-gradient(ellipse 800px 400px at 50% 0%, rgba(59, 130, 246, 0.15) 0%, transparent 50%)',
+                'radial-gradient(ellipse, rgba(59, 130, 246, 0.5) 0%, rgba(6, 182, 212, 0.3) 50%, transparent 100%)',
+                'radial-gradient(ellipse, rgba(6, 182, 212, 0.5) 0%, rgba(20, 184, 166, 0.3) 50%, transparent 100%)',
+                'radial-gradient(ellipse, rgba(20, 184, 166, 0.5) 0%, rgba(59, 130, 246, 0.3) 50%, transparent 100%)',
               ]
         }}
         transition={{
-          duration: 10,
+          x: { duration: 20, repeat: Infinity, ease: "easeInOut" },
+          y: { duration: 25, repeat: Infinity, ease: "easeInOut" },
+          scale: { duration: 15, repeat: Infinity, ease: "easeInOut" },
+          background: { duration: 10, repeat: Infinity, ease: "easeInOut" }
+        }}
+      />
+
+      <motion.div
+        className="absolute w-80 h-80 rounded-full blur-3xl opacity-30"
+        style={{
+          right: '15%',
+          bottom: '25%',
+        }}
+        animate={{
+          x: [0, -80, 60, -40, 0],
+          y: [0, 70, -45, 35, 0],
+          scale: [1, 0.7, 1.3, 0.9, 1],
+          background: isDark
+            ? [
+                'radial-gradient(ellipse, rgba(20, 184, 166, 0.4) 0%, rgba(59, 130, 246, 0.2) 50%, transparent 100%)',
+                'radial-gradient(ellipse, rgba(59, 130, 246, 0.4) 0%, rgba(6, 182, 212, 0.2) 50%, transparent 100%)',
+                'radial-gradient(ellipse, rgba(6, 182, 212, 0.4) 0%, rgba(20, 184, 166, 0.2) 50%, transparent 100%)',
+              ]
+            : [
+                'radial-gradient(ellipse, rgba(20, 184, 166, 0.5) 0%, rgba(59, 130, 246, 0.3) 50%, transparent 100%)',
+                'radial-gradient(ellipse, rgba(59, 130, 246, 0.5) 0%, rgba(6, 182, 212, 0.3) 50%, transparent 100%)',
+                'radial-gradient(ellipse, rgba(6, 182, 212, 0.5) 0%, rgba(20, 184, 166, 0.3) 50%, transparent 100%)',
+              ]
+        }}
+        transition={{
+          x: { duration: 18, repeat: Infinity, ease: "easeInOut", delay: 5 },
+          y: { duration: 22, repeat: Infinity, ease: "easeInOut", delay: 3 },
+          scale: { duration: 12, repeat: Infinity, ease: "easeInOut", delay: 7 },
+          background: { duration: 8, repeat: Infinity, ease: "easeInOut", delay: 4 }
+        }}
+      />
+
+      {/* Flowing Wave Effect */}
+      <motion.div
+        className="absolute inset-0 opacity-20"
+        style={{
+          background: `linear-gradient(90deg, transparent 0%, ${isDark ? 'rgba(59, 130, 246, 0.1)' : 'rgba(59, 130, 246, 0.15)'} 50%, transparent 100%)`,
+        }}
+        animate={{
+          x: ['-100%', '100%'],
+        }}
+        transition={{
+          duration: 8,
+          repeat: Infinity,
+          ease: "linear"
+        }}
+      />
+
+      <motion.div
+        className="absolute inset-0 opacity-15"
+        style={{
+          background: `linear-gradient(45deg, transparent 0%, ${isDark ? 'rgba(6, 182, 212, 0.08)' : 'rgba(6, 182, 212, 0.12)'} 50%, transparent 100%)`,
+        }}
+        animate={{
+          x: ['100%', '-100%'],
+          y: ['-50%', '50%'],
+        }}
+        transition={{
+          duration: 12,
+          repeat: Infinity,
+          ease: "linear",
+          delay: 2
+        }}
+      />
+
+      {/* Pulse Effect */}
+      <motion.div
+        className="absolute inset-0 opacity-10"
+        animate={{
+          background: isDark
+            ? [
+                'radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.1) 0%, transparent 30%)',
+                'radial-gradient(circle at 50% 50%, rgba(6, 182, 212, 0.1) 0%, transparent 50%)',
+                'radial-gradient(circle at 50% 50%, rgba(20, 184, 166, 0.1) 0%, transparent 70%)',
+                'radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.1) 0%, transparent 30%)',
+              ]
+            : [
+                'radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.15) 0%, transparent 30%)',
+                'radial-gradient(circle at 50% 50%, rgba(6, 182, 212, 0.15) 0%, transparent 50%)',
+                'radial-gradient(circle at 50% 50%, rgba(20, 184, 166, 0.15) 0%, transparent 70%)',
+                'radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.15) 0%, transparent 30%)',
+              ]
+        }}
+        transition={{
+          duration: 6,
           repeat: Infinity,
           ease: "easeInOut"
         }}
