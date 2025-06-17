@@ -3,6 +3,7 @@ import { Menu } from "lucide-react";
 import { Button } from "./ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
 import { useTheme } from "@/contexts/ThemeContext";
+import { motion } from "framer-motion";
 
 const Navigation = () => {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -58,19 +59,28 @@ const Navigation = () => {
     >
       <div className="mx-auto h-full px-6">
         <nav className="flex items-center justify-between h-full">
-          <div className="flex items-center gap-2">
-            <img
+          <motion.div
+            className="flex items-center gap-2 cursor-pointer"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+          >
+            <motion.img
               src="/X_logo.ico"
               alt="XSigma Logo"
               className="w-6 h-6 drop-shadow-lg"
+              whileHover={{ rotate: 5 }}
+              transition={{ duration: 0.3, ease: "easeOut" }}
             />
-            <span className={`font-bold text-base ${theme.text}`}>XsigmaSolution</span>
-          </div>
+            <span className={`font-bold text-base ${theme.text} transition-colors duration-300 hover:text-primary`}>
+              XsigmaSolution
+            </span>
+          </motion.div>
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-6">
             {navItems.map((item) => (
-              <a
+              <motion.a
                 key={item.name}
                 href={item.href}
                 onClick={(e) => {
@@ -79,18 +89,49 @@ const Navigation = () => {
                     item.onClick();
                   }
                 }}
-                className={`text-sm ${theme.textMuted} hover:text-primary transition-all duration-300`}
+                className={`text-sm ${theme.textMuted} transition-all duration-300 relative group cursor-pointer`}
+                whileHover={{ scale: 1.05, y: -1 }}
+                whileTap={{ scale: 0.95 }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
               >
-                {item.name}
-              </a>
+                <span className="relative z-10 group-hover:text-primary transition-colors duration-300">
+                  {item.name}
+                </span>
+                {/* Lovable-style hover background */}
+                <motion.div
+                  className={`absolute inset-0 ${isDark ? 'bg-blue-500/10' : 'bg-blue-500/5'} rounded-lg -mx-3 -my-1`}
+                  initial={{ scale: 0, opacity: 0 }}
+                  whileHover={{ scale: 1, opacity: 1 }}
+                  transition={{ duration: 0.2, ease: "easeOut" }}
+                />
+                {/* Subtle underline effect */}
+                <motion.div
+                  className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full"
+                  initial={{ scaleX: 0 }}
+                  whileHover={{ scaleX: 1 }}
+                  transition={{ duration: 0.3, ease: "easeOut" }}
+                />
+              </motion.a>
             ))}
-            <Button
-              onClick={() => scrollToSection('cta')}
-              size="sm"
-              className="button-gradient"
+            <motion.div
+              whileHover={{ scale: 1.05, y: -2 }}
+              whileTap={{ scale: 0.95 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
             >
-              Start Implementation
-            </Button>
+              <Button
+                onClick={() => scrollToSection('cta')}
+                size="sm"
+                className="button-gradient relative overflow-hidden group"
+              >
+                <span className="relative z-10">Start Implementation</span>
+                <motion.div
+                  className="absolute inset-0 bg-white/10 rounded"
+                  initial={{ scale: 0, opacity: 0 }}
+                  whileHover={{ scale: 1, opacity: 1 }}
+                  transition={{ duration: 0.3 }}
+                />
+              </Button>
+            </motion.div>
           </div>
 
           {/* Mobile Navigation */}

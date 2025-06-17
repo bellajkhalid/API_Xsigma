@@ -1,4 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@100;200;300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
 @import url('https://fonts.geist-ui.dev/font.css');
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;500;600;700&display=swap');
@@ -122,6 +124,114 @@
   }
 }
 
+/* Enhanced Title Styles */
+.title-main {
+  font-family: 'Space Grotesk', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  line-height: 0.9;
+}
+
+.title-gradient {
+  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #10b981 100%);
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: gradientShift 8s ease-in-out infinite;
+}
+
+.title-secondary {
+  font-family: 'Poppins', 'Inter', sans-serif;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+@keyframes gradientShift {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+/* Enhanced text effects */
+.text-glow {
+  text-shadow:
+    0 0 10px rgba(59, 130, 246, 0.3),
+    0 0 20px rgba(139, 92, 246, 0.2),
+    0 0 30px rgba(16, 185, 129, 0.1);
+}
+
+.text-glow-subtle {
+  text-shadow:
+    0 0 5px rgba(59, 130, 246, 0.2),
+    0 0 10px rgba(139, 92, 246, 0.1);
+}
+
+/* Enhanced title shine effect */
+.title-shine-effect {
+  position: relative;
+  overflow: hidden;
+}
+
+.title-shine-effect::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.3),
+    transparent
+  );
+  animation: titleShine 4s ease-in-out infinite;
+  z-index: 1;
+  pointer-events: none;
+}
+
+@keyframes titleShine {
+  0% {
+    left: -100%;
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    left: 100%;
+    opacity: 0;
+  }
+}
+
+/* Respect user's motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .feature-card-hover:hover,
+  .pricing-card-hover:hover,
+  .button-gradient:hover,
+  .button-secondary:hover {
+    transform: none !important;
+  }
+
+  .title-gradient {
+    animation: none !important;
+    background-position: 0% 50% !important;
+  }
+}
+
 .glass {
   @apply bg-white/5 backdrop-blur-lg;
   border: 1px solid transparent;
@@ -191,9 +301,9 @@
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
 }
 
-/* Feature Card Animations */
+/* Optimized Feature Card Animations */
 .feature-card-hover {
-  transition: all 0.4s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   overflow: hidden;
 }
@@ -207,7 +317,7 @@
   height: 100%;
   background: linear-gradient(45deg, transparent, rgba(0, 255, 136, 0.05), transparent);
   transform: translateX(-100%);
-  transition: transform 0.6s ease;
+  transition: transform 0.5s ease;
 }
 
 .feature-card-hover:hover::before {
@@ -215,13 +325,13 @@
 }
 
 .feature-card-hover:hover {
-  transform: translateY(-10px);
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+  transform: translateY(-8px);
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.25);
 }
 
-/* Pricing Card Animations */
+/* Optimized Pricing Card Animations */
 .pricing-card-hover {
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   overflow: hidden;
 }
@@ -233,33 +343,28 @@
   left: -50%;
   width: 200%;
   height: 200%;
-  background: conic-gradient(transparent, rgba(0, 255, 136, 0.1), transparent 30%);
-  animation: rotate 4s linear infinite;
+  background: conic-gradient(transparent, rgba(0, 255, 136, 0.08), transparent 30%);
+  animation: rotate 6s linear infinite;
   z-index: -1;
 }
 
-@keyframes rotate {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
 .pricing-card-hover:hover {
-  transform: scale(1.05);
-  box-shadow: 0 15px 40px rgba(0, 255, 136, 0.2);
+  transform: scale(1.03);
+  box-shadow: 0 12px 30px rgba(0, 255, 136, 0.15);
 }
 
-/* Secondary Button Animation */
+/* Optimized Secondary Button Animation */
 .button-secondary {
   background: transparent;
   border: 2px solid rgba(255, 255, 255, 0.12);
-  transition: all 0.4s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   backdrop-filter: blur(10px);
 }
 
 .button-secondary:hover {
   border-color: #00ff88;
-  background: rgba(0, 255, 136, 0.1);
-  transform: translateY(-3px);
+  background: rgba(0, 255, 136, 0.08);
+  transform: translateY(-2px);
 }
 
 /* Title Shine Animation */
@@ -294,9 +399,9 @@
   }
 }
 
-/* Floating Animation for Logo */
+/* Optimized Floating Animation for Logo */
 .logo-float {
-  animation: logoFloat 6s ease-in-out infinite;
+  animation: logoFloat 8s ease-in-out infinite;
 }
 
 @keyframes logoFloat {
@@ -304,21 +409,21 @@
     transform: translateY(0px);
   }
   50% {
-    transform: translateY(-10px);
+    transform: translateY(-8px);
   }
 }
 
-/* Pulse Glow Effect */
+/* Optimized Pulse Glow Effect */
 .pulse-glow {
-  animation: pulseGlow 2s ease-in-out infinite alternate;
+  animation: pulseGlow 3s ease-in-out infinite alternate;
 }
 
 @keyframes pulseGlow {
   from {
-    text-shadow: 0 0 20px rgba(0, 255, 136, 0.5);
+    text-shadow: 0 0 15px rgba(0, 255, 136, 0.4);
   }
   to {
-    text-shadow: 0 0 30px rgba(0, 255, 136, 0.8), 0 0 40px rgba(0, 255, 136, 0.3);
+    text-shadow: 0 0 25px rgba(0, 255, 136, 0.6), 0 0 35px rgba(0, 255, 136, 0.2);
   }
 }
 
