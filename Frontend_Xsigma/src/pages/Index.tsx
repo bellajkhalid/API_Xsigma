@@ -6,7 +6,7 @@ import ThemeToggle from "@/components/ThemeToggle";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useEffect, useState } from "react";
 
-// Dynamic AI Chat Component
+// Dynamic AI Chat Component (without blue button)
 const DynamicAIChat = () => {
   const { isDark } = useTheme();
   const [currentPhrase, setCurrentPhrase] = useState(0);
@@ -88,20 +88,7 @@ const DynamicAIChat = () => {
     >
       <div className="p-6">
         <div className="flex items-start space-x-4">
-          <motion.div
-            animate={{
-              scale: [1, 1.1, 1],
-              rotate: [0, 5, -5, 0]
-            }}
-            transition={{
-              duration: 2,
-              repeat: Infinity,
-              ease: "easeInOut"
-            }}
-            className={`flex-shrink-0 w-10 h-10 rounded-full ${isDark ? 'bg-gradient-to-r from-blue-500 to-purple-500' : 'bg-gradient-to-r from-blue-600 to-purple-600'} flex items-center justify-center`}
-          >
-            <MessageCircle className="w-5 h-5 text-white" />
-          </motion.div>
+          {/* Removed the blue MessageCircle icon */}
 
           <div className="flex-1 min-h-[60px]">
             <div className={`text-lg ${isDark ? 'text-gray-200' : 'text-gray-700'} leading-relaxed`}>
@@ -135,6 +122,7 @@ const DynamicAIChat = () => {
           </motion.div>
         </div>
 
+        {/* Start Conversation Button */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}

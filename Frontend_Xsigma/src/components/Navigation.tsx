@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Menu } from "lucide-react";
+import { Menu, ChevronDown } from "lucide-react";
 import { Button } from "./ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -8,6 +8,9 @@ import { motion } from "framer-motion";
 const Navigation = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const { getThemeClasses, isDark } = useTheme();
   const theme = getThemeClasses();
 
@@ -36,18 +39,92 @@ const Navigation = () => {
     }
   };
 
+  // Search functionality
+  const searchSections = {
+    'browse solutions': 'solutions',
+    'solutions': 'solutions',
+    'features': 'features',
+    'pricing': 'pricing',
+    'about': 'about',
+    'contact': 'contact',
+    'hero': 'hero',
+    'cta': 'cta',
+    'testimonials': 'testimonials',
+    'blog': 'blog',
+    'download': 'download',
+    'docs': 'docs',
+    'documentation': 'docs'
+  };
+
+  const handleSearch = (query: string) => {
+    const lowerQuery = query.toLowerCase().trim();
+    const sectionId = searchSections[lowerQuery as keyof typeof searchSections];
+
+    if (sectionId) {
+      scrollToSection(sectionId);
+      setIsSearchOpen(false);
+      setSearchQuery("");
+    } else {
+      // If no exact match, try partial matches
+      const partialMatch = Object.keys(searchSections).find(key =>
+        key.includes(lowerQuery) || lowerQuery.includes(key)
+      );
+
+      if (partialMatch) {
+        const sectionId = searchSections[partialMatch as keyof typeof searchSections];
+        scrollToSection(sectionId);
+        setIsSearchOpen(false);
+        setSearchQuery("");
+      }
+    }
+  };
+
   const navItems = [
-    { name: "Features", href: "#features", onClick: () => scrollToSection('features') },
-    { name: "Prices", href: "#pricing", onClick: () => scrollToSection('pricing') },
-    { name: "Documentation", href: "/sphinx-doc/xsigma-1.1-3/index.html", onClick: () => window.open('/sphinx-doc/xsigma-1.1-3/index.html', '_blank') },
+    {
+      name: "Solutions",
+      href: "#",
+      onClick: () => {},
+      hasDropdown: true,
+      dropdownSections: [
+        {
+          title: "Data",
+          description: "Discover, organize, manage, and analyze data on the cloud.",
+          items: [
+            { name: "Curated Data", icon: "📊", href: "#data" },
+            { name: "Data Analytics", icon: "📈", href: "#analytics" }
+          ]
+        },
+        {
+          title: "Analytics",
+          description: "Rapidly create custom data and risk analytics solutions spanning global markets.",
+          items: [
+            { name: "PlotTool Pro", icon: "📊", href: "#plottool" },
+            { name: "Portfolio Analytics", icon: "💼", href: "#portfolio" },
+            { name: "GS Quant", icon: "🔬", href: "#quant" }
+          ]
+        },
+        {
+          title: "Banking",
+          description: "Embed business and digital financial products within your own experience.",
+          items: [
+            { name: "Transaction Banking", icon: "🏦", href: "#banking" },
+            { name: "GS DAP®", icon: "💳", href: "#dap" }
+          ]
+        }
+      ]
+    },
+    { name: "Download", href: "https://pypi.org/project/xsigma/", onClick: () => window.open('https://pypi.org/project/xsigma/', '_blank') },
+    { name: "Docs", href: "/sphinx-doc/xsigma-1.1-3/index.html", onClick: () => window.open('/sphinx-doc/xsigma-1.1-3/index.html', '_blank') },
+    { name: "Blog", href: "#blog", onClick: () => scrollToSection('blog') },
+    { name: "Account", href: "#account", onClick: () => scrollToSection('account') },
   ];
 
   return (
     <header
       className={`fixed top-3.5 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 rounded-full ${
         isScrolled
-          ? `h-14 ${theme.navBg} backdrop-blur-xl border ${theme.borderColor} scale-95 w-[90%] max-w-2xl`
-          : `h-14 ${theme.navBg} w-[95%] max-w-3xl`
+          ? `h-14 ${isDark ? 'bg-black border-gray-700' : theme.navBg} backdrop-blur-xl border ${theme.borderColor} scale-95 w-[90%] max-w-2xl`
+          : `h-14 ${isDark ? 'bg-black' : theme.navBg} w-[95%] max-w-3xl`
       }`}
     >
       <div className="mx-auto h-full px-6">
@@ -65,7 +142,7 @@ const Navigation = () => {
               whileHover={{ rotate: 5 }}
               transition={{ duration: 0.3, ease: "easeOut" }}
             />
-            <span className={`font-bold text-base ${theme.text} transition-colors duration-300 hover:text-primary`}>
+            <span className={`font-bold text-base ${isDark ? 'text-white' : 'text-black'} transition-colors duration-300 hover:text-primary`}>
               XsigmaSolution
             </span>
           </motion.div>
@@ -73,38 +150,90 @@ const Navigation = () => {
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-6">
             {navItems.map((item) => (
-              <motion.a
-                key={item.name}
-                href={item.href}
-                onClick={(e) => {
-                  e.preventDefault();
-                  if (item.onClick) {
-                    item.onClick();
-                  }
-                }}
-                className={`text-sm ${theme.textMuted} transition-all duration-300 relative group cursor-pointer`}
-                whileHover={{ scale: 1.05, y: -1 }}
-                whileTap={{ scale: 0.95 }}
-                transition={{ duration: 0.2, ease: "easeOut" }}
-              >
-                <span className="relative z-10 group-hover:text-primary transition-colors duration-300">
-                  {item.name}
-                </span>
-                {/* Lovable-style hover background */}
-                <motion.div
-                  className={`absolute inset-0 ${isDark ? 'bg-blue-500/10' : 'bg-blue-500/5'} rounded-lg -mx-3 -my-1`}
-                  initial={{ scale: 0, opacity: 0 }}
-                  whileHover={{ scale: 1, opacity: 1 }}
-                  transition={{ duration: 0.2, ease: "easeOut" }}
-                />
-                {/* Subtle underline effect */}
-                <motion.div
-                  className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full"
-                  initial={{ scaleX: 0 }}
-                  whileHover={{ scaleX: 1 }}
-                  transition={{ duration: 0.3, ease: "easeOut" }}
-                />
-              </motion.a>
+              <div key={item.name} className="relative">
+                {item.hasDropdown ? (
+                  <div
+                    className="relative"
+                    onMouseEnter={() => setActiveDropdown(item.name)}
+                    onMouseLeave={() => setActiveDropdown(null)}
+                  >
+                    <motion.button
+                      className={`text-sm ${isDark ? 'text-white hover:text-blue-400' : 'text-black hover:text-blue-600'} transition-all duration-300 relative group cursor-pointer flex items-center gap-1`}
+                      whileHover={{ scale: 1.05, y: -1 }}
+                      whileTap={{ scale: 0.95 }}
+                      transition={{ duration: 0.2, ease: "easeOut" }}
+                    >
+                      <span className="relative z-10 transition-colors duration-300">
+                        {item.name}
+                      </span>
+                      <ChevronDown className="w-3 h-3 transition-transform duration-200" />
+
+                    </motion.button>
+
+                    {/* Goldman Sachs Style Dropdown */}
+                    {activeDropdown === item.name && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 10 }}
+                        transition={{ duration: 0.2 }}
+                        className={`absolute top-full mt-2 w-screen max-w-4xl ${isDark ? 'bg-gray-900' : 'bg-white'} border ${isDark ? 'border-gray-700' : 'border-gray-200'} shadow-2xl rounded-lg overflow-hidden z-50`}
+                        style={{
+                          left: '50%',
+                          transform: 'translateX(-50%)',
+                          marginLeft: '-50vw',
+                          width: '100vw',
+                          maxWidth: '1024px'
+                        }}
+                      >
+                        <div className="p-6">
+                          <div className="flex justify-between items-center mb-6">
+                            <span className={`text-sm ${theme.textMuted}`}>View Solutions</span>
+                          </div>
+                          <div className="grid grid-cols-3 gap-8">
+                            {item.dropdownSections?.map((section) => (
+                              <div key={section.title} className="space-y-4">
+                                <div>
+                                  <h3 className={`text-lg font-semibold ${theme.text} mb-2`}>{section.title}</h3>
+                                  <p className={`text-sm ${theme.textMuted} mb-4`}>{section.description}</p>
+                                </div>
+                                <div className="space-y-3">
+                                  <div className={`text-xs font-medium ${theme.textMuted} uppercase tracking-wider`}>FEATURED</div>
+                                  {section.items.map((subItem) => (
+                                    <div key={subItem.name} className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer">
+                                      <span className="text-lg">{subItem.icon}</span>
+                                      <span className={`text-sm font-medium ${theme.text}`}>{subItem.name}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                  </div>
+                ) : (
+                  <motion.a
+                    href={item.href}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (item.onClick) {
+                        item.onClick();
+                      }
+                    }}
+                    className={`text-sm ${isDark ? 'text-white hover:text-blue-400' : 'text-black hover:text-blue-600'} transition-all duration-300 relative group cursor-pointer`}
+                    whileHover={{ scale: 1.05, y: -1 }}
+                    whileTap={{ scale: 0.95 }}
+                    transition={{ duration: 0.2, ease: "easeOut" }}
+                  >
+                    <span className="relative z-10 transition-colors duration-300">
+                      {item.name}
+                    </span>
+
+                  </motion.a>
+                )}
+              </div>
             ))}
             <motion.div
               whileHover={{ scale: 1.05, y: -2 }}
@@ -113,19 +242,13 @@ const Navigation = () => {
             >
               <Button
                 onClick={() => {
-                  // Open PyPI link in new tab
-                  window.open('https://pypi.org/project/xsigma/', '_blank');
+                  setIsSearchOpen(!isSearchOpen);
                 }}
                 size="sm"
-                className="button-gradient relative overflow-hidden group"
+                variant="outline"
+                className={`${isDark ? 'border-white text-white hover:bg-white hover:text-black' : 'border-black text-black hover:bg-black hover:text-white'} transition-all duration-300 relative overflow-hidden group`}
               >
-                <span className="relative z-10">Download</span>
-                <motion.div
-                  className="absolute inset-0 bg-white/10 rounded"
-                  initial={{ scale: 0, opacity: 0 }}
-                  whileHover={{ scale: 1, opacity: 1 }}
-                  transition={{ duration: 0.3 }}
-                />
+                <span className="relative z-10">🔍</span>
               </Button>
             </motion.div>
           </div>
@@ -159,11 +282,11 @@ const Navigation = () => {
                   <Button
                     onClick={() => {
                       setIsMobileMenuOpen(false);
-                      scrollToSection('cta');
+                      window.open('/sphinx-doc/xsigma-1.1-3/index.html', '_blank');
                     }}
                     className="button-gradient mt-4"
                   >
-                    Start Trading
+                    Get Started
                   </Button>
                 </div>
               </SheetContent>
@@ -171,6 +294,55 @@ const Navigation = () => {
           </div>
         </nav>
       </div>
+
+      {/* Search Bar */}
+      {isSearchOpen && (
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -20 }}
+          transition={{ duration: 0.2 }}
+          className={`absolute top-full left-0 right-0 mt-2 ${isDark ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'} border rounded-lg shadow-lg p-4`}
+        >
+          <div className="flex items-center gap-3">
+            <span className="text-lg">🔍</span>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyPress={(e) => {
+                if (e.key === 'Enter') {
+                  handleSearch(searchQuery);
+                }
+              }}
+              placeholder="Search sections (e.g., 'Browse Solutions', 'Features', 'Pricing'...)"
+              className={`flex-1 px-3 py-2 rounded-md border ${isDark ? 'bg-gray-800 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-black placeholder-gray-500'} focus:outline-none focus:ring-2 focus:ring-blue-500`}
+              autoFocus
+            />
+            <Button
+              onClick={() => handleSearch(searchQuery)}
+              size="sm"
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              Search
+            </Button>
+            <Button
+              onClick={() => {
+                setIsSearchOpen(false);
+                setSearchQuery("");
+              }}
+              size="sm"
+              variant="outline"
+              className={`${isDark ? 'border-gray-600 text-gray-400 hover:bg-gray-800' : 'border-gray-300 text-gray-600 hover:bg-gray-100'}`}
+            >
+              ✕
+            </Button>
+          </div>
+          <div className={`mt-3 text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+            Try searching: "Browse Solutions", "Features", "Pricing", "About", "Contact", "Blog", "Docs"
+          </div>
+        </motion.div>
+      )}
     </header>
   );
 };
