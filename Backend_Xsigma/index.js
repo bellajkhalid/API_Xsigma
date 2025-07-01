@@ -67,10 +67,13 @@ app.use(compression());
 // CORS
 app.use(cors({
   origin: process.env.ALLOWED_ORIGINS?.split(',') || [
-    'http://localhost:3000', 
-    'http://localhost:5004', 
-    'http://localhost:8080', 
-    'http://localhost:8081'
+    'http://localhost:3000',
+    'http://localhost:5004',
+    'http://localhost:8080',
+    'http://localhost:8081',
+    'http://51.168.1.106:8080',
+    'http://51.83.47.117',
+    'http://51.83.47.117:80'
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
