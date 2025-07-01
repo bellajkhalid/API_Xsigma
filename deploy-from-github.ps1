@@ -176,7 +176,7 @@ Write-Host "This will take several minutes..." -ForegroundColor Blue
 Write-Host "Password: gTevgjCjJEhp" -ForegroundColor Red
 
 # Connect to server and run the deployment script
-ssh ${SERVER_USER}@${SERVER_HOST} "chmod +x /home/debian/temp-deploy-github.sh && /home/debian/temp-deploy-github.sh"
+ssh ${SERVER_USER}@${SERVER_HOST} "chmod +x /home/debian/temp-deploy-github.sh; /home/debian/temp-deploy-github.sh"
 
 Write-Host ""
 Write-Host "🎉 GitHub deployment completed!" -ForegroundColor Green
@@ -197,11 +197,11 @@ Write-Host "🔄 To update from GitHub in the future:" -ForegroundColor Cyan
 Write-Host "  ssh ${SERVER_USER}@${SERVER_HOST}" -ForegroundColor White
 Write-Host "  cd /home/debian/api-xsigma" -ForegroundColor White
 Write-Host "  git pull" -ForegroundColor White
-Write-Host "  cd Frontend_Xsigma && npm run build" -ForegroundColor White
+Write-Host "  cd Frontend_Xsigma; npm run build" -ForegroundColor White
 Write-Host "  pm2 restart api-xsigma-backend" -ForegroundColor White
 
 # Cleanup
 Remove-Item "temp-deploy-github.sh" -ErrorAction SilentlyContinue
 
 Write-Host ""
-Write-Host "✅ GitHub deployment script completed!" -ForegroundColor Green
+Write-Host "GitHub deployment script completed!" -ForegroundColor Green
