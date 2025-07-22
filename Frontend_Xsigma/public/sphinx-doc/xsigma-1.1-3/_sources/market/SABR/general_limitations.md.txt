@@ -1,0 +1,283 @@
+# General Limitations
+
+## Model Assumptions
+
+The GSABR Interest Rate Volatility Model operates under several key assumptions that users must understand to properly apply the model and interpret its results:
+
+### **Fundamental Market Assumptions**
+
+1. **No Arbitrage Opportunities**: The market is assumed to be free of arbitrage opportunities. This assumption is fundamental to the derivation of the risk-neutral pricing framework.
+
+2. **Frictionless Trading**: Trading is assumed to occur without transaction costs, bid-ask spreads, or other market frictions that could affect pricing.
+
+3. **Continuous Trading**: The model assumes that trading can occur continuously, which may not reflect actual market conditions, especially during periods of market stress.
+
+4. **Perfect Liquidity**: The model assumes that all instruments can be traded at their theoretical fair value without market impact.
+
+### **Model-Specific Assumptions**
+
+1. **Single Forward Rate Dynamics**: Each GSABR model instance describes the dynamics of a single forward rate (LIBOR or swap rate) independently of others.
+
+2. **Stochastic Volatility Framework**: The model assumes that volatility follows a specific stochastic process with correlation to the underlying forward rate.
+
+3. **Local Volatility Parametrization**: The GSABR Beta Mixture model uses a specific parametric form for the local volatility function, which may not capture all possible market behaviors.
+
+4. **Short-Time Expansion Validity**: The model relies on short-time expansion approximations, which may become less accurate for very long-dated options.
+
+---
+
+## Model Limitations
+
+### **1. Limited Control Over CMS Prices**
+
+**Description**: The accuracy of Constant Maturity Swap (CMS) prices depends heavily on the goodness of fit of the additional parameters in the local volatility function.
+
+**Impact**: 
+- CMS pricing may be less accurate than vanilla swaption pricing
+- Structured products with CMS components may exhibit pricing inconsistencies
+- Hedging strategies involving CMS instruments may be suboptimal
+
+**Mitigation Strategies**:
+- Enhanced calibration procedures specifically for CMS instruments
+- Regular validation against CMS market prices
+- Use of CMS-specific adjustments and corrections
+
+### **2. Independent Dynamics Across Expiries**
+
+**Description**: Each expiry/tenor combination is modeled independently, lacking a consistent term structure across forward rates.
+
+**Impact**:
+- Potential arbitrage opportunities between different expiries
+- Inconsistent forward rate evolution assumptions
+- Difficulties in pricing path-dependent instruments
+
+**Mitigation Strategies**:
+- Cross-expiry consistency checks during calibration
+- Term structure smoothing techniques
+- Regular monitoring of inter-expiry relationships
+
+### **3. Parameter Stability Issues**
+
+**Description**: Model parameters may become unstable under extreme market conditions or when fitting to poor-quality market data.
+
+**Impact**:
+- Unreliable pricing during market stress
+- Difficulty in risk management during volatile periods
+- Potential for large parameter jumps between calibration cycles
+
+**Mitigation Strategies**:
+- Parameter bounds and constraints during calibration
+- Regularization techniques to promote parameter stability
+- Stress testing and scenario analysis
+
+### **4. Extrapolation Limitations**
+
+**Description**: The model's behavior outside the calibrated strike and expiry ranges may be unreliable.
+
+**Impact**:
+- Inaccurate pricing for deep out-of-the-money options
+- Unreliable risk calculations for extreme scenarios
+- Potential for non-economic behavior in tail regions
+
+**Mitigation Strategies**:
+- Conservative extrapolation methods
+- Regular validation against available market data
+- Use of alternative models for extreme strikes
+
+---
+
+## **Numerical and Computational Limitations**
+
+### **1. PDE Discretization Errors**
+
+**Description**: ZABR models using PDE methods are subject to discretization errors from finite difference schemes.
+
+**Impact**:
+- Pricing accuracy depends on grid size and time step selection
+- Computational cost increases with desired accuracy
+- Potential for numerical instabilities
+
+**Mitigation Strategies**:
+- Grid convergence testing
+- Adaptive grid refinement
+- Alternative numerical methods (e.g., Monte Carlo)
+
+### **2. Calibration Convergence Issues**
+
+**Description**: Optimization algorithms may fail to converge or converge to local minima.
+
+**Impact**:
+- Suboptimal parameter estimates
+- Inconsistent calibration results
+- Increased computational time
+
+**Mitigation Strategies**:
+- Multiple starting points for optimization
+- Robust optimization algorithms
+- Parameter initialization heuristics
+
+### **3. Computational Performance**
+
+**Description**: Complex models require significant computational resources, especially for real-time applications.
+
+**Impact**:
+- Slower pricing and risk calculation
+- Scalability issues for large portfolios
+- Higher infrastructure costs
+
+**Mitigation Strategies**:
+- Model approximations for real-time use
+- Parallel computing implementations
+- Caching and pre-computation strategies
+
+---
+
+## **Market Data and Calibration Limitations**
+
+### **1. Market Data Quality**
+
+**Description**: The model's accuracy is fundamentally limited by the quality and availability of market data.
+
+**Impact**:
+- Poor calibration results with noisy or sparse data
+- Inconsistent pricing across related instruments
+- Difficulty in validating model performance
+
+**Mitigation Strategies**:
+- Data quality checks and filtering
+- Interpolation and smoothing techniques
+- Multiple data source validation
+
+### **2. Calibration Instrument Selection**
+
+**Description**: The choice of instruments used for calibration significantly affects model performance.
+
+**Impact**:
+- Bias toward specific market segments
+- Poor performance for non-calibrated instruments
+- Overfitting to calibration data
+
+**Mitigation Strategies**:
+- Diverse calibration instrument sets
+- Out-of-sample validation
+- Regular calibration review and updates
+
+### **3. Market Regime Changes**
+
+**Description**: The model may not adapt quickly to fundamental changes in market structure or behavior.
+
+**Impact**:
+- Degraded performance during market transitions
+- Outdated parameter relationships
+- Increased model risk
+
+**Mitigation Strategies**:
+- Regular model validation and updates
+- Regime detection algorithms
+- Alternative model specifications
+
+---
+
+## **Risk Management Limitations**
+
+### **1. Model Risk**
+
+**Description**: Inherent uncertainty in model specification and parameter estimation creates model risk.
+
+**Impact**:
+- Potential for systematic pricing errors
+- Inadequate risk measurement
+- Regulatory and compliance issues
+
+**Mitigation Strategies**:
+- Model validation and backtesting
+- Alternative model comparisons
+- Regular model review and updates
+
+### **2. Hedging Effectiveness**
+
+**Description**: Model-derived hedge ratios may not provide perfect hedging due to model limitations.
+
+**Impact**:
+- Residual risk in hedged portfolios
+- Basis risk between model and market
+- Potential for hedge slippage
+
+**Mitigation Strategies**:
+- Dynamic hedging strategies
+- Multiple model validation
+- Regular hedge effectiveness testing
+
+### **3. Stress Testing Limitations**
+
+**Description**: The model may not accurately capture extreme market scenarios or tail risks.
+
+**Impact**:
+- Underestimation of potential losses
+- Inadequate capital allocation
+- Regulatory compliance issues
+
+**Mitigation Strategies**:
+- Scenario-based stress testing
+- Historical simulation methods
+- Alternative risk measures
+
+---
+
+## **Regulatory and Compliance Considerations**
+
+### **1. Model Validation Requirements**
+
+**Description**: Regulatory requirements for model validation may impose constraints on model usage.
+
+**Impact**:
+- Additional validation and documentation requirements
+- Potential restrictions on model applications
+- Increased compliance costs
+
+**Mitigation Strategies**:
+- Comprehensive validation frameworks
+- Regular regulatory updates
+- Proactive compliance management
+
+### **2. Capital Requirements**
+
+**Description**: Model limitations may affect regulatory capital calculations and requirements.
+
+**Impact**:
+- Higher capital requirements due to model uncertainty
+- Potential for regulatory add-ons
+- Impact on business profitability
+
+**Mitigation Strategies**:
+- Model improvement initiatives
+- Alternative model development
+- Active regulatory engagement
+
+---
+
+## **Usage Guidelines and Best Practices**
+
+### **1. Appropriate Use Cases**
+
+- Use for vanilla swaptions and caplets within calibrated ranges
+- Apply to structured products with careful validation
+- Employ for risk management with appropriate limitations
+
+### **2. Validation Requirements**
+
+- Regular backtesting against market prices
+- Cross-model validation and comparison
+- Stress testing under extreme scenarios
+
+### **3. Monitoring and Maintenance**
+
+- Daily calibration quality monitoring
+- Parameter stability tracking
+- Performance degradation detection
+
+### **4. Documentation and Governance**
+
+- Comprehensive model documentation
+- Clear limitation disclosure
+- Regular model review and approval processes

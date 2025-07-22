@@ -1,0 +1,696 @@
+# Product and Portfolio
+
+## Overview
+
+This section describes the FX products supported by the **FX LSV Markov Switching PDE** model and portfolio management capabilities, including payoff structures, PDE pricing mechanisms and risk aggregation.
+
+## FX Products Supported
+
+### Vanilla FX Options
+
+#### European FX Options
+European options constitute the validation basis for the model:
+
+```cpp
+// Our project implementation for vanilla FX options via PDE
+namespace xsigma::fx_products {
+    
+    class FXVanillaOptionPDE {
+    public:
+        struct VanillaOptionSpec {
+            std::string option_type;        // "CALL" or "PUT"
+            double strike;                  // Option strike
+            double maturity;                // Maturity in years
+            double notional;                // Notional
+            std::string currency_pair;      // Currency pair (ex: "EURUSD")
+            std::string settlement_currency; // Settlement currency
+            bool is_digital;                // Digital option
+            double digital_payout;          // Digital payout if applicable
+        };
+        
+        // Pricing via PDE with appropriate boundary conditions
+        double price_vanilla_option_pde(
+            const VanillaOptionSpec& option,
+            const FXLSVMSPDEParameters& model_params) {
+
+            // Build PDE system for vanilla option
+            auto pde_system = build_vanilla_pde_system(option, model_params);
+
+            // Boundary conditions for vanilla option
+            auto boundary_conditions = setup_vanilla_boundary_conditions(option);
+
+            // Terminal condition (payoff at maturity)
+            auto terminal_condition = setup_vanilla_terminal_condition(option);
+
+            // Backward resolution of PDE system
+            auto solution = solve_backward_pde(pde_system, boundary_conditions, terminal_condition);
+
+            // Extract price at current spot
+            return extract_price_at_spot(solution, model_params.spot_fx_rate);
+        }
+        
+        // Conditions aux limites spécifiques aux vanilles FX
+        BoundaryConditions setup_vanilla_boundary_conditions(const VanillaOptionSpec& option) {
+            BoundaryConditions conditions;
+            
+            if (option.option_type == "CALL") {
+                // Conditions pour call FX
+                conditions.spot_lower = BoundaryCondition::DIRICHLET(0.0); // Call worthless si S→0
+                conditions.spot_upper = BoundaryCondition::LINEAR_GROWTH(); // Call ~ S-K*exp(-r*T) si S→∞
+                conditions.variance_lower = BoundaryCondition::NEUMANN(0.0); // ∂V/∂v = 0 si v→0
+                conditions.variance_upper = BoundaryCondition::LINEAR_EXTRAPOLATION(); // Extrapolation si v→∞
+            } else if (option.option_type == "PUT") {
+                // Conditions pour put FX
+                conditions.spot_lower = BoundaryCondition::LINEAR_GROWTH(); // Put ~ K*exp(-r*T) si S→0
+                conditions.spot_upper = BoundaryCondition::DIRICHLET(0.0); // Put worthless si S→∞
+                conditions.variance_lower = BoundaryCondition::NEUMANN(0.0); // ∂V/∂v = 0 si v→0
+                conditions.variance_upper = BoundaryCondition::LINEAR_EXTRAPOLATION(); // Extrapolation si v→∞
+            }
+            
+            return conditions;
+        }
+        
+        // Condition terminale (payoff à maturité)
+        std::function<double(double, double)> setup_vanilla_terminal_condition(
+            const VanillaOptionSpec& option) {
+            
+            return [option](double spot, double variance) -> double {
+                if (option.option_type == "CALL") {
+                    if (option.is_digital) {
+                        return (spot > option.strike) ? option.digital_payout : 0.0;
+                    } else {
+                        return std::max(spot - option.strike, 0.0);
+                    }
+                } else if (option.option_type == "PUT") {
+                    if (option.is_digital) {
+                        return (spot < option.strike) ? option.digital_payout : 0.0;
+                    } else {
+                        return std::max(option.strike - spot, 0.0);
+                    }
+                }
+                return 0.0;
+            };
+        }
+    };
+}
+```
+
+### Barrier FX Options
+
+#### Single Barrier Options
+Options avec une seule barrière, optimisées pour résolution PDE :
+
+```cpp
+// Options à barrière simple via PDE
+class FXSingleBarrierOptionPDE {
+public:
+    struct SingleBarrierSpec {
+        std::string option_type;        // "CALL" ou "PUT"
+        std::string barrier_type;       // "UP_AND_OUT", "DOWN_AND_IN", etc.
+        double strike;                  // Strike de l'option
+        double barrier_level;           // Niveau de barrière
+        double maturity;                // Maturité
+        double rebate;                  // Rebate si knock-out
+        bool is_continuous_monitoring;  // Monitoring continu ou discret
+        std::vector<double> monitoring_dates; // Dates de monitoring si discret
+    };
+    
+    // Pricing avec traitement spécialisé des barrières dans PDE
+    double price_barrier_option_pde(
+        const SingleBarrierSpec& option,
+        const FXLSVMSPDEParameters& model_params) {
+        
+        // Adaptation de la grille pour capturer la barrière
+        auto adapted_grid = adapt_grid_for_barrier(option.barrier_level, model_params);
+        
+        // Construction du système PDE avec conditions de barrière
+        auto pde_system = build_barrier_pde_system(option, adapted_grid);
+        
+        // Conditions aux limites incluant la barrière
+        auto boundary_conditions = setup_barrier_boundary_conditions(option);
+        
+        // Résolution avec traitement spécial à la barrière
+        auto solution = solve_barrier_pde(pde_system, boundary_conditions, option);
+        
+        return extract_price_at_spot(solution, model_params.spot_fx_rate);
+    }
+    
+    // Adaptation de grille pour capturer précisément la barrière
+    AdaptedGrid adapt_grid_for_barrier(double barrier_level, 
+                                      const FXLSVMSPDEParameters& params) {
+        AdaptedGrid grid;
+        
+        // Concentration de points autour de la barrière
+        std::vector<double> spot_grid;
+        
+        // Points avant la barrière
+        double pre_barrier_range = barrier_level - params.spot_grid_min;
+        int pre_barrier_points = static_cast<int>(params.spot_grid_points * 0.4);
+        
+        for (int i = 0; i < pre_barrier_points; ++i) {
+            double ratio = static_cast<double>(i) / (pre_barrier_points - 1);
+            spot_grid.push_back(params.spot_grid_min + ratio * pre_barrier_range);
+        }
+        
+        // Points concentrés autour de la barrière
+        int barrier_concentration_points = static_cast<int>(params.spot_grid_points * 0.2);
+        double concentration_range = barrier_level * 0.02; // ±1% autour de la barrière
+        
+        for (int i = 0; i < barrier_concentration_points; ++i) {
+            double ratio = static_cast<double>(i) / (barrier_concentration_points - 1);
+            double offset = (ratio - 0.5) * concentration_range;
+            spot_grid.push_back(barrier_level + offset);
+        }
+        
+        // Points après la barrière
+        double post_barrier_range = params.spot_grid_max - barrier_level;
+        int post_barrier_points = params.spot_grid_points - pre_barrier_points - barrier_concentration_points;
+        
+        for (int i = 1; i <= post_barrier_points; ++i) {
+            double ratio = static_cast<double>(i) / post_barrier_points;
+            spot_grid.push_back(barrier_level + ratio * post_barrier_range);
+        }
+        
+        // Tri et suppression des doublons
+        std::sort(spot_grid.begin(), spot_grid.end());
+        spot_grid.erase(std::unique(spot_grid.begin(), spot_grid.end()), spot_grid.end());
+        
+        grid.spot_points = spot_grid;
+        grid.variance_points = build_standard_variance_grid(params);
+        
+        return grid;
+    }
+    
+    // Conditions aux limites spécialisées pour barrières
+    BoundaryConditions setup_barrier_boundary_conditions(const SingleBarrierSpec& option) {
+        BoundaryConditions conditions;
+        
+        if (option.barrier_type == "UP_AND_OUT") {
+            // Knock-out si spot atteint barrière par le haut
+            conditions.add_internal_boundary(option.barrier_level, 
+                BoundaryCondition::DIRICHLET(option.rebate));
+        } else if (option.barrier_type == "DOWN_AND_OUT") {
+            // Knock-out si spot atteint barrière par le bas
+            conditions.add_internal_boundary(option.barrier_level, 
+                BoundaryCondition::DIRICHLET(option.rebate));
+        } else if (option.barrier_type == "UP_AND_IN") {
+            // Activation si spot atteint barrière par le haut
+            conditions.add_activation_boundary(option.barrier_level, "UP");
+        } else if (option.barrier_type == "DOWN_AND_IN") {
+            // Activation si spot atteint barrière par le bas
+            conditions.add_activation_boundary(option.barrier_level, "DOWN");
+        }
+        
+        return conditions;
+    }
+};
+```
+
+#### Double Barrier Options
+Options avec deux barrières, nécessitant un traitement PDE sophistiqué :
+
+```cpp
+// Options à double barrière via PDE
+class FXDoubleBarrierOptionPDE {
+public:
+    struct DoubleBarrierSpec {
+        std::string option_type;        // "CALL" ou "PUT"
+        std::string barrier_type;       // "DOUBLE_KNOCK_OUT", "DOUBLE_KNOCK_IN"
+        double strike;                  // Strike
+        double lower_barrier;           // Barrière basse
+        double upper_barrier;           // Barrière haute
+        double maturity;                // Maturité
+        double rebate;                  // Rebate si knock-out
+        bool is_continuous_monitoring;  // Monitoring continu
+    };
+    
+    // Pricing avec double barrière
+    double price_double_barrier_option_pde(
+        const DoubleBarrierSpec& option,
+        const FXLSVMSPDEParameters& model_params) {
+        
+        // Grille adaptée pour les deux barrières
+        auto adapted_grid = adapt_grid_for_double_barriers(
+            option.lower_barrier, option.upper_barrier, model_params);
+        
+        // Système PDE avec conditions de double barrière
+        auto pde_system = build_double_barrier_pde_system(option, adapted_grid);
+        
+        // Conditions aux limites pour double barrière
+        auto boundary_conditions = setup_double_barrier_conditions(option);
+        
+        // Résolution avec traitement des deux barrières
+        auto solution = solve_double_barrier_pde(pde_system, boundary_conditions, option);
+        
+        return extract_price_at_spot(solution, model_params.spot_fx_rate);
+    }
+    
+    // Adaptation de grille pour double barrière
+    AdaptedGrid adapt_grid_for_double_barriers(
+        double lower_barrier, double upper_barrier,
+        const FXLSVMSPDEParameters& params) {
+        
+        AdaptedGrid grid;
+        std::vector<double> spot_grid;
+        
+        // Répartition des points : 30% avant barrière basse, 40% entre barrières, 30% après barrière haute
+        int pre_lower_points = static_cast<int>(params.spot_grid_points * 0.3);
+        int between_barriers_points = static_cast<int>(params.spot_grid_points * 0.4);
+        int post_upper_points = params.spot_grid_points - pre_lower_points - between_barriers_points;
+        
+        // Points avant barrière basse
+        for (int i = 0; i < pre_lower_points; ++i) {
+            double ratio = static_cast<double>(i) / (pre_lower_points - 1);
+            spot_grid.push_back(params.spot_grid_min + 
+                               ratio * (lower_barrier - params.spot_grid_min));
+        }
+        
+        // Points entre les barrières (concentration)
+        for (int i = 0; i < between_barriers_points; ++i) {
+            double ratio = static_cast<double>(i) / (between_barriers_points - 1);
+            spot_grid.push_back(lower_barrier + ratio * (upper_barrier - lower_barrier));
+        }
+        
+        // Points après barrière haute
+        for (int i = 1; i <= post_upper_points; ++i) {
+            double ratio = static_cast<double>(i) / post_upper_points;
+            spot_grid.push_back(upper_barrier + ratio * (params.spot_grid_max - upper_barrier));
+        }
+        
+        grid.spot_points = spot_grid;
+        grid.variance_points = build_standard_variance_grid(params);
+        
+        return grid;
+    }
+};
+```
+
+### Asian FX Options
+
+#### Arithmetic Asian Options
+Options asiatiques avec moyenne arithmétique, nécessitant une dimension supplémentaire :
+
+```cpp
+// Options asiatiques FX via PDE étendu
+class FXAsianOptionPDE {
+public:
+    struct AsianOptionSpec {
+        std::string option_type;        // "CALL" ou "PUT"
+        std::string averaging_type;     // "ARITHMETIC" ou "GEOMETRIC"
+        double strike;                  // Strike
+        double maturity;                // Maturité
+        std::vector<double> averaging_dates; // Dates de moyenne
+        double current_average;         // Moyenne actuelle (si déjà commencé)
+        int observations_so_far;        // Nombre d'observations déjà prises
+    };
+    
+    // Pricing avec PDE 3D (Spot × Variance × Average)
+    double price_asian_option_pde(
+        const AsianOptionSpec& option,
+        const FXLSVMSPDEParameters& model_params) {
+        
+        if (option.averaging_type == "ARITHMETIC") {
+            return price_arithmetic_asian_pde(option, model_params);
+        } else if (option.averaging_type == "GEOMETRIC") {
+            return price_geometric_asian_pde(option, model_params);
+        }
+        
+        XSIGMA_THROW("Type de moyenne asiatique non supporté: " + option.averaging_type);
+    }
+    
+private:
+    // Asian arithmétique nécessite PDE 3D
+    double price_arithmetic_asian_pde(
+        const AsianOptionSpec& option,
+        const FXLSVMSPDEParameters& model_params) {
+        
+        // Construction de grille 3D : Spot × Variance × Average
+        auto grid_3d = build_3d_grid_for_asian(option, model_params);
+        
+        // Système PDE 3D avec terme de dérive pour la moyenne
+        auto pde_system_3d = build_asian_pde_system_3d(option, grid_3d);
+        
+        // Conditions aux limites 3D
+        auto boundary_conditions_3d = setup_asian_boundary_conditions_3d(option);
+        
+        // Résolution du système 3D
+        auto solution_3d = solve_asian_pde_3d(pde_system_3d, boundary_conditions_3d, option);
+        
+        // Extraction du prix à (S₀, V₀, A₀)
+        return extract_price_3d(solution_3d, model_params.spot_fx_rate, 
+                               model_params.long_term_variance, option.current_average);
+    }
+    
+    // Asian géométrique peut être réduit à 2D
+    double price_geometric_asian_pde(
+        const AsianOptionSpec& option,
+        const FXLSVMSPDEParameters& model_params) {
+        
+        // Transformation log pour réduire à 2D
+        auto transformed_params = transform_for_geometric_asian(option, model_params);
+        
+        // PDE 2D standard avec paramètres ajustés
+        auto pde_system_2d = build_geometric_asian_pde_system(option, transformed_params);
+        
+        // Résolution 2D
+        auto solution_2d = solve_standard_pde_2d(pde_system_2d);
+        
+        // Transformation inverse du résultat
+        return transform_back_geometric_asian(solution_2d, option);
+    }
+};
+```
+
+### Volatility Products
+
+#### FX Variance Swaps
+Produits de volatilité pure via PDE spécialisé :
+
+```cpp
+// Variance swaps FX via PDE
+class FXVarianceSwapPDE {
+public:
+    struct VarianceSwapSpec {
+        double maturity;                // Maturité
+        double strike_variance;         // Strike de variance
+        double notional_variance;       // Notionnel en variance
+        std::vector<double> observation_dates; // Dates d'observation
+        double current_realized_variance; // Variance réalisée actuelle
+        int observations_so_far;        // Observations déjà prises
+    };
+    
+    // Pricing variance swap via PDE avec terme de variance réalisée
+    double price_variance_swap_pde(
+        const VarianceSwapSpec& swap,
+        const FXLSVMSPDEParameters& model_params) {
+        
+        // PDE avec dimension supplémentaire pour variance réalisée
+        auto grid_3d = build_variance_swap_grid(swap, model_params);
+        
+        // Système PDE incluant l'accumulation de variance
+        auto pde_system = build_variance_swap_pde_system(swap, grid_3d);
+        
+        // Conditions aux limites pour variance swap
+        auto boundary_conditions = setup_variance_swap_boundary_conditions(swap);
+        
+        // Résolution avec accumulation de variance
+        auto solution = solve_variance_swap_pde(pde_system, boundary_conditions, swap);
+        
+        // Extraction de la valeur du swap
+        return extract_variance_swap_value(solution, model_params.spot_fx_rate,
+                                          model_params.long_term_variance,
+                                          swap.current_realized_variance);
+    }
+    
+private:
+    // Construction du système PDE pour variance swap
+    PDESystem3D build_variance_swap_pde_system(
+        const VarianceSwapSpec& swap,
+        const Grid3D& grid) {
+        
+        PDESystem3D system;
+        
+        // L'EDP inclut un terme pour l'accumulation de variance réalisée
+        // ∂V/∂t + (1/2)σ²S²∂²V/∂S² + ... + (σ²/T)∂V/∂RV = 0
+        // où RV est la variance réalisée
+        
+        // Construction des matrices avec terme d'accumulation
+        for (int i = 0; i < grid.spot_points.size(); ++i) {
+            for (int j = 0; j < grid.variance_points.size(); ++j) {
+                for (int k = 0; k < grid.realized_variance_points.size(); ++k) {
+                    
+                    double S = grid.spot_points[i];
+                    double V = grid.variance_points[j];
+                    double RV = grid.realized_variance_points[k];
+                    
+                    // Terme d'accumulation de variance : (σ²/T)∂V/∂RV
+                    double variance_accumulation_rate = V / swap.maturity;
+                    
+                    // Ajout du terme à la matrice PDE
+                    add_variance_accumulation_term(system, i, j, k, variance_accumulation_rate);
+                }
+            }
+        }
+        
+        return system;
+    }
+};
+```
+
+## Portfolio Management
+
+### Multi-Product Portfolios
+
+#### Portfolio Aggregation
+Gestion de portfolios multi-produits avec agrégation des risques :
+
+```cpp
+// Gestionnaire de portfolio FX LSV MS PDE
+class FXLSVMSPortfolioManager {
+public:
+    struct PortfolioPosition {
+        std::string position_id;
+        std::string product_type;       // "VANILLA", "BARRIER", "ASIAN", etc.
+        std::variant<VanillaOptionSpec, SingleBarrierSpec, 
+                    DoubleBarrierSpec, AsianOptionSpec> product_spec;
+        double quantity;                // Quantité (peut être négative)
+        double market_value;            // Valeur de marché actuelle
+        std::string currency_pair;      // Paire de devises
+        std::string book;               // Livre de trading
+    };
+    
+    struct PortfolioRisk {
+        // Greeks agrégés
+        double total_delta;
+        double total_gamma;
+        double total_vega;
+        double total_theta;
+        double total_rho_domestic;
+        double total_rho_foreign;
+        
+        // Risques par devise
+        std::map<std::string, double> delta_by_currency;
+        std::map<std::string, double> gamma_by_currency;
+        
+        // Métriques de concentration
+        double largest_position_pct;
+        double top_10_positions_pct;
+        std::map<std::string, double> exposure_by_product_type;
+        
+        // VaR et stress
+        double var_95_1d;
+        double var_99_1d;
+        double expected_shortfall_95;
+        std::map<std::string, double> stress_scenario_pnl;
+    };
+    
+    // Calcul des risques de portfolio
+    PortfolioRisk calculate_portfolio_risk(
+        const std::vector<PortfolioPosition>& positions,
+        const FXLSVMSPDEParameters& model_params) {
+        
+        PortfolioRisk risk;
+        
+        // Calcul des Greeks individuels
+        std::vector<FXPDEPricingResult> individual_results;
+        for (const auto& position : positions) {
+            auto result = price_position_with_greeks(position, model_params);
+            individual_results.push_back(result);
+        }
+        
+        // Agrégation des Greeks
+        risk.total_delta = 0.0;
+        risk.total_gamma = 0.0;
+        risk.total_vega = 0.0;
+        risk.total_theta = 0.0;
+        risk.total_rho_domestic = 0.0;
+        risk.total_rho_foreign = 0.0;
+        
+        for (size_t i = 0; i < positions.size(); ++i) {
+            const auto& position = positions[i];
+            const auto& result = individual_results[i];
+            
+            double quantity = position.quantity;
+            
+            risk.total_delta += quantity * result.delta_spot;
+            risk.total_gamma += quantity * result.gamma_spot;
+            risk.total_vega += quantity * result.vega_total;
+            risk.total_theta += quantity * result.theta;
+            risk.total_rho_domestic += quantity * result.rho_domestic;
+            risk.total_rho_foreign += quantity * result.rho_foreign;
+            
+            // Agrégation par devise
+            risk.delta_by_currency[position.currency_pair] += quantity * result.delta_spot;
+            risk.gamma_by_currency[position.currency_pair] += quantity * result.gamma_spot;
+        }
+        
+        // Calcul des métriques de concentration
+        calculate_concentration_metrics(positions, risk);
+        
+        // Calcul de VaR et stress testing
+        calculate_var_and_stress(positions, individual_results, risk);
+        
+        return risk;
+    }
+    
+    // Optimisation de portfolio pour réduction de risque
+    std::vector<PortfolioPosition> optimize_portfolio_risk(
+        const std::vector<PortfolioPosition>& current_positions,
+        const PortfolioRisk& target_risk,
+        const std::vector<PortfolioPosition>& available_hedges) {
+        
+        // Optimisation quadratique pour minimiser l'écart aux Greeks cibles
+        // min Σ(w_i * Greeks_i - Target_Greeks)²
+        // s.t. contraintes de liquidité et limites
+        
+        std::vector<PortfolioPosition> optimized_positions = current_positions;
+        
+        // Algorithme d'optimisation (simplifié)
+        for (const auto& hedge : available_hedges) {
+            double optimal_quantity = calculate_optimal_hedge_quantity(
+                optimized_positions, hedge, target_risk);
+            
+            if (std::abs(optimal_quantity) > 1e-6) {
+                PortfolioPosition hedge_position = hedge;
+                hedge_position.quantity = optimal_quantity;
+                optimized_positions.push_back(hedge_position);
+            }
+        }
+        
+        return optimized_positions;
+    }
+    
+private:
+    FXPDEPricingResult price_position_with_greeks(
+        const PortfolioPosition& position,
+        const FXLSVMSPDEParameters& model_params) {
+        
+        // Pricing selon le type de produit
+        if (position.product_type == "VANILLA") {
+            auto spec = std::get<VanillaOptionSpec>(position.product_spec);
+            FXVanillaOptionPDE pricer;
+            // Calcul complet avec Greeks
+            return pricer.price_with_full_greeks(spec, model_params);
+        } else if (position.product_type == "BARRIER") {
+            auto spec = std::get<SingleBarrierSpec>(position.product_spec);
+            FXSingleBarrierOptionPDE pricer;
+            return pricer.price_with_full_greeks(spec, model_params);
+        }
+        // Autres types de produits...
+        
+        return FXPDEPricingResult{}; // Placeholder
+    }
+    
+    void calculate_concentration_metrics(
+        const std::vector<PortfolioPosition>& positions,
+        PortfolioRisk& risk) {
+        
+        // Calcul des métriques de concentration
+        std::vector<double> position_values;
+        for (const auto& pos : positions) {
+            position_values.push_back(std::abs(pos.market_value));
+        }
+        
+        std::sort(position_values.rbegin(), position_values.rend());
+        
+        double total_value = std::accumulate(position_values.begin(), position_values.end(), 0.0);
+        
+        if (total_value > 0) {
+            risk.largest_position_pct = position_values[0] / total_value;
+            
+            double top_10_value = 0.0;
+            for (size_t i = 0; i < std::min(size_t(10), position_values.size()); ++i) {
+                top_10_value += position_values[i];
+            }
+            risk.top_10_positions_pct = top_10_value / total_value;
+        }
+    }
+    
+    void calculate_var_and_stress(
+        const std::vector<PortfolioPosition>& positions,
+        const std::vector<FXPDEPricingResult>& results,
+        PortfolioRisk& risk) {
+        
+        // Calcul de VaR paramétrique basé sur les Greeks
+        double portfolio_variance = calculate_portfolio_variance(positions, results);
+        
+        risk.var_95_1d = 1.65 * std::sqrt(portfolio_variance); // 95% VaR 1 jour
+        risk.var_99_1d = 2.33 * std::sqrt(portfolio_variance); // 99% VaR 1 jour
+        risk.expected_shortfall_95 = 2.06 * std::sqrt(portfolio_variance); // ES 95%
+        
+        // Stress testing
+        risk.stress_scenario_pnl = calculate_stress_scenarios(positions, results);
+    }
+    
+    double calculate_portfolio_variance(
+        const std::vector<PortfolioPosition>& positions,
+        const std::vector<FXPDEPricingResult>& results) {
+        
+        // Calcul de variance de portfolio basé sur Greeks et corrélations
+        return 0.01; // Placeholder
+    }
+    
+    std::map<std::string, double> calculate_stress_scenarios(
+        const std::vector<PortfolioPosition>& positions,
+        const std::vector<FXPDEPricingResult>& results) {
+        
+        std::map<std::string, double> stress_pnl;
+        
+        // Scénarios de stress standard
+        stress_pnl["FX_SHOCK_UP_10PCT"] = calculate_fx_shock_pnl(positions, results, 0.10);
+        stress_pnl["FX_SHOCK_DOWN_10PCT"] = calculate_fx_shock_pnl(positions, results, -0.10);
+        stress_pnl["VOL_SHOCK_UP_50PCT"] = calculate_vol_shock_pnl(positions, results, 0.50);
+        stress_pnl["VOL_SHOCK_DOWN_50PCT"] = calculate_vol_shock_pnl(positions, results, -0.50);
+        
+        return stress_pnl;
+    }
+    
+    double calculate_fx_shock_pnl(
+        const std::vector<PortfolioPosition>& positions,
+        const std::vector<FXPDEPricingResult>& results,
+        double shock_pct) {
+        
+        double total_pnl = 0.0;
+        for (size_t i = 0; i < positions.size(); ++i) {
+            const auto& position = positions[i];
+            const auto& result = results[i];
+            
+            // P&L = Delta * Shock + 0.5 * Gamma * Shock²
+            double pnl = position.quantity * (
+                result.delta_spot * shock_pct +
+                0.5 * result.gamma_spot * shock_pct * shock_pct
+            );
+            total_pnl += pnl;
+        }
+        return total_pnl;
+    }
+    
+    double calculate_vol_shock_pnl(
+        const std::vector<PortfolioPosition>& positions,
+        const std::vector<FXPDEPricingResult>& results,
+        double vol_shock_pct) {
+        
+        double total_pnl = 0.0;
+        for (size_t i = 0; i < positions.size(); ++i) {
+            const auto& position = positions[i];
+            const auto& result = results[i];
+            
+            // P&L = Vega * Vol_Shock
+            double pnl = position.quantity * result.vega_total * vol_shock_pct;
+            total_pnl += pnl;
+        }
+        return total_pnl;
+    }
+    
+    double calculate_optimal_hedge_quantity(
+        const std::vector<PortfolioPosition>& current_positions,
+        const PortfolioPosition& hedge_instrument,
+        const PortfolioRisk& target_risk) {
+        
+        // Calcul de la quantité optimale de hedge
+        return 0.0; // Placeholder
+    }
+};
+```
+
+Le framework de produits et portfolio FX LSV Markov Switching PDE dans Our project offre une solution complète pour le pricing, la gestion des risques et l'optimisation de portfolios FX complexes avec des capacités PDE avancées et une gestion sophistiquée des risques multi-produits.

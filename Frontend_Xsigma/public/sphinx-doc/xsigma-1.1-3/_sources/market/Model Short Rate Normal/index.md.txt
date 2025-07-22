@@ -1,0 +1,204 @@
+# Model Short Rate Normal
+
+## ⚠️ **MODÈLE EN RETIREMENT - MI-2025**
+
+Le modèle **DBX-ShortRate_InflationStochVol** est programmé pour être retiré en **mi-2025** et remplacé par **DBX-ShortRateNormal[LVMR,AUTO]_RealRateNormal[YIELD]_InflationStochVol**.
+
+## Vue d'Ensemble
+
+Le modèle **Short Rate Normal** représente l'implémentation de Deutsche Bank du modèle Jarrow-Yildirim étendu avec volatilité stochastique pour l'inflation. Ce modèle multi-facteurs sophistiqué est utilisé pour le pricing et la gestion des risques des dérivés d'inflation complexes.
+
+### Caractéristiques Principales
+
+✅ **Extension Jarrow-Yildirim** : Modèle à 4 facteurs avec volatilité stochastique
+✅ **Analogie FX** : Index d'inflation traité comme taux de change nominal/réel
+✅ **Capture du Smile** : Volatilité stochastique permet smile/skew réaliste
+✅ **Monte-Carlo Avancé** : Moteur DBX avec corrélations complètes
+✅ **Portfolio Significatif** : 104 trades, 455.875M EUR de PV absolu
+
+### Évaluation des Risques
+
+| Critère | Rating | Justification |
+|---------|--------|---------------|
+| **Complexité** | HIGH | Modèle multi-facteurs avec volatilité stochastique et corrélations complexes |
+| **Incertitude** | HIGH | Calibration complexe, sensibilité aux paramètres de volatilité stochastique |
+| **Dépendance** | HIGH | Modèle critique pour pricing dérivés d'inflation avec volumes significatifs |
+
+### Configurations Supportées
+
+#### Configuration Actuelle (LVTV/DBTTV)
+- **LVTV** : Paramétrage via volatilités locales et volatilités de terme
+- **DBTTV** : Paramétrage via volatilités de terme uniquement
+
+#### Configuration de Remplacement (2025)
+- **LVMR** : Local Volatility Mean Reversion améliorée
+- **AUTO** : Calibration automatique plus robuste
+- **YIELD** : Modèle de taux réel basé sur les rendements
+
+### Portfolio de Production
+
+| Produit | Trades | PV Absolu (M EUR) | Caractéristiques |
+|---------|--------|-------------------|-------------------|
+| **InflSwapLPINonStd** | 6 | 354.41 | LPI non-standard (77.7% du portfolio) |
+| **InflSwapLookback** | 63 | 38.29 | Lookback features |
+| **InflSwapAverage** | 5 | 27.38 | Moyenne asiatique |
+| **InflSwapSnowball** | 18 | 14.71 | Effet boule de neige |
+| **InflSwaptionZCEuro** | 5 | 13.13 | Swaption européenne ZC |
+| **Autres** | 7 | 8.13 | Divers produits |
+| **TOTAL** | **104** | **455.88** | Portfolio concentré |
+
+## Navigation de la Documentation
+
+```{toctree}
+:maxdepth: 2
+:caption: Documentation Complète
+
+executive_summary
+introduction_model_validation
+assessment_approach_soundness
+independent_validation_testing
+model_uncertainty_management
+control_assessment
+```
+
+### Sections Principales
+
+#### [Executive Summary](executive_summary.md)
+- Évaluation globale des risques modèle (HIGH/HIGH/HIGH)
+- Portfolio de production et composition des trades
+- Plan de retirement et migration vers nouveau modèle
+- Statement d'approbation avec limitations identifiées
+
+#### [Introduction to Model and Validation](introduction_model_validation.md)
+- Scope de validation et classification des 22 produits
+- Description détaillée des produits d'inflation supportés
+- Composition du portfolio et analyse des risques
+- Dynamiques du modèle et analogie FX
+
+#### [Assessment of Approach, Conceptual Soundness and Implementation](assessment_approach_soundness.md)
+- Extension Jarrow-Yildirim avec volatilité stochastique
+- Capture du smile/skew de volatilité d'inflation
+- Méthodologie de calibration en deux étapes
+- Évaluation de la solidité conceptuelle
+
+#### [Independent Validation Testing](independent_validation_testing.md)
+- Tests des distributions terminales et observables de marché
+- Validation de la formation du smile de volatilité
+- Analyse de sensibilité aux paramètres et corrélations
+- Tests de convergence Monte-Carlo
+
+#### [Model Uncertainty Identification, Measurement, and Management](model_uncertainty_management.md)
+- 9 limitations identifiées avec système de réserves
+- Gestion de l'incertitude de calibration
+- Monitoring des paramètres SV exogènes
+- Framework de réserves d'incertitude
+
+#### [Control Assessment](control_assessment.md)
+- Monitoring de performance avec 8 indicateurs clés
+- 80+ règles de contrôle des paramètres (INFLATION/FX/RATES)
+- Déclenchement automatique d'examen (> 1M EUR)
+- Présentation aux MCWGs et attestation annuelle
+
+## Implémentation Our project
+
+Le modèle Short Rate Normal est entièrement intégré dans Our project avec :
+
+- **Architecture C++ avancée** avec gestion du retirement et migration
+- **Simulation Monte-Carlo** des 4 facteurs stochastiques (rₙ, rᵣ, I, v)
+- **Framework de validation automatisée** avec tests complets
+- **Système de monitoring en temps réel** des 80+ règles de paramètres
+- **Gestion des limitations** avec calcul automatique de réserves
+
+## Modèle Mathématique
+
+### Dynamiques Stochastiques (Jarrow-Yildirim Étendu)
+
+Le modèle simule 4 facteurs stochastiques :
+
+1. **rₙ(t)** - Taux court nominal (Hull-White)
+2. **rᵣ(t)** - Taux court réel (Hull-White)
+3. **I(t)** - Index d'inflation (lognormal)
+4. **v(t)** - Volatilité stochastique de l'inflation
+
+### Équation Fondamentale de l'Inflation
+
+$$\frac{dI(t)}{I(t)} = (r_n(t) - r_r(t))dt + \eta(t)v(t)dW^I(t)$$
+
+où **η(t)v(t)** est le multiplicateur de volatilité stochastique.
+
+### Observables de Marché
+
+- **ZC Forwards** : $I_{ZC}(T) = I(T)$
+- **YOY Forwards** : $I_{YOY}(T) = \frac{I(T)}{I(T-\Delta T)}$
+- **CMS Forwards** : $I_{CMS}(T) = \frac{B(T,T) - B(T,T_N)}{S_N \cdot \Delta \cdot B(T,T)}$
+
+## Produits Supportés
+
+### Catégories de Produits (11 catégories)
+
+#### Linear Inflation
+- **InflAssetSwap**, **InflSwapZC** ⭐
+
+#### European Convex
+- **InflCapFloorYOY** ⭐, **InflSwaptionZCEuro**, **InflSwaptionYOYEuro**
+
+#### Memory Dependent
+- **InflSwapLookback** ⭐, **InflSwapLPI**, **InflSwapLPINonStd**
+
+#### Asian Convex
+- **InflSwapAverage** ⭐
+
+#### Hybrid Inflation/IR
+- **InflSwapInflNominalLin**, **InflVariableCapFloor**
+
+⭐ = Produits représentatifs testés
+
+## Retirement Strategy
+
+### Timeline de Migration
+
+| Phase | Période | Activités |
+|-------|---------|-----------|
+| **Phase 1** | Q4 2024 | Validation du modèle de remplacement |
+| **Phase 2** | Q1 2025 | Tests parallèles et comparaison |
+| **Phase 3** | Q2 2025 | Migration progressive des produits |
+| **Phase 4** | Q3 2025 | Retirement complet |
+
+### Améliorations du Nouveau Modèle
+
+- ✅ **LVMR** : Mean reversion améliorée pour volatilités locales
+- ✅ **AUTO** : Calibration automatique plus robuste
+- ✅ **YIELD** : Modèle de taux réel basé sur les rendements
+- ✅ **Performance** : Convergence plus rapide et stabilité améliorée
+
+## Limitations et Contrôles
+
+### Limitations Principales (9 identifiées)
+
+| UID | Limitation | Impact | Contrôle |
+|-----|------------|--------|----------|
+| **699** | Interest Rate Smile | Limité | Monitoring conditions marché |
+| **700** | Monte-Carlo Error | Précision | Paramètres appropriés |
+| **2561** | Inflation Volatility Smile | Flexibilité | Monitoring StochVol |
+| **3609** | Calibration Uncertainty | Prix/Sensibilités | GVQ monitoring |
+| **3612** | YOY/ZC Calibration | Exotiques | Benchmark modèles |
+
+### Système de Contrôle
+
+- **80+ règles** de paramètres actives (INFLATION/FX/RATES)
+- **Monitoring automatique** avec déclenchement > 1M EUR
+- **Validation en temps réel** de tous les paramètres
+- **Rapports MCWGs** et attestation annuelle
+
+## Liens Rapides
+
+- 🚨 [Plan de Retirement](executive_summary.md#retirement-strategy-and-migration-plan)
+- 📊 [Portfolio de Production](introduction_model_validation.md#portfolio-composition-and-pv-of-trades)
+- 🧮 [Modèle Mathématique](assessment_approach_soundness.md#the-fx-analogy-and-jarrow-yildirim-extension)
+- 🧪 [Tests de Validation](independent_validation_testing.md#market-observables-and-forward-calculations)
+- ⚠️ [Limitations](model_uncertainty_management.md#model-limitations)
+- ⚙️ [Contrôles](control_assessment.md#data-and-process-controls)
+
+---
+
+**Le modèle Short Rate Normal représente une solution sophistiquée pour les dérivés d'inflation complexes dans Our project, avec gestion complète du retirement et transition contrôlée vers le nouveau framework en 2025.**

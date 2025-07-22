@@ -1,0 +1,246 @@
+# Scope and Use
+
+## Overview
+
+Cette section définit le scope d'application et les cas d'usage du modèle **FX LSV Markov Switching PDE**, incluant les marchés cibles, les produits supportés et les recommandations d'utilisation.
+
+## Model Scope
+
+### Target FX Markets
+
+#### Primary Currency Pairs
+- **Major Pairs** : EUR/USD, GBP/USD, USD/JPY, USD/CHF, AUD/USD, USD/CAD, NZD/USD
+- **Cross Pairs** : EUR/GBP, EUR/JPY, GBP/JPY, AUD/JPY, EUR/CHF, GBP/CHF
+- **Emerging Market Pairs** : USD/CNY, USD/INR, USD/BRL, USD/MXN (avec validation étendue)
+
+#### Market Segments
+- **Institutional FX** : Banques centrales, fonds souverains, institutions financières
+- **Corporate FX** : Multinationales avec expositions FX significatives
+- **Asset Management** : Gestionnaires d'actifs avec mandats multi-devises
+- **Hedge Funds** : Fonds spéculatifs avec stratégies FX sophistiquées
+
+### Product Coverage
+
+#### FX Vanilla Options
+- **European Options** : Calls et puts européens standard
+- **American Options** : Exercice anticipé (support via approximations)
+- **Digital Options** : One-touch, no-touch, range digitals
+- **Forward Contracts** : Contrats à terme FX
+
+#### FX Exotic Options
+- **Barrier Options** : Knock-out, knock-in, double barriers, partial barriers
+- **Asian Options** : Moyenne arithmétique et géométrique
+- **Lookback Options** : Fixed strike et floating strike
+- **Range Accruals** : Accumulation dans une fourchette
+- **Target Redemption Forwards (TARFs)** : Structures avec cible de profit
+
+#### Complex FX Structures
+- **Multi-Barrier Products** : Produits avec barrières multiples
+- **Volatility Products** : Variance swaps, volatility swaps FX
+- **Correlation Products** : Produits dépendant de corrélations FX
+- **Quanto Structures** : Options quanto et cross-currency
+
+### Intended Use Cases
+
+#### Primary Applications
+
+**1. FX Exotic Options Trading**
+- Pricing précis d'options exotiques FX complexes
+- Market making pour produits structurés FX
+- Arbitrage et trading directionnel sophistiqué
+- Structuration de nouveaux produits FX
+
+**2. Path-Dependent Products**
+- Options avec dépendance de chemin complexe
+- Produits avec monitoring continu
+- Structures avec conditions multiples
+- Payoffs dépendant de l'historique
+
+**3. Volatility Trading**
+- Trading de volatilité pure via variance swaps
+- Structures dépendant de la réalisation de volatilité
+- Hedging de volatilité pour portfolios FX
+- Arbitrage de volatilité entre instruments
+
+**4. Risk Management Avancé**
+- Calcul précis des Greeks pour produits complexes
+- Stress testing avec scénarios sophistiqués
+- Hedging dynamique de portfolios exotiques
+- Optimisation de stratégies de couverture
+
+#### Secondary Applications
+
+**1. Model Validation**
+- Validation croisée avec autres modèles FX
+- Benchmarking de pricers existants
+- Développement de nouveaux modèles
+- Recherche quantitative avancée
+
+**2. Regulatory Compliance**
+- Calcul de capital réglementaire pour FX
+- Validation de modèles internes
+- Stress testing réglementaire
+- Reporting de positions complexes
+
+## Technical Scope
+
+### Supported Methodologies
+
+#### PDE Methods
+- **Finite Differences** : Différences finies explicites et implicites
+- **Adaptive Mesh Refinement** : Maillage adaptatif pour précision
+- **Spectral Methods** : Méthodes spectrales pour haute précision
+- **Finite Elements** : Éléments finis pour géométries complexes
+
+#### Grid Configurations
+- **Standard Grids** : 100×50×3 (Spot×Variance×États)
+- **Fine Grids** : 200×100×4 pour haute précision
+- **Adaptive Grids** : Raffinement automatique selon besoin
+- **Custom Grids** : Grilles personnalisées pour produits spéciaux
+
+#### Solver Options
+- **Direct Solvers** : LU, Cholesky pour systèmes moyens
+- **Iterative Solvers** : GMRES, BiCGSTAB pour gros systèmes
+- **Parallel Solvers** : Résolution parallélisée multi-core
+- **GPU Acceleration** : Accélération GPU pour calculs intensifs
+
+### Model Capabilities
+
+#### Volatility Modeling
+- **Local Volatility** : Surface de volatilité locale calibrée sur marché
+- **Stochastic Volatility** : Processus CIR pour variance stochastique
+- **Markov Switching** : États discrets de volatilité avec transitions
+- **Correlation Structure** : Corrélations spot-volatilité et cross-currency
+
+#### Risk Metrics
+- **Standard Greeks** : Delta, Gamma, Vega, Theta, Rho
+- **FX Greeks** : Dual rho (domestique/étranger), cross gamma
+- **Advanced Greeks** : Vanna, volga, charm, color
+- **Cross-State Greeks** : Sensibilités aux paramètres Markov
+
+#### Boundary Conditions
+- **Dirichlet Conditions** : Valeurs fixées aux frontières
+- **Neumann Conditions** : Dérivées fixées aux frontières
+- **Robin Conditions** : Combinaisons linéaires
+- **Absorbing Barriers** : Conditions d'absorption pour barrières
+
+## Usage Guidelines
+
+### Recommended Applications
+
+#### High Confidence Use Cases
+- **Liquid FX Pairs** : G10 currencies avec spreads serrés
+- **Standard Maturities** : 1 semaine à 2 ans
+- **Simple Barriers** : Barrières simples avec monitoring standard
+- **Path-Dependent** : Produits avec dépendance de chemin modérée
+
+#### Medium Confidence Use Cases
+- **Cross Pairs** : Paires cross avec liquidité suffisante
+- **Complex Barriers** : Barrières multiples avec validation
+- **Long Maturities** : 2-5 ans avec tests de convergence
+- **Emerging Markets** : Avec ajustements de paramètres
+
+#### Limited Confidence Use Cases
+- **Illiquid Pairs** : Paires exotiques avec spreads larges
+- **Very Complex Products** : Produits avec dépendances extrêmes
+- **Very Long Maturities** : > 5 ans
+- **High Correlation Sensitivity** : Produits très sensibles aux corrélations
+
+### Performance Expectations
+
+#### Accuracy Targets
+- **Vanilla Options** : Erreur < 0.05% vs Garman-Kohlhagen
+- **Simple Barriers** : Erreur < 0.1% vs solutions analytiques
+- **Complex Exotics** : Erreur < 0.5% vs benchmarks validés
+- **Greeks Accuracy** : Erreur relative < 1%
+
+#### Speed Requirements
+- **Single Option** : < 100ms pour produits standards
+- **Portfolio Pricing** : < 10 minutes pour 100 positions
+- **Greeks Calculation** : < 200ms pour Greeks complets
+- **Stress Testing** : < 30 minutes pour 50 scénarios
+
+### Operational Constraints
+
+#### Computational Requirements
+- **CPU** : Minimum 8 cores pour performance optimale
+- **Memory** : 16GB RAM pour grilles standards, 32GB pour grilles fines
+- **Storage** : SSD recommandé pour accès rapide aux données
+- **Network** : Faible latence pour données de marché temps réel
+
+#### Market Data Requirements
+- **Real-Time Feeds** : Taux de change et volatilités en temps réel
+- **Historical Data** : Minimum 3 ans pour calibration robuste
+- **Cross-Currency Data** : Cohérence entre toutes les paires
+- **Quality Control** : Validation automatique et nettoyage des données
+
+#### System Integration
+- **UMIFX Integration** : Intégration native avec framework UMIFX
+- **Risk Systems** : Connectivité avec systèmes de gestion des risques
+- **Market Data** : Interfaces avec fournisseurs de données
+- **Reporting** : Génération automatique de rapports
+
+## Limitations and Exclusions
+
+### Product Limitations
+- **American Exercise** : Support limité, approximations nécessaires
+- **Multi-Asset Products** : Limité aux produits FX single-asset
+- **Credit-Linked FX** : Pas de support pour risque de crédit
+- **Commodity-FX Hybrids** : Produits hybrides non supportés
+
+### Market Limitations
+- **Crisis Periods** : Performance dégradée en périodes de crise extrême
+- **Market Disruptions** : Limitations lors d'événements exceptionnels
+- **Low Liquidity** : Précision réduite pour paires très illiquides
+- **Extreme Volatility** : Limitations pour volatilités > 100%
+
+### Technical Limitations
+- **Grid Size** : Limitations mémoire pour très grandes grilles
+- **Convergence** : Possible non-convergence pour paramètres extrêmes
+- **Boundary Effects** : Erreurs potentielles près des frontières
+- **Time Stepping** : Contraintes de stabilité pour pas de temps
+
+### Regulatory Limitations
+- **Model Approval** : Validation réglementaire requise pour usage capital
+- **Documentation** : Exigences documentaires extensives
+- **Independent Validation** : Validation par tiers obligatoire
+- **Ongoing Monitoring** : Surveillance continue requise
+
+## Best Practices
+
+### Implementation Guidelines
+1. **Start Simple** : Commencer par produits vanilles pour validation
+2. **Grid Convergence** : Toujours tester la convergence de grille
+3. **Boundary Validation** : Vérifier les conditions aux limites
+4. **Performance Monitoring** : Surveiller les métriques de performance
+5. **Regular Calibration** : Recalibration quotidienne recommandée
+
+### Risk Management
+1. **Model Diversification** : Utiliser plusieurs modèles pour validation
+2. **Limit Setting** : Définir des limites claires d'usage
+3. **Stress Testing** : Tests réguliers sous conditions extrêmes
+4. **Error Monitoring** : Surveillance continue des erreurs
+5. **Escalation Procedures** : Procédures claires en cas de problème
+
+### Quality Assurance
+1. **Automated Testing** : Tests automatisés pour chaque déploiement
+2. **Cross-Validation** : Validation croisée avec modèles alternatifs
+3. **Performance Benchmarks** : Benchmarks de performance réguliers
+4. **Documentation Updates** : Maintien de documentation à jour
+5. **User Training** : Formation continue des utilisateurs
+
+## Usage Recommendations
+
+### Production Deployment
+- **Phased Rollout** : Déploiement progressif par type de produit
+- **Parallel Running** : Fonctionnement en parallèle avec modèles existants
+- **Gradual Migration** : Migration graduelle des positions
+- **Continuous Monitoring** : Surveillance continue post-déploiement
+
+### Optimization Strategies
+- **Grid Optimization** : Optimisation des grilles pour chaque type de produit
+- **Solver Selection** : Choix optimal du solveur selon le problème
+- **Parallel Processing** : Utilisation optimale du parallélisme
+- **Memory Management** : Gestion efficace de la mémoire
+
+Le modèle FX LSV Markov Switching PDE dans Our project offre une solution puissante et flexible pour une large gamme d'applications FX, avec des guidelines claires pour optimiser son utilisation et gérer les risques associés.

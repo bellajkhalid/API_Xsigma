@@ -1,0 +1,412 @@
+# Scope
+
+## 🎯 **Model Objective and Usage**
+
+### **Model Description**
+This document describes the model used for two variants of FX volatility surfaces currently (Aug-2017) used in production, respectively by the short-term and long-term FX options desks:
+
+#### **🔧 FX Mean-Reverting (MR) Volatility Surface**
+- **Usage**: Short-term desk
+- **Maturity**: Up to 3 years
+- **Specialization**: Capture of economic events
+
+#### **🔧 FX Variance Interpolation (VI) Volatility Surface**
+- **Usage**: Long-term desk
+- **Maturity**: 20 to 40 years depending on currency pair
+- **Specialization**: Smooth interpolation without events
+
+### **Common Main Objective**
+Both types of surfaces have the same main objective: **mark liquid vanilla option contracts** as observed in the market and provide an interpolation object for the implied volatility of vanilla options not directly observed.
+
+### **Operational Usage**
+The model is used to query implied volatility values in order to:
+- **Price vanilla option trades** of arbitrary strike and maturity
+- **Provide target input price** for calibration of more exotic models
+
+### **Implementation in Our Project**
+
+#### **🔧 Scope and Usage Framework**
+```cpp
+// FX surfaces scope and usage framework in Our project
+class fx_surface_scope_framework {
+public:
+    enum class surface_flavor {
+        MEAN_REVERTING,        // MR - Short term with events
+        VARIANCE_INTERPOLATION // VI - Long term smooth
+    };
+
+    enum class usage_type {
+        VANILLA_PRICING,       // Vanilla options pricing
+        EXOTIC_CALIBRATION,    // Exotic models calibration
+        RISK_MANAGEMENT,       // Risk management
+        PORTFOLIO_VALUATION    // Portfolio valuation
+    };
+    
+    struct surface_scope_specification {
+        surface_flavor flavor;
+        std::string target_desk;
+        double min_maturity;
+        double max_maturity;
+        std::vector<std::string> supported_currencies;
+        std::vector<usage_type> approved_usages;
+        bool event_modeling_enabled;
+        std::string interpolation_method;
+    };
+    
+    class surface_scope_manager {
+    public:
+        std::vector<surface_scope_specification> get_production_surfaces() {
+            return {
+                // MR Surface Specification
+                {
+                    surface_flavor::MEAN_REVERTING,
+                    "Short-Dated FX Options Desk",
+                    1.0/365.0,  // 1 day minimum
+                    3.0,        // 3 years maximum
+                    {"EURUSD", "GBPUSD", "USDJPY", "AUDUSD", "USDCAD", "USDCHF"},
+                    {usage_type::VANILLA_PRICING, usage_type::EXOTIC_CALIBRATION, 
+                     usage_type::RISK_MANAGEMENT},
+                    true,       // Event modeling enabled
+                    "Mean-Reverting ATM with Wing RR/ST"
+                },
+                // VI Surface Specification  
+                {
+                    surface_flavor::VARIANCE_INTERPOLATION,
+                    "Long-Dated FX Options Desk",
+                    2.0,        // 2 years minimum
+                    40.0,       // 40 years maximum (20 for some pairs)
+                    {"EURUSD", "GBPUSD", "USDJPY"},
+                    {usage_type::VANILLA_PRICING, usage_type::EXOTIC_CALIBRATION,
+                     usage_type::PORTFOLIO_VALUATION},
+                    false,      // No event modeling
+                    "Linear/Cubic Variance Interpolation"
+                }
+            };
+        }
+        
+        bool is_usage_approved(surface_flavor flavor, usage_type usage, 
+                              double maturity, const std::string& currency) {
+            auto surfaces = get_production_surfaces();
+            
+            for (const auto& surface : surfaces) {
+                if (surface.flavor == flavor &&
+                    maturity >= surface.min_maturity &&
+                    maturity <= surface.max_maturity &&
+                    is_currency_supported(surface, currency)) {
+                    
+                    return std::find(surface.approved_usages.begin(),
+                                   surface.approved_usages.end(),
+                                   usage) != surface.approved_usages.end();
+                }
+            }
+            
+            return false;
+        }
+        
+    private:
+        bool is_currency_supported(const surface_scope_specification& surface,
+                                 const std::string& currency) {
+            return std::find(surface.supported_currencies.begin(),
+                           surface.supported_currencies.end(),
+                           currency) != surface.supported_currencies.end();
+        }
+    };
+};
+```
+*This C++ implementation in Our project shows scope management and approved usages for different FX surface variants.*
+
+---
+
+## 🔍 **Differences Between Surfaces**
+
+### **Distinctive Characteristics**
+The two surfaces differ in the market characteristics they attempt to capture:
+
+#### **🔧 Surface MR (Mean-Reverting)**
+```cpp
+// Mean-Reverting surface specifications in Our project
+class fx_mr_surface_characteristics {
+public:
+    struct mr_surface_features {
+        double typical_max_maturity = 3.0;
+        std::vector<std::string> target_products = {
+            "Vanilla Options", "First-Generation Exotics"
+        };
+        std::vector<std::string> sensitive_events = {
+            "FOMC Meetings", "US Non-farm Payroll", "Brexit Events",
+            "ECB Announcements", "Political Events"
+        };
+        bool daily_volatility_modeling = true;
+        std::string atm_model = "Mean-Reverting with Events";
+        std::string wing_model = "RR/ST Interpolation with Non-Smooth ATM";
+    };
+    
+    mr_surface_features get_mr_characteristics() {
+        mr_surface_features features;
+        
+        // Sensitivity to short-term event effects
+        features.sensitive_events = {
+            "Economic Policy Announcements",
+            "Monetary Authority Meetings (FOMC, ECB, BOJ)",
+            "Economic Activity Indicators (NFP, GDP, CPI)",
+            "Political Events (Elections, Brexit, Trade Wars)"
+        };
+
+        return features;
+    }
+
+    bool is_event_sensitive_period(const std::string& date) {
+        // Logic to determine if a date corresponds to an event
+        return check_economic_calendar(date) || check_political_calendar(date);
+    }
+};
+```
+
+**Key Characteristics:**
+- **Maturity**: Generally up to 3 years expiration
+- **Main Usage**: Pricing of vanilla options and short-term first-generation exotics
+- **Sensitivity**: Particularly sensitive to short-term effects of economic and political events
+- **ATM Model**: Allows capturing these event effects
+- **Wing Model**: Interpolation accounting for non-smooth ATM backbone behavior
+
+#### **🔧 Surface VI (Variance Interpolation)**
+```cpp
+// Variance Interpolation surface specifications in Our project
+class fx_vi_surface_characteristics {
+public:
+    struct vi_surface_features {
+        std::map<std::string, double> max_maturities = {
+            {"EURUSD", 40.0}, {"GBPUSD", 40.0}, {"USDJPY", 20.0}
+        };
+        std::vector<std::string> target_products = {
+            "Long-Term Structures", "LTFX Products", "Cross-Currency Swaps"
+        };
+        std::string interpolation_method = "Linear or Cubic in Variance";
+        bool event_information_included = false;
+        std::string rationale = "Fine-grained structure not necessary for longer-dated products";
+    };
+    
+    vi_surface_features get_vi_characteristics() {
+        vi_surface_features features;
+        
+        // Smoother temporal interpolation
+        features.interpolation_method = "Linear or Cubic in Variance";
+
+        // No information on economic events
+        features.event_information_included = false;
+        
+        return features;
+    }
+    
+    double get_max_maturity_for_currency(const std::string& currency_pair) {
+        auto features = get_vi_characteristics();
+        
+        if (features.max_maturities.find(currency_pair) != features.max_maturities.end()) {
+            return features.max_maturities[currency_pair];
+        }
+        
+        return 20.0; // Default
+    }
+};
+```
+
+**Key Characteristics:**
+- **Maturity**: Extends to 20 or 40 years depending on currency pair
+- **Interpolation**: Smoother (linear or cubic in variance)
+- **Events**: Contains no information on economic events
+- **Justification**: Fine ATM backbone structure deemed unnecessary for long-term products
+
+---
+
+## 🏗️ **Conceptual Soundness**
+
+### **Black-Scholes Model Limitation**
+The Black-Scholes model is **inadequate for pricing vanilla options** of all strikes and maturities in a manner consistent with the market. It is therefore necessary to construct a volatility surface $\Theta(K, T)$ that can provide a consistent price for vanilla options at arbitrary strike $K$ and expiration $T$, while matching quoted market instruments.
+
+### **Smile Methodologies**
+This document describes smile model methodologies that allow interpolating volatility at any strike $K$ while ensuring a match of market-quoted elements:
+
+#### **🔧 Supported Smile Models**
+```cpp
+// Smile model framework in Our project
+class fx_smile_model_framework {
+public:
+    enum class smile_model_type {
+        THREE_POINT_QUARTIC,  // 3-point analytic quartic smile
+        FIVE_POINT_QUARTIC,   // 5-point analytic quartic smile
+        FLAT_ANALYTIC,        // Degenerate flat analytic smile
+        ASV_THREE_POINT,      // 3-point ASV model
+        ASV_FIVE_POINT        // 5-point ASV model
+    };
+    
+    struct smile_calibration_targets {
+        double atm_volatility;
+        double rr_25d;  // Risk Reversal 25 delta
+        double st_25d;  // Strangle 25 delta
+        double rr_10d;  // Risk Reversal 10 delta (for 5-point)
+        double st_10d;  // Strangle 10 delta (for 5-point)
+    };
+    
+    class smile_model_validator {
+    public:
+        bool validate_smile_model_choice(smile_model_type model_type,
+                                       const std::string& justification) {
+            switch (model_type) {
+                case smile_model_type::THREE_POINT_QUARTIC:
+                    return validate_3pt_quartic_justification(justification);
+                case smile_model_type::FIVE_POINT_QUARTIC:
+                    return validate_5pt_quartic_justification(justification);
+                default:
+                    return false;
+            }
+        }
+        
+    private:
+        bool validate_3pt_quartic_justification(const std::string& justification) {
+            // Validation that justification covers:
+            // - Completely algebraic character
+            // - Implementation ease
+            // - Execution speed
+            // - Smile arbitrage avoidance
+            
+            std::vector<std::string> required_elements = {
+                "algebraic", "fast", "arbitrage-free", "implementation"
+            };
+            
+            for (const auto& element : required_elements) {
+                if (justification.find(element) == std::string::npos) {
+                    return false;
+                }
+            }
+            
+            return true;
+        }
+    };
+};
+```
+
+**Advantages of Analytical Quartic Models:**
+- **Completely algebraic**: Implementation ease and execution speed
+- **Arbitrage avoidance**: Unlike simple polynomial interpolations
+- **Flexibility**: Sufficient to fit FX market instruments, notably on 10 deltas
+- **Evolution**: Extension from 3-point to 5-point for more control on distant wings
+
+### **Alternatives Considered and Rejected**
+
+#### **🔍 Simple Polynomial Interpolation**
+- **Problem**: No rational reasoning behind
+- **Risk**: Can lead to significant smile arbitrage
+
+#### **🔍 Model-Based Interpolation (SABR)**
+- **Advantage**: Arbitrage-free
+- **Problem**: Produced shapes not flexible enough to fit FX market instruments
+- **Limitation**: Particularly on 10 deltas
+
+#### **🔍 3-Point Modifications**
+- **Attempts**: Addition of a constant term in the implicit stochastic model drift
+- **Result**: Unsatisfactory or unstable behavior
+
+---
+
+## ⏰ **Temporal Interpolation Models**
+
+### **Main Constraints**
+The described temporal interpolation models apply to the ATM term structure backbone and wings. The main constraints are:
+
+1. **Matching of market reference tenors**
+2. **Volatility querying** at any time
+3. **Calendar arbitrage avoidance**
+
+### **Specialized Approaches**
+
+#### **🔧 Mean-Reverting ATM Backbone**
+```cpp
+// Mean-Reverting model for short term in Our project
+class fx_mean_reverting_atm_model {
+public:
+    struct daily_event_weights {
+        std::map<std::string, double> event_weights;
+        std::map<std::string, std::string> event_types;
+        bool weekend_holiday_adjustment;
+    };
+    
+    double calculate_daily_volatility(const std::string& date,
+                                    const daily_event_weights& weights) {
+        double base_volatility = get_base_volatility(date);
+        double event_adjustment = 0.0;
+        
+        // Adjustment for economic/business events
+        if (weights.event_weights.find(date) != weights.event_weights.end()) {
+            event_adjustment = weights.event_weights.at(date);
+        }
+
+        // Weekend/holiday adjustment (reduced volatility)
+        if (weights.weekend_holiday_adjustment && is_weekend_or_holiday(date)) {
+            event_adjustment -= 0.1; // Volatility reduction
+        }
+        
+        return base_volatility + event_adjustment;
+    }
+    
+private:
+    bool is_weekend_or_holiday(const std::string& date) {
+        // Logic to determine weekends and holidays
+        return check_calendar(date);
+    }
+};
+```
+
+**Justification:** The FX market is very liquid and the short-term options business requires precise daily volatility marking. Certain days with important economic and business events have more volatility, while weekends and holidays have less.
+
+#### **🔧 Variance Interpolation**
+**Usage:** For long-term surfaces where this granularity on daily volatility is not necessary. The temporal variance interpolation approach (without events) is sufficiently precise while being extremely simple to mark and manage daily.
+
+---
+
+## 🎯 **Convergence Perspective**
+
+### **Long-Term Aspiration**
+From a consistency standpoint, it would certainly be desirable to **eventually converge towards a single model** of FX volatility surface for short-term and long-term businesses.
+
+### **Pragmatic Balance**
+This aspiration must be balanced with current business requirements to attempt to best capture the minimum set of salient characteristics appropriate for traded market trades.
+
+```cpp
+// Future convergence framework in Our project
+class fx_surface_convergence_framework {
+public:
+    struct convergence_roadmap {
+        std::string target_unified_model;
+        std::vector<std::string> convergence_phases;
+        std::map<std::string, std::string> business_requirements;
+        double estimated_timeline_years;
+    };
+    
+    convergence_roadmap plan_surface_convergence() {
+        convergence_roadmap roadmap;
+        
+        roadmap.target_unified_model = "Hybrid MR/VI Surface";
+        roadmap.convergence_phases = {
+            "Phase 1: Harmonize Smile Models",
+            "Phase 2: Unified Calibration Framework", 
+            "Phase 3: Adaptive Time Interpolation",
+            "Phase 4: Single Surface with Mode Selection"
+        };
+        
+        roadmap.business_requirements = {
+            {"Short-Term Desk", "Maintain event sensitivity and daily granularity"},
+            {"Long-Term Desk", "Preserve smooth interpolation and simplicity"},
+            {"Risk Management", "Consistent risk metrics across maturities"},
+            {"Technology", "Single codebase with performance optimization"}
+        };
+        
+        roadmap.estimated_timeline_years = 3.0;
+        
+        return roadmap;
+    }
+};
+```
+
+---
+
+*This scope section clearly defines the objectives, usages and conceptual justifications of FX volatility surfaces, integrating Our project best practices with a pragmatic vision of current and future business needs.*

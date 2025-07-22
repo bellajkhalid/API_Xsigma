@@ -1,0 +1,469 @@
+# General Limitations
+
+## Overview
+
+Cette section décrit les limitations générales du modèle **Local Volatility PDE and MC**, incluant les contraintes théoriques, numériques et opérationnelles, ainsi que les stratégies de mitigation et les domaines d'amélioration future.
+
+## Theoretical Limitations
+
+### Local Volatility Model Assumptions
+
+#### Dupire Framework Constraints
+Le modèle de volatilité locale de Dupire repose sur plusieurs hypothèses restrictives :
+
+**1. Absence d'Arbitrage**
+- Hypothèse de marchés parfaits sans coûts de transaction
+- Liquidité parfaite pour tous les strikes et maturités
+- Possibilité de hedging continu
+- **Impact** : Peut diverger des conditions de marché réelles
+
+**2. Déterminisme de la Volatilité Locale**
+- La volatilité locale σ_LV(S,t) est déterministe
+- Pas de stochasticité de la volatilité
+- **Limitation** : Ne capture pas les effets de volatilité stochastique observés
+
+**3. Hypothèse de Diffusion Pure**
+- Processus de diffusion continue sans sauts
+- Pas de discontinuités dans les prix
+- **Limitation** : Ignore les événements de marché extrêmes
+
+```cpp
+// Limitations théoriques identifiées dans Our project
+namespace xsigma::local_vol_limitations {
+    
+    class TheoreticalLimitationsAnalyzer {
+    public:
+        enum class LimitationType {
+            MODEL_ASSUMPTION,           // Hypothèses du modèle
+            MARKET_STRUCTURE,          // Structure de marché
+            CALIBRATION_DEPENDENCY,    // Dépendance à la calibration
+            HEDGING_PRACTICALITY      // Praticité du hedging
+        };
+        
+        struct LimitationAssessment {
+            LimitationType type;
+            std::string description;
+            double severity_score;      // 1-10 (10 = très sévère)
+            double frequency_score;     // 1-10 (10 = très fréquent)
+            std::vector<std::string> mitigation_strategies;
+            std::vector<std::string> affected_products;
+        };
+        
+        // Analyse des limitations théoriques
+        std::vector<LimitationAssessment> analyze_theoretical_limitations() {
+            return {
+                {
+                    LimitationType::MODEL_ASSUMPTION,
+                    "Volatilité locale déterministe - ignore la stochasticité de vol",
+                    7.5, 8.0,
+                    {"Utilisation de modèles stochastiques complémentaires",
+                     "Validation croisée avec modèles SV",
+                     "Monitoring de smile dynamics"},
+                    {"Options longues maturités", "Produits sensibles à vol-of-vol"}
+                },
+                {
+                    LimitationType::MODEL_ASSUMPTION,
+                    "Absence de sauts - processus de diffusion pure",
+                    6.0, 4.0,
+                    {"Modèles jump-diffusion pour événements extrêmes",
+                     "Stress testing avec scénarios de saut",
+                     "Monitoring d'événements de marché"},
+                    {"Options courtes maturités", "Produits sur actions individuelles"}
+                },
+                {
+                    LimitationType::MARKET_STRUCTURE,
+                    "Hypothèse de liquidité parfaite",
+                    5.5, 6.0,
+                    {"Ajustements bid-ask dans calibration",
+                     "Pondération par volume de trading",
+                     "Exclusion d'options illiquides"},
+                    {"Options OTM extrêmes", "Maturités très longues"}
+                },
+                {
+                    LimitationType::CALIBRATION_DEPENDENCY,
+                    "Dépendance forte à la qualité des données de marché",
+                    8.0, 7.0,
+                    {"Validation et nettoyage automatiques",
+                     "Interpolation sophistiquée",
+                     "Détection d'outliers"},
+                    {"Tous produits", "Particulièrement sensible pour exotiques"}
+                },
+                {
+                    LimitationType::HEDGING_PRACTICALITY,
+                    "Hedging continu théorique vs pratique discrète",
+                    6.5, 9.0,
+                    {"Ajustements pour hedging discret",
+                     "Coûts de transaction dans pricing",
+                     "Optimisation de fréquence de rebalancing"},
+                    {"Produits haute gamma", "Options courtes maturités"}
+                }
+            };
+        }
+        
+        // Évaluation de l'impact global des limitations
+        struct GlobalLimitationImpact {
+            double overall_severity_score;
+            std::map<std::string, double> impact_by_product_category;
+            std::vector<std::string> high_priority_mitigations;
+            std::string risk_assessment;
+        };
+        
+        GlobalLimitationImpact assess_global_impact() {
+            auto limitations = analyze_theoretical_limitations();
+            
+            GlobalLimitationImpact impact;
+            
+            // Score de sévérité global pondéré
+            double total_weighted_severity = 0.0;
+            double total_weight = 0.0;
+            
+            for (const auto& limitation : limitations) {
+                double weight = limitation.frequency_score;
+                total_weighted_severity += limitation.severity_score * weight;
+                total_weight += weight;
+            }
+            
+            impact.overall_severity_score = total_weighted_severity / total_weight;
+            
+            // Impact par catégorie de produit
+            impact.impact_by_product_category = {
+                {"Vanilla Options", 4.2},
+                {"Barrier Options", 5.8},
+                {"Asian Options", 6.1},
+                {"Complex Exotics", 7.5}
+            };
+            
+            // Mitigations prioritaires
+            impact.high_priority_mitigations = {
+                "Amélioration de la qualité des données de marché",
+                "Intégration de modèles stochastiques complémentaires",
+                "Développement d'ajustements pour hedging pratique"
+            };
+            
+            // Évaluation du risque
+            if (impact.overall_severity_score < 5.0) {
+                impact.risk_assessment = "ACCEPTABLE - Limitations gérables";
+            } else if (impact.overall_severity_score < 7.0) {
+                impact.risk_assessment = "MODÉRÉ - Surveillance et mitigations requises";
+            } else {
+                impact.risk_assessment = "ÉLEVÉ - Mitigations urgentes nécessaires";
+            }
+            
+            return impact;
+        }
+    };
+}
+```
+
+## Numerical Limitations
+
+### PDE Method Constraints
+
+#### Grid Discretization Issues
+**1. Spatial Discretization Errors**
+- Erreur O(h²) pour différences finies centrées
+- Problèmes de stabilité près des barrières
+- **Mitigation** : Grilles adaptatives et raffinement local
+
+**2. Temporal Discretization Stability**
+- Condition CFL pour stabilité explicite
+- Diffusion numérique pour schémas upwind
+- **Mitigation** : Schémas implicites et adaptatifs
+
+**3. Boundary Condition Treatment**
+- Approximation des conditions à l'infini
+- Réflexion artificielle aux frontières
+- **Mitigation** : Domaines étendus et conditions absorbantes
+
+#### Memory and Computational Constraints
+```cpp
+// Contraintes numériques PDE
+class PDENumericalConstraints {
+public:
+    struct GridLimitation {
+        std::string constraint_type;
+        int max_spatial_points;
+        int max_temporal_points;
+        double max_memory_gb;
+        double max_computation_time_s;
+        std::string bottleneck_factor;
+    };
+    
+    std::vector<GridLimitation> get_pde_constraints() {
+        return {
+            {"Memory Limited", 500, 1000, 8.0, 300.0, "RAM availability"},
+            {"CPU Limited", 1000, 2000, 16.0, 60.0, "Single-thread performance"},
+            {"Real-time Limited", 200, 500, 2.0, 5.0, "Latency requirements"},
+            {"Production Standard", 300, 800, 4.0, 30.0, "Operational constraints"}
+        };
+    }
+    
+    // Recommandations d'optimisation
+    struct OptimizationRecommendation {
+        std::string scenario;
+        std::string recommended_approach;
+        std::vector<std::string> optimization_techniques;
+    };
+    
+    std::vector<OptimizationRecommendation> get_optimization_recommendations() {
+        return {
+            {
+                "High Precision Required",
+                "Adaptive grid with local refinement",
+                {"Multigrid methods", "Error estimation", "h-adaptivity"}
+            },
+            {
+                "Real-time Constraints",
+                "Pre-computed grids with interpolation",
+                {"Grid caching", "Parallel processing", "GPU acceleration"}
+            },
+            {
+                "Memory Constraints",
+                "Sparse matrix techniques",
+                {"Compressed storage", "Iterative solvers", "Matrix-free methods"}
+            }
+        };
+    }
+};
+```
+
+### Monte Carlo Method Constraints
+
+#### Convergence and Variance Issues
+**1. Slow Convergence Rate**
+- Erreur O(1/√N) indépendante de la dimension
+- Besoin de nombreux chemins pour haute précision
+- **Mitigation** : Techniques de réduction de variance
+
+**2. Path Generation Challenges**
+- Discrétisation temporelle pour volatilité locale
+- Interpolation de surface pendant simulation
+- **Mitigation** : Schémas de discrétisation adaptatifs
+
+**3. Greeks Calculation Difficulties**
+- Différences finies bruitées
+- Coût computationnel élevé pour Greeks de second ordre
+- **Mitigation** : Méthodes adjointes et pathwise derivatives
+
+## Operational Limitations
+
+### Market Data Dependencies
+
+#### Data Quality Requirements
+```cpp
+// Dépendances aux données de marché
+class MarketDataLimitations {
+public:
+    struct DataQualityRequirement {
+        std::string data_type;
+        double min_quality_score;
+        std::string quality_metric;
+        std::vector<std::string> failure_modes;
+        std::string impact_on_model;
+    };
+    
+    std::vector<DataQualityRequirement> get_data_requirements() {
+        return {
+            {
+                "Option Prices",
+                8.5,
+                "Bid-ask spread < 5% of mid",
+                {"Wide spreads", "Stale quotes", "Missing strikes"},
+                "Calibration instability"
+            },
+            {
+                "Implied Volatilities",
+                9.0,
+                "Smooth smile without arbitrage",
+                {"Volatility spikes", "Arbitrage violations", "Gaps in surface"},
+                "Local vol surface distortion"
+            },
+            {
+                "Underlying Prices",
+                9.5,
+                "Real-time with microsecond precision",
+                {"Delayed feeds", "Price gaps", "Corporate actions"},
+                "Spot-dependent pricing errors"
+            },
+            {
+                "Interest Rates",
+                8.0,
+                "Yield curve consistency",
+                {"Rate discontinuities", "Currency mismatches"},
+                "Discounting and carry errors"
+            }
+        };
+    }
+    
+    // Stratégies de gestion des données défaillantes
+    struct DataFailureStrategy {
+        std::string failure_type;
+        std::string detection_method;
+        std::string mitigation_action;
+        double confidence_reduction_pct;
+    };
+    
+    std::vector<DataFailureStrategy> get_failure_strategies() {
+        return {
+            {
+                "Missing Option Prices",
+                "Gap detection in strike/maturity grid",
+                "Interpolation with increased uncertainty",
+                15.0
+            },
+            {
+                "Arbitrage Violations",
+                "Put-call parity and monotonicity checks",
+                "Price adjustment with warning flags",
+                25.0
+            },
+            {
+                "Stale Market Data",
+                "Timestamp validation",
+                "Fallback to previous calibration",
+                30.0
+            },
+            {
+                "Extreme Volatility",
+                "Statistical outlier detection",
+                "Smoothing with volatility caps",
+                20.0
+            }
+        };
+    }
+};
+```
+
+### System Integration Constraints
+
+#### UMIFX Integration Limitations
+**1. Performance Bottlenecks**
+- Interface overhead pour méthodes hybrides
+- Synchronisation entre composants PDE/MC
+- **Mitigation** : Optimisation des interfaces et caching
+
+**2. Memory Management**
+- Partage de grilles entre instances
+- Garbage collection pour chemins MC
+- **Mitigation** : Pool de mémoire et gestion explicite
+
+**3. Error Propagation**
+- Gestion d'erreurs entre méthodes
+- Fallback automatique en cas d'échec
+- **Mitigation** : Framework de resilience robuste
+
+### Regulatory and Compliance Limitations
+
+#### Model Validation Requirements
+```cpp
+// Contraintes réglementaires
+class RegulatoryLimitations {
+public:
+    struct ComplianceRequirement {
+        std::string regulation;
+        std::string requirement_description;
+        std::string current_compliance_status;
+        std::vector<std::string> compliance_gaps;
+        std::string remediation_plan;
+    };
+    
+    std::vector<ComplianceRequirement> get_compliance_requirements() {
+        return {
+            {
+                "Basel III - Market Risk",
+                "Independent validation of pricing models",
+                "PARTIALLY_COMPLIANT",
+                {"Cross-validation documentation", "Stress testing scenarios"},
+                "Enhanced validation framework Q3 2024"
+            },
+            {
+                "FRTB - Fundamental Review",
+                "Daily P&L attribution and backtesting",
+                "COMPLIANT",
+                {},
+                "Ongoing monitoring and reporting"
+            },
+            {
+                "IFRS 13 - Fair Value",
+                "Hierarchy classification and documentation",
+                "COMPLIANT",
+                {},
+                "Regular review and updates"
+            },
+            {
+                "Internal Model Approval",
+                "Comprehensive model documentation",
+                "IN_PROGRESS",
+                {"User manual completion", "Risk committee approval"},
+                "Documentation completion Q2 2024"
+            }
+        };
+    }
+};
+```
+
+## Product-Specific Limitations
+
+### Vanilla Options
+- **Limitation** : Surestimation possible pour très courtes maturités
+- **Impact** : Faible (< 2% d'erreur)
+- **Mitigation** : Ajustements pour time decay
+
+### Barrier Options
+- **Limitation** : Monitoring discret vs continu
+- **Impact** : Modéré (2-5% d'erreur selon fréquence)
+- **Mitigation** : Correction de Broadie-Glasserman
+
+### Asian Options
+- **Limitation** : Complexité pour moyennes arithmétiques
+- **Impact** : Élevé pour PDE (> 10% d'erreur possible)
+- **Mitigation** : Préférence automatique pour Monte Carlo
+
+### Path-Dependent Products
+- **Limitation** : Explosion dimensionnelle pour PDE
+- **Impact** : Très élevé (infaisable pour > 3 dimensions)
+- **Mitigation** : Sélection automatique Monte Carlo
+
+## Future Improvements
+
+### Short-term Enhancements (6-12 months)
+1. **GPU Acceleration** : Accélération PDE via CUDA
+2. **Advanced Variance Reduction** : Techniques MC sophistiquées
+3. **Machine Learning Selection** : ML pour sélection de méthode
+4. **Enhanced Validation** : Framework de validation étendu
+
+### Medium-term Developments (1-2 years)
+1. **Stochastic Volatility Integration** : Modèles hybrides LV-SV
+2. **Jump-Diffusion Extension** : Support des processus avec sauts
+3. **Multi-Asset Capability** : Extension multi-sous-jacents
+4. **Quantum Computing** : Exploration d'algorithmes quantiques
+
+### Long-term Vision (2-5 years)
+1. **AI-Driven Calibration** : Calibration automatique par IA
+2. **Real-time Adaptation** : Adaptation temps réel aux conditions
+3. **Unified Framework** : Framework unifié tous modèles
+4. **Regulatory Automation** : Compliance automatisée
+
+## Risk Mitigation Strategies
+
+### Operational Risk Mitigation
+- **Monitoring Continu** : Surveillance 24/7 des métriques
+- **Fallback Procedures** : Procédures de secours automatiques
+- **Quality Gates** : Contrôles qualité à chaque étape
+- **User Training** : Formation continue des utilisateurs
+
+### Model Risk Mitigation
+- **Cross-Validation** : Validation croisée systématique
+- **Benchmark Testing** : Tests contre solutions analytiques
+- **Stress Testing** : Tests sous conditions extrêmes
+- **Regular Review** : Revue périodique des performances
+
+### Technology Risk Mitigation
+- **Redundancy** : Systèmes redondants pour haute disponibilité
+- **Version Control** : Gestion rigoureuse des versions
+- **Performance Monitoring** : Surveillance performance continue
+- **Capacity Planning** : Planification de capacité proactive
+
+## Conclusion
+
+Le modèle Local Volatility PDE and MC dans Our project présente des limitations inhérentes aux approches théoriques et numériques, mais dispose de stratégies de mitigation robustes et d'un plan d'amélioration continue pour maintenir sa pertinence et sa fiabilité en production.

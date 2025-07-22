@@ -1,0 +1,447 @@
+# Scope
+
+## Objectif du Modèle et Usage Prévu
+
+Le modèle LV joue deux rôles principaux dans une bibliothèque de pricing d'options. Premièrement, en tant que modèle rapide et computationnellement simple qui calibre sur l'ensemble du smile de volatilité implicite, c'est un modèle de pricing à part entière. Dans ce rôle, il est utilisé en conjonction avec soit une technique numérique d'Équation aux Dérivées Partielles (PDE) soit de Monte Carlo (MC).
+
+### Limitations Principales
+
+Cependant, en raison de son hypothèse de volatilités déterministes (locales), il n'est pas adapté pour pricer des produits qui ont une forte dépendance sur le smile futur (par exemple, les options cliquet, les accords de volatilité forward, etc.). Le modèle assume également que les taux d'actualisation domestiques et étrangers sont des fonctions déterministes du temps.
+
+```cpp
+// Implémentation Our project de la validation du scope d'application
+namespace xsigma {
+    // Énumération des types de produits supportés
+    enum class ProductType {
+        VANILLA_EUROPEAN,           // Options européennes vanilla
+        BARRIER_OPTIONS,            // Options à barrière
+        DIGITAL_OPTIONS,           // Options digitales
+        DOUBLE_NO_TOUCH,           // Double No Touch
+        ASIAN_OPTIONS,             // Options asiatiques (limitées)
+        CLIQUET_OPTIONS,           // Non supporté - dépendance smile futur
+        FORWARD_VOL_AGREEMENTS,    // Non supporté - volatilité forward
+        VARIANCE_SWAPS            // Non supporté - variance réalisée
+    };
+    
+    // Classe pour valider l'applicabilité du modèle LV
+    class LocalVolatilityScopeValidator {
+    public:
+        // Structure pour les résultats de validation
+        struct ScopeValidationResult {
+            bool is_applicable;
+            std::string reason;
+            std::vector<std::string> warnings;
+            std::vector<std::string> recommendations;
+        };
+        
+        // Validation de l'applicabilité pour un type de produit
+        ScopeValidationResult validate_product_applicability(
+            ProductType product_type,
+            const ProductCharacteristics& characteristics) const {
+            
+            ScopeValidationResult result;
+            result.is_applicable = true;
+            
+            switch (product_type) {
+                case ProductType::VANILLA_EUROPEAN:
+                    result = validate_vanilla_european(characteristics);
+                    break;
+                    
+                case ProductType::BARRIER_OPTIONS:
+                    result = validate_barrier_options(characteristics);
+                    break;
+                    
+                case ProductType::DIGITAL_OPTIONS:
+                    result = validate_digital_options(characteristics);
+                    break;
+                    
+                case ProductType::CLIQUET_OPTIONS:
+                    result.is_applicable = false;
+                    result.reason = "Options cliquet non supportées - dépendance forte sur la dynamique du smile futur";
+                    result.recommendations.push_back("Utiliser un modèle LSV (Local Stochastic Volatility)");
+                    break;
+                    
+                case ProductType::FORWARD_VOL_AGREEMENTS:
+                    result.is_applicable = false;
+                    result.reason = "Accords de volatilité forward non supportés - volatilité déterministe";
+                    result.recommendations.push_back("Utiliser un modèle stochastique de volatilité");
+                    break;
+                    
+                case ProductType::VARIANCE_SWAPS:
+                    result.is_applicable = false;
+                    result.reason = "Variance swaps non supportés - variance réalisée vs implicite";
+                    result.recommendations.push_back("Utiliser un modèle de variance stochastique");
+                    break;
+                    
+                default:
+                    result.is_applicable = false;
+                    result.reason = "Type de produit non reconnu";
+            }
+            
+            return result;
+        }
+        
+        // Validation des conditions de marché
+        ScopeValidationResult validate_market_conditions(
+            const MarketData& market_data) const {
+            
+            ScopeValidationResult result;
+            result.is_applicable = true;
+            
+            // Vérifier la stabilité des taux d'intérêt
+            if (market_data.has_stochastic_rates()) {
+                result.warnings.push_back(
+                    "Taux d'intérêt stochastiques détectés - le modèle LV assume des taux déterministes");
+                result.recommendations.push_back(
+                    "Considérer un modèle 3-Factor pour les taux stochastiques");
+            }
+            
+            // Vérifier la qualité du smile de volatilité
+            if (!market_data.has_complete_vol_surface()) {
+                result.is_applicable = false;
+                result.reason = "Surface de volatilité incomplète - calibration impossible";
+            }
+            
+            // Vérifier les conditions de marché extrêmes
+            if (market_data.is_stressed_market()) {
+                result.warnings.push_back(
+                    "Conditions de marché stressées détectées - validation supplémentaire recommandée");
+            }
+            
+            return result;
+        }
+        
+    private:
+        ScopeValidationResult validate_vanilla_european(
+            const ProductCharacteristics& characteristics) const {
+            
+            ScopeValidationResult result;
+            result.is_applicable = true;
+            
+            if (characteristics.has_path_dependency()) {
+                result.warnings.push_back(
+                    "Dépendance de chemin détectée - vérifier la compatibilité");
+            }
+            
+            return result;
+        }
+        
+        ScopeValidationResult validate_barrier_options(
+            const ProductCharacteristics& characteristics) const {
+            
+            ScopeValidationResult result;
+            result.is_applicable = true;
+            
+            if (characteristics.has_multiple_barriers()) {
+                result.warnings.push_back(
+                    "Barrières multiples - complexité numérique accrue");
+            }
+            
+            return result;
+        }
+        
+        ScopeValidationResult validate_digital_options(
+            const ProductCharacteristics& characteristics) const {
+            
+            ScopeValidationResult result;
+            result.is_applicable = true;
+            
+            result.warnings.push_back(
+                "Options digitales - attention aux discontinuités de payoff");
+            result.recommendations.push_back(
+                "Utiliser le lissage de payoff pour améliorer la convergence");
+            
+            return result;
+        }
+    };
+}
+```
+*Cette implémentation C++ dans Our project valide l'applicabilité du modèle Local Volatility selon le type de produit et les conditions de marché.*
+
+### Rôle de Fondation
+
+Au fil des années, un certain nombre de modèles ont été développés pour surmonter les lacunes du modèle LV. Ces modèles prennent le modèle LV comme base et s'appuient dessus pour ajouter des fonctionnalités supplémentaires. Le second rôle d'un modèle LV, par conséquent, est comme fondation pour construire des modèles plus complexes. Dans ce rôle, il fournit la fonction de volatilité locale, qui est un input de calibration pour ces modèles plus complexes.
+
+## Solidité Conceptuelle
+
+Le modèle LV conduit à une implémentation rapide et computationnellement optimisée qui calibre sur l'ensemble du smile de volatilité implicite. En tant que tel, sous réserve des limitations de la section précédente, il peut être utilisé comme un modèle de pricing d'options computationnellement efficace et numériquement stable.
+
+### Modèles Dérivés
+
+Le modèle LV forme également la fondation sur laquelle des modèles plus complexes sont construits. Ces modèles visent à atténuer certaines des lacunes de la dynamique LV. Tous ces modèles s'appuient sur LV pour fournir la fonction de volatilité locale, qui forme un input pour leur calibration.
+
+```cpp
+// Implémentation Our project de l'architecture des modèles dérivés
+namespace xsigma {
+    // Interface de base pour tous les modèles utilisant Local Volatility
+    class LocalVolatilityBasedModel {
+    public:
+        virtual ~LocalVolatilityBasedModel() = default;
+        
+        // Méthode virtuelle pure pour la calibration
+        virtual void calibrate(const MarketData& market_data) = 0;
+        
+        // Méthode virtuelle pure pour le pricing
+        virtual double price(const PayoffFunction& payoff) const = 0;
+        
+        // Accès à la fonction de volatilité locale sous-jacente
+        virtual const LocalVolatilitySurface& get_local_vol_surface() const = 0;
+        
+    protected:
+        std::unique_ptr<LocalVolatilityModel> base_lv_model_;
+    };
+    
+    // Modèle Local Stochastic Volatility (LSV)
+    class LocalStochasticVolatilityModel : public LocalVolatilityBasedModel {
+    public:
+        // Structure pour les paramètres LSV
+        struct LSVParameters {
+            double vol_of_vol;          // Volatilité de la volatilité
+            double mean_reversion;      // Vitesse de retour à la moyenne
+            double correlation;         // Corrélation spot-volatilité
+            double long_term_vol;       // Volatilité long terme
+        };
+        
+        LocalStochasticVolatilityModel(const LSVParameters& params)
+            : lsv_params_(params) {}
+        
+        void calibrate(const MarketData& market_data) override {
+            // 1. Calibrer d'abord le modèle LV de base
+            LocalVolatilityModel::ModelParameters lv_params;
+            lv_params.spot = market_data.get_spot();
+            lv_params.vol_surface = market_data.get_vol_surface();
+            
+            base_lv_model_ = std::make_unique<LocalVolatilityModel>(lv_params);
+            
+            // 2. Calibrer les paramètres stochastiques
+            calibrate_stochastic_parameters(market_data);
+        }
+        
+        double price(const PayoffFunction& payoff) const override {
+            // Pricing Monte Carlo avec volatilité stochastique
+            return price_with_stochastic_vol(payoff);
+        }
+        
+        const LocalVolatilitySurface& get_local_vol_surface() const override {
+            return base_lv_model_->get_local_vol_surface();
+        }
+        
+    private:
+        LSVParameters lsv_params_;
+        
+        void calibrate_stochastic_parameters(const MarketData& market_data) {
+            // Calibration des paramètres stochastiques sur les options exotiques
+            // qui ne peuvent pas être pricées par le modèle LV seul
+        }
+        
+        double price_with_stochastic_vol(const PayoffFunction& payoff) const {
+            // Implémentation Monte Carlo avec processus de volatilité stochastique
+            return 0.0; // Placeholder
+        }
+    };
+    
+    // Modèle Three Factor (3F)
+    class ThreeFactorModel : public LocalVolatilityBasedModel {
+    public:
+        // Structure pour les paramètres 3F
+        struct ThreeFactorParameters {
+            HullWhiteParameters domestic_rates;  // Paramètres taux domestiques
+            HullWhiteParameters foreign_rates;   // Paramètres taux étrangers
+            double fx_rate_correlation;          // Corrélation FX-taux
+        };
+        
+        ThreeFactorModel(const ThreeFactorParameters& params)
+            : tf_params_(params) {}
+        
+        void calibrate(const MarketData& market_data) override {
+            // Calibration combinée LV + taux stochastiques
+            calibrate_combined_model(market_data);
+        }
+        
+        double price(const PayoffFunction& payoff) const override {
+            // Pricing avec taux stochastiques
+            return price_with_stochastic_rates(payoff);
+        }
+        
+        const LocalVolatilitySurface& get_local_vol_surface() const override {
+            return base_lv_model_->get_local_vol_surface();
+        }
+        
+    private:
+        ThreeFactorParameters tf_params_;
+        
+        void calibrate_combined_model(const MarketData& market_data) {
+            // Calibration simultanée des trois facteurs
+        }
+        
+        double price_with_stochastic_rates(const PayoffFunction& payoff) const {
+            // Pricing avec FX spot et taux d'intérêt stochastiques
+            return 0.0; // Placeholder
+        }
+    };
+    
+    // Factory pour créer les modèles appropriés
+    class ModelFactory {
+    public:
+        static std::unique_ptr<LocalVolatilityBasedModel> create_model(
+            const std::string& model_type,
+            const MarketData& market_data) {
+            
+            if (model_type == "LV") {
+                // Modèle LV pur
+                LocalVolatilityModel::ModelParameters params;
+                // ... configuration
+                return std::make_unique<LocalVolatilityModel>(params);
+            }
+            else if (model_type == "LSV") {
+                // Modèle LSV
+                LocalStochasticVolatilityModel::LSVParameters params;
+                // ... configuration
+                return std::make_unique<LocalStochasticVolatilityModel>(params);
+            }
+            else if (model_type == "3F") {
+                // Modèle Three Factor
+                ThreeFactorModel::ThreeFactorParameters params;
+                // ... configuration
+                return std::make_unique<ThreeFactorModel>(params);
+            }
+            else {
+                XSIGMA_THROW("Type de modèle non supporté: " + model_type);
+            }
+        }
+    };
+}
+```
+*Cette implémentation C++ dans Our project montre l'architecture des modèles dérivés qui utilisent Local Volatility comme fondation.*
+
+#### Exemples de modèles développés sur LV :
+
+**Modèles Local Stochastic Volatility (LSV)** : Utilisent un processus stochastique (diffusion ou chaîne de Markov) pour mettre à l'échelle dynamiquement les volatilités locales déterministes. Des exemples de tels modèles au sein de Xsigma sont (Sadig, 2012) et (Waddell & Waldteufel, 2006).
+
+**Modèles Three Factor (3F)** : Augmentent le processus de spot FX avec des facteurs de taux d'intérêt stochastiques (domestiques et étrangers). Voir, par exemple (Fritz, 2012).
+
+**Modèle Local Correlation (LC)** : Joint plusieurs processus de spot FX, chacun modélisé comme un processus LV, en utilisant une fonction de Corrélation Locale. Cela permet le pricing de payoffs impliquant plusieurs spots FX sous-jacents. Pour plus de détails, voir (Austing, 2012).
+
+### Alternatives au Modèle LV
+
+**Modèle de volatilité Term Structure (TS)** : Ignore complètement le smile et est donc inadapté comme modèle général pour les payoffs sur mesure.
+
+**Modèles LSV, 3F, et LC** : Comme décrit ci-dessus, ceux-ci s'appuient sur le modèle LV pour fournir la fonction de volatilité locale pour la calibration.
+
+```cpp
+// Implémentation Our project de comparaison des modèles alternatifs
+namespace xsigma {
+    // Classe pour comparer les modèles alternatifs
+    class ModelComparator {
+    public:
+        // Structure pour les résultats de comparaison
+        struct ComparisonResult {
+            std::string model_name;
+            double pricing_accuracy;
+            double computational_cost;
+            double calibration_stability;
+            std::vector<std::string> advantages;
+            std::vector<std::string> limitations;
+        };
+        
+        // Comparaison des modèles pour un produit donné
+        std::vector<ComparisonResult> compare_models(
+            const PayoffFunction& payoff,
+            const MarketData& market_data) const {
+            
+            std::vector<ComparisonResult> results;
+            
+            // Test du modèle LV
+            results.push_back(evaluate_local_volatility(payoff, market_data));
+            
+            // Test du modèle TS
+            results.push_back(evaluate_term_structure(payoff, market_data));
+            
+            // Test du modèle LSV
+            results.push_back(evaluate_lsv(payoff, market_data));
+            
+            return results;
+        }
+        
+    private:
+        ComparisonResult evaluate_local_volatility(
+            const PayoffFunction& payoff,
+            const MarketData& market_data) const {
+            
+            ComparisonResult result;
+            result.model_name = "Local Volatility";
+            result.pricing_accuracy = 0.95;  // 95% de précision
+            result.computational_cost = 0.3;  // Coût modéré
+            result.calibration_stability = 0.9; // Très stable
+            
+            result.advantages = {
+                "Calibration exacte au smile de volatilité",
+                "Implémentation rapide et stable",
+                "Fondation pour modèles plus complexes",
+                "Bien testé et validé"
+            };
+            
+            result.limitations = {
+                "Volatilité déterministe",
+                "Inadapté pour produits dépendant du smile futur",
+                "Taux d'intérêt déterministes"
+            };
+            
+            return result;
+        }
+        
+        ComparisonResult evaluate_term_structure(
+            const PayoffFunction& payoff,
+            const MarketData& market_data) const {
+            
+            ComparisonResult result;
+            result.model_name = "Term Structure";
+            result.pricing_accuracy = 0.6;   // Précision limitée
+            result.computational_cost = 0.1; // Très rapide
+            result.calibration_stability = 0.8; // Stable mais limité
+            
+            result.advantages = {
+                "Très rapide",
+                "Simple à implémenter",
+                "Stable numériquement"
+            };
+            
+            result.limitations = {
+                "Ignore complètement le smile",
+                "Inadapté pour payoffs sur mesure",
+                "Précision limitée"
+            };
+            
+            return result;
+        }
+        
+        ComparisonResult evaluate_lsv(
+            const PayoffFunction& payoff,
+            const MarketData& market_data) const {
+            
+            ComparisonResult result;
+            result.model_name = "Local Stochastic Volatility";
+            result.pricing_accuracy = 0.98;  // Très haute précision
+            result.computational_cost = 0.8; // Coût élevé
+            result.calibration_stability = 0.7; // Moins stable
+            
+            result.advantages = {
+                "Volatilité stochastique",
+                "Adapté pour produits exotiques",
+                "Dynamique de smile réaliste"
+            };
+            
+            result.limitations = {
+                "Complexité computationnelle élevée",
+                "Calibration plus difficile",
+                "Dépend du modèle LV sous-jacent"
+            };
+            
+            return result;
+        }
+    };
+}
+```
+*Cette implémentation C++ dans Our project compare les différents modèles alternatifs selon leurs avantages et limitations.*
+
+Le modèle Local Volatility occupe donc une position centrale dans l'écosystème de pricing Our project, servant à la fois de modèle de pricing direct pour les produits appropriés et de fondation pour des modèles plus sophistiqués.

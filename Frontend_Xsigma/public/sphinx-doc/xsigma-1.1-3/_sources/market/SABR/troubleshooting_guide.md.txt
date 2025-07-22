@@ -1,0 +1,306 @@
+# Troubleshooting Guide
+
+## Overview
+
+This comprehensive troubleshooting guide provides practical solutions for common issues encountered when using the SABR/GSABR models in Our project. The guide covers calibration failures, numerical instabilities, performance issues, and integration problems, offering both diagnostic tools and resolution strategies.
+
+## Common Calibration Issues
+
+### Calibration Convergence Failures
+
+**Symptoms:**
+- Optimization fails to converge within maximum iterations
+- Parameter values hit bounds repeatedly
+- Objective function oscillates without improvement
+
+**Diagnostic Approach:**
+
+```cpp
+namespace xsigma {
+    // Diagnostic tools for SABR calibration issues
+    class sabr_calibration_diagnostics {
+    public:
+        // Constructor with calibration data
+        sabr_calibration_diagnostics(
+            const std::vector<double>& market_vols,
+            const std::vector<double>& strikes,
+            double forward,
+            double expiry
+        ) : market_vols_(market_vols), strikes_(strikes), 
+            forward_(forward), expiry_(expiry) {}
+
+        // Diagnose calibration data quality
+        calibration_diagnosis diagnose_data_quality() const {
+            calibration_diagnosis diagnosis;
+            
+            // Check for data consistency
+            diagnosis.has_negative_vols = std::any_of(market_vols_.begin(), market_vols_.end(),
+                                                    [](double vol) { return vol <= 0.0; });
+            
+            // Check strike distribution
+            diagnosis.strike_coverage = calculate_strike_coverage();
+            diagnosis.atm_proximity = find_atm_proximity();
+            
+            // Check volatility smile shape
+            diagnosis.smile_monotonicity = check_smile_monotonicity();
+            diagnosis.extreme_skew = detect_extreme_skew();
+            
+            return diagnosis;
+        }
+
+        // Suggest initial parameter values
+        sabr_initial_guess suggest_initial_parameters() const {
+            sabr_initial_guess guess;
+            
+            // ATM volatility as alpha starting point
+            size_t atm_index = find_closest_strike_index(strikes_, forward_);
+            guess.alpha = market_vols_[atm_index] * std::pow(forward_, 1.0 - 0.5);
+            
+            // Conservative beta for stability
+            guess.beta = 0.5;
+            
+            // Estimate rho from skew
+            guess.rho = estimate_correlation_from_skew();
+            
+            // Conservative nu
+            guess.nu = 0.3;
+            
+            return guess;
+        }
+
+    private:
+        std::vector<double> market_vols_;
+        std::vector<double> strikes_;
+        double forward_;
+        double expiry_;
+        
+        double calculate_strike_coverage() const;
+        double find_atm_proximity() const;
+        bool check_smile_monotonicity() const;
+        bool detect_extreme_skew() const;
+        double estimate_correlation_from_skew() const;
+    };
+}
+```
+
+*This diagnostic class analyzes the quality of calibration data and identifies potential issues. It provides tools to detect inconsistent data, evaluate strike coverage, and suggest appropriate initial parameters to improve convergence.*
+
+**Resolution Strategies:**
+
+1. **Data Quality Issues:**
+   - Remove negative or zero volatilities
+   - Ensure adequate strike coverage around ATM
+   - Smooth outliers using market consensus
+
+2. **Parameter Bounds:**
+   - Relax bounds temporarily for initial convergence
+   - Use multi-stage calibration (ATM first, then full smile)
+   - Apply parameter transformations to avoid bounds
+
+3. **Optimization Settings:**
+   - Increase maximum iterations
+   - Reduce convergence tolerance initially
+   - Use different optimization algorithms (Ceres vs. custom)
+
+### Poor Calibration Quality
+
+**Symptoms:**
+- High RMSE despite convergence
+- Systematic bias in certain strike regions
+- Unrealistic parameter values
+
+## Numerical Stability Issues
+
+### GSABR PDE Solver Problems
+
+**Common Issues:**
+- Grid convergence failures
+- Negative probabilities
+- Oscillatory solutions
+
+**Diagnostic Implementation:**
+
+```cpp
+namespace xsigma {
+    // GSABR PDE stability diagnostics
+    class gsabr_pde_diagnostics {
+    public:
+        // Check grid stability
+        grid_stability_report analyze_grid_stability(
+            const std::vector<double>& strikes,
+            const std::vector<double>& probabilities) const {
+            
+            grid_stability_report report;
+            
+            // Check for negative probabilities
+            report.negative_probabilities = std::count_if(
+                probabilities.begin(), probabilities.end(),
+                [](double p) { return p < -1e-10; });
+            
+            // Check probability conservation
+            double total_prob = std::accumulate(probabilities.begin(), 
+                                              probabilities.end(), 0.0);
+            report.probability_conservation_error = std::abs(total_prob - 1.0);
+            
+            // Check for oscillations
+            report.oscillation_detected = detect_oscillations(probabilities);
+            
+            // Grid spacing analysis
+            report.min_spacing = calculate_min_grid_spacing(strikes);
+            report.max_spacing = calculate_max_grid_spacing(strikes);
+            
+            return report;
+        }
+
+        // Suggest grid improvements
+        grid_optimization_suggestions suggest_grid_optimization(
+            const grid_stability_report& report) const {
+            
+            grid_optimization_suggestions suggestions;
+            
+            if (report.negative_probabilities > 0) {
+                suggestions.increase_grid_density = true;
+                suggestions.suggested_grid_size = std::min(800, 
+                    static_cast<int>(current_grid_size_ * 1.5));
+            }
+            
+            if (report.oscillation_detected) {
+                suggestions.use_smoothing = true;
+                suggestions.reduce_time_step = true;
+            }
+            
+            if (report.probability_conservation_error > 1e-6) {
+                suggestions.check_boundary_conditions = true;
+                suggestions.verify_local_volatility = true;
+            }
+            
+            return suggestions;
+        }
+
+    private:
+        int current_grid_size_;
+        
+        bool detect_oscillations(const std::vector<double>& data) const;
+        double calculate_min_grid_spacing(const std::vector<double>& strikes) const;
+        double calculate_max_grid_spacing(const std::vector<double>& strikes) const;
+    };
+}
+```
+
+*This PDE diagnostic class identifies numerical stability issues in the GSABR solver. It detects negative probabilities, oscillations, and conservation errors, then suggests grid improvements and numerical parameter adjustments.*
+
+## Performance Issues
+
+### Slow Calibration Performance
+
+**Common Causes:**
+- Oversized strike grids
+- Inefficient optimization settings
+- Memory allocation overhead
+
+**Performance Optimization:**
+
+```cpp
+namespace xsigma {
+    // Performance optimization for SABR calibration
+    class sabr_performance_optimizer {
+    public:
+        // Optimize calibration settings for speed
+        optimized_calibration_config optimize_for_speed(
+            const calibration_requirements& requirements) const {
+            
+            optimized_calibration_config config;
+            
+            // Grid size optimization
+            if (requirements.accuracy_level == accuracy_level::FAST) {
+                config.pde_grid_size = 200;  // Reduced for speed
+                config.standard_deviations = 4.0;  // Narrower range
+            } else if (requirements.accuracy_level == accuracy_level::BALANCED) {
+                config.pde_grid_size = 400;  // Standard
+                config.standard_deviations = 5.0;
+            } else {
+                config.pde_grid_size = 600;  // High accuracy
+                config.standard_deviations = 6.0;
+            }
+            
+            // Optimization settings
+            config.max_iterations = requirements.time_budget_ms < 100 ? 50 : 200;
+            config.tolerance = requirements.time_budget_ms < 100 ? 1e-6 : 1e-8;
+            
+            // Memory optimization
+            config.use_memory_pool = true;
+            config.cache_intermediate_results = requirements.repeated_calibration;
+            
+            return config;
+        }
+
+        // Monitor calibration performance
+        void monitor_performance(const calibration_timing& timing) const {
+            if (timing.total_time_ms > performance_thresholds_.warning_time_ms) {
+                log_performance_warning(timing);
+            }
+            
+            if (timing.memory_usage_mb > performance_thresholds_.memory_limit_mb) {
+                log_memory_warning(timing);
+            }
+        }
+
+    private:
+        performance_thresholds performance_thresholds_;
+        
+        void log_performance_warning(const calibration_timing& timing) const;
+        void log_memory_warning(const calibration_timing& timing) const;
+    };
+}
+```
+
+*This performance optimization class automatically adjusts calibration parameters based on speed and accuracy requirements. It monitors performance in real-time and suggests optimizations to improve computational efficiency.*
+
+## Integration Issues
+
+### Market Data Integration Problems
+
+**Common Issues:**
+- Missing volatility quotes
+- Inconsistent strike conventions
+- Data timing mismatches
+
+### Model Validation Failures
+
+**Arbitrage Detection:**
+- Butterfly arbitrage violations
+- Calendar arbitrage issues
+- Strike arbitrage problems
+
+## FAQ - Frequently Asked Questions
+
+### Q1: Why does SABR calibration fail for very short expiries?
+**A:** Short expiries can cause numerical instabilities. Use normal SABR (β=0) or increase minimum expiry threshold.
+
+### Q2: How to handle negative interest rates?
+**A:** Use shifted SABR with appropriate displacement parameter. Ensure shift > |minimum_rate|.
+
+### Q3: When to use SABR vs GSABR?
+**A:** Use SABR for speed and standard conditions. Use GSABR for better accuracy and complex smile shapes.
+
+### Q4: How to detect arbitrage violations?
+**A:** Check butterfly conditions: C(K₁) - 2C(K₂) + C(K₃) ≥ 0 for K₁ < K₂ < K₃.
+
+## Escalation Procedures
+
+### Level 1: Automatic Resolution
+- Parameter bound adjustments
+- Grid refinement
+- Alternative optimization algorithms
+
+### Level 2: Manual Intervention
+- Data quality review
+- Parameter override
+- Model selection change
+
+### Level 3: Expert Analysis
+- Mathematical review
+- Code debugging
+- Model enhancement
+
+*This troubleshooting guide provides a systematic approach to resolving common issues with SABR/GSABR models. Automated diagnostic tools enable rapid problem identification, while resolution strategies offer practical solutions to maintain system stability and performance in production.*

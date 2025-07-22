@@ -1,0 +1,663 @@
+# Product Testing: FXEuroOpt
+
+## 📊 **FXEuroOpt Product Overview**
+
+### **Trade Description**
+We consider a **FXEuroOpt** (FX European Option) trade in a DBA security template with the following characteristics:
+
+#### **Product Structure**
+- **Type**: Vanilla European option on exchange rate
+- **Underlying**: Currency pair (ex: EUR/USD, GBP/USD)
+- **Exercise Style**: European (exercise only at expiry)
+- **Settlement**: Physical or cash
+- **Barrier**: No barrier
+- **Path-Dependent**: No
+
+### **Implementation in Our Project**
+
+#### **🔧 FXEuroOpt Class**
+```cpp
+// FXEuroOpt product implementation in Our project
+class FXEuroOpt : public fx_derivative_base {
+private:
+    struct european_option_specification {
+        std::string currency_pair;
+        double strike;
+        double expiry;
+        bool is_call;
+        double notional;
+        std::string settlement_currency;
+        settlement_type settlement_method;
+    };
+    
+    european_option_specification spec_;
+    
+public:
+    FXEuroOpt(const european_option_specification& spec) : spec_(spec) {
+        validate_option_specification();
+    }
+    
+    double calculate_pv(const fx_market_data& market) const override {
+        return calculate_black_scholes_pv(market);
+    }
+    
+    fx_sensitivities calculate_sensitivities(const fx_market_data& market) const override {
+        fx_sensitivities sens;
+        
+        // Greeks calculation via analytical Black-Scholes
+        auto bs_result = fx_black_scholes_engine::calculate_option_metrics(
+            market.get_fx_spot(spec_.currency_pair),
+            spec_.strike,
+            spec_.expiry,
+            market.get_domestic_rate(spec_.expiry),
+            market.get_foreign_rate(spec_.expiry),
+            market.get_fx_volatility(spec_.currency_pair, spec_.strike, spec_.expiry),
+            spec_.is_call,
+            spec_.notional
+        );
+        
+        sens.fx_delta = bs_result.delta;
+        sens.fx_gamma = bs_result.gamma;
+        sens.vega = bs_result.vega;
+        sens.theta = bs_result.theta;
+        sens.domestic_ir_delta = bs_result.rho_domestic;
+        sens.foreign_ir_delta = bs_result.rho_foreign;
+        
+        return sens;
+    }
+    
+private:
+    double calculate_black_scholes_pv(const fx_market_data& market) const {
+        // Récupération des paramètres de marché
+        double fx_spot = market.get_fx_spot(spec_.currency_pair);
+        double dom_rate = market.get_domestic_rate(spec_.expiry);
+        double for_rate = market.get_foreign_rate(spec_.expiry);
+        double volatility = market.get_fx_volatility(spec_.currency_pair, 
+                                                   spec_.strike, spec_.expiry);
+        
+        // Calcul du forward FX
+        double forward = fx_spot * std::exp((dom_rate - for_rate) * spec_.expiry);
+        
+        // Paramètres Black-Scholes
+        double sqrt_t = std::sqrt(spec_.expiry);
+        double vol_sqrt_t = volatility * sqrt_t;
+        
+        double d1 = (std::log(forward / spec_.strike) + 
+                    0.5 * volatility * volatility * spec_.expiry) / vol_sqrt_t;
+        double d2 = d1 - vol_sqrt_t;
+        
+        // Prix Black-Scholes
+        double discount_factor = std::exp(-dom_rate * spec_.expiry);
+        
+        double option_value;
+        if (spec_.is_call) {
+            option_value = forward * normal_cdf(d1) - spec_.strike * normal_cdf(d2);
+        } else {
+            option_value = spec_.strike * normal_cdf(-d2) - forward * normal_cdf(-d1);
+        }
+        
+        return spec_.notional * discount_factor * option_value;
+    }
+    
+    void validate_option_specification() const {
+        XSIGMA_CHECK(spec_.strike > 0, "Strike must be positive");
+        XSIGMA_CHECK(spec_.expiry > 0, "Expiry must be positive");
+        XSIGMA_CHECK(spec_.notional != 0, "Notional cannot be zero");
+        XSIGMA_CHECK(!spec_.currency_pair.empty(), "Currency pair required");
+    }
+};
+```
+*Cette implémentation C++ dans Our project montre la structure complète d'une option européenne FX avec pricing Black-Scholes analytique et calcul de sensibilités.*
+
+---
+
+## 🧪 **EOD Testing**
+
+### **Tests de Fin de Journée**
+
+#### **🔍 Analytical Pricing Validation**
+
+##### **Validation du Pricing Analytique**
+```cpp
+// Tests de validation du pricing analytique pour FXEuroOpt dans Our project
+class fxeuropt_analytical_validation_tester {
+public:
+    struct analytical_test_case {
+        double spot;
+        double strike;
+        double expiry;
+        double dom_rate;
+        double for_rate;
+        double volatility;
+        bool is_call;
+        double expected_price;
+        std::string description;
+    };
+    
+    struct validation_results {
+        std::vector<double> pricing_errors;
+        std::vector<double> relative_errors;
+        bool all_tests_passed;
+        double max_error;
+        double avg_error;
+    };
+    
+    validation_results test_analytical_pricing() {
+        validation_results results;
+        
+        // Cas de test avec solutions analytiques connues
+        std::vector<analytical_test_case> test_cases = {
+            // ATM cases
+            {1.0, 1.0, 1.0, 0.05, 0.03, 0.2, true, 0.0, "ATM Call"},
+            {1.0, 1.0, 1.0, 0.05, 0.03, 0.2, false, 0.0, "ATM Put"},
+            
+            // Deep ITM cases (should converge to intrinsic value)
+            {1.5, 1.0, 0.01, 0.05, 0.03, 0.2, true, 0.0, "Deep ITM Call"},
+            {0.5, 1.0, 0.01, 0.05, 0.03, 0.2, false, 0.0, "Deep ITM Put"},
+            
+            // Deep OTM cases (should converge to zero)
+            {0.5, 1.0, 0.01, 0.05, 0.03, 0.2, true, 0.0, "Deep OTM Call"},
+            {1.5, 1.0, 0.01, 0.05, 0.03, 0.2, false, 0.0, "Deep OTM Put"},
+            
+            // Zero volatility cases
+            {1.1, 1.0, 1.0, 0.05, 0.03, 0.0, true, 0.0, "Zero Vol ITM Call"},
+            {0.9, 1.0, 1.0, 0.05, 0.03, 0.0, false, 0.0, "Zero Vol ITM Put"}
+        };
+        
+        for (auto& test_case : test_cases) {
+            // Calcul du prix attendu pour les cas spéciaux
+            test_case.expected_price = calculate_expected_price(test_case);
+            
+            // Configuration de l'option
+            FXEuroOpt::european_option_specification spec;
+            spec.currency_pair = "EURUSD";
+            spec.strike = test_case.strike;
+            spec.expiry = test_case.expiry;
+            spec.is_call = test_case.is_call;
+            spec.notional = 1.0;
+            
+            FXEuroOpt option(spec);
+            
+            // Configuration du marché
+            fx_market_data market = create_test_market_data(test_case);
+            
+            // Calcul du prix
+            double calculated_price = option.calculate_pv(market);
+            
+            // Calcul des erreurs
+            double absolute_error = std::abs(calculated_price - test_case.expected_price);
+            double relative_error = absolute_error / std::max(std::abs(test_case.expected_price), 1e-10);
+            
+            results.pricing_errors.push_back(absolute_error);
+            results.relative_errors.push_back(relative_error);
+            
+            // Validation avec tolérance appropriée
+            if (test_case.description.find("Zero Vol") != std::string::npos) {
+                EXPECT_LT(absolute_error, 1e-12); // Très stricte pour vol=0
+            } else {
+                EXPECT_LT(relative_error, 1e-10); // Précision analytique
+            }
+        }
+        
+        // Statistiques globales
+        results.max_error = *std::max_element(results.relative_errors.begin(), 
+                                            results.relative_errors.end());
+        results.avg_error = std::accumulate(results.relative_errors.begin(),
+                                          results.relative_errors.end(), 0.0) / 
+                          results.relative_errors.size();
+        results.all_tests_passed = (results.max_error < 1e-10);
+        
+        return results;
+    }
+    
+private:
+    double calculate_expected_price(const analytical_test_case& test_case) {
+        if (test_case.volatility == 0.0) {
+            // Cas de volatilité nulle : prix = valeur intrinsèque actualisée
+            double forward = test_case.spot * std::exp(
+                (test_case.dom_rate - test_case.for_rate) * test_case.expiry);
+            double discount_factor = std::exp(-test_case.dom_rate * test_case.expiry);
+            
+            if (test_case.is_call) {
+                return discount_factor * std::max(forward - test_case.strike, 0.0);
+            } else {
+                return discount_factor * std::max(test_case.strike - forward, 0.0);
+            }
+        }
+        
+        // Pour les autres cas, utiliser l'implémentation de référence
+        return calculate_reference_black_scholes(test_case);
+    }
+};
+```
+
+#### **🔍 Greeks Validation Testing**
+
+##### **Tests de Validation des Greeks**
+```cpp
+// Tests de validation des Greeks pour FXEuroOpt dans Our project
+class fxeuropt_greeks_validation_tester {
+public:
+    struct greeks_test_results {
+        std::map<std::string, double> analytical_greeks;
+        std::map<std::string, double> finite_difference_greeks;
+        std::map<std::string, double> greek_errors;
+        bool all_greeks_validated;
+    };
+    
+    greeks_test_results test_greeks_validation(
+        const FXEuroOpt& option,
+        const fx_market_data& market) {
+        
+        greeks_test_results results;
+        
+        // Greeks analytiques
+        auto sensitivities = option.calculate_sensitivities(market);
+        results.analytical_greeks["DELTA"] = sensitivities.fx_delta;
+        results.analytical_greeks["GAMMA"] = sensitivities.fx_gamma;
+        results.analytical_greeks["VEGA"] = sensitivities.vega;
+        results.analytical_greeks["THETA"] = sensitivities.theta;
+        results.analytical_greeks["RHO_DOM"] = sensitivities.domestic_ir_delta;
+        results.analytical_greeks["RHO_FOR"] = sensitivities.foreign_ir_delta;
+        
+        // Greeks par différences finies
+        results.finite_difference_greeks["DELTA"] = calculate_delta_finite_difference(option, market);
+        results.finite_difference_greeks["GAMMA"] = calculate_gamma_finite_difference(option, market);
+        results.finite_difference_greeks["VEGA"] = calculate_vega_finite_difference(option, market);
+        results.finite_difference_greeks["THETA"] = calculate_theta_finite_difference(option, market);
+        results.finite_difference_greeks["RHO_DOM"] = calculate_rho_dom_finite_difference(option, market);
+        results.finite_difference_greeks["RHO_FOR"] = calculate_rho_for_finite_difference(option, market);
+        
+        // Calcul des erreurs
+        results.all_greeks_validated = true;
+        for (const auto& [greek_name, analytical_value] : results.analytical_greeks) {
+            double fd_value = results.finite_difference_greeks[greek_name];
+            double error = std::abs(analytical_value - fd_value);
+            results.greek_errors[greek_name] = error;
+            
+            // Validation avec tolérance appropriée
+            double tolerance = get_greek_tolerance(greek_name);
+            if (error > tolerance) {
+                results.all_greeks_validated = false;
+            }
+            
+            EXPECT_LT(error, tolerance);
+        }
+        
+        return results;
+    }
+    
+private:
+    double calculate_delta_finite_difference(const FXEuroOpt& option,
+                                           const fx_market_data& market) {
+        const double spot_shock = 1e-6;
+        
+        // PV de base
+        double pv_base = option.calculate_pv(market);
+        
+        // Choc positif du spot
+        auto market_up = shock_fx_spot(market, +spot_shock);
+        double pv_up = option.calculate_pv(market_up);
+        
+        // Choc négatif du spot
+        auto market_down = shock_fx_spot(market, -spot_shock);
+        double pv_down = option.calculate_pv(market_down);
+        
+        // Delta par différences finies centrées
+        return (pv_up - pv_down) / (2.0 * spot_shock);
+    }
+    
+    double calculate_gamma_finite_difference(const FXEuroOpt& option,
+                                           const fx_market_data& market) {
+        const double spot_shock = 1e-6;
+        
+        // PV de base
+        double pv_base = option.calculate_pv(market);
+        
+        // Chocs du spot
+        auto market_up = shock_fx_spot(market, +spot_shock);
+        double pv_up = option.calculate_pv(market_up);
+        
+        auto market_down = shock_fx_spot(market, -spot_shock);
+        double pv_down = option.calculate_pv(market_down);
+        
+        // Gamma par différences finies
+        return (pv_up - 2.0 * pv_base + pv_down) / (spot_shock * spot_shock);
+    }
+    
+    double calculate_vega_finite_difference(const FXEuroOpt& option,
+                                          const fx_market_data& market) {
+        const double vol_shock = 1e-6;
+        
+        // PV de base
+        double pv_base = option.calculate_pv(market);
+        
+        // Choc de volatilité
+        auto market_vol_up = shock_fx_volatility(market, +vol_shock);
+        double pv_vol_up = option.calculate_pv(market_vol_up);
+        
+        auto market_vol_down = shock_fx_volatility(market, -vol_shock);
+        double pv_vol_down = option.calculate_pv(market_vol_down);
+        
+        // Vega par différences finies centrées
+        return (pv_vol_up - pv_vol_down) / (2.0 * vol_shock);
+    }
+    
+    double get_greek_tolerance(const std::string& greek_name) {
+        // Tolérances adaptées à chaque Greek
+        if (greek_name == "DELTA") return 1e-8;
+        if (greek_name == "GAMMA") return 1e-6;
+        if (greek_name == "VEGA") return 1e-8;
+        if (greek_name == "THETA") return 1e-6;
+        if (greek_name == "RHO_DOM" || greek_name == "RHO_FOR") return 1e-6;
+        return 1e-8; // Défaut
+    }
+};
+```
+
+#### **🔍 Put-Call Parity Testing**
+
+##### **Tests de Put-Call Parity**
+```cpp
+// Tests de put-call parity pour FXEuroOpt dans Our project
+class fxeuropt_put_call_parity_tester {
+public:
+    void test_put_call_parity_comprehensive() {
+        // Grille de paramètres de test
+        std::vector<test_scenario> scenarios = generate_test_scenarios();
+        
+        for (const auto& scenario : scenarios) {
+            test_single_put_call_parity_scenario(scenario);
+        }
+    }
+    
+private:
+    struct test_scenario {
+        double spot;
+        double strike;
+        double expiry;
+        double dom_rate;
+        double for_rate;
+        double volatility;
+        std::string description;
+    };
+    
+    void test_single_put_call_parity_scenario(const test_scenario& scenario) {
+        // Configuration call
+        FXEuroOpt::european_option_specification call_spec;
+        call_spec.currency_pair = "EURUSD";
+        call_spec.strike = scenario.strike;
+        call_spec.expiry = scenario.expiry;
+        call_spec.is_call = true;
+        call_spec.notional = 1.0;
+        
+        // Configuration put
+        auto put_spec = call_spec;
+        put_spec.is_call = false;
+        
+        FXEuroOpt call_option(call_spec);
+        FXEuroOpt put_option(put_spec);
+        
+        // Configuration du marché
+        fx_market_data market = create_market_data(scenario);
+        
+        // Prix call et put
+        double call_price = call_option.calculate_pv(market);
+        double put_price = put_option.calculate_pv(market);
+        
+        // Forward et facteur d'actualisation
+        double forward = scenario.spot * std::exp(
+            (scenario.dom_rate - scenario.for_rate) * scenario.expiry);
+        double discount_factor = std::exp(-scenario.dom_rate * scenario.expiry);
+        
+        // Put-call parity : C - P = DF * (F - K)
+        double lhs = call_price - put_price;
+        double rhs = discount_factor * (forward - scenario.strike);
+        
+        double absolute_error = std::abs(lhs - rhs);
+        double relative_error = absolute_error / std::max(std::abs(rhs), 1e-10);
+        
+        // Validation avec tolérance très stricte
+        EXPECT_LT(relative_error, 1e-12);
+        
+        // Log détaillé pour debugging
+        if (relative_error > 1e-12) {
+            std::cout << "Put-Call Parity violation in scenario: " << scenario.description
+                      << "\nCall Price: " << call_price
+                      << "\nPut Price: " << put_price
+                      << "\nLHS (C-P): " << lhs
+                      << "\nRHS (DF*(F-K)): " << rhs
+                      << "\nRelative Error: " << relative_error << std::endl;
+        }
+    }
+    
+    std::vector<test_scenario> generate_test_scenarios() {
+        std::vector<test_scenario> scenarios;
+        
+        // Scénarios variés
+        std::vector<double> spots = {0.8, 1.0, 1.2};
+        std::vector<double> strikes = {0.9, 1.0, 1.1};
+        std::vector<double> expiries = {0.1, 1.0, 3.0};
+        std::vector<double> dom_rates = {0.01, 0.05};
+        std::vector<double> for_rates = {0.02, 0.04};
+        std::vector<double> volatilities = {0.1, 0.3};
+        
+        for (double spot : spots) {
+            for (double strike : strikes) {
+                for (double expiry : expiries) {
+                    for (double dom_rate : dom_rates) {
+                        for (double for_rate : for_rates) {
+                            for (double volatility : volatilities) {
+                                scenarios.push_back({
+                                    spot, strike, expiry, dom_rate, for_rate, volatility,
+                                    "Spot=" + std::to_string(spot) + 
+                                    ",Strike=" + std::to_string(strike)
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        return scenarios;
+    }
+};
+```
+
+---
+
+## 🏛️ **Stability Testing**
+
+### **Tests de Stabilité sous Stress**
+
+#### **🔍 Market Parameter Stress Testing**
+
+##### **Tests de Stress des Paramètres de Marché**
+```cpp
+// Tests de stabilité sous stress pour FXEuroOpt dans Our project
+class fxeuropt_stability_tester {
+public:
+    void test_market_parameter_stability(const FXEuroOpt& option,
+                                        const fx_market_data& base_market) {
+        
+        // Tests de stress FX spot
+        test_fx_spot_stress_stability(option, base_market);
+        
+        // Tests de stress de volatilité
+        test_volatility_stress_stability(option, base_market);
+        
+        // Tests de stress de taux d'intérêt
+        test_interest_rate_stress_stability(option, base_market);
+        
+        // Tests de stress combinés
+        test_combined_stress_stability(option, base_market);
+    }
+    
+private:
+    void test_fx_spot_stress_stability(const FXEuroOpt& option,
+                                      const fx_market_data& base_market) {
+        
+        std::cout << "=== FX Spot Stress Stability Testing ===" << std::endl;
+        
+        // Chocs de spot de -50% à +100%
+        for (double shock_pct = -50.0; shock_pct <= 100.0; shock_pct += 10.0) {
+            double shock_factor = 1.0 + shock_pct / 100.0;
+            
+            auto stressed_market = shock_fx_spot_by_factor(base_market, shock_factor);
+            
+            // Calcul des métriques sous stress
+            double pv = option.calculate_pv(stressed_market);
+            auto sensitivities = option.calculate_sensitivities(stressed_market);
+            
+            // Validation de stabilité
+            EXPECT_TRUE(std::isfinite(pv));
+            EXPECT_GE(pv, 0.0); // PV d'option ne peut être négatif
+            EXPECT_TRUE(std::isfinite(sensitivities.fx_delta));
+            EXPECT_TRUE(std::isfinite(sensitivities.fx_gamma));
+            
+            // Validation de cohérence économique
+            validate_economic_coherence(option, stressed_market, pv, sensitivities);
+            
+            std::cout << "FX Shock: " << shock_pct << "%, "
+                      << "PV: " << pv << ", "
+                      << "Delta: " << sensitivities.fx_delta << ", "
+                      << "Gamma: " << sensitivities.fx_gamma << std::endl;
+        }
+    }
+    
+    void test_volatility_stress_stability(const FXEuroOpt& option,
+                                         const fx_market_data& base_market) {
+        
+        std::cout << "=== Volatility Stress Stability Testing ===" << std::endl;
+        
+        // Chocs de volatilité de 1% à 200%
+        for (double vol_level = 0.01; vol_level <= 2.0; vol_level += 0.1) {
+            auto stressed_market = set_fx_volatility_level(base_market, vol_level);
+            
+            double pv = option.calculate_pv(stressed_market);
+            auto sensitivities = option.calculate_sensitivities(stressed_market);
+            
+            // Validation de stabilité
+            EXPECT_TRUE(std::isfinite(pv));
+            EXPECT_GE(pv, 0.0);
+            EXPECT_TRUE(std::isfinite(sensitivities.vega));
+            
+            // Validation que Vega > 0 (pour options vanilles)
+            EXPECT_GE(sensitivities.vega, 0.0);
+            
+            std::cout << "Vol Level: " << (vol_level * 100) << "%, "
+                      << "PV: " << pv << ", "
+                      << "Vega: " << sensitivities.vega << std::endl;
+        }
+    }
+    
+    void validate_economic_coherence(const FXEuroOpt& option,
+                                    const fx_market_data& market,
+                                    double pv,
+                                    const fx_sensitivities& sensitivities) {
+        
+        auto spec = option.get_specification();
+        double spot = market.get_fx_spot(spec.currency_pair);
+        
+        // Pour call ITM, Delta doit être positif et proche de 1
+        if (spec.is_call && spot > spec.strike * 1.2) {
+            EXPECT_GT(sensitivities.fx_delta, 0.5);
+        }
+        
+        // Pour put ITM, Delta doit être négatif
+        if (!spec.is_call && spot < spec.strike * 0.8) {
+            EXPECT_LT(sensitivities.fx_delta, -0.5);
+        }
+        
+        // Gamma doit toujours être positif pour options vanilles
+        EXPECT_GE(sensitivities.fx_gamma, 0.0);
+        
+        // Vega doit être positif
+        EXPECT_GE(sensitivities.vega, 0.0);
+    }
+};
+```
+
+---
+
+## 📊 **Performance Testing**
+
+### **Tests de Performance**
+
+#### **🔍 Computational Performance**
+```cpp
+// Tests de performance pour FXEuroOpt dans Our project
+class fxeuropt_performance_tester {
+public:
+    struct performance_results {
+        double avg_pricing_time_ns;
+        double avg_sensitivities_time_ns;
+        double pricing_throughput_per_second;
+        bool performance_acceptable;
+    };
+    
+    performance_results test_computational_performance() {
+        performance_results results;
+        
+        // Configuration de test
+        const int num_iterations = 100000;
+        
+        // Création d'options de test
+        auto test_options = create_test_option_portfolio();
+        auto test_market = create_performance_test_market();
+        
+        // Test de pricing
+        auto pricing_times = benchmark_pricing_performance(
+            test_options, test_market, num_iterations);
+        
+        // Test de sensibilités
+        auto sensitivity_times = benchmark_sensitivity_performance(
+            test_options, test_market, num_iterations / 10); // Moins d'itérations
+        
+        // Calcul des statistiques
+        results.avg_pricing_time_ns = calculate_mean(pricing_times);
+        results.avg_sensitivities_time_ns = calculate_mean(sensitivity_times);
+        results.pricing_throughput_per_second = 1e9 / results.avg_pricing_time_ns;
+        
+        // Validation des exigences de performance
+        results.performance_acceptable = 
+            (results.avg_pricing_time_ns < 1000.0) && // < 1 microseconde
+            (results.avg_sensitivities_time_ns < 10000.0); // < 10 microsecondes
+        
+        return results;
+    }
+    
+private:
+    std::vector<double> benchmark_pricing_performance(
+        const std::vector<FXEuroOpt>& options,
+        const fx_market_data& market,
+        int num_iterations) {
+        
+        std::vector<double> timing_results;
+        timing_results.reserve(num_iterations);
+        
+        for (int i = 0; i < num_iterations; ++i) {
+            const auto& option = options[i % options.size()];
+            
+            auto start_time = std::chrono::high_resolution_clock::now();
+            
+            // Pricing
+            volatile double pv = option.calculate_pv(market);
+            (void)pv; // Éviter l'optimisation du compilateur
+            
+            auto end_time = std::chrono::high_resolution_clock::now();
+            
+            auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(
+                end_time - start_time);
+            timing_results.push_back(duration.count());
+        }
+        
+        return timing_results;
+    }
+};
+```
+
+---
+
+*Cette section fournit une documentation complète des tests de produit pour FXEuroOpt, intégrant les implémentations C++ de Our project avec des méthodologies de validation rigoureuses incluant les tests analytiques, de Greeks, de put-call parity et de performance.*

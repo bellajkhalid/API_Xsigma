@@ -1,0 +1,557 @@
+# Numerical Implementation
+
+## Overview
+
+Cette section décrit l'implémentation numérique du modèle **FX LSV Markov Switching Monte Carlo**, incluant les algorithmes de simulation, les techniques d'optimisation et les méthodes de calcul des Greeks spécifiques au FX.
+
+## Monte Carlo Simulation Engine
+
+### FX Path Generation Algorithm
+
+Le moteur de simulation génère des chemins corrélés pour le taux de change, la variance et les états de volatilité :
+
+```cpp
+// Moteur de simulation Monte Carlo pour FX LSV MS
+class FXLSVMSMonteCarloEngine {
+public:
+    struct SimulationParameters {
+        int number_of_paths;
+        int time_steps_per_year;
+        double maturity;
+        bool use_antithetic_variates;
+        bool use_control_variates;
+        int random_seed;
+    };
+    
+    struct FXPath {
+        std::vector<double> fx_rates;
+        std::vector<double> variances;
+        std::vector<int> volatility_states;
+        std::vector<double> times;
+    };
+    
+    std::vector<FXPath> generate_fx_paths(
+        const FXModelParameters& model_params,
+        const SimulationParameters& sim_params) {
+        
+        std::vector<FXPath> paths;
+        paths.reserve(sim_params.number_of_paths);
+        
+        // Configuration temporelle
+        int n_steps = static_cast<int>(sim_params.maturity * sim_params.time_steps_per_year);
+        double dt = sim_params.maturity / n_steps;
+        
+        // Générateur de nombres aléatoires
+        std::mt19937 rng(sim_params.random_seed);
+        std::normal_distribution<> normal(0.0, 1.0);
+        
+        for (int path_idx = 0; path_idx < sim_params.number_of_paths; ++path_idx) {
+            FXPath path = simulate_single_fx_path(
+                model_params, n_steps, dt, rng, normal);
+            
+            // Variables antithétiques si activées
+            if (sim_params.use_antithetic_variates && path_idx % 2 == 1) {
+                path = generate_antithetic_path(paths[path_idx - 1], model_params, n_steps, dt);
+            }
+            
+            paths.push_back(std::move(path));
+        }
+        
+        return paths;
+    }
+    
+private:
+    FXPath simulate_single_fx_path(
+        const FXModelParameters& params,
+        int n_steps, double dt,
+        std::mt19937& rng,
+        std::normal_distribution<>& normal) {
+        
+        FXPath path;
+        path.fx_rates.reserve(n_steps + 1);
+        path.variances.reserve(n_steps + 1);
+        path.volatility_states.reserve(n_steps + 1);
+        path.times.reserve(n_steps + 1);
+        
+        // Conditions initiales
+        path.fx_rates.push_back(params.spot_fx_rate);
+        path.variances.push_back(params.long_term_variance);
+        path.volatility_states.push_back(0); // État initial
+        path.times.push_back(0.0);
+        
+        for (int step = 0; step < n_steps; ++step) {
+            double current_time = step * dt;
+            double current_fx = path.fx_rates.back();
+            double current_var = path.variances.back();
+            int current_state = path.volatility_states.back();
+            
+            // Génération des innovations corrélées
+            double z_fx = normal(rng);
+            double z_var = params.correlation * z_fx + 
+                          std::sqrt(1.0 - params.correlation * params.correlation) * normal(rng);
+            
+            // Évolution du taux de change
+            double local_vol = interpolate_local_volatility(current_fx, current_time);
+            double state_vol = params.state_volatilities[current_state];
+            double effective_vol = local_vol * std::sqrt(current_var) * state_vol;
+            
+            double fx_drift = (params.domestic_rate - params.foreign_rate) * dt;
+            double fx_diffusion = effective_vol * std::sqrt(dt) * z_fx;
+            
+            double new_fx = current_fx * std::exp(
+                fx_drift - 0.5 * effective_vol * effective_vol * dt + fx_diffusion);
+            
+            // Évolution de la variance (CIR)
+            double var_drift = params.mean_reversion_speed * 
+                              (params.long_term_variance - current_var) * dt;
+            double var_diffusion = params.vol_of_vol * 
+                                  std::sqrt(std::max(current_var, 0.0)) * std::sqrt(dt) * z_var;
+            
+            double new_var = std::max(current_var + var_drift + var_diffusion, 0.0);
+            
+            // Évolution de l'état Markov
+            int new_state = evolve_markov_state(current_state, dt, params.transition_rates);
+            
+            // Stockage
+            path.fx_rates.push_back(new_fx);
+            path.variances.push_back(new_var);
+            path.volatility_states.push_back(new_state);
+            path.times.push_back(current_time + dt);
+        }
+        
+        return path;
+    }
+    
+    FXPath generate_antithetic_path(
+        const FXPath& original_path,
+        const FXModelParameters& params,
+        int n_steps, double dt) {
+        
+        // Génération du chemin antithétique
+        // Utilise les mêmes innovations mais avec signe opposé
+        FXPath antithetic_path;
+        // Implémentation similaire avec -z_fx et -z_var
+        return antithetic_path;
+    }
+    
+    int evolve_markov_state(
+        int current_state, double dt,
+        const std::vector<std::vector<double>>& transition_rates) {
+        
+        // Simulation de l'évolution de l'état Markov
+        // Utilise la méthode de l'inverse avec probabilités de transition
+        return current_state; // Placeholder
+    }
+    
+    double interpolate_local_volatility(double fx_rate, double time) {
+        // Interpolation de la volatilité locale
+        return 0.15; // Placeholder
+    }
+};
+```
+
+### Variance Reduction Techniques
+
+#### Antithetic Variates Implementation
+```cpp
+// Implémentation des variables antithétiques pour FX
+class AntitheticVariatesReducer {
+public:
+    struct AntitheticResult {
+        double mean_estimate;
+        double variance_reduction_ratio;
+        double confidence_interval_width;
+    };
+    
+    AntitheticResult apply_antithetic_reduction(
+        const std::vector<double>& standard_payoffs,
+        const std::vector<double>& antithetic_payoffs) {
+        
+        AntitheticResult result;
+        
+        // Calcul de l'estimateur antithétique
+        std::vector<double> antithetic_estimates;
+        for (size_t i = 0; i < standard_payoffs.size(); ++i) {
+            double antithetic_estimate = 0.5 * (standard_payoffs[i] + antithetic_payoffs[i]);
+            antithetic_estimates.push_back(antithetic_estimate);
+        }
+        
+        result.mean_estimate = calculate_mean(antithetic_estimates);
+        
+        // Calcul de la réduction de variance
+        double standard_variance = calculate_variance(standard_payoffs);
+        double antithetic_variance = calculate_variance(antithetic_estimates);
+        result.variance_reduction_ratio = antithetic_variance / standard_variance;
+        
+        // Intervalle de confiance
+        double standard_error = std::sqrt(antithetic_variance / antithetic_estimates.size());
+        result.confidence_interval_width = 1.96 * standard_error;
+        
+        return result;
+    }
+    
+private:
+    double calculate_mean(const std::vector<double>& values) {
+        return std::accumulate(values.begin(), values.end(), 0.0) / values.size();
+    }
+    
+    double calculate_variance(const std::vector<double>& values) {
+        double mean = calculate_mean(values);
+        double sum_squared_deviations = 0.0;
+        
+        for (double value : values) {
+            double deviation = value - mean;
+            sum_squared_deviations += deviation * deviation;
+        }
+        
+        return sum_squared_deviations / (values.size() - 1);
+    }
+};
+```
+
+#### Control Variates for FX Options
+```cpp
+// Variables de contrôle pour options FX
+class FXControlVariatesReducer {
+public:
+    struct ControlVariateResult {
+        double adjusted_estimate;
+        double variance_reduction_ratio;
+        double control_coefficient;
+    };
+    
+    ControlVariateResult apply_control_variate_reduction(
+        const std::vector<double>& exotic_payoffs,
+        const std::vector<double>& vanilla_payoffs,
+        double vanilla_analytical_price) {
+        
+        ControlVariateResult result;
+        
+        // Calcul du coefficient de contrôle optimal
+        double covariance = calculate_covariance(exotic_payoffs, vanilla_payoffs);
+        double vanilla_variance = calculate_variance(vanilla_payoffs);
+        result.control_coefficient = covariance / vanilla_variance;
+        
+        // Application de la variable de contrôle
+        double vanilla_mc_mean = calculate_mean(vanilla_payoffs);
+        std::vector<double> adjusted_payoffs;
+        
+        for (size_t i = 0; i < exotic_payoffs.size(); ++i) {
+            double adjusted_payoff = exotic_payoffs[i] - 
+                result.control_coefficient * (vanilla_payoffs[i] - vanilla_analytical_price);
+            adjusted_payoffs.push_back(adjusted_payoff);
+        }
+        
+        result.adjusted_estimate = calculate_mean(adjusted_payoffs);
+        
+        // Calcul de la réduction de variance
+        double original_variance = calculate_variance(exotic_payoffs);
+        double adjusted_variance = calculate_variance(adjusted_payoffs);
+        result.variance_reduction_ratio = adjusted_variance / original_variance;
+        
+        return result;
+    }
+    
+private:
+    double calculate_covariance(const std::vector<double>& x, const std::vector<double>& y) {
+        double mean_x = calculate_mean(x);
+        double mean_y = calculate_mean(y);
+        double covariance = 0.0;
+        
+        for (size_t i = 0; i < x.size(); ++i) {
+            covariance += (x[i] - mean_x) * (y[i] - mean_y);
+        }
+        
+        return covariance / (x.size() - 1);
+    }
+    
+    double calculate_mean(const std::vector<double>& values) {
+        return std::accumulate(values.begin(), values.end(), 0.0) / values.size();
+    }
+    
+    double calculate_variance(const std::vector<double>& values) {
+        double mean = calculate_mean(values);
+        double variance = 0.0;
+        
+        for (double value : values) {
+            double deviation = value - mean;
+            variance += deviation * deviation;
+        }
+        
+        return variance / (values.size() - 1);
+    }
+};
+```
+
+## Greeks Calculation Framework
+
+### FX-Specific Greeks Implementation
+
+#### Delta and Gamma Calculation
+```cpp
+// Calcul des Greeks spécifiques FX
+class FXGreeksCalculator {
+public:
+    struct FXGreeks {
+        double delta_spot;              // ∂V/∂S
+        double gamma_spot;              // ∂²V/∂S²
+        double vega_total;              // ∂V/∂σ
+        double theta;                   // ∂V/∂t
+        double rho_domestic;            // ∂V/∂r_d
+        double rho_foreign;             // ∂V/∂r_f
+        double correlation_sensitivity; // ∂V/∂ρ
+        
+        // Greeks croisés FX
+        double cross_gamma_rates;       // ∂²V/∂S∂r
+        double vanna;                   // ∂²V/∂S∂σ
+        double volga;                   // ∂²V/∂σ²
+    };
+    
+    FXGreeks calculate_fx_greeks(
+        const FXOptionSpecification& option,
+        const FXModelParameters& model_params) {
+        
+        FXGreeks greeks;
+        
+        // Prix de base
+        double base_price = price_fx_option(option, model_params);
+        
+        // Delta spot (différences finies)
+        double spot_bump = model_params.spot_fx_rate * 0.01; // 1%
+        auto params_spot_up = model_params;
+        params_spot_up.spot_fx_rate += spot_bump;
+        auto params_spot_down = model_params;
+        params_spot_down.spot_fx_rate -= spot_bump;
+        
+        double price_spot_up = price_fx_option(option, params_spot_up);
+        double price_spot_down = price_fx_option(option, params_spot_down);
+        
+        greeks.delta_spot = (price_spot_up - price_spot_down) / (2.0 * spot_bump);
+        greeks.gamma_spot = (price_spot_up - 2.0 * base_price + price_spot_down) / 
+                           (spot_bump * spot_bump);
+        
+        // Rho domestique
+        double rate_bump = 0.0001; // 1bp
+        auto params_rd_up = model_params;
+        params_rd_up.domestic_rate += rate_bump;
+        double price_rd_up = price_fx_option(option, params_rd_up);
+        greeks.rho_domestic = (price_rd_up - base_price) / rate_bump;
+        
+        // Rho étranger
+        auto params_rf_up = model_params;
+        params_rf_up.foreign_rate += rate_bump;
+        double price_rf_up = price_fx_option(option, params_rf_up);
+        greeks.rho_foreign = (price_rf_up - base_price) / rate_bump;
+        
+        // Vega (bump de toutes les volatilités d'état)
+        auto params_vol_up = model_params;
+        for (auto& vol : params_vol_up.state_volatilities) {
+            vol *= 1.01; // +1%
+        }
+        double price_vol_up = price_fx_option(option, params_vol_up);
+        greeks.vega_total = (price_vol_up - base_price) / 0.01;
+        
+        // Theta (bump de temps)
+        auto option_theta = option;
+        option_theta.maturity -= 1.0 / 365.0; // -1 jour
+        double price_theta = price_fx_option(option_theta, model_params);
+        greeks.theta = price_theta - base_price;
+        
+        // Sensibilité à la corrélation
+        double corr_bump = 0.01;
+        auto params_corr_up = model_params;
+        params_corr_up.correlation += corr_bump;
+        double price_corr_up = price_fx_option(option, params_corr_up);
+        greeks.correlation_sensitivity = (price_corr_up - base_price) / corr_bump;
+        
+        // Greeks de second ordre
+        greeks.vanna = calculate_vanna(option, model_params);
+        greeks.volga = calculate_volga(option, model_params);
+        greeks.cross_gamma_rates = calculate_cross_gamma_rates(option, model_params);
+        
+        return greeks;
+    }
+    
+private:
+    double price_fx_option(const FXOptionSpecification& option,
+                          const FXModelParameters& params) {
+        // Pricing Monte Carlo de l'option FX
+        return 0.0; // Placeholder
+    }
+    
+    double calculate_vanna(const FXOptionSpecification& option,
+                          const FXModelParameters& params) {
+        // Calcul de Vanna (∂²V/∂S∂σ)
+        return 0.0; // Placeholder
+    }
+    
+    double calculate_volga(const FXOptionSpecification& option,
+                          const FXModelParameters& params) {
+        // Calcul de Volga (∂²V/∂σ²)
+        return 0.0; // Placeholder
+    }
+    
+    double calculate_cross_gamma_rates(const FXOptionSpecification& option,
+                                      const FXModelParameters& params) {
+        // Calcul du gamma croisé taux-spot
+        return 0.0; // Placeholder
+    }
+};
+```
+
+## Performance Optimization
+
+### Parallel Computing Implementation
+
+#### Multi-Threading for Path Generation
+```cpp
+// Parallélisation de la génération de chemins
+class ParallelFXPathGenerator {
+public:
+    std::vector<FXPath> generate_paths_parallel(
+        const FXModelParameters& model_params,
+        const SimulationParameters& sim_params,
+        int num_threads = std::thread::hardware_concurrency()) {
+        
+        std::vector<FXPath> all_paths;
+        all_paths.reserve(sim_params.number_of_paths);
+        
+        // Division du travail entre threads
+        int paths_per_thread = sim_params.number_of_paths / num_threads;
+        int remaining_paths = sim_params.number_of_paths % num_threads;
+        
+        std::vector<std::future<std::vector<FXPath>>> futures;
+        
+        for (int thread_id = 0; thread_id < num_threads; ++thread_id) {
+            int thread_paths = paths_per_thread + (thread_id < remaining_paths ? 1 : 0);
+            int thread_seed = sim_params.random_seed + thread_id * 1000;
+            
+            auto future = std::async(std::launch::async, [=]() {
+                SimulationParameters thread_params = sim_params;
+                thread_params.number_of_paths = thread_paths;
+                thread_params.random_seed = thread_seed;
+                
+                FXLSVMSMonteCarloEngine engine;
+                return engine.generate_fx_paths(model_params, thread_params);
+            });
+            
+            futures.push_back(std::move(future));
+        }
+        
+        // Collecte des résultats
+        for (auto& future : futures) {
+            auto thread_paths = future.get();
+            all_paths.insert(all_paths.end(), 
+                           std::make_move_iterator(thread_paths.begin()),
+                           std::make_move_iterator(thread_paths.end()));
+        }
+        
+        return all_paths;
+    }
+};
+```
+
+### Memory Optimization
+
+#### Efficient Path Storage
+```cpp
+// Stockage efficace des chemins FX
+class EfficientFXPathStorage {
+public:
+    // Structure compacte pour chemins FX
+    struct CompactFXPath {
+        std::vector<float> fx_rates;      // float au lieu de double
+        std::vector<float> variances;     // Précision suffisante
+        std::vector<uint8_t> states;      // États sur 8 bits
+        
+        // Compression temporelle (stockage des indices seulement)
+        double start_time;
+        double time_step;
+    };
+    
+    // Conversion vers format compact
+    CompactFXPath compress_path(const FXPath& original_path) {
+        CompactFXPath compact;
+        
+        compact.fx_rates.reserve(original_path.fx_rates.size());
+        compact.variances.reserve(original_path.variances.size());
+        compact.states.reserve(original_path.volatility_states.size());
+        
+        for (double rate : original_path.fx_rates) {
+            compact.fx_rates.push_back(static_cast<float>(rate));
+        }
+        
+        for (double var : original_path.variances) {
+            compact.variances.push_back(static_cast<float>(var));
+        }
+        
+        for (int state : original_path.volatility_states) {
+            compact.states.push_back(static_cast<uint8_t>(state));
+        }
+        
+        compact.start_time = original_path.times.front();
+        compact.time_step = original_path.times[1] - original_path.times[0];
+        
+        return compact;
+    }
+    
+    // Calcul de la réduction mémoire
+    size_t calculate_memory_savings(size_t num_paths, size_t path_length) {
+        size_t original_size = num_paths * path_length * 
+                              (3 * sizeof(double) + sizeof(int));
+        size_t compact_size = num_paths * path_length * 
+                             (2 * sizeof(float) + sizeof(uint8_t)) +
+                             num_paths * 2 * sizeof(double);
+        
+        return original_size - compact_size;
+    }
+};
+```
+
+## Numerical Stability
+
+### Robust CIR Implementation
+```cpp
+// Implémentation robuste du processus CIR
+class RobustCIRSimulator {
+public:
+    double evolve_cir_variance(double current_var, double dt,
+                              double kappa, double theta, double nu,
+                              double random_shock) {
+        
+        // Condition de Feller
+        double feller_condition = 2 * kappa * theta / (nu * nu);
+        
+        if (feller_condition >= 1.0) {
+            // Condition de Feller satisfaite - évolution standard
+            double drift = kappa * (theta - current_var) * dt;
+            double diffusion = nu * std::sqrt(std::max(current_var, 0.0)) * random_shock;
+            return std::max(current_var + drift + diffusion, 0.0);
+        } else {
+            // Condition de Feller non satisfaite - schéma modifié
+            return evolve_cir_with_absorption(current_var, dt, kappa, theta, nu, random_shock);
+        }
+    }
+    
+private:
+    double evolve_cir_with_absorption(double current_var, double dt,
+                                     double kappa, double theta, double nu,
+                                     double random_shock) {
+        
+        // Schéma avec absorption en zéro
+        if (current_var <= 0.0) {
+            // Redémarrage depuis une petite valeur positive
+            current_var = 1e-8;
+        }
+        
+        double drift = kappa * (theta - current_var) * dt;
+        double diffusion = nu * std::sqrt(current_var) * random_shock;
+        double new_var = current_var + drift + diffusion;
+        
+        // Réflexion si négatif
+        return std::abs(new_var);
+    }
+};
+```
+
+L'implémentation numérique du modèle FX LSV Markov Switching Monte Carlo dans Our project combine efficacité computationnelle, robustesse numérique et précision pour fournir une solution performante pour le pricing d'options FX complexes.

@@ -1,0 +1,388 @@
+# Control Assessment
+
+## 📊 **Vue d'Ensemble de l'Évaluation des Contrôles**
+
+### **Objectif de la Section**
+Cette section présente l'évaluation des contrôles pour le modèle **DBSMC-RateDeterministic_FXMarket**, incluant le monitoring de performance continu, les contrôles de données et processus, et les conditions d'utilisation (CfU) via MARS.
+
+### **Note sur les Modèles Servicer**
+Lorsque le modèle de pricing est utilisé comme servicer, se référer à la section du rapport de validation du modèle principal sur l'évaluation des contrôles des modèles servicer.
+
+---
+
+## 📈 **Ongoing Performance Monitoring**
+
+### **Surveillance de Performance Continue**
+
+Le monitoring de performance du modèle repose sur des indicateurs de performance définis par les Product Owners, utilisateurs de modèles de produits ou fonctions de contrôle selon les besoins, pour confirmer que le modèle fonctionne comme prévu.
+
+#### **🔧 Activités de Monitoring Incluses**
+
+```cpp
+// Framework de monitoring de performance dans Our project
+class model_performance_monitoring_framework {
+public:
+    struct performance_indicators {
+        std::map<std::string, double> unexplained_pnl_metrics;
+        std::map<std::string, double> model_reserve_ratios;
+        std::map<std::string, bool> ipv_test_results;
+        std::map<std::string, double> risk_instability_measures;
+        std::map<std::string, std::string> model_feedback_reports;
+        bool monthly_threshold_breached;
+    };
+    
+    performance_indicators monitor_model_performance(
+        const dbsmc_model& model,
+        const std::vector<trade_data>& trades,
+        const market_data& market) {
+        
+        performance_indicators indicators;
+        
+        // 1. P&L inexpliqué dû aux problèmes de modèle
+        indicators.unexplained_pnl_metrics = calculate_unexplained_pnl(model, trades, market);
+        
+        // 2. Taille relative des réserves de modèle
+        indicators.model_reserve_ratios = calculate_model_reserve_ratios(model, trades);
+        
+        // 3. Résultats des tests de prix IPV via VRM
+        indicators.ipv_test_results = perform_ipv_price_testing(model, trades, market);
+        
+        // 4. Identification des instabilités de risque
+        indicators.risk_instability_measures = identify_risk_instabilities(model, trades, market);
+        
+        // 5. Feedback sur la performance du modèle
+        indicators.model_feedback_reports = collect_model_feedback(model);
+        
+        // Vérification du seuil mensuel (1M EUR)
+        indicators.monthly_threshold_breached = check_monthly_threshold_breach(indicators);
+        
+        return indicators;
+    }
+    
+private:
+    std::map<std::string, double> calculate_unexplained_pnl(
+        const dbsmc_model& model,
+        const std::vector<trade_data>& trades,
+        const market_data& market) {
+        
+        std::map<std::string, double> unexplained_pnl;
+        
+        for (const auto& trade : trades) {
+            // Calcul du P&L théorique vs réalisé
+            double theoretical_pnl = model.calculate_theoretical_pnl(trade, market);
+            double realized_pnl = trade.get_realized_pnl();
+            
+            double unexplained_component = std::abs(theoretical_pnl - realized_pnl);
+            
+            // Attribution aux problèmes de modèle vs autres facteurs
+            double model_attributed_pnl = attribute_pnl_to_model_issues(
+                unexplained_component, trade, model);
+            
+            std::string trade_key = trade.get_trade_id();
+            unexplained_pnl[trade_key] = model_attributed_pnl;
+        }
+        
+        return unexplained_pnl;
+    }
+    
+    std::map<std::string, double> calculate_model_reserve_ratios(
+        const dbsmc_model& model,
+        const std::vector<trade_data>& trades) {
+        
+        std::map<std::string, double> reserve_ratios;
+        
+        // Calcul par paire produit-modèle
+        std::map<std::string, std::vector<trade_data>> product_trades;
+        for (const auto& trade : trades) {
+            product_trades[trade.get_product_name()].push_back(trade);
+        }
+        
+        for (const auto& [product_name, product_trades_list] : product_trades) {
+            double total_pv = 0.0;
+            double total_reserves = 0.0;
+            int trade_count = product_trades_list.size();
+            
+            for (const auto& trade : product_trades_list) {
+                total_pv += std::abs(trade.get_present_value());
+                total_reserves += trade.get_model_reserves();
+            }
+            
+            // Ratio relatif au PV
+            double pv_ratio = (total_pv > 0) ? (total_reserves / total_pv) : 0.0;
+            
+            // Ratio relatif au nombre de trades
+            double trade_ratio = (trade_count > 0) ? (total_reserves / trade_count) : 0.0;
+            
+            reserve_ratios[product_name + "_PV_RATIO"] = pv_ratio;
+            reserve_ratios[product_name + "_TRADE_RATIO"] = trade_ratio;
+        }
+        
+        return reserve_ratios;
+    }
+    
+    bool check_monthly_threshold_breach(const performance_indicators& indicators) {
+        // Seuil automatique : changements mensuels > 1M EUR déclenchent examen approfondi
+        const double THRESHOLD_EUR = 1000000.0;
+        
+        for (const auto& [reserve_key, ratio] : indicators.model_reserve_ratios) {
+            if (ratio > THRESHOLD_EUR) {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+};
+```
+*Cette implémentation C++ dans Our project montre un framework complet de monitoring de performance pour les modèles DBSMC.*
+
+### **📋 Activités de Monitoring Spécifiques**
+
+#### **1. P&L Inexpliqué dû aux Problèmes de Modèle**
+- **Surveillance** : Écarts entre P&L théorique et réalisé
+- **Attribution** : Identification des causes liées au modèle
+- **Reporting** : Escalade automatique si seuils dépassés
+
+#### **2. Taille Relative des Réserves de Modèle**
+- **Niveau** : Par paire produit-modèle
+- **Métriques** : Relatif au PV et/ou nombre de trades
+- **Seuil** : Changements mensuels > 1M EUR → examen approfondi automatique
+
+#### **3. Résultats des Tests de Prix IPV via VRM**
+- **Source** : Processus IPV (Independent Price Verification)
+- **Fréquence** : Continue via VRM (Valuation Risk Management)
+- **Validation** : Tests de cohérence des prix
+
+#### **4. Identification des Instabilités de Risque**
+- **Détection** : Instabilités produites par les modèles
+- **Analyse** : Impact sur les métriques de risque
+- **Mitigation** : Actions correctives si nécessaire
+
+#### **5. Feedback sur la Performance du Modèle**
+- **Sources** : Performance de hedging, observations de marché, back testing
+- **Inclut** : Résultats d'enchères de pricing, disputes de collatéral
+- **Échecs** : Échecs techniques identifiés via tests de régression
+
+### **📊 Présentation et Attestation**
+
+Les activités listées ci-dessus doivent être préparées et présentées aux **MCWGs** (Model Control Working Groups) et lors de l'**attestation annuelle**.
+
+---
+
+## 🔧 **Data and Process Controls**
+
+### **Contrôles de Données et Processus**
+
+#### **🔍 Conditions d'Utilisation (CfU)**
+
+Le tableau suivant contient la liste des règles de **Model Parameter Monitoring (MPM)** extraites de MARS, COB 17.12.2020, jugées pertinentes pour le modèle.
+
+```cpp
+// Framework de gestion des conditions d'utilisation dans Our project
+class conditions_for_use_manager {
+public:
+    struct cfu_rule {
+        int id;
+        std::string rule_name;
+        std::string business_area;
+        std::string status;
+        std::string last_change;
+        std::string param_info;
+        std::vector<std::string> minimum_conditions;
+        std::vector<std::string> target_conditions;
+    };
+    
+    struct cfu_validation_results {
+        std::map<int, bool> rule_compliance;
+        std::map<int, std::string> violation_details;
+        bool overall_compliance;
+        std::vector<int> critical_violations;
+    };
+    
+    cfu_validation_results validate_conditions_for_use(
+        const dbsmc_model_configuration& config,
+        const std::vector<cfu_rule>& applicable_rules) {
+        
+        cfu_validation_results results;
+        
+        for (const auto& rule : applicable_rules) {
+            bool rule_compliant = validate_individual_rule(config, rule);
+            results.rule_compliance[rule.id] = rule_compliant;
+            
+            if (!rule_compliant) {
+                results.violation_details[rule.id] = generate_violation_details(config, rule);
+                
+                // Identification des violations critiques
+                if (is_critical_rule(rule)) {
+                    results.critical_violations.push_back(rule.id);
+                }
+            }
+        }
+        
+        // Évaluation de la conformité globale
+        results.overall_compliance = evaluate_overall_compliance(results);
+        
+        return results;
+    }
+    
+private:
+    bool validate_individual_rule(const dbsmc_model_configuration& config,
+                                 const cfu_rule& rule) {
+        
+        // Vérification des conditions minimales
+        bool minimum_conditions_met = true;
+        for (const auto& min_condition : rule.minimum_conditions) {
+            if (!evaluate_condition(config, min_condition)) {
+                minimum_conditions_met = false;
+                break;
+            }
+        }
+        
+        // Si conditions minimales non remplies, règle non applicable
+        if (!minimum_conditions_met) {
+            return true; // Non applicable = conforme
+        }
+        
+        // Vérification des conditions cibles
+        for (const auto& target_condition : rule.target_conditions) {
+            if (!evaluate_condition(config, target_condition)) {
+                return false; // Violation de condition cible
+            }
+        }
+        
+        return true;
+    }
+    
+    bool is_critical_rule(const cfu_rule& rule) {
+        // Règles critiques pour DBSMC
+        std::vector<std::string> critical_business_areas = {"FX", "RATES"};
+        
+        return std::find(critical_business_areas.begin(), 
+                        critical_business_areas.end(), 
+                        rule.business_area) != critical_business_areas.end();
+    }
+};
+```
+
+### **📋 Règles MPM Principales pour DBSMC**
+
+#### **🔧 Règles FX Critiques**
+
+| **ID** | **Rule** | **Business** | **Status** | **Description** |
+|--------|----------|--------------|------------|-----------------|
+| **550** | FX0006 | FX | Released | Interpolation Type pour MARKETVOL |
+| **588** | FX0007 | FX | Released | Vol Model CONSTANT_LV |
+| **589** | FX0008 | FX | Released | Interpolation Space LOGSTRIKE/STRIKE |
+| **11827** | FX0018 | FX | Released | SkewType SA4/LARGD pour PARAMETRICVOL |
+| **11829** | FX0020 | FX | Released | PIV AutoFit Target Type VOL |
+| **11831** | FX0021 | FX | Released | PIV AutoFit Synthetic Forwards NO |
+| **11832** | FX0022 | FX | Released | PIV AutoFit Weighting NOTIONAL/VEGANOTIONAL |
+
+#### **🔧 Règles RATES/CREDIT**
+
+| **ID** | **Rule** | **Business** | **Status** | **Description** |
+|--------|----------|--------------|------------|-----------------|
+| **11041** | CURVE0005 | RATES | Released | Extrapolation Method |
+| **11044** | CURVE0019 | RATES | Released | CCY Use Base Curve |
+| **11063** | CURVE0017 | RATES | Released | Curve Build Method |
+| **13071** | CURVE0024 | RATES | Released | Base Rate Type LIBOR/OIS |
+
+### **🔍 Exemples de Conditions Détaillées**
+
+#### **CfU ID 550 - FX0006**
+```
+Configuration: all configurations
+PRDS Product(s): all products
+Minimum Condition(s): VOL::VolName == MARKETVOL and VOL::InputMode in (DELTAVOL, STRIKEVOL)
+Target Condition(s): VOL::InterpolationType in (NATURALCUBIC, TIMESTRIKE)
+```
+
+#### **CfU ID 11829 - FX0020 (PIV AutoFit)**
+```
+Configuration: all configurations  
+PRDS Product(s): all products
+Minimum Condition(s): EXTRAINFO::ResultType == PIVAUTOFIT
+Target Condition(s): EXTRAINFO::TargetType == VOL
+```
+
+#### **CfU ID 11832 - FX0022 (PIV AutoFit Weighting)**
+```
+Configuration: all configurations
+PRDS Product(s): all products  
+Minimum Condition(s): EXTRAINFO::ResultType == PIVAUTOFIT
+Target Condition(s): EXTRAINFO::Weighting in (NOTIONAL, VEGANOTIONAL)
+```
+
+### **📊 Surveillance MARS**
+
+#### **🔧 Monitoring Automatisé**
+```cpp
+// Système de surveillance MARS dans Our project
+class mars_monitoring_system {
+public:
+    struct mars_alert {
+        int rule_id;
+        std::string violation_type;
+        std::string severity;
+        std::string timestamp;
+        std::string remediation_action;
+    };
+    
+    std::vector<mars_alert> monitor_cfu_compliance(
+        const dbsmc_model& model,
+        const std::vector<cfu_rule>& rules) {
+        
+        std::vector<mars_alert> alerts;
+        
+        for (const auto& rule : rules) {
+            auto compliance_status = check_rule_compliance(model, rule);
+            
+            if (!compliance_status.is_compliant) {
+                mars_alert alert;
+                alert.rule_id = rule.id;
+                alert.violation_type = compliance_status.violation_type;
+                alert.severity = determine_severity(rule);
+                alert.timestamp = get_current_timestamp();
+                alert.remediation_action = suggest_remediation(rule, compliance_status);
+                
+                alerts.push_back(alert);
+            }
+        }
+        
+        return alerts;
+    }
+    
+private:
+    std::string determine_severity(const cfu_rule& rule) {
+        // Sévérité basée sur l'impact business et la criticité
+        if (rule.business_area == "FX" && rule.rule_name.find("PIV") != std::string::npos) {
+            return "HIGH"; // PIV AutoFit critique pour FX
+        } else if (rule.business_area == "RATES") {
+            return "MEDIUM"; // Courbes de taux importantes
+        } else {
+            return "LOW";
+        }
+    }
+};
+```
+
+### **🎯 Actions de Contrôle Recommandées**
+
+#### **1. Surveillance Continue**
+- **Monitoring automatisé** des règles CfU via MARS
+- **Alertes en temps réel** pour violations critiques
+- **Reporting mensuel** de conformité
+
+#### **2. Validation Périodique**
+- **Revue trimestrielle** des règles MPM
+- **Mise à jour** des conditions selon évolutions réglementaires
+- **Tests de régression** pour nouvelles règles
+
+#### **3. Escalade et Remediation**
+- **Processus d'escalade** pour violations critiques
+- **Plans de remediation** automatisés
+- **Documentation** des exceptions approuvées
+
+---
+
+*Cette section fournit une évaluation complète des contrôles pour DBSMC-RateDeterministic_FXMarket, intégrant les implémentations C++ de Our project avec des frameworks de monitoring de performance et gestion des conditions d'utilisation MARS.*

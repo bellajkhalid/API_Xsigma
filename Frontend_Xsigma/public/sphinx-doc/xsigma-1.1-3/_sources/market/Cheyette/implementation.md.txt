@@ -1,0 +1,339 @@
+# Implementation / Numerical Schema Description
+
+## Mathematical Description
+
+Most trades priced under CLV are via PDE. After changing notations, recall CLV SDE system is (for simpler notation purpose, here we write $r_1(t)$ as $x_t$, and $\Phi(t)$ as $y_t$):
+
+$$
+\begin{cases}
+dx_t = (y_t - \lambda(t)x_t)dt + \sigma_r(t,x_t)dw^P(t) \\
+dy_t = (\sigma_r^2(t,x_t) - 2\lambda(t)y_t)dt \\
+\sigma_r(t,x_t) = \sigma(t)(1 + b_r(t)x_t) \\
+x_0 = y_0 = 0
+\end{cases}
+$$
+
+Given the final payoff $V(T,x_T,y_T)$, its price at time t is $V(t) = \mathbb{E}\left[e^{-\int_t^T r_udu}V(T,x_T,y_T)|\mathcal{F}_t\right]$, the discounted price $\exp\left(-\int_0^t r_udu\right)V(t)$ is a martingale under the risk neutral measure, and hence should have 0 drift term in its stochastic diffusion process. Using Itô's lemma we have:
+
+$$
+d\left(e^{-\int_0^tr_udu}V\right) = e^{-\int_0^tr_udu}dV - r_te^{-\int_0^tr_udu}Vdt
+$$
+
+$$
+= e^{-\int_0^tr_udu}\left(\frac{\partial V}{\partial t}dt + \frac{\partial V}{\partial x}dx + \frac{\partial V}{\partial y}dy + \frac{1}{2}\frac{\partial^2V}{\partial x^2}dx^2\right) - r_te^{-\int_0^tr_udu}Vdt
+$$
+
+$$
+= e^{-\int_0^tr_udu}\left\{\frac{\partial V}{\partial t}dt + \frac{\partial V}{\partial x}[(y_t-\lambda(t)x_t)dt + \sigma_r(t,x_t)dw] + \frac{\partial V}{\partial y}(\sigma_r^2(t,x_t)-2\lambda(t)y_t)dt + \frac{1}{2}\frac{\partial^2V}{\partial x^2}\sigma_r^2(t,x_t)dt\right\} - r_te^{-\int_0^tr_udu}Vdt
+$$
+
+$$
+= e^{-\int_0^tr_udu}\left[\frac{\partial V}{\partial t} + \frac{\partial V}{\partial x}(y_t-\lambda(t)x_t) + \frac{\partial V}{\partial y}(\sigma_r^2(t,x_t)-2\lambda(t)y_t) + \frac{1}{2}\frac{\partial^2V}{\partial x^2}\sigma_r^2(t,x_t) - r_tV\right]dt + \frac{\partial V}{\partial x}\sigma_r(t,x_t)dw
+$$
+
+Equating above drift term to 0 gives us $V(t)$ - the solution to below PDE:
+
+$$
+\frac{\partial V}{\partial t} = L_xV + L_yV + r_tV
+$$
+
+where:
+
+$$
+L_x = -(y_t - \lambda(t)x_t)\frac{\partial}{\partial x} - \frac{1}{2}\sigma_r^2(t,x_t)\frac{\partial^2}{\partial x^2}
+$$
+
+$$
+L_y = -(\sigma_r^2(t,x_t)-2\lambda(t)y_t)\frac{\partial}{\partial y}
+$$
+
+QA PDE solver is used here, which calculates the present value of a trade by iteratively proceeding backwards from the trade's expiry to present, using finite difference methods and the differential equations it satisfies, to approximate the payoff within each iteration step.
+
+## Core Cheyette Implementation Classes
+
+The Cheyette model implementation in Our project consists of several key classes that work together to provide the mathematical framework described above.
+
+**Main Cheyette Model Class**:
+```cpp
+namespace xsigma {
+    class model_cheyette final : public aad_state_parameters_manager {
+    public:
+        // Constructor for Cheyette model
+        ANALYTICS_API model_cheyette(
+            const parameter_cheyette& parameter,
+            const datetime& valuation_date,
+            const std::vector<datetime>& dates,
+            bool calibration_flag,
+            bool test_normal_chyette = false
+        );
+
+        ~model_cheyette() override = default;
+
+        // Conditional pricing for discount factors
+        ANALYTICS_API void conditional_price(
+            const matrix<double>& states,
+            const datetime& from,
+            const datetime& to,
+            vector<double>& output
+        ) const;
+
+        // Volatility calculation for PDE - implements σ_r(t,x_t)
+        ANALYTICS_API void volatility(
+            size_t t,
+            const vector<double>& x,
+            const vector<double>& y,
+            matrix<double>& output
+        ) const;
+
+        // Monte Carlo step function - implements SDE evolution
+        ANALYTICS_API void step(
+            const change_of_measure& adjuster,
+            size_t time_idx,
+            const matrix<double>& rng,
+            matrix<double>& current,
+            matrix<double>& next
+        ) const;
+
+        // Model parameter access
+        const parameter_cheyette& parameter() const;
+
+        // State space dimensions
+        size_t number_of_states() const;
+        size_t number_of_factors() const;
+
+        // Variance calculation
+        double variance(const datetime& d) const;
+
+        // Density calculation for Hartman-Watson distribution
+        void density(vector<double>& y, vector<double>& x, const double tau) const;
+
+    private:
+        parameter_cheyette parameter_;
+        datetime valution_date_;
+        std::vector<datetime> dates_;
+        bool calibration_flag_;
+        bool test_normal_chyette_;
+
+        // Internal model components
+        ptr_unique_mutable<model_markovian_hjm> model_;
+        std::vector<datetime> model_dates_;
+        vector<double> scaled_volatility_;
+        vector<double> roots_;
+        vector<double> weights_;
+        vector<double> hartman_watson_roots_;
+        vector<double> hartman_watson_weights_;
+    };
+}
+```
+
+*The main model class encapsulates the Cheyette model dynamics and provides methods for volatility calculation, Monte Carlo evolution, and conditional pricing. It builds upon the underlying HJM framework while adding the local volatility and skew functionality specific to the Cheyette model.*
+
+**Cheyette Parameter Class**:
+```cpp
+namespace xsigma {
+    class parameter_cheyette : public aad_state_parameters_manager {
+    public:
+        // Constructor with HJM parameters and skew
+        ANALYTICS_API parameter_cheyette(
+            const ptr_const<parameter_markovian_hjm>& parameters,
+            const matrix<double>& skew_parameter,
+            const std::vector<datetime>& skew_parameter_dates,
+            double long_term_skew_level
+        );
+
+        ~parameter_cheyette() override = default;
+
+        // Accessor methods
+        const std::vector<datetime>& skew_parameter_dates() const noexcept {
+            return skew_parameter_dates_;
+        }
+
+        const matrix<double>& skew_parameter() const noexcept {
+            return skew_parameter_;
+        }
+
+        double long_term_skew_level() const noexcept {
+            return long_term_skew_level_;
+        }
+
+        const ptr_const<parameter_markovian_hjm>& parameters() const noexcept {
+            return parameters_;
+        }
+
+    private:
+        ptr_const<parameter_markovian_hjm> parameters_;
+        matrix<double> skew_parameter_;
+        std::vector<datetime> skew_parameter_dates_;
+        double long_term_skew_level_;
+    };
+}
+```
+
+*The parameter class manages the three key Cheyette model curves: volatility σ(t), mean reversion λ(t), and skew b_r(t). It extends the base HJM parameters with the skew functionality that enables the local volatility feature.*
+
+## PDE Solver Construction
+
+QA PDE solver uses alternating direction implicit (ADI) scheme:
+
+- Step 1:
+  
+$$
+\left[I-\frac{1}{2}\Delta t(L_x+r_tI)\right]V_{n+\frac{1}{2}} = V_n + \Delta t\left[\frac{1}{2}(L_x+r_tI) + L_y\right]V_n
+$$
+
+- Step 2:
+  
+$$
+\left[I-\frac{1}{2}\Delta tL_y\right]V_{n+1} = V_{n+\frac{1}{2}} - \frac{1}{2}\Delta tL_yV_n
+$$
+
+The QA generic PDE solver uses central 3 points (C3P) space discretization (in both x-axis and y-axis):
+
+$$
+\frac{\partial V}{\partial x} = \frac{V^{i+1} - V^{i-1}}{2\Delta x}, \quad \frac{\partial^2V}{\partial x^2} = \frac{V^{i+1} - 2V^i + V^{i-1}}{\Delta x^2}
+$$
+
+However generic solver exhibits some issues such as oscillating solution along y-axis and wrong boundary condition due to extrapolation, hence we develop a new QA custom PDE solver as below:
+
+### Custom PDE Solver Features
+
+In time axis, we will discretize the time grid by a vector of time interval and a corresponding vector of step sizes, which are both specified by user as input parameters (displayed in later section 5.2). In particular, we will use a smaller time step in the short end and a relatively larger time step in the long end. In addition, we will also add all the trade event dates (e.g. reset dates, payment dates, exercise dates, etc.) to the time grid to capture the trade dynamics more accurately.
+
+In x-axis, we use central 5 points (C5P) discretization. For display reason we only show 1st order below:
+
+$$
+\frac{\partial V}{\partial x} = \frac{-V^{i+2} + 8V^{i+1} - 8V^{i-1} + V^{i-2}}{12\Delta x}
+$$
+
+Compared with the conventional 3 point scheme, 5 points improves the speed of convergence because of its 4th order accuracy. Consequently, we can use fewer number of PDE nodes in x-axis and optimize on PDE performance.
+
+In y-axis, we use upwinding 4 points (U4P) discretization (again we only show 1st order discretization):
+
+$$
+\frac{\partial V}{\partial y} = \pm\frac{-V^{i+2} + 6V^{i+1} - 3V^i - 2V^{i-1}}{6\Delta y}
+$$
+
+The sign depends on the sign of coefficient of $\frac{\partial V}{\partial y}$.
+
+Upwinding scheme dampens oscillations observed with C3P. Source of oscillation is the lack of diffusion term in the y direction.
+
+Furthermore, instead of normal grid of y-axis and linear extrapolation of boundary condition in generic solver, we will use mixed LN grid and mixed linear-parabolic extrapolation, respectively, in custom solver.
+
+Boundary conditions are here to deal with shadow points at the edge of the grid. We use linear extrapolation for the point on the edge, and parabolic extrapolation for the point just before:
+
+$$
+\frac{\partial V}{\partial x}(x_{-2}) = \frac{\partial V}{\partial x}(x_{-1}), \quad \frac{\partial^2V}{\partial x^2}(x_{-1}) = \frac{\partial^2V}{\partial x^2}(x_0)
+$$
+
+In PDN custom solver is currently used for CLV. Exact details can be found in document "Cheyette Local Vol PDE" [7].
+
+## PDE Solver Pricing
+
+Once the PDE solver is constructed (i.e. with the time t grid, space x and y grids generated, the initial payoff and the corresponding boundary condition set up), we can use it to iteratively proceed backwards to price any derivatives following the specific discretization method. In particular, we construct 2 solvers which can interact with each other: one is the underlying solver while the other is the option solver. We start from the trade's last option exercise date. At each $(x_i,y_j)$ point on the space grid, on the last exercise date, we can extract the initial payoff value for both underlying and option, then we follow the specific discretization method and proceed backwards on the time grid, with following updates whenever applicable applied to the solvers detailed below:
+
+1) **At each coupon date**, we will update the underlying solver to add the coupon to the underlying price.
+   - Fixed leg: the value of any fixed coupon is added to the underlying solution at its payment date.
+   - Float leg: the present value of any floating coupon is added to the underlying solution at its reset date.
+
+2) **At each option exercise date**, we will compare the underlying solver price and the option solver price to determine whether we exercise the option or not, and then adjust the option price accordingly. It should also be noted that at this step Rannacher scheme and/or payoff smoothing will be used to ensure the 1st and 2nd order payoff smoothness.
+
+   - **Rannacher stepping** is the scheme of taking fully-implicit steps immediately after potential discontinuities are introduced into the solution in order to dampen the oscillations that can occur in the Crank-Nicolson scheme. These implicit steps can effectively dampen oscillations. The loss of accuracy is negligible if we control the number of implicit steps and second-order convergence of the Crank-Nicolson method can be retained. For more information on Rannacher stepping see: Giles & Carter, 2006 [12].
+
+   - **Payoff smoothing** is used when the payoff includes functions that are not differentiable or sometimes not even continuous, which can lead to unstable risk or very slow convergence. Different methods, for example using a very tight Gaussian to represent delta function, can be applied to the payoff function to solve this problem. For more details about payoff smoothing, please refer to [13].
+
+3) **The discount factor** of time T at any time t (t < T) is computed from the bond reconstruction formula which further depends on $(x_t,y_t)$ at time t.
+
+4) **The initial instantaneous forward rate** $f(0,t)$ is computed on the time grid by $f(0,t) = -d[ln(B(0,t))]/dt$, which essentially assumes this is piecewise constant across each time step.
+
+## Numerical Inputs
+
+The numerical inputs related to pricing are set as below (and used in PDN):
+
+| Name | Description | Value |
+|------|-------------|--------|
+| Method | evaluation algorithm | Backward |
+| TGridShrinkingTenors | intervals of varying time grid | {0M,1M,2Y,10Y,20Y,40Y} |
+| TGridShrinkingSteps | step sizes of varying time grid | {1,5,10,20,40,60} |
+| GridRefinementLevel | time frequency of updating space grid | 2 |
+| NbPtsX | number of points of grid X | 201 |
+| NbPtsY | number of points of grid Y | 41 |
+| StdX | standard deviation of grid X | 5 |
+| StdY | standard deviation of grid Y | 5 |
+| GridX | type of grid X | SLNS |
+| GridY | type of grid Y | MixedLN |
+| BC | boundary condition used | MixedDeltaGamma |
+| UseFISolver | flag to use custom solver | TRUE |
+
+### Parameter Descriptions
+
+- **TGridShrinkingTenors** and **TGridShrinkingSteps** control the grid generation in time space without considering the trade event dates. For instance, in above example, we discretize the time grid every 1 day between 0M and 1M, every 5 days between 1M and 2Y, every 10 days between 2Y and 10Y and so on.
+
+- **StdX** controls the grid bounds in X space, indicating the number of standard deviation on the grid.
+
+- **NbPtsX** controls the grid size in X space, indicating the number of points we have on the grid.
+
+- **GridX** controls the grid generation in X space. We infer the equivalent shifted lognormal distribution of the factor x and grid discretization is then performed accordingly with input "StdX" and "NbPtsX".
+
+- Grid Y is generated similarly with the 3 corresponding parameters specified for the Y grid.
+
+Notice compared with "NbPtsX", "NbPtsY" can be kept small as factor y has a small variance because of lack of diffusion term. We justify the choice of 201 (41) for number of PDE nodes along X (Y) dimension by examining the convergence rate of the PV of Bermudan/CIF portfolio under Xsigma in Section 8.3.4. We determine the convergence is achieved by measuring, in Vega term, the PV difference to benchmark grid. More details can be found in [7].
+
+- **GridRefinementLevel** controls the frequency on the time grid to update the space grid. For instance, in above example, for both x and y grids, we will update the space grid every 2 years. In particular, we use the standard deviation of each respective factor at the 1st node on t grid after 2Y to generate the space grid up to 2Y, and then use the std at the 1st node on t grid after 4Y to generate the space grid from 2Y to 4Y, as so on.
+
+- **BC** controls the boundary condition used.
+
+- **UseFISolver** controls if custom solver is used (to be able to use 5 points and upwinding discretization).
+
+Above values shown in the table are chosen to optimize PDE solver performance and are default values of the PDE solver.
+
+## Cheyette Diffusion Implementation
+
+The diffusion class provides the interface between the Cheyette model and the Monte Carlo simulation framework.
+
+**Cheyette Diffusion Class**:
+```cpp
+namespace xsigma {
+    class diffusion_ir_cheyette : public diffusion_ir {
+    public:
+        // Constructor
+        ANALYTICS_API diffusion_ir_cheyette(
+            const std::vector<datetime>& dates,
+            const ptr_const<discount_curve>& curve,
+            const ptr_const<parameter_cheyette>& params
+        );
+
+        ~diffusion_ir_cheyette() override;
+
+        // Log discount factor calculation using zero bond reconstruction
+        void log_df(
+            vector<double>& output,
+            const matrix<double>& states,
+            const datetime& from,
+            const datetime& to
+        ) const override;
+
+        // Monte Carlo propagation using Cheyette SDE
+        void propagate(
+            matrix<double>& next,
+            matrix<double>& current,
+            size_t time_idx,
+            const matrix<double>& rng,
+            const change_of_measure& adjuster
+        ) const override;
+
+        // State space dimensions (2 for Cheyette: r_1(t) and Φ(t))
+        size_t number_of_states() const override;
+        size_t number_of_factors() const override;
+
+    private:
+        ptr_const<parameter_cheyette> parameter_;
+        ptr_const<model_cheyette> model_;
+    };
+}
+```
+
+*The diffusion class implements the Monte Carlo interface for the Cheyette model. The `log_df` method computes discount factors using the zero bond reconstruction formula, while `propagate` advances the state variables (r_1(t) and Φ(t)) according to the Cheyette SDE system. This class enables seamless integration with Our project's Monte Carlo pricing framework.*
+
+## Quality Control
+
+We test for PDE convergence, default value of grid geometry and PDE limitations in Section 8.3.4.

@@ -1,0 +1,361 @@
+# Risk Inputs & Limitations
+
+## 📊 **Risk Inputs Overview**
+
+### **Risk Input Sources**
+FX volatility surfaces use various input sources for risk calculations, each with its own characteristics and limitations. This section details these inputs and their operational constraints.
+
+### **Input Types**
+- **Market Data Inputs**: Volatility quotes, interest rates, FX spots
+- **Model Parameters**: Calibrated parameters of smile and temporal models
+- **Risk Scenarios**: Stress shocks and market scenarios
+- **Configuration Parameters**: Bumping parameters and calculation methods
+
+---
+
+## 🔧 **Market Data Inputs**
+
+### **Volatility Quotes**
+Market quotes constitute the main input for surface calibration.
+
+#### **🔍 Sources and Quality**
+- **Primary Sources**: Reuters, Bloomberg, Broker quotes
+- **Secondary Sources**: Consensus data, historical extrapolation
+- **Quality Metrics**: Bid-offer spreads, quote age, source reliability
+
+### **Implementation in Our Project**
+
+#### **🔧 Input Management Framework**
+```cpp
+// Risk input management framework in Our project
+class fx_risk_inputs_framework {
+public:
+    enum class input_source_type {
+        REAL_TIME_MARKET,       // Real-time data
+        END_OF_DAY_MARKET,      // End-of-day data
+        HISTORICAL_FALLBACK,    // Historical fallback data
+        SYNTHETIC_INTERPOLATED, // Synthetic interpolated data
+        STRESS_SCENARIO        // Stress scenario data
+    };
+    
+    enum class input_quality_level {
+        HIGH_QUALITY,    // Liquid quotes, tight spreads
+        MEDIUM_QUALITY,  // Moderately liquid quotes
+        LOW_QUALITY,     // Illiquid or stale quotes
+        SYNTHETIC        // Synthetic/interpolated data
+    };
+    
+    struct market_data_input {
+        std::string instrument_id;
+        double quote_value;
+        double bid_offer_spread;
+        input_source_type source_type;
+        input_quality_level quality_level;
+        std::string timestamp;
+        double staleness_hours;
+        bool is_validated;
+    };
+    
+    struct input_validation_result {
+        bool validation_passed;
+        std::vector<std::string> validation_warnings;
+        std::vector<std::string> validation_errors;
+        double overall_quality_score;
+        std::map<std::string, double> quality_metrics;
+    };
+    
+    class risk_input_validator {
+    public:
+        input_validation_result validate_market_inputs(
+            const std::vector<market_data_input>& inputs) {
+            
+            input_validation_result result;
+            result.validation_passed = true;
+            
+            // Completeness validation
+            validate_input_completeness(inputs, result);
+
+            // Quality validation
+            validate_input_quality(inputs, result);
+
+            // Consistency validation
+            validate_input_consistency(inputs, result);
+
+            // Staleness validation
+            validate_input_staleness(inputs, result);
+
+            // Overall quality score
+            result.overall_quality_score = calculate_overall_quality_score(result);
+            
+            return result;
+        }
+        
+    private:
+        void validate_input_completeness(
+            const std::vector<market_data_input>& inputs,
+            input_validation_result& result) {
+            
+            // Verification of essential quotes
+            std::set<std::string> required_instruments = {
+                "ATM_1M", "ATM_3M", "ATM_6M", "ATM_1Y", "ATM_2Y",
+                "RR_25D_1M", "RR_25D_3M", "RR_25D_6M", "RR_25D_1Y",
+                "ST_25D_1M", "ST_25D_3M", "ST_25D_6M", "ST_25D_1Y"
+            };
+            
+            std::set<std::string> available_instruments;
+            for (const auto& input : inputs) {
+                available_instruments.insert(input.instrument_id);
+            }
+            
+            for (const auto& required : required_instruments) {
+                if (available_instruments.find(required) == available_instruments.end()) {
+                    result.validation_warnings.push_back(
+                        "Missing required instrument: " + required);
+                }
+            }
+        }
+        
+        void validate_input_quality(
+            const std::vector<market_data_input>& inputs,
+            input_validation_result& result) {
+            
+            int high_quality_count = 0;
+            int total_count = inputs.size();
+            
+            for (const auto& input : inputs) {
+                // Bid-offer spread validation
+                if (input.bid_offer_spread > 0.05) { // 5% spread
+                    result.validation_warnings.push_back(
+                        "Wide bid-offer spread for " + input.instrument_id + 
+                        ": " + std::to_string(input.bid_offer_spread));
+                }
+                
+                // Volatility bounds validation
+                if (input.quote_value < 0.001 || input.quote_value > 5.0) {
+                    result.validation_errors.push_back(
+                        "Volatility out of bounds for " + input.instrument_id + 
+                        ": " + std::to_string(input.quote_value));
+                    result.validation_passed = false;
+                }
+                
+                // Quality counting
+                if (input.quality_level == input_quality_level::HIGH_QUALITY) {
+                    high_quality_count++;
+                }
+            }
+            
+            // Quality metrics
+            double quality_ratio = static_cast<double>(high_quality_count) / total_count;
+            result.quality_metrics["HIGH_QUALITY_RATIO"] = quality_ratio;
+            
+            if (quality_ratio < 0.5) {
+                result.validation_warnings.push_back(
+                    "Low proportion of high-quality quotes: " + 
+                    std::to_string(quality_ratio));
+            }
+        }
+        
+        void validate_input_staleness(
+            const std::vector<market_data_input>& inputs,
+            input_validation_result& result) {
+            
+            const double MAX_STALENESS_HOURS = 24.0; // 24 hours max
+            
+            for (const auto& input : inputs) {
+                if (input.staleness_hours > MAX_STALENESS_HOURS) {
+                    result.validation_warnings.push_back(
+                        "Stale quote for " + input.instrument_id + 
+                        ": " + std::to_string(input.staleness_hours) + " hours old");
+                }
+            }
+        }
+    };
+    
+    class input_fallback_manager {
+    public:
+        std::vector<market_data_input> apply_fallback_logic(
+            const std::vector<market_data_input>& primary_inputs) {
+            
+            std::vector<market_data_input> enhanced_inputs = primary_inputs;
+            
+            // Identification of missing or poor quality inputs
+            auto missing_inputs = identify_missing_inputs(primary_inputs);
+            auto poor_quality_inputs = identify_poor_quality_inputs(primary_inputs);
+
+            // Application of fallback strategies
+            for (const auto& missing : missing_inputs) {
+                auto fallback_input = generate_fallback_input(missing, primary_inputs);
+                if (fallback_input.has_value()) {
+                    enhanced_inputs.push_back(fallback_input.value());
+                }
+            }
+
+            // Replacement of poor quality inputs
+            for (auto& poor_input : poor_quality_inputs) {
+                auto replacement = generate_replacement_input(poor_input, primary_inputs);
+                if (replacement.has_value()) {
+                    poor_input = replacement.value();
+                }
+            }
+            
+            return enhanced_inputs;
+        }
+        
+    private:
+        std::optional<market_data_input> generate_fallback_input(
+            const std::string& missing_instrument,
+            const std::vector<market_data_input>& available_inputs) {
+            
+            // Fallback strategies by instrument type
+            if (missing_instrument.find("ATM") != std::string::npos) {
+                return interpolate_atm_fallback(missing_instrument, available_inputs);
+            } else if (missing_instrument.find("RR") != std::string::npos) {
+                return extrapolate_rr_fallback(missing_instrument, available_inputs);
+            } else if (missing_instrument.find("ST") != std::string::npos) {
+                return extrapolate_st_fallback(missing_instrument, available_inputs);
+            }
+            
+            return std::nullopt;
+        }
+    };
+};
+```
+*This C++ implementation in Our project shows complete risk input management with validation, fallback and quality control.*
+
+---
+
+## 📈 **Input Limitations**
+
+### **Market Data Limitations**
+
+#### **🔍 Limited Liquidity**
+- **Long tenors**: Less frequent quotes beyond 5 years
+- **Distant wings**: 10-delta quotes often unavailable
+- **Exotic pairs**: Limited coverage for emerging currencies
+
+#### **🔍 Variable Quality**
+- **Bid-offer spreads**: Widening during stress periods
+- **Staleness**: Stale quotes outside market hours
+- **Source dependency**: Variations between data providers
+
+### **Temporal Limitations**
+
+#### **🔍 Market Hours**
+- **Liquidity gaps**: Weekends and holidays
+- **Time zones**: Lags between regional markets
+- **Event windows**: Reduced volatility around major events
+
+### **Model Limitations**
+
+#### **🔍 Simplifying Assumptions**
+- **Static smile**: No dynamic smile evolution
+- **Constant correlations**: Fixed correlations between risk factors
+- **No jumps**: No discontinuity modeling
+
+---
+
+## 🎯 **Limitation Management**
+
+### **Mitigation Strategies**
+
+#### **🔧 Interpolation and Extrapolation**
+- **Temporal interpolation**: Filling maturity gaps
+- **Wing extrapolation**: Extension to extreme deltas
+- **Cross-currency**: Using proxies for illiquid pairs
+
+#### **🔧 Validation and Controls**
+- **Outlier detection**: Automatic anomaly identification
+- **Consistency checks**: Cross-market consistency verification
+- **Historical validation**: Comparison with historical patterns
+
+### **Fallback Mechanisms**
+
+#### **🔍 Source Hierarchy**
+1. **Real-time market quotes** (priority 1)
+2. **Recent historical quotes** (priority 2)
+3. **Interpolated/extrapolated quotes** (priority 3)
+4. **Model-based synthetic quotes** (priority 4)
+
+#### **🔍 Quality Scoring**
+- **Source reliability**: Score based on quality history
+- **Staleness penalty**: Penalty for stale quotes
+- **Spread adjustment**: Adjustment for wide spreads
+
+---
+
+## 🔧 **Impact on Risk Calculations**
+
+### **Uncertainty Propagation**
+Input limitations propagate into risk calculations:
+
+#### **🔍 Sensitivities**
+- **Vega accuracy**: Reduced precision with poor quality quotes
+- **Cross-sensitivities**: Poorly estimated correlations
+- **Tail risks**: Underestimation of extreme risks
+
+#### **🔍 VaR Calculations**
+- **Model risk**: Uncertainty on model parameters
+- **Data risk**: Uncertainty on market inputs
+- **Calibration risk**: Calibration instability
+
+### **Impact Quantification**
+
+#### **🔧 Uncertainty Metrics**
+```cpp
+// Uncertainty metrics in Our project
+class risk_uncertainty_quantifier {
+public:
+    struct uncertainty_metrics {
+        double input_quality_score;
+        double model_uncertainty_score;
+        double calibration_stability_score;
+        std::map<std::string, double> sensitivity_confidence_intervals;
+        double overall_confidence_level;
+    };
+    
+    uncertainty_metrics quantify_risk_uncertainty(
+        const std::vector<market_data_input>& inputs,
+        const calibration_results& calib_results) {
+        
+        uncertainty_metrics metrics;
+        
+        // Input quality score
+        metrics.input_quality_score = calculate_input_quality_score(inputs);
+
+        // Model uncertainty score
+        metrics.model_uncertainty_score = calculate_model_uncertainty(calib_results);
+
+        // Calibration stability score
+        metrics.calibration_stability_score = calculate_calibration_stability(calib_results);
+
+        // Confidence intervals for sensitivities
+        metrics.sensitivity_confidence_intervals = calculate_sensitivity_confidence_intervals(
+            inputs, calib_results);
+
+        // Overall confidence level
+        metrics.overall_confidence_level = calculate_overall_confidence(metrics);
+        
+        return metrics;
+    }
+};
+```
+
+---
+
+## 📊 **Operational Recommendations**
+
+### **Best Practices**
+- **Multiple sources**: Use of multiple data providers
+- **Real-time monitoring**: Continuous input quality surveillance
+- **Automated validation**: Systematic automated controls
+- **Escalation procedures**: Escalation procedures for anomalies
+
+### **Risk Management**
+- **Input uncertainty reserves**: Reserves for input uncertainty
+- **Model validation**: Regular validation of model assumptions
+- **Stress testing**: Testing under degraded data conditions
+- **Contingency planning**: Contingency plans for data outages
+
+---
+
+*This section details risk inputs and their limitations for FX volatility surfaces, integrating Our project best practices with robust data quality management and risk mitigation strategies.*

@@ -1,0 +1,273 @@
+# Risk
+
+## Overview
+
+Cette section décrit le calcul des risques et sensibilités (Greeks) pour le modèle **LSV Markov Switching PDE**, incluant les méthodes de calcul, les Greeks spécifiques et la gestion des risques en temps réel.
+
+## Greeks Calculation via PDE
+
+### Direct Grid-Based Computation
+
+L'avantage principal des méthodes PDE est le **calcul direct des Greeks** sur la grille de discrétisation, offrant une précision supérieure aux méthodes de différences finies.
+
+#### Delta (∂V/∂S)
+Calculé directement à partir des dérivées spatiales sur la grille :
+$$\Delta = \frac{\partial V}{\partial S} \bigg|_{S=S_0}$$
+
+#### Gamma (∂²V/∂S²)
+Seconde dérivée spatiale disponible directement :
+$$\Gamma = \frac{\partial^2 V}{\partial S^2} \bigg|_{S=S_0}$$
+
+#### Vega (∂V/∂σ)
+Sensibilité aux paramètres de volatilité via bump and revalue :
+$$\text{Vega} = \frac{\partial V}{\partial \sigma_i} \approx \frac{V(\sigma_i + \epsilon) - V(\sigma_i - \epsilon)}{2\epsilon}$$
+
+### LSV MS Specific Greeks
+
+#### State Sensitivities (∂V/∂σᵢ)
+Sensibilités aux volatilités des états Markov :
+```cpp
+std::vector<double> calculate_state_sensitivities(
+    const PDEGrid& grid,
+    const ModelParameters& params) {
+    
+    std::vector<double> sensitivities;
+    
+    for (int state = 0; state < params.n_states; ++state) {
+        // Bump volatilité de l'état
+        auto params_up = params;
+        params_up.state_volatilities[state] *= 1.01;
+        
+        auto params_down = params;
+        params_down.state_volatilities[state] *= 0.99;
+        
+        double price_up = solve_pde(grid, params_up);
+        double price_down = solve_pde(grid, params_down);
+        
+        double sensitivity = (price_up - price_down) / 
+                           (0.02 * params.state_volatilities[state]);
+        sensitivities.push_back(sensitivity);
+    }
+    
+    return sensitivities;
+}
+```
+
+#### Transition Rate Sensitivities (∂V/∂λᵢⱼ)
+Sensibilités aux taux de transition entre états :
+$$\frac{\partial V}{\partial \lambda_{ij}} = \int_0^T e^{-rt} \mathbb{E}[(V_j - V_i) \mathbf{1}_{\zeta_t = i}] dt$$
+
+#### Correlation Sensitivity (∂V/∂ρ)
+Sensibilité à la corrélation spot-variance :
+$$\frac{\partial V}{\partial \rho} \approx \frac{V(\rho + 0.01) - V(\rho - 0.01)}{0.02}$$
+
+### Advanced Risk Metrics
+
+#### Vanna (∂²V/∂S∂σ)
+Sensibilité croisée spot-volatilité :
+$$\text{Vanna} = \frac{\partial^2 V}{\partial S \partial \sigma}$$
+
+#### Volga (∂²V/∂σ²)
+Convexité en volatilité :
+$$\text{Volga} = \frac{\partial^2 V}{\partial \sigma^2}$$
+
+#### Charm (∂²V/∂S∂t)
+Sensibilité du Delta au temps :
+$$\text{Charm} = \frac{\partial^2 V}{\partial S \partial t}$$
+
+## Real-Time Risk Management
+
+### Grid-Based Greeks Computation
+
+#### Interpolation Methods
+Pour obtenir les Greeks au spot exact :
+```cpp
+double interpolate_delta_at_spot(
+    const PDEGrid& grid,
+    double target_spot) {
+    
+    // Localisation dans la grille
+    int i = find_grid_index(grid.spot_grid, target_spot);
+    
+    // Interpolation cubique pour précision
+    return cubic_interpolate(
+        grid.delta_values[i-1],
+        grid.delta_values[i],
+        grid.delta_values[i+1],
+        grid.delta_values[i+2],
+        target_spot,
+        grid.spot_grid[i]
+    );
+}
+```
+
+#### Parallel Greeks Calculation
+Calcul parallélisé des Greeks pour portfolios :
+```cpp
+#pragma omp parallel for
+for (int trade_id = 0; trade_id < portfolio.size(); ++trade_id) {
+    auto& trade = portfolio[trade_id];
+    
+    // Calcul Greeks pour chaque trade
+    trade.delta = calculate_delta_pde(trade, model_params);
+    trade.gamma = calculate_gamma_pde(trade, model_params);
+    trade.vega = calculate_vega_pde(trade, model_params);
+    trade.theta = calculate_theta_pde(trade, model_params);
+}
+```
+
+### Risk Aggregation Framework
+
+#### Portfolio Greeks
+Agrégation des Greeks au niveau portfolio :
+$$\Delta_{portfolio} = \sum_{i=1}^N w_i \Delta_i$$
+
+où $w_i$ est le poids (notionnel) du trade $i$.
+
+#### Risk Factor Decomposition
+Décomposition par facteur de risque :
+- **Spot Risk** : $\Delta \times \sigma_S \times S$
+- **Volatility Risk** : $\text{Vega} \times \sigma_{vol}$
+- **Time Risk** : $\Theta \times \Delta t$
+- **Rate Risk** : $\rho \times \sigma_r$
+
+### Scenario Analysis and Stress Testing
+
+#### Market Scenario Generation
+```cpp
+struct MarketScenario {
+    double spot_shock;           // Choc sur le spot (%)
+    double vol_shock;            // Choc sur la volatilité (%)
+    double rate_shock;           // Choc sur les taux (bp)
+    double correlation_shock;    // Choc sur la corrélation
+    std::vector<double> state_shocks; // Chocs par état
+};
+
+double calculate_scenario_pnl(
+    const Portfolio& portfolio,
+    const MarketScenario& scenario) {
+    
+    double total_pnl = 0.0;
+    
+    for (const auto& trade : portfolio.trades) {
+        // Application des chocs de marché
+        auto shocked_params = apply_scenario(trade.params, scenario);
+        
+        // Recalcul du prix
+        double new_price = price_pde(trade, shocked_params);
+        double pnl = new_price - trade.current_price;
+        
+        total_pnl += pnl;
+    }
+    
+    return total_pnl;
+}
+```
+
+#### Stress Test Scenarios
+- **Market Crash** : -20% spot, +50% volatilité
+- **Volatility Spike** : +100% volatilité, corrélation → -0.8
+- **Rate Shock** : +200bp taux, impact sur forward
+- **Regime Change** : Modification des taux de transition
+
+### Risk Limits and Monitoring
+
+#### Real-Time Limit Monitoring
+```cpp
+class RiskLimitMonitor {
+public:
+    struct RiskLimits {
+        double max_delta;            // Delta limite
+        double max_gamma;            // Gamma limite
+        double max_vega;             // Vega limite
+        double max_var;              // VaR limite
+        double max_scenario_loss;    // Perte scénario max
+    };
+    
+    bool check_limits(const Portfolio& portfolio, 
+                     const RiskLimits& limits) {
+        auto greeks = calculate_portfolio_greeks(portfolio);
+        
+        if (std::abs(greeks.delta) > limits.max_delta) {
+            alert("Delta limit breached");
+            return false;
+        }
+        
+        if (std::abs(greeks.gamma) > limits.max_gamma) {
+            alert("Gamma limit breached");
+            return false;
+        }
+        
+        // Autres vérifications...
+        return true;
+    }
+};
+```
+
+#### Automated Hedging Suggestions
+```cpp
+struct HedgingRecommendation {
+    std::string instrument;      // Instrument de hedge
+    double quantity;             // Quantité recommandée
+    double expected_delta_reduction; // Réduction Delta attendue
+    double cost_estimate;        // Coût estimé
+};
+
+std::vector<HedgingRecommendation> suggest_hedges(
+    const Portfolio& portfolio) {
+    
+    auto current_greeks = calculate_portfolio_greeks(portfolio);
+    std::vector<HedgingRecommendation> recommendations;
+    
+    // Hedge Delta avec sous-jacent
+    if (std::abs(current_greeks.delta) > delta_threshold) {
+        HedgingRecommendation hedge;
+        hedge.instrument = "Underlying";
+        hedge.quantity = -current_greeks.delta;
+        hedge.expected_delta_reduction = std::abs(current_greeks.delta);
+        hedge.cost_estimate = calculate_hedge_cost(hedge);
+        recommendations.push_back(hedge);
+    }
+    
+    // Hedge Vega avec options vanilles
+    if (std::abs(current_greeks.vega) > vega_threshold) {
+        auto vega_hedge = find_optimal_vega_hedge(current_greeks.vega);
+        recommendations.push_back(vega_hedge);
+    }
+    
+    return recommendations;
+}
+```
+
+### Performance and Accuracy
+
+#### Greeks Accuracy Validation
+- **Finite Difference Comparison** : Validation croisée
+- **Analytical Benchmarks** : Comparaison avec solutions exactes
+- **Monte Carlo Cross-Check** : Validation avec MC
+
+#### Computational Performance
+- **Grid Greeks** : Calcul direct sur grille (rapide)
+- **Interpolation Greeks** : Interpolation précise (moyennement rapide)
+- **Bump Greeks** : Recalcul complet (lent mais précis)
+
+#### Real-Time Requirements
+- **Latency Target** : < 100ms pour Greeks portfolio
+- **Throughput Target** : > 1000 trades/seconde
+- **Accuracy Target** : Erreur relative < 1%
+
+### Risk Reporting and Analytics
+
+#### Daily Risk Reports
+- **Greeks Summary** : Résumé des Greeks par book
+- **Scenario Analysis** : Résultats des stress tests
+- **Limit Utilization** : Utilisation des limites de risque
+- **P&L Attribution** : Attribution du P&L par facteur
+
+#### Risk Dashboard
+- **Real-Time Greeks** : Affichage temps réel
+- **Risk Heatmaps** : Visualisation des concentrations
+- **Alert Management** : Gestion des alertes de limite
+- **Historical Trends** : Tendances historiques des risques
+
+Le framework de gestion des risques LSV MS PDE dans Our project fournit une solution complète pour le calcul précis et rapide des Greeks, la surveillance en temps réel des risques et la génération de recommandations de hedge automatisées.

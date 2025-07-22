@@ -1,0 +1,208 @@
+# Calibration
+
+## Overview
+
+Cette section décrit la procédure de calibration du modèle **LSV Markov Switching PDE**, incluant la calibration séquentielle de la volatilité locale, des paramètres de volatilité stochastique et des paramètres Markov Switching.
+
+## Forward Induction Calibration Procedure
+
+La calibration du modèle LSV MS PDE utilise une **procédure d'induction forward** en trois étapes principales :
+
+### Step 1: Local Volatility Calibration
+
+#### Dupire Surface Construction
+La **surface de volatilité locale** est calibrée via l'équation de Dupire pour reproduire exactement les prix d'options vanilles de marché :
+
+$$\sigma_{LV}^2(K,T) = \frac{2\frac{\partial C}{\partial T} + rK\frac{\partial C}{\partial K}}{K^2\frac{\partial^2 C}{\partial K^2}}$$
+
+#### Implementation Details
+- **Input** : Surface de volatilité implicite de marché
+- **Method** : Inversion numérique de l'équation de Dupire
+- **Output** : Surface $\sigma_{LV}(S,t)$ discrétisée sur grille
+- **Constraints** : Conditions d'absence d'arbitrage
+
+### Step 2: Stochastic Volatility Parameters
+
+#### Parameter Set
+Les paramètres de volatilité stochastique sont calibrés simultanément :
+- **$\nu$** : Vol of vol (volatilité de la volatilité)
+- **$\kappa$** : Mean reversion speed (vitesse de retour à la moyenne)
+- **$\theta$** : Long-term variance (variance long terme)
+- **$\rho$** : Correlation (corrélation spot-variance)
+
+#### Calibration Objective
+Minimisation de l'erreur entre prix de marché et prix modèle :
+$$\min_{\nu,\kappa,\theta,\rho} \sum_{i,j} w_{ij} \left(C_{market}(K_i,T_j) - C_{model}(K_i,T_j)\right)^2$$
+
+### Step 3: Markov Switching Parameters
+
+#### State Configuration
+- **Number of States** : Nombre optimal d'états de volatilité
+- **State Volatilities** : $\{\sigma_1, \sigma_2, ..., \sigma_n\}$
+- **Transition Rates** : Matrice $\Lambda = [\lambda_{ij}]$
+
+#### Calibration Strategy
+- **Exotic Instruments** : Utilisation d'options exotiques si disponibles
+- **Volatility Term Structure** : Calibration sur structure de terme
+- **Cross-Validation** : Validation croisée avec autres modèles
+
+## Calibration Quality Metrics
+
+### Accuracy Measures
+
+#### Root Mean Square Error (RMSE)
+$$RMSE = \sqrt{\frac{1}{N} \sum_{i=1}^N \left(\sigma_{market,i} - \sigma_{model,i}\right)^2}$$
+
+**Target** : RMSE < 1% pour acceptation en production
+
+#### Maximum Absolute Error
+$$MAE = \max_i |\sigma_{market,i} - \sigma_{model,i}|$$
+
+**Target** : MAE < 3% pour tous les instruments
+
+#### R-Squared Coefficient
+$$R^2 = 1 - \frac{\sum_i (y_i - \hat{y}_i)^2}{\sum_i (y_i - \bar{y})^2}$$
+
+**Target** : R² > 0.95 pour qualité d'ajustement
+
+### Stability Indicators
+
+#### Parameter Stability
+- **Daily Variation** : Variation quotidienne des paramètres < 10%
+- **Convergence Speed** : Nombre d'itérations < 50
+- **Numerical Stability** : Absence de blow-up numérique
+
+#### Model Consistency
+- **PDE-MC Agreement** : Accord avec pricer Monte Carlo < 0.1%
+- **Greeks Consistency** : Cohérence des sensibilités
+- **Arbitrage-Free** : Respect des contraintes d'arbitrage
+
+## Implementation in UMIFX Framework
+
+### Calibration Workflow
+
+#### Data Preparation
+1. **Market Data Collection** : Volatilités implicites, taux, dividendes
+2. **Data Validation** : Vérification cohérence et qualité
+3. **Preprocessing** : Interpolation et lissage si nécessaire
+
+#### Sequential Calibration
+1. **Local Vol Calibration** : Construction surface Dupire
+2. **SV Parameter Fitting** : Optimisation paramètres stochastiques
+3. **Markov Calibration** : Ajustement états et transitions
+4. **Global Validation** : Tests de cohérence globale
+
+#### Quality Control
+1. **Convergence Check** : Validation de la convergence
+2. **Error Analysis** : Analyse des résidus de calibration
+3. **Stability Test** : Tests de stabilité numérique
+4. **Production Approval** : Validation pour usage production
+
+### Optimization Algorithms
+
+#### Levenberg-Marquardt Method
+- **Advantages** : Robustesse et convergence rapide
+- **Implementation** : Damping adaptatif pour stabilité
+- **Constraints** : Support des contraintes de bornes
+
+#### Differential Evolution
+- **Global Optimization** : Évitement des minima locaux
+- **Population-Based** : Exploration large de l'espace
+- **Parallel Implementation** : Calculs parallélisés
+
+#### Hybrid Approach
+- **Coarse Search** : Exploration globale initiale
+- **Fine Tuning** : Raffinement local précis
+- **Multi-Start** : Plusieurs points de départ
+
+## Advanced Calibration Techniques
+
+### Regularization Methods
+
+#### Tikhonov Regularization
+$$\min_{\theta} \|F(\theta) - y\|^2 + \alpha \|\theta - \theta_0\|^2$$
+
+**Purpose** : Stabilisation de la calibration
+**Parameter** : $\alpha$ contrôle le niveau de régularisation
+
+#### Total Variation Regularization
+$$\min_{\sigma} \|C_{model} - C_{market}\|^2 + \beta \int |\nabla \sigma| dx$$
+
+**Purpose** : Lissage de la surface de volatilité locale
+**Benefit** : Réduction du bruit et amélioration de la stabilité
+
+### Cross-Validation Techniques
+
+#### Time Series Validation
+- **Rolling Window** : Calibration sur fenêtre glissante
+- **Out-of-Sample Testing** : Validation sur données futures
+- **Stability Analysis** : Analyse de la stabilité temporelle
+
+#### Instrument Validation
+- **Leave-One-Out** : Validation croisée par instrument
+- **Exotic Validation** : Tests sur options exotiques
+- **Greeks Validation** : Validation des sensibilités
+
+### Model Selection Criteria
+
+#### Information Criteria
+- **AIC** : Akaike Information Criterion
+- **BIC** : Bayesian Information Criterion
+- **Cross-Validation Score** : Score de validation croisée
+
+#### Practical Considerations
+- **Computational Cost** : Temps de calibration et pricing
+- **Numerical Stability** : Robustesse numérique
+- **Implementation Complexity** : Facilité de maintenance
+
+## Production Calibration Process
+
+### Daily Calibration Routine
+
+#### Morning Calibration (Pre-Market)
+1. **Data Collection** : Récupération données overnight
+2. **Quick Calibration** : Calibration rapide pour ouverture
+3. **Quality Check** : Validation basique des résultats
+4. **Distribution** : Diffusion aux systèmes de trading
+
+#### Intraday Recalibration
+1. **Market Monitoring** : Surveillance des mouvements de marché
+2. **Trigger Conditions** : Seuils de recalibration automatique
+3. **Fast Recalibration** : Mise à jour rapide des paramètres
+4. **Impact Assessment** : Évaluation de l'impact sur les positions
+
+#### End-of-Day Validation
+1. **Full Calibration** : Calibration complète et précise
+2. **Comprehensive Testing** : Tests exhaustifs de qualité
+3. **Performance Analysis** : Analyse de la performance quotidienne
+4. **Reporting** : Génération des rapports de calibration
+
+### Error Handling and Fallback
+
+#### Calibration Failure Management
+- **Automatic Retry** : Tentatives automatiques avec paramètres alternatifs
+- **Fallback Parameters** : Utilisation de paramètres de secours
+- **Manual Intervention** : Escalation vers équipe quantitative
+- **Emergency Procedures** : Procédures d'urgence
+
+#### Quality Monitoring
+- **Real-time Alerts** : Alertes en temps réel pour déviations
+- **Dashboard Monitoring** : Surveillance via tableaux de bord
+- **Automated Reports** : Rapports automatiques de qualité
+- **Trend Analysis** : Analyse des tendances de calibration
+
+### Performance Optimization
+
+#### Computational Efficiency
+- **Parallel Calibration** : Calibration parallélisée par instrument
+- **Incremental Updates** : Mises à jour incrémentales
+- **Caching Strategies** : Mise en cache des résultats intermédiaires
+- **Hardware Optimization** : Utilisation optimale des ressources
+
+#### Memory Management
+- **Efficient Data Structures** : Structures de données optimisées
+- **Memory Pooling** : Gestion de pools mémoire
+- **Garbage Collection** : Nettoyage automatique de la mémoire
+- **Resource Monitoring** : Surveillance de l'utilisation des ressources
+
+La procédure de calibration LSV MS PDE dans Our project assure une calibration robuste, précise et efficace du modèle avec validation complète de la qualité et respect de toutes les contraintes de production.

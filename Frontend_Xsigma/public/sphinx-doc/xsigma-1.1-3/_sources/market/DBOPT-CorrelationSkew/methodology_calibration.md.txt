@@ -1,0 +1,616 @@
+# Methodology & Calibration
+
+## 🎯 **Assessment of Methodology**
+
+### **Objectif de la Méthodologie CorrelationSkew**
+Après considération, le modèle DBOPT avec la configuration donnée est le choix naturel pour pricer les produits sous considération. L'objectif de cette méthodologie CorrelationSkew est de produire un skew de corrélation qui soit intuitif et puisse être facilement calibré aux calls/puts duaux ou digitaux duaux.
+
+#### **Exigence Business**
+Une exigence des utilisateurs business est d'avoir un **skew de corrélation sticky strike**. Cette copule de skew de corrélation est construite en utilisant une technique numérique Monte Carlo.
+
+### **Forces de l'Implémentation**
+
+#### **🔧 Avantages Techniques**
+Comparé aux modèles similaires, l'implémentation sous considération a les forces suivantes :
+
+```cpp
+// Avantages de l'implémentation dans Our project
+class correlation_skew_advantages {
+public:
+    struct model_strengths {
+        // Modélisation de corrélation riche non-paramétrique
+        bool rich_nonparametric_correlation = true;
+        std::string description_1 = 
+            "Allows modeling richer non-parametric correlation needed to capture "
+            "correlation skew evidenced by dual digitals at various strikes, "
+            "which may not be captured by parametric asymmetric copulas";
+        
+        // Gestion de la structure de skew de corrélation
+        bool correlation_skew_structure = true;
+        std::string description_2 = 
+            "Can handle correlation skew structure, so that correlation between "
+            "underlyings depends on market conditions (i.e., level of underlyings)";
+        
+        // Flexibilité de calibration
+        bool calibration_flexibility = true;
+        std::string description_3 = 
+            "Intuitive methodology that can be easily calibrated to "
+            "dual calls/puts or dual digitals";
+    };
+    
+    model_strengths get_advantages() const {
+        return model_strengths{};
+    }
+    
+    // Validation des avantages
+    bool validate_implementation_benefits() const {
+        // Vérification que le modèle capture effectivement le skew
+        return test_correlation_skew_capture() && 
+               test_sticky_strike_behavior() &&
+               test_calibration_efficiency();
+    }
+};
+```
+*Cette classe C++ dans Our project documente les avantages techniques de l'implémentation CorrelationSkew par rapport aux modèles de corrélation traditionnels.*
+
+---
+
+## 📊 **Assessment of Calibration**
+
+### **Calibration par Configuration**
+
+#### **🔧 RateDeterministic**
+```cpp
+// Calibration RateDeterministic dans Our project
+class rate_deterministic_calibration {
+public:
+    struct calibration_approach {
+        std::string method = "CURVE_ONLY";
+        std::string description = "Only uses the interest rate curve";
+        
+        // Pas de calibration de volatilité requise
+        bool volatility_calibration_required = false;
+        std::string rationale = "Deterministic rates do not require vol calibration";
+    };
+    
+    calibration_approach get_calibration_method() const {
+        return calibration_approach{};
+    }
+    
+    // Validation de la calibration
+    bool validate_deterministic_setup(const market_data& market) const {
+        auto rate_curve = market.get_discount_curve("USD");
+        
+        // Vérification que la courbe est bien déterministe
+        return rate_curve->is_deterministic() && 
+               !rate_curve->requires_volatility_input();
+    }
+};
+```
+
+#### **🔧 RatesMarketAFSABR**
+```cpp
+// Calibration AFSABR dans Our project
+class afsabr_calibration {
+public:
+    struct calibration_targets {
+        std::vector<std::string> target_instruments = {"EUROPEAN_SWAPTIONS"};
+        std::string calibration_method = "CMS_SKEW";
+        bool auto_calibration = true;
+        
+        std::string description = 
+            "Marginal distributions calibrated to European swaptions. "
+            "Same calibration as single rate derivatives in DBOPT-RatesMarketAFSABR";
+    };
+    
+    struct sabr_parameters {
+        double alpha;    // Vol level
+        double beta;     // CEV exponent
+        double rho;      // Vol-rate correlation
+        double nu;       // Vol of vol
+        
+        // Validation des paramètres SABR
+        bool validate() const {
+            return alpha > 0.0 &&
+                   beta >= 0.0 && beta <= 1.0 &&
+                   rho >= -1.0 && rho <= 1.0 &&
+                   nu >= 0.0;
+        }
+    };
+    
+    calibration_targets get_calibration_approach() const {
+        return calibration_targets{};
+    }
+    
+    // Calibration automatique aux swaptions
+    sabr_parameters calibrate_to_swaptions(
+        const std::vector<swaption_quote>& market_quotes) {
+        
+        sabr_parameters params;
+        
+        // Optimisation pour minimiser l'erreur de pricing
+        auto objective = [&](const sabr_parameters& p) -> double {
+            double total_error = 0.0;
+            
+            for (const auto& quote : market_quotes) {
+                double model_price = calculate_sabr_swaption_price(p, quote);
+                double market_price = quote.market_price;
+                
+                double relative_error = std::abs(model_price - market_price) / market_price;
+                total_error += relative_error * relative_error;
+            }
+            
+            return total_error;
+        };
+        
+        // Optimisation numérique
+        params = optimize_sabr_parameters(objective);
+        
+        // Validation des résultats
+        XSIGMA_CHECK(params.validate(), "Invalid SABR parameters after calibration");
+        
+        return params;
+    }
+};
+```
+*Cette implémentation C++ dans Our project montre la calibration AFSABR aux swaptions européennes avec validation des paramètres SABR.*
+
+#### **🔧 FX, EQ and Asset: PIV**
+```cpp
+// Calibration PIV pour FX/EQ/Asset dans Our project
+class piv_calibration {
+public:
+    struct piv_parameters {
+        std::string vol_model = "PIV";
+        std::string smile_model = "DSLV";  // Displaced Stochastic Local Vol
+        bool market_calibration = true;
+        
+        std::string description = "PIV with DSLV for FX, EQ and Asset volatilities";
+    };
+    
+    struct calibration_instruments {
+        std::vector<std::string> fx_instruments = {
+            "FX_VANILLA_OPTIONS", "FX_RISK_REVERSALS", "FX_BUTTERFLIES"
+        };
+        std::vector<std::string> equity_instruments = {
+            "EQUITY_VANILLA_OPTIONS", "EQUITY_VARIANCE_SWAPS"
+        };
+        std::vector<std::string> asset_instruments = {
+            "COMMODITY_OPTIONS", "ASSET_FORWARDS"
+        };
+    };
+    
+    // Calibration de surface de volatilité
+    volatility_surface calibrate_piv_surface(
+        const std::string& underlying_type,
+        const std::vector<market_quote>& market_data) {
+        
+        volatility_surface surface;
+        
+        if (underlying_type == "FX") {
+            surface = calibrate_fx_piv_surface(market_data);
+        } else if (underlying_type == "EQUITY") {
+            surface = calibrate_equity_piv_surface(market_data);
+        } else if (underlying_type == "ASSET") {
+            surface = calibrate_asset_piv_surface(market_data);
+        }
+        
+        // Validation de la surface calibrée
+        validate_volatility_surface(surface);
+        
+        return surface;
+    }
+    
+private:
+    void validate_volatility_surface(const volatility_surface& surface) const {
+        // Vérification de l'absence d'arbitrage
+        XSIGMA_CHECK(surface.is_arbitrage_free(), 
+                     "Calibrated volatility surface contains arbitrage");
+        
+        // Vérification de la positivité des volatilités
+        XSIGMA_CHECK(surface.all_volatilities_positive(),
+                     "All volatilities must be positive");
+        
+        // Vérification de la continuité
+        XSIGMA_CHECK(surface.is_continuous(),
+                     "Volatility surface must be continuous");
+    }
+};
+```
+
+---
+
+## 🔄 **TermSkew Methodology**
+
+### **Algorithme TermSkew Détaillé**
+
+#### **🔧 Construction Itérative**
+```cpp
+// Implémentation complète de l'algorithme TermSkew dans Our project
+class term_skew_methodology {
+public:
+    struct term_skew_config {
+        int max_iterations = 1000;
+        bool smoothing_enabled = true;
+        std::string interpolation_type = "LINEAR";
+        double convergence_tolerance = 1e-6;
+        
+        // Matrice de corrélations cibles
+        matrix<double> correlation_targets;
+        
+        // Paramètres de lissage
+        struct smoothing_params {
+            bool enabled = true;
+            double smoothing_factor = 0.1;
+            std::string method = "GAUSSIAN_KERNEL";
+        } smoothing;
+    };
+    
+    struct iteration_state {
+        int current_iteration;
+        matrix<double> current_correlation_matrix;
+        std::vector<std::pair<double, double>> simulated_pairs;
+        double convergence_metric;
+        bool converged;
+    };
+    
+    class term_skew_engine {
+    public:
+        term_skew_engine(const term_skew_config& config) 
+            : config_(config), mc_engine_(initialize_monte_carlo()) {}
+        
+        iteration_state run_single_iteration(const iteration_state& previous_state) {
+            iteration_state new_state;
+            new_state.current_iteration = previous_state.current_iteration + 1;
+            
+            // Génération de paires corrélées
+            new_state.simulated_pairs = generate_correlated_pairs(
+                previous_state.current_correlation_matrix);
+            
+            // Calcul de la corrélation empirique
+            matrix<double> empirical_correlation = calculate_empirical_correlation(
+                new_state.simulated_pairs);
+            
+            // Ajustement vers la cible
+            new_state.current_correlation_matrix = adjust_correlation_matrix(
+                empirical_correlation, config_.correlation_targets);
+            
+            // Application du lissage si activé
+            if (config_.smoothing.enabled) {
+                new_state.current_correlation_matrix = apply_smoothing(
+                    new_state.current_correlation_matrix);
+            }
+            
+            // Calcul de la métrique de convergence
+            new_state.convergence_metric = calculate_convergence_metric(
+                new_state.current_correlation_matrix, config_.correlation_targets);
+            
+            new_state.converged = (new_state.convergence_metric < config_.convergence_tolerance);
+            
+            return new_state;
+        }
+        
+        std::vector<iteration_state> run_full_calibration() {
+            std::vector<iteration_state> iteration_history;
+            
+            // État initial
+            iteration_state current_state;
+            current_state.current_iteration = 0;
+            current_state.current_correlation_matrix = initialize_correlation_matrix();
+            current_state.converged = false;
+            
+            iteration_history.push_back(current_state);
+            
+            // Boucle d'itération
+            while (!current_state.converged && 
+                   current_state.current_iteration < config_.max_iterations) {
+                
+                current_state = run_single_iteration(current_state);
+                iteration_history.push_back(current_state);
+                
+                // Log de progression
+                log_iteration_progress(current_state);
+            }
+            
+            // Validation de la convergence
+            if (!current_state.converged) {
+                XSIGMA_WARN("TermSkew algorithm did not converge within max iterations");
+            }
+            
+            return iteration_history;
+        }
+        
+    private:
+        term_skew_config config_;
+        std::unique_ptr<monte_carlo_engine> mc_engine_;
+        
+        std::vector<std::pair<double, double>> generate_correlated_pairs(
+            const matrix<double>& correlation_matrix) {
+            
+            std::vector<std::pair<double, double>> pairs;
+            pairs.reserve(mc_engine_->get_num_simulations());
+            
+            for (size_t i = 0; i < mc_engine_->get_num_simulations(); ++i) {
+                // Génération de variables aléatoires indépendantes
+                double u1 = mc_engine_->generate_uniform();
+                double u2 = mc_engine_->generate_uniform();
+                
+                // Transformation en variables normales
+                double z1 = inv_normal_cdf(u1);
+                double z2 = inv_normal_cdf(u2);
+                
+                // Application de la corrélation
+                double corr = correlation_matrix(0, 1);
+                double z2_corr = corr * z1 + std::sqrt(1.0 - corr * corr) * z2;
+                
+                // Transformation retour en uniformes
+                double u1_corr = normal_cdf(z1);
+                double u2_corr = normal_cdf(z2_corr);
+                
+                pairs.emplace_back(u1_corr, u2_corr);
+            }
+            
+            return pairs;
+        }
+        
+        matrix<double> apply_smoothing(const matrix<double>& correlation_matrix) {
+            if (config_.smoothing.method == "GAUSSIAN_KERNEL") {
+                return apply_gaussian_smoothing(correlation_matrix);
+            } else {
+                return correlation_matrix;  // Pas de lissage
+            }
+        }
+    };
+    
+    // Interface publique
+    term_skew_engine create_engine(const term_skew_config& config) {
+        return term_skew_engine(config);
+    }
+};
+```
+*Cette implémentation C++ dans Our project montre l'algorithme TermSkew complet avec gestion itérative, lissage optionnel et validation de convergence.*
+
+---
+
+## 🎯 **Sticky Strike Correlation**
+
+### **Implémentation Sticky Strike**
+
+#### **🔧 Corrélation Dépendante des Niveaux**
+```cpp
+// Implémentation sticky strike dans Our project
+class sticky_strike_correlation {
+public:
+    struct strike_level_mapping {
+        std::vector<double> underlying_1_levels;
+        std::vector<double> underlying_2_levels;
+        matrix<double> correlation_surface;
+        
+        // Méthode d'interpolation
+        std::string interpolation_method = "BILINEAR";
+    };
+    
+    class correlation_interpolator {
+    public:
+        correlation_interpolator(const strike_level_mapping& mapping)
+            : mapping_(mapping) {
+            validate_mapping();
+        }
+        
+        double get_correlation(double s1_level, double s2_level) const {
+            // Recherche des indices pour interpolation
+            auto [i1, i2] = find_interpolation_indices(s1_level, s2_level);
+            
+            // Interpolation bilinéaire
+            return bilinear_interpolation(s1_level, s2_level, i1, i2);
+        }
+        
+        // Validation que la corrélation reste dans [-1, 1]
+        bool validate_correlation_bounds() const {
+            for (size_t i = 0; i < mapping_.correlation_surface.rows(); ++i) {
+                for (size_t j = 0; j < mapping_.correlation_surface.columns(); ++j) {
+                    double corr = mapping_.correlation_surface(i, j);
+                    if (corr < -1.0 || corr > 1.0) {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+        
+    private:
+        strike_level_mapping mapping_;
+        
+        std::pair<size_t, size_t> find_interpolation_indices(
+            double s1_level, double s2_level) const {
+            
+            // Recherche dans underlying_1_levels
+            auto it1 = std::lower_bound(mapping_.underlying_1_levels.begin(),
+                                       mapping_.underlying_1_levels.end(),
+                                       s1_level);
+            size_t i1 = std::distance(mapping_.underlying_1_levels.begin(), it1);
+            
+            // Recherche dans underlying_2_levels
+            auto it2 = std::lower_bound(mapping_.underlying_2_levels.begin(),
+                                       mapping_.underlying_2_levels.end(),
+                                       s2_level);
+            size_t i2 = std::distance(mapping_.underlying_2_levels.begin(), it2);
+            
+            return {i1, i2};
+        }
+        
+        double bilinear_interpolation(double s1, double s2, 
+                                     size_t i1, size_t i2) const {
+            // Gestion des cas limites
+            if (i1 == 0) i1 = 1;
+            if (i2 == 0) i2 = 1;
+            if (i1 >= mapping_.underlying_1_levels.size()) 
+                i1 = mapping_.underlying_1_levels.size() - 1;
+            if (i2 >= mapping_.underlying_2_levels.size()) 
+                i2 = mapping_.underlying_2_levels.size() - 1;
+            
+            // Points d'interpolation
+            double s1_low = mapping_.underlying_1_levels[i1-1];
+            double s1_high = mapping_.underlying_1_levels[i1];
+            double s2_low = mapping_.underlying_2_levels[i2-1];
+            double s2_high = mapping_.underlying_2_levels[i2];
+            
+            // Corrélations aux quatre coins
+            double corr_ll = mapping_.correlation_surface(i1-1, i2-1);
+            double corr_lh = mapping_.correlation_surface(i1-1, i2);
+            double corr_hl = mapping_.correlation_surface(i1, i2-1);
+            double corr_hh = mapping_.correlation_surface(i1, i2);
+            
+            // Poids d'interpolation
+            double w1 = (s1 - s1_low) / (s1_high - s1_low);
+            double w2 = (s2 - s2_low) / (s2_high - s2_low);
+            
+            // Interpolation bilinéaire
+            double corr_interpolated = 
+                (1.0 - w1) * (1.0 - w2) * corr_ll +
+                (1.0 - w1) * w2 * corr_lh +
+                w1 * (1.0 - w2) * corr_hl +
+                w1 * w2 * corr_hh;
+            
+            return corr_interpolated;
+        }
+    };
+    
+    // Factory pour créer l'interpolateur
+    correlation_interpolator create_interpolator(
+        const strike_level_mapping& mapping) {
+        return correlation_interpolator(mapping);
+    }
+};
+```
+*Cette implémentation C++ dans Our project montre comment la corrélation sticky strike est calculée en fonction des niveaux des sous-jacents avec interpolation bilinéaire.*
+
+---
+
+## 📊 **Calibration to Dual Digitals**
+
+### **Calibration aux Digitaux Duaux**
+
+#### **🔧 Processus de Calibration**
+```cpp
+// Calibration aux digitaux duaux dans Our project
+class dual_digital_calibration {
+public:
+    struct dual_digital_quote {
+        double strike_1;
+        double strike_2;
+        double market_price;
+        double bid_ask_spread;
+        datetime expiry;
+        std::string underlying_1_id;
+        std::string underlying_2_id;
+    };
+    
+    struct calibration_result {
+        matrix<double> calibrated_correlation_surface;
+        std::vector<double> pricing_errors;
+        double total_calibration_error;
+        bool calibration_successful;
+        int iterations_used;
+    };
+    
+    class dual_digital_calibrator {
+    public:
+        calibration_result calibrate_to_market_quotes(
+            const std::vector<dual_digital_quote>& market_quotes,
+            const term_skew_methodology::term_skew_config& initial_config) {
+            
+            calibration_result result;
+            
+            // Configuration initiale
+            auto config = initial_config;
+            
+            // Boucle d'optimisation
+            for (int iter = 0; iter < MAX_CALIBRATION_ITERATIONS; ++iter) {
+                // Pricing des digitaux duaux avec configuration actuelle
+                std::vector<double> model_prices = price_dual_digitals(
+                    market_quotes, config);
+                
+                // Calcul des erreurs
+                std::vector<double> errors = calculate_pricing_errors(
+                    market_quotes, model_prices);
+                
+                result.pricing_errors = errors;
+                result.total_calibration_error = calculate_total_error(errors);
+                
+                // Test de convergence
+                if (result.total_calibration_error < CALIBRATION_TOLERANCE) {
+                    result.calibration_successful = true;
+                    result.iterations_used = iter;
+                    break;
+                }
+                
+                // Ajustement de la configuration
+                config = adjust_correlation_targets(config, errors, market_quotes);
+            }
+            
+            result.calibrated_correlation_surface = config.correlation_targets;
+            
+            return result;
+        }
+        
+    private:
+        static constexpr int MAX_CALIBRATION_ITERATIONS = 100;
+        static constexpr double CALIBRATION_TOLERANCE = 1e-4;
+        
+        std::vector<double> price_dual_digitals(
+            const std::vector<dual_digital_quote>& quotes,
+            const term_skew_methodology::term_skew_config& config) {
+            
+            std::vector<double> prices;
+            prices.reserve(quotes.size());
+            
+            // Création du moteur TermSkew
+            term_skew_methodology methodology;
+            auto engine = methodology.create_engine(config);
+            
+            for (const auto& quote : quotes) {
+                // Pricing du digital dual
+                double price = price_single_dual_digital(quote, engine);
+                prices.push_back(price);
+            }
+            
+            return prices;
+        }
+        
+        double price_single_dual_digital(
+            const dual_digital_quote& quote,
+            const term_skew_methodology::term_skew_engine& engine) {
+            
+            // Simulation Monte Carlo pour pricing
+            auto simulation_results = engine.run_full_calibration();
+            auto final_state = simulation_results.back();
+            
+            // Calcul du payoff digital dual
+            double payoff_sum = 0.0;
+            int num_simulations = final_state.simulated_pairs.size();
+            
+            for (const auto& pair : final_state.simulated_pairs) {
+                // Transformation en niveaux de sous-jacents
+                double s1 = transform_to_underlying_level(pair.first, quote.underlying_1_id);
+                double s2 = transform_to_underlying_level(pair.second, quote.underlying_2_id);
+                
+                // Payoff digital dual
+                double payoff = (s1 > quote.strike_1 && s2 > quote.strike_2) ? 1.0 : 0.0;
+                payoff_sum += payoff;
+            }
+            
+            // Prix moyen actualisé
+            double average_payoff = payoff_sum / num_simulations;
+            double discount_factor = get_discount_factor(quote.expiry);
+            
+            return average_payoff * discount_factor;
+        }
+    };
+};
+```
+*Cette implémentation C++ dans Our project montre le processus complet de calibration aux digitaux duaux avec optimisation itérative et validation des erreurs de pricing.*
+
+---
+
+*Cette section fournit une documentation complète de la méthodologie et calibration pour les modèles DBOPT-CorrelationSkew, intégrant les implémentations C++ de Our project avec les algorithmes TermSkew et la calibration aux digitaux duaux.*

@@ -1,0 +1,536 @@
+# Model Methodology
+## Advanced Mathematical Framework for Curve Construction
+
+![NCF Mathematical Framework](Fig/libor_ois_interpolation_3.jpg)
+
+### 🎯 **Methodology Excellence Overview**
+
+The **New Curve Framework (NCF)** employs a state-of-the-art optimization-based approach to construct arbitrage-free interest rate and inflation curves. Our methodology represents a breakthrough in quantitative finance, combining mathematical rigor with computational efficiency required for institutional trading environments.
+
+### 🧮 **Mathematical Innovation Foundation**
+
+NCF's methodology is built around **three revolutionary principles** that ensure both theoretical soundness and practical applicability:
+
+#### **🎪 Core Methodological Pillars**
+
+| **Principle** | **Innovation** | **Business Benefit** | **Technical Advantage** |
+|---------------|----------------|---------------------|------------------------|
+| **Multi-Curve Simultaneous Optimization** | Global consistency across all curves | Eliminates arbitrage opportunities | Mathematical guarantee of consistency |
+| **Flexible Node Structure** | Independence from instrument maturities | Optimal curve shape control | Superior interpolation accuracy |
+| **Advanced Interpolation Schemes** | Region-specific optimization | Smooth, stable curves | Robust risk metric calculation |
+
+#### **🎯 Revolutionary Design Features**
+
+```cpp
+namespace xsigma::ncf {
+    /**
+     * @brief Advanced NCF methodology implementation
+     *
+     * This framework implements the complete mathematical methodology
+     * for constructing arbitrage-free interest rate and inflation curves
+     * using sophisticated optimization techniques and advanced interpolation.
+     */
+    class NCFMethodologyEngine {
+    public:
+        // Core methodological principles
+        enum class OptimizationPrinciple {
+            MULTI_CURVE_SIMULTANEOUS,    // Global consistency optimization
+            FLEXIBLE_NODE_STRUCTURE,     // Maturity-independent nodes
+            ADVANCED_INTERPOLATION       // Region-specific schemes
+        };
+
+        // Mathematical framework configuration
+        struct MethodologyConfig {
+            // Optimization strategy
+            OptimizationPrinciple primary_principle;
+
+            // Global consistency parameters
+            bool enforce_arbitrage_free = true;
+            double consistency_tolerance = 1e-12;
+
+            // Node structure flexibility
+            bool adaptive_node_placement = true;
+            int min_nodes_per_region = 3;
+
+            // Interpolation sophistication
+            bool region_specific_interpolation = true;
+            InterpolationScheme default_scheme = InterpolationScheme::CUBIC_SPLINE;
+        };
+    };
+}
+```
+
+*This methodological foundation ensures both mathematical rigor and practical performance for institutional curve construction requirements.*
+
+## 🧮 **Advanced Mathematical Framework**
+
+### 🎯 **Sophisticated Optimization Problem Formulation**
+
+The NCF curve construction employs a **state-of-the-art constrained optimization framework** that balances market fit with mathematical stability:
+
+$$\min_{\mathbf{x}} \underbrace{\sum_{i=1}^{N} w_i \left( \frac{P_i^{\text{market}} - P_i^{\text{model}}(\mathbf{x})}{P_i^{\text{market}}} \right)^2}_{\text{Market Fit Objective}} + \underbrace{\lambda \sum_{j=1}^{M} S_j(\mathbf{x})}_{\text{Smoothing Penalties}} + \underbrace{\mu \sum_{k=1}^{L} C_k(\mathbf{x})}_{\text{Arbitrage Constraints}}$$
+
+#### **📊 Complete Mathematical Parameter Specification**
+
+| Parameter | Mathematical Symbol | Description | Business Purpose | Technical Role |
+|-----------|-------------------|-------------|------------------|----------------|
+| **$\mathbf{x}$** | Optimization variables | Vector of curve node values | Curve parameterization | Discount factors or forward rates |
+| **$P_i^{\text{market}}$** | Market benchmarks | Market price of calibration instrument $i$ | Target pricing accuracy | Optimization objectives |
+| **$P_i^{\text{model}}(\mathbf{x})$** | Model predictions | Model price given curve parameters | Theoretical pricing | Optimization constraints |
+| **$w_i$** | Liquidity weights | Instrument-specific weight | Data quality prioritization | Robust estimation |
+| **$S_j(\mathbf{x})$** | Smoothing functions | Penalty functions for curve stability | Prevent overfitting | Mathematical regularization |
+| **$C_k(\mathbf{x})$** | Arbitrage constraints | No-arbitrage condition enforcement | Market consistency | Mathematical validity |
+| **$\lambda$** | Smoothing parameter | Trade-off between fit and smoothness | Curve stability control | Regularization strength |
+| **$\mu$** | Constraint weight | Arbitrage constraint enforcement | Market consistency priority | Constraint penalty |
+
+#### **🎪 Advanced Optimization Architecture**
+
+```cpp
+namespace xsigma::ncf {
+    /**
+     * @brief Enterprise-grade optimization framework for curve construction
+     *
+     * This advanced optimization engine implements sophisticated mathematical
+     * techniques to ensure optimal curve construction with guaranteed
+     * arbitrage-free properties and market consistency.
+     */
+    class AdvancedOptimizationEngine {
+    public:
+        // Comprehensive optimization objective structure
+        struct OptimizationObjective {
+            // Primary market fit component
+            double market_fit_term;           // Weighted least squares fit to market data
+
+            // Regularization components
+            double smoothing_penalty;         // Curve smoothness enforcement
+            double temporal_consistency;      // Time-series stability
+            double cross_curve_consistency;   // Multi-curve arbitrage prevention
+
+            // Constraint penalty components
+            double arbitrage_penalty;         // No-arbitrage constraint violations
+            double bounds_penalty;            // Parameter bounds violations
+            double numerical_stability;       // Numerical conditioning penalty
+
+            // Combined objective value
+            double total_objective;           // Weighted sum of all components
+        };
+
+        // Advanced optimization configuration
+        struct OptimizationConfig {
+            // Optimization strategy selection
+            enum class Strategy {
+                LEVENBERG_MARQUARDT,     // Non-linear least squares
+                TRUST_REGION,           // Trust region with adaptive bounds
+                INTERIOR_POINT,         // Interior point for constraints
+                HYBRID_APPROACH         // Multi-strategy optimization
+            };
+
+            // Quality control parameters
+            double max_pricing_error = 1e-6;      // Maximum acceptable pricing error
+            double smoothing_weight = 0.01;       // Smoothing penalty weight
+            double arbitrage_weight = 1000.0;     // Arbitrage constraint weight
+            int max_iterations = 10000;           // Optimization iteration limit
+            double convergence_tolerance = 1e-12; // Convergence criteria
+
+            // Advanced features
+            bool adaptive_weighting = true;       // Dynamic weight adjustment
+            bool multi_start_optimization = true; // Global optimization
+            bool parallel_processing = true;      // Multi-threaded execution
+        };
+    };
+}
+```
+
+*This advanced mathematical framework ensures optimal curve construction while maintaining the stability and consistency required for institutional trading applications.*
+
+### Penalty Functions
+
+#### Instrument Penalty Functions
+
+For each calibration instrument, the penalty function measures the relative pricing error:
+
+$$f_i(\mathbf{x}) = w_i \left( \frac{P_i^{\text{market}} - P_i^{\text{model}}(\mathbf{x})}{P_i^{\text{market}}} \right)^2$$
+
+**Weight Determination Criteria:**
+
+The weights $w_i$ are systematically determined based on multiple factors:
+
+| Factor | Impact on Weight | Rationale |
+|--------|------------------|-----------|
+| **Market Liquidity** | Higher liquidity → Higher weight | More reliable price discovery |
+| **Bid-Ask Spread** | Tighter spreads → Higher weight | Better price accuracy |
+| **Strategic Importance** | Key curve points → Higher weight | Critical for curve shape |
+| **Data Quality** | Higher quality → Higher weight | More reliable input data |
+| **Trading Volume** | Higher volume → Higher weight | Better market representation |
+
+#### Smoothing Penalty Functions
+
+Smoothing penalties ensure curve stability and prevent overfitting by penalizing excessive curvature and rapid changes:
+
+**1. Second Derivative Penalty (Curvature Control):**
+$$S_1(\mathbf{x}) = \sum_{k=2}^{n-1} \left( \frac{x_{k+1} - 2x_k + x_{k-1}}{(\Delta t_k)^2} \right)^2$$
+
+This penalty minimizes the discrete second derivative, ensuring smooth curve transitions.
+
+**2. Forward Rate Smoothness Penalty:**
+$$S_2(\mathbf{x}) = \sum_{k=1}^{n-1} \left( \frac{f_{k+1} - f_k}{\Delta t_k} \right)^2$$
+
+This penalty prevents abrupt changes in instantaneous forward rates, where $f_k$ represents the forward rate at node $k$.
+
+**3. Tension Spline Penalty (Optional):**
+$$S_3(\mathbf{x}) = \int_{t_1}^{t_n} \left( \frac{d^2 f(t)}{dt^2} \right)^2 dt$$
+
+This continuous penalty minimizes total curvature over the entire curve domain.
+
+### Node Structure and Interpolation
+
+#### Node Date Selection
+
+The framework employs flexible node date selection that optimizes curve accuracy:
+
+**Automatic Node Placement**:
+- Nodes are placed at optimal locations based on instrument sensitivity
+- Higher density in regions with rich market data
+- Sparse placement in data-poor regions
+
+**Constraint-Based Placement**:
+- Minimum and maximum node spacing constraints
+- Alignment with key market dates (IMM dates, month-ends)
+- Inflation-specific constraints (inflation day of month)
+
+#### Interpolation Methods
+
+**Primary Interpolation Schemes**:
+
+1. **Log-Linear on Discount Factors**:
+   $$\log(df_t) = \log(df_{t_i}) + \frac{t - t_i}{t_{i+1} - t_i} \left( \log(df_{t_{i+1}}) - \log(df_{t_i}) \right)$$
+
+2. **Linear on Forward Rates**:
+   $$f_t = f_{t_i} + \frac{t - t_i}{t_{i+1} - t_i} (f_{t_{i+1}} - f_{t_i})$$
+
+3. **Cubic Spline**:
+   $$df_t = a_i + b_i(t - t_i) + c_i(t - t_i)^2 + d_i(t - t_i)^3$$
+
+**Hybrid Interpolation**:
+Different interpolation methods can be applied to different regions of the same curve:
+- Linear interpolation for short-term liquid regions
+- Cubic spline for longer-term smooth regions
+- Log-linear for discount factor curves
+
+## Discount Curve Implementation in Our Project
+
+The mathematical framework described above is implemented through several key classes that handle curve construction and interpolation.
+
+**Core Discount Curve Classes**:
+```cpp
+namespace xsigma {
+    // Interpolated discount curve implementing the mathematical formulas above
+    class discount_curve_interpolated final : public discount_curve {
+    public:
+        MARKET_API discount_curve_interpolated(
+            const datetime& valuation_date,
+            std::vector<datetime> dates,
+            std::vector<double> log_dfs,
+            std::array<datetime, 2> switch_points,
+            std::array<interpolation_enum, 3> interpolation_type);
+
+        MARKET_API ~discount_curve_interpolated() override;
+
+        // Implements: df(t1,t2) = exp(log_df(t1,t2))
+        MARKET_API double df(
+            const datetime& start_date,
+            const datetime& end_date) const override {
+            return exp(log_df(start_date, end_date));
+        }
+
+        // Implements interpolation formulas: log(df_t) = interpolate(t)
+        MARKET_API double log_df(
+            const datetime& start_date,
+            const datetime& end_date) const override {
+            // Calculate time fractions
+            double t_start = valuation_date_.time_fraction(start_date);
+            double t_end = valuation_date_.time_fraction(end_date);
+
+            // Interpolate log discount factors using selected method
+            double log_df_start = interpolator_->interpolate(t_start);
+            double log_df_end = interpolator_->interpolate(t_end);
+
+            // Return log discount factor difference
+            return log_df_end - log_df_start;
+        }
+
+        // AAD support for exact derivatives in optimization
+        MARKET_API void df_aad(
+            const double value_aad,
+            const datetime& start_date,
+            const datetime& end_date,
+            double* state_parameters_aad) const override {
+
+            // Calculate time fractions
+            double t_start = valuation_date_.time_fraction(start_date);
+            double t_end = valuation_date_.time_fraction(end_date);
+
+            // Get current discount factor
+            double current_df = df(start_date, end_date);
+
+            // Propagate derivatives through interpolation
+            interpolator_->interpolate_aad(t_end, value_aad * current_df, state_parameters_aad);
+            interpolator_->interpolate_aad(t_start, -value_aad * current_df, state_parameters_aad);
+        }
+
+    private:
+        // Internal interpolation infrastructure
+        ptr_const<interpolator<vector<double>, double, double>> interpolator_;
+        std::vector<datetime> dates_;
+        vector<double> log_dfs_;
+    };
+
+    // Composite curve for multi-curve construction
+    class discount_curve_composite final : public discount_curve {
+    public:
+        MARKET_API discount_curve_composite(
+            const datetime& valuation_date,
+            const ptr_const<discount_curve>& base_curve,
+            const ptr_const<discount_curve>& spread_curve);
+
+        // Implements: df_composite = df_base * df_spread
+        MARKET_API double df(
+            const datetime& start_date,
+            const datetime& end_date) const override {
+            return base_curve_->df(start_date, end_date) *
+                   spread_curve_->df(start_date, end_date);
+        }
+
+        // Implements: log_df_composite = log_df_base + log_df_spread
+        MARKET_API double log_df(
+            const datetime& start_date,
+            const datetime& end_date) const override {
+            return base_curve_->log_df(start_date, end_date) +
+                   spread_curve_->log_df(start_date, end_date);
+        }
+
+    private:
+        ptr_const<discount_curve> base_curve_;
+        ptr_const<discount_curve> spread_curve_;
+    };
+}
+```
+
+*These classes implement the mathematical interpolation formulas described above. The `discount_curve_interpolated` class supports multiple interpolation methods through the `interpolator_` member, while the `discount_curve_composite` class enables multi-curve construction by combining base and spread curves. The AAD (Automatic Adjoint Differentiation) support provides exact derivatives for the optimization process.*
+
+### Multi-Curve Construction
+
+#### Simultaneous Optimization
+
+For interdependent curves (e.g., 3M LIBOR, 6M LIBOR, and OIS), the optimization is performed simultaneously:
+
+$$\min_{\mathbf{x}_1, \mathbf{x}_2, \mathbf{x}_3} \sum_{c=1}^{3} \sum_{i=1}^{N_c} w_{c,i} \left( \frac{P_{c,i}^{market} - P_{c,i}^{model}(\mathbf{x}_1, \mathbf{x}_2, \mathbf{x}_3)}{P_{c,i}^{market}} \right)^2$$
+
+Where $c$ indexes the curves and $\mathbf{x}_c$ represents the node values for curve $c$.
+
+#### Dependency Management
+
+**Sequential Construction**:
+1. **Base Curves**: Independent curves constructed first (e.g., OIS)
+2. **Dependent Curves**: Curves that depend on base curves (e.g., LIBOR curves)
+3. **Spread Curves**: Basis and spread curves constructed last
+
+**Cross-Currency Dependencies**:
+- USD curves constructed as foundation
+- Other currency curves built using USD as reference
+- FX forward points incorporated for consistency
+
+### Algorithmic Differentiation
+
+#### Forward Mode AD
+
+The framework employs algorithmic differentiation for exact Jacobian computation:
+
+$$\frac{\partial P_i}{\partial x_j} = \sum_{k} \frac{\partial P_i}{\partial y_k} \frac{\partial y_k}{\partial x_j}$$
+
+Where $y_k$ represents intermediate variables in the pricing calculation.
+
+#### Jacobian Matrix Structure
+
+The Jacobian matrix $\mathbf{J}$ has dimensions $N \times M$ where:
+- $N$ is the number of calibration instruments
+- $M$ is the number of curve node points
+
+$$J_{ij} = \frac{\partial P_i}{\partial x_j}$$
+
+This matrix is used for:
+- Risk calculation through analytical derivatives
+- Optimization algorithm acceleration
+- Sensitivity analysis and stress testing
+
+### Optimization Algorithms
+
+#### Primary Algorithm: Levenberg-Marquardt
+
+The framework uses a modified Levenberg-Marquardt algorithm for nonlinear least squares:
+
+$$(\mathbf{J}^T\mathbf{J} + \mu\mathbf{I})\mathbf{h} = -\mathbf{J}^T\mathbf{r}$$
+
+Where:
+- $\mathbf{J}$ is the Jacobian matrix
+- $\mathbf{r}$ is the residual vector
+- $\mu$ is the damping parameter
+- $\mathbf{h}$ is the step direction
+
+#### Convergence Criteria
+
+**Relative Tolerance**:
+$$\frac{||\mathbf{r}||_2}{||\mathbf{P}^{market}||_2} < \epsilon_{rel}$$
+
+**Absolute Tolerance**:
+$$||\mathbf{r}||_2 < \epsilon_{abs}$$
+
+**Parameter Change**:
+$$\frac{||\mathbf{h}||_2}{||\mathbf{x}||_2} < \epsilon_{param}$$
+
+Typical values: $\epsilon_{rel} = 10^{-8}$, $\epsilon_{abs} = 10^{-10}$, $\epsilon_{param} = 10^{-8}$
+
+## Interpolation Framework Implementation
+
+The mathematical interpolation methods are implemented through a flexible factory pattern that supports multiple interpolation schemes.
+
+**Interpolation Types and Factory**:
+```cpp
+namespace xsigma {
+    // Available interpolation methods implementing the mathematical formulas
+    enum class interpolation_enum : int {
+        LINEAR                   = 0,  // Linear interpolation
+        CUBIC_HERMITE            = 1,  // Hermite cubic splines
+        CUBIC_SPLINE             = 2,  // Natural cubic splines
+        PIECEWISE_CONSTANT_LEFT  = 3,  // Left-continuous step function
+        PIECEWISE_CONSTANT_RIGHT = 4,  // Right-continuous step function
+        LINEAR_EXPONENTIAL       = 5,  // Exponential interpolation
+        GEOMETRIC                = 6,  // Geometric interpolation
+        GEOMETRIC_AVERAGE        = 7   // Geometric average interpolation
+    };
+
+    // Factory for creating interpolators based on mathematical requirements
+    template<typename Container, typename T, typename S>
+    class interpolator_factory {
+    public:
+        static ptr_unique_const<interpolator<Container, T, S>> create(
+            const interpolation_enum& type,
+            std::vector<T> x,
+            Container y,
+            cubic_spline_condition_enum left_condition =
+                cubic_spline_condition_enum::SECOND_DERIVATIVE,
+            S left_value = 0,
+            cubic_spline_condition_enum right_condition =
+                cubic_spline_condition_enum::SECOND_DERIVATIVE,
+            S right_value = 0) {
+
+            switch (type) {
+                case interpolation_enum::LINEAR:
+                    // Implements: y = y_i + (x-x_i)/(x_{i+1}-x_i) * (y_{i+1}-y_i)
+                    return util::make_ptr_unique_const<interpolator_linear<Container, T, S>>(
+                        std::move(x), std::move(y));
+
+                case interpolation_enum::CUBIC_SPLINE:
+                    // Implements: y = a_i + b_i(x-x_i) + c_i(x-x_i)^2 + d_i(x-x_i)^3
+                    return util::make_ptr_unique_const<interpolator_cubic_spline<Container, T, S>>(
+                        std::move(x), std::move(y), left_condition, left_value,
+                        right_condition, right_value);
+
+                case interpolation_enum::GEOMETRIC:
+                    // Implements: y = y_i * (y_{i+1}/y_i)^((x-x_i)/(x_{i+1}-x_i))
+                    return util::make_ptr_unique_const<interpolator_geometric<Container, T, S>>(
+                        std::move(x), std::move(y));
+
+                case interpolation_enum::PIECEWISE_CONSTANT_LEFT:
+                    // Implements: y = y_i for x_i <= x < x_{i+1}
+                    return util::make_ptr_unique_const<interpolator_piecewise_constant_left<Container, T, S>>(
+                        std::move(x), std::move(y));
+
+                default:
+                    throw util::exception("Unsupported interpolation type");
+            }
+        }
+    };
+
+    // Curve creation function implementing the optimization framework
+    void curve_calibration::create_and_add_curve(
+        const any_id& id,
+        const curve_calibration_dates& node_dates,
+        const ptr_const<discount_curve>& base_curve,
+        const std::vector<double>& rates) {
+
+        auto build_discount_curve = [&]() {
+            // Create interpolated discount curve using selected interpolation method
+            const ptr_const<discount_curve>& curve =
+                util::make_ptr_const<discount_curve_interpolated>(
+                    valuation_date_,
+                    node_dates.node_dates(),
+                    rates,
+                    std::array<datetime, 1>{node_dates.switching_date()},
+                    config_->interpolations_);
+
+            // Combine with base curve if provided (multi-curve construction)
+            return base_curve != nullptr ?
+                util::make_ptr_const<discount_curve_composite>(
+                    valuation_date_, base_curve, curve) : curve;
+        };
+
+        // Add curve to market container for use in pricing
+        auto curve_object = any_object(build_discount_curve());
+        market_[id] = curve_object;
+    }
+}
+```
+
+*The interpolation factory implements the mathematical interpolation formulas described earlier. Each interpolation type corresponds to a specific mathematical approach: linear for simple interpolation, cubic splines for smooth curves, and geometric for rate-like quantities. The `create_and_add_curve` function demonstrates how the optimization framework creates curves using the selected interpolation methods.*
+
+### Special Considerations
+
+#### Inflation Curve Construction
+
+**Index Value Representation**:
+Inflation curves are internally represented as discount factors but externally return index values:
+
+$$CPI_t = \frac{CPI_{base}}{df_t}$$
+
+**Historical Data Integration**:
+Published inflation data is incorporated as fixed constraints in the optimization.
+
+#### Cross-Currency Basis
+
+**Four-Curve Problem**:
+Cross-currency basis requires simultaneous construction of four curves:
+1. Domestic discount curve
+2. Foreign discount curve  
+3. Domestic forecast curve
+4. Foreign forecast curve
+
+**Basis Adjustment**:
+$$df_{foreign}^{adjusted} = df_{foreign} \times \exp(-basis \times t)$$
+
+#### Negative Interest Rates
+
+**Shifted Log-Normal Framework**:
+For negative rate environments, the framework employs shifted interpolation:
+
+$$\log(df_t + shift) = \log(df_{t_i} + shift) + \frac{t - t_i}{t_{i+1} - t_i} \left( \log(df_{t_{i+1}} + shift) - \log(df_{t_i} + shift) \right)$$
+
+### Quality Control
+
+#### Repricing Accuracy
+
+All calibration instruments must reprice within tolerance:
+
+$$\left| \frac{P_i^{market} - P_i^{model}}{P_i^{market}} \right| < tolerance_i$$
+
+Typical tolerances range from $10^{-6}$ to $10^{-4}$ depending on instrument type and market conditions.
+
+#### Interpolation Verification
+
+The framework verifies that interpolated values follow the specified interpolation method exactly, ensuring no numerical artifacts are introduced.
+
+#### Arbitrage Checks
+
+**Forward Rate Monotonicity**: Ensures forward rates don't exhibit unrealistic behavior
+**Discount Factor Monotonicity**: Verifies discount factors are non-increasing
+**Cross-Curve Consistency**: Validates relationships between related curves

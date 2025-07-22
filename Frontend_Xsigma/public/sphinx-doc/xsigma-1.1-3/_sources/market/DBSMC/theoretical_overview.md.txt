@@ -1,0 +1,471 @@
+# Theoretical Overview
+
+## 🎯 **Vue d'Ensemble Théorique**
+
+### **Framework Mathématique**
+Le modèle **DBSMC-RateDeterministic_FXMarket** repose sur un framework mathématique rigoureux pour le pricing de dérivés FX avec taux déterministes.
+
+#### **Hypothèses Fondamentales**
+1. **Taux déterministes** : $r_d(t)$ et $r_f(t)$ sont des fonctions déterministes du temps
+2. **Processus lognormal** : Le taux de change suit $dS_t = (r_d(t) - r_f(t))S_t dt + \sigma(S_t, t) S_t dW_t$
+3. **Marché complet** : Absence d'opportunités d'arbitrage
+4. **Liquidité parfaite** : Pas de coûts de transaction
+
+### **Mesure Risque-Neutre**
+Sous la mesure risque-neutre $\mathbb{Q}$, le processus FX s'écrit :
+
+$$dS_t = (r_d(t) - r_f(t))S_t dt + \sigma(S_t, t) S_t dW_t^{\mathbb{Q}}$$
+
+où $W_t^{\mathbb{Q}}$ est un mouvement brownien sous $\mathbb{Q}$.
+
+---
+
+## 📊 **Surfaces de Volatilité**
+
+### **Types de Surfaces Supportées**
+
+#### **🔧 Surface Non-Paramétrique**
+La surface de volatilité est définie par interpolation/extrapolation d'une grille de volatilités implicites.
+
+**Méthodes d'Interpolation :**
+- **Bilinéaire** : Interpolation linéaire en strike et expiry
+- **Bicubique** : Interpolation cubique pour plus de lissage
+- **Spline** : Interpolation par splines pour continuité C²
+
+```cpp
+// Implémentation d'interpolation bilinéaire dans Our project
+class bilinear_volatility_interpolator {
+public:
+    double interpolate(double strike, double expiry,
+                      const volatility_grid& grid) const {
+        
+        // Recherche des indices
+        auto [i_k, i_t] = find_grid_indices(strike, expiry, grid);
+        
+        // Extraction des points de grille
+        double k1 = grid.strikes[i_k];
+        double k2 = grid.strikes[i_k + 1];
+        double t1 = grid.expiries[i_t];
+        double t2 = grid.expiries[i_t + 1];
+        
+        // Volatilités aux quatre coins
+        double vol_11 = grid.volatilities(i_k, i_t);
+        double vol_12 = grid.volatilities(i_k, i_t + 1);
+        double vol_21 = grid.volatilities(i_k + 1, i_t);
+        double vol_22 = grid.volatilities(i_k + 1, i_t + 1);
+        
+        // Poids d'interpolation
+        double w_k = (strike - k1) / (k2 - k1);
+        double w_t = (expiry - t1) / (t2 - t1);
+        
+        // Interpolation bilinéaire
+        return (1.0 - w_k) * (1.0 - w_t) * vol_11 +
+               (1.0 - w_k) * w_t * vol_12 +
+               w_k * (1.0 - w_t) * vol_21 +
+               w_k * w_t * vol_22;
+    }
+    
+private:
+    std::pair<size_t, size_t> find_grid_indices(
+        double strike, double expiry, const volatility_grid& grid) const {
+        
+        // Recherche par dichotomie pour les strikes
+        auto it_k = std::lower_bound(grid.strikes.begin(), grid.strikes.end(), strike);
+        size_t i_k = std::distance(grid.strikes.begin(), it_k);
+        if (i_k > 0) i_k--;
+        
+        // Recherche par dichotomie pour les expiries
+        auto it_t = std::lower_bound(grid.expiries.begin(), grid.expiries.end(), expiry);
+        size_t i_t = std::distance(grid.expiries.begin(), it_t);
+        if (i_t > 0) i_t--;
+        
+        return {i_k, i_t};
+    }
+};
+```
+*Cette implémentation C++ dans Our project montre l'interpolation bilinéaire pour surfaces de volatilité avec recherche efficace des indices.*
+
+#### **🔧 Surface Paramétrique SA4**
+Le modèle SA4 (Smile Adjusted 4-parameter) paramétrise la volatilité comme :
+
+$$\sigma(K, T) = \sigma_{ATM}(T) \times f_{SA4}(K/F, \text{params})$$
+
+**Paramètres SA4 :**
+- **vol** : Niveau de volatilité de base
+- **smile** : Paramètre de smile (convexité)
+- **skew** : Paramètre de skew (asymétrie)
+- **power** : Paramètre de puissance
+- **vol_atm** : Volatilité at-the-money
+
+```cpp
+// Implémentation du modèle SA4 dans Our project
+class sa4_volatility_model {
+private:
+    struct sa4_params {
+        double vol;
+        double smile;
+        double skew;
+        double power;
+        double vol_atm;
+    };
+    
+    sa4_params params_;
+    
+public:
+    sa4_volatility_model(const sa4_params& params) : params_(params) {
+        validate_parameters();
+    }
+    
+    double calculate_volatility(double forward, double strike, double expiry) const {
+        // Moneyness
+        double moneyness = strike / forward;
+        
+        // Calcul SA4
+        sigma_volatility_sa4<double> sa4_engine(
+            params_.vol, params_.smile, params_.skew, 
+            params_.power, params_.vol_atm);
+        
+        return sa4_engine.implied_volatility(forward, strike, expiry,
+                                           implied_volatility_enum::BLACK_SCHOLES);
+    }
+    
+    // Calibration aux données de marché
+    sa4_params calibrate_to_market(const std::vector<market_quote>& quotes) {
+        // Fonction objectif pour minimisation
+        auto objective = [&](const sa4_params& p) -> double {
+            double total_error = 0.0;
+            
+            for (const auto& quote : quotes) {
+                sa4_volatility_model temp_model(p);
+                double model_vol = temp_model.calculate_volatility(
+                    quote.forward, quote.strike, quote.expiry);
+                
+                double error = std::pow(model_vol - quote.market_vol, 2);
+                total_error += error;
+            }
+            
+            return total_error;
+        };
+        
+        // Optimisation numérique
+        return optimize_sa4_parameters(objective, params_);
+    }
+    
+private:
+    void validate_parameters() const {
+        XSIGMA_CHECK(params_.vol > 0, "SA4 vol must be positive");
+        XSIGMA_CHECK(params_.power > 0, "SA4 power must be positive");
+        XSIGMA_CHECK(params_.vol_atm > 0, "SA4 vol_atm must be positive");
+        XSIGMA_CHECK(std::abs(params_.skew) < 10.0, "SA4 skew must be reasonable");
+        XSIGMA_CHECK(std::abs(params_.smile) < 10.0, "SA4 smile must be reasonable");
+    }
+};
+```
+
+#### **🔧 Surface Paramétrique LABGD**
+Le modèle LABGD (Local Alpha Beta Gamma Delta) étend SA4 avec des paramètres additionnels :
+
+**Paramètres LABGD :**
+- **vol, smile, skew, power, vol_atm** : Paramètres SA4 de base
+- **ac** : Paramètre alpha call
+- **ap** : Paramètre alpha put
+
+```cpp
+// Implémentation du modèle LABGD dans Our project
+class labgd_volatility_model {
+private:
+    struct labgd_params {
+        double vol;
+        double smile;
+        double skew;
+        double power;
+        double ac;      // Alpha call
+        double ap;      // Alpha put
+        double vol_atm;
+    };
+    
+    labgd_params params_;
+    
+public:
+    double calculate_volatility(double forward, double strike, double expiry) const {
+        // Modèle LABGD
+        sigma_volatility_la6gd<double> labgd_engine(
+            params_.vol, params_.smile, params_.skew, params_.power,
+            params_.ac, params_.ap, params_.vol_atm);
+        
+        return labgd_engine.implied_volatility(forward, strike, expiry,
+                                             implied_volatility_enum::BLACK_SCHOLES);
+    }
+    
+    // Analyse de sensibilité aux paramètres
+    std::map<std::string, double> calculate_parameter_sensitivities(
+        double forward, double strike, double expiry) const {
+        
+        std::map<std::string, double> sensitivities;
+        const double param_shock = 1e-6;
+        
+        double base_vol = calculate_volatility(forward, strike, expiry);
+        
+        // Sensibilité à vol
+        auto params_vol_up = params_;
+        params_vol_up.vol += param_shock;
+        labgd_volatility_model model_vol_up(params_vol_up);
+        double vol_up = model_vol_up.calculate_volatility(forward, strike, expiry);
+        sensitivities["vol"] = (vol_up - base_vol) / param_shock;
+        
+        // Sensibilité à smile
+        auto params_smile_up = params_;
+        params_smile_up.smile += param_shock;
+        labgd_volatility_model model_smile_up(params_smile_up);
+        double smile_up = model_smile_up.calculate_volatility(forward, strike, expiry);
+        sensitivities["smile"] = (smile_up - base_vol) / param_shock;
+        
+        // Sensibilités similaires pour autres paramètres...
+        
+        return sensitivities;
+    }
+};
+```
+
+---
+
+## 🔄 **Pricing Analytique**
+
+### **Formules Black-Scholes FX**
+
+#### **Options Européennes**
+Pour une option européenne FX, le prix est donné par :
+
+$$C = e^{-r_d T} [F \Phi(d_1) - K \Phi(d_2)]$$
+$$P = e^{-r_d T} [K \Phi(-d_2) - F \Phi(-d_1)]$$
+
+où :
+- $F = S_0 e^{(r_d - r_f)T}$ est le forward FX
+- $d_1 = \frac{\ln(F/K) + \frac{1}{2}\sigma^2 T}{\sigma\sqrt{T}}$
+- $d_2 = d_1 - \sigma\sqrt{T}$
+
+```cpp
+// Implémentation Black-Scholes FX dans Our project
+class fx_black_scholes_engine {
+public:
+    struct bs_result {
+        double price;
+        double delta;
+        double gamma;
+        double vega;
+        double theta;
+        double rho_domestic;
+        double rho_foreign;
+    };
+    
+    static bs_result calculate_option_metrics(
+        double spot, double strike, double expiry,
+        double dom_rate, double for_rate, double volatility,
+        bool is_call, double notional = 1.0) {
+        
+        bs_result result;
+        
+        // Forward et paramètres
+        double forward = spot * std::exp((dom_rate - for_rate) * expiry);
+        double sqrt_t = std::sqrt(expiry);
+        double vol_sqrt_t = volatility * sqrt_t;
+        
+        double d1 = (std::log(forward / strike) + 0.5 * volatility * volatility * expiry) / vol_sqrt_t;
+        double d2 = d1 - vol_sqrt_t;
+        
+        double discount_factor = std::exp(-dom_rate * expiry);
+        
+        // Prix
+        if (is_call) {
+            result.price = discount_factor * (forward * normal_cdf(d1) - strike * normal_cdf(d2));
+        } else {
+            result.price = discount_factor * (strike * normal_cdf(-d2) - forward * normal_cdf(-d1));
+        }
+        result.price *= notional;
+        
+        // Greeks
+        double phi_d1 = normal_pdf(d1);
+        
+        // Delta FX
+        result.delta = discount_factor * normal_cdf(is_call ? d1 : -d1) * notional;
+        
+        // Gamma FX
+        result.gamma = discount_factor * phi_d1 / (spot * vol_sqrt_t) * notional;
+        
+        // Vega
+        result.vega = discount_factor * forward * phi_d1 * sqrt_t * notional;
+        
+        // Theta
+        double theta_term1 = -discount_factor * forward * phi_d1 * volatility / (2.0 * sqrt_t);
+        double theta_term2 = dom_rate * discount_factor * (is_call ? 
+            (forward * normal_cdf(d1) - strike * normal_cdf(d2)) :
+            (strike * normal_cdf(-d2) - forward * normal_cdf(-d1)));
+        result.theta = (theta_term1 + theta_term2) * notional;
+        
+        // Rho domestique
+        result.rho_domestic = expiry * result.price;
+        
+        // Rho étranger
+        result.rho_foreign = -expiry * discount_factor * forward * 
+                           normal_cdf(is_call ? d1 : -d1) * notional;
+        
+        return result;
+    }
+};
+```
+*Cette implémentation C++ dans Our project fournit le calcul complet des métriques Black-Scholes pour options FX avec tous les Greeks.*
+
+#### **Options Digitales**
+Pour une option digitale FX :
+
+$$\text{Digital Call} = e^{-r_d T} \Phi(d_2) \times \text{Payout}$$
+$$\text{Digital Put} = e^{-r_d T} \Phi(-d_2) \times \text{Payout}$$
+
+```cpp
+// Pricing d'options digitales FX dans Our project
+class fx_digital_pricer {
+public:
+    static double price_digital_option(
+        double spot, double barrier, double expiry,
+        double dom_rate, double for_rate, double volatility,
+        bool is_call, double payout) {
+        
+        // Forward et paramètres
+        double forward = spot * std::exp((dom_rate - for_rate) * expiry);
+        double vol_sqrt_t = volatility * std::sqrt(expiry);
+        
+        double d2 = (std::log(forward / barrier) - 0.5 * volatility * volatility * expiry) / vol_sqrt_t;
+        
+        // Probabilité
+        double probability = normal_cdf(is_call ? d2 : -d2);
+        
+        // Prix actualisé
+        double discount_factor = std::exp(-dom_rate * expiry);
+        return payout * probability * discount_factor;
+    }
+    
+    // Sensibilités spécialisées pour digitales
+    static double calculate_digital_delta(
+        double spot, double barrier, double expiry,
+        double dom_rate, double for_rate, double volatility,
+        bool is_call, double payout) {
+        
+        double forward = spot * std::exp((dom_rate - for_rate) * expiry);
+        double vol_sqrt_t = volatility * std::sqrt(expiry);
+        
+        double d2 = (std::log(forward / barrier) - 0.5 * volatility * volatility * expiry) / vol_sqrt_t;
+        
+        double phi_d2 = normal_pdf(d2);
+        double discount_factor = std::exp(-dom_rate * expiry);
+        
+        return (is_call ? 1.0 : -1.0) * payout * discount_factor * phi_d2 / (spot * vol_sqrt_t);
+    }
+};
+```
+
+---
+
+## 📊 **Paniers Géométriques**
+
+### **Options sur Panier Géométrique FX**
+Pour un panier géométrique de $n$ taux de change :
+
+$$B_T = \prod_{i=1}^n S_i^{w_i}$$
+
+Le pricing utilise un processus auxiliaire avec volatilité effective :
+
+$$\sigma_{eff}^2 = \sum_{i=1}^n \sum_{j=1}^n w_i w_j \sigma_i \sigma_j \rho_{ij}$$
+
+```cpp
+// Pricing de paniers géométriques FX dans Our project
+class fx_geometric_basket_pricer {
+private:
+    struct basket_specification {
+        std::vector<std::string> currency_pairs;
+        std::vector<double> weights;
+        matrix<double> correlation_matrix;
+    };
+    
+public:
+    static double price_geometric_basket_option(
+        const basket_specification& basket,
+        const std::vector<double>& spots,
+        const std::vector<double>& volatilities,
+        double strike, double expiry,
+        double dom_rate, const std::vector<double>& for_rates,
+        bool is_call) {
+        
+        // Validation
+        XSIGMA_CHECK(basket.currency_pairs.size() == spots.size(), "Size mismatch");
+        XSIGMA_CHECK(std::abs(std::accumulate(basket.weights.begin(), 
+                                            basket.weights.end(), 0.0) - 1.0) < 1e-10,
+                    "Weights must sum to 1");
+        
+        // Calcul du forward du panier
+        double basket_forward = 1.0;
+        for (size_t i = 0; i < spots.size(); ++i) {
+            double forward_i = spots[i] * std::exp((dom_rate - for_rates[i]) * expiry);
+            basket_forward *= std::pow(forward_i, basket.weights[i]);
+        }
+        
+        // Volatilité effective du panier
+        double effective_variance = 0.0;
+        for (size_t i = 0; i < spots.size(); ++i) {
+            for (size_t j = 0; j < spots.size(); ++j) {
+                effective_variance += basket.weights[i] * basket.weights[j] *
+                                    volatilities[i] * volatilities[j] *
+                                    basket.correlation_matrix(i, j);
+            }
+        }
+        double effective_volatility = std::sqrt(effective_variance);
+        
+        // Pricing Black-Scholes avec paramètres effectifs
+        return fx_black_scholes_engine::calculate_option_metrics(
+            basket_forward, strike, expiry, dom_rate, 0.0, // for_rate = 0 pour le panier
+            effective_volatility, is_call).price;
+    }
+};
+```
+
+---
+
+## 🔍 **Validation Théorique**
+
+### **Tests de Cohérence**
+
+#### **Put-Call Parity**
+Validation de la relation fondamentale :
+$$C - P = e^{-r_d T}(F - K)$$
+
+```cpp
+// Test de put-call parity dans Our project
+void test_put_call_parity(double spot, double strike, double expiry,
+                         double dom_rate, double for_rate, double volatility) {
+    
+    auto call_result = fx_black_scholes_engine::calculate_option_metrics(
+        spot, strike, expiry, dom_rate, for_rate, volatility, true);
+    
+    auto put_result = fx_black_scholes_engine::calculate_option_metrics(
+        spot, strike, expiry, dom_rate, for_rate, volatility, false);
+    
+    double forward = spot * std::exp((dom_rate - for_rate) * expiry);
+    double discount_factor = std::exp(-dom_rate * expiry);
+    
+    double theoretical_difference = discount_factor * (forward - strike);
+    double actual_difference = call_result.price - put_result.price;
+    
+    double relative_error = std::abs(actual_difference - theoretical_difference) / 
+                          std::abs(theoretical_difference);
+    
+    EXPECT_LT(relative_error, 1e-12); // Précision machine
+}
+```
+
+### **Limites Asymptotiques**
+- **Volatilité → 0** : Prix → Valeur intrinsèque
+- **Volatilité → ∞** : Prix → Maximum théorique
+- **Expiry → 0** : Prix → Payoff immédiat
+
+---
+
+*Cette section fournit une vue d'ensemble théorique complète du framework DBSMC, intégrant les implémentations C++ de Our project avec les fondements mathématiques rigoureux pour le pricing de dérivés FX.*

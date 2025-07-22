@@ -1,0 +1,357 @@
+# Model Calibration & Risk Sensitivities
+
+## 🎯 **Model Calibration**
+
+### **Approche de Calibration Déterministe**
+Les modèles **DBOPT-RateDeterministic_InflationDeterministic** et **DBX-RateDeterministic_InflationDeterministic** utilisent une approche de calibration simplifiée en raison de leur nature déterministe.
+
+#### **Absence de Calibration de Volatilité**
+Étant donné que les modèles DBOPT-RateDeterministic_InflationDeterministic et DBX-RateDeterministic_InflationDeterministic n'utilisent aucun objet de volatilité, **aucune calibration de volatilité n'est requise**.
+
+#### **Construction de Courbes**
+Pour les détails sur les méthodologies de construction de courbes, nous référons au **curve primer [3]** qui documente les approches suivantes :
+
+### **Méthodologies de Construction de Courbe**
+
+#### **🔧 Bootstrapping des Courbes d'Inflation**
+```cpp
+// Implémentation de bootstrapping dans Our project
+class inflation_curve_builder {
+private:
+    std::vector<market_instrument> instruments_;
+    interpolation_enum interpolation_method_;
+    
+public:
+    inflation_curve_builder(
+        const std::vector<market_instrument>& instruments,
+        interpolation_enum method = interpolation_enum::LINEAR)
+        : instruments_(instruments), interpolation_method_(method) {}
+    
+    std::shared_ptr<inflation_curve> build_curve() {
+        // Tri des instruments par maturité
+        std::sort(instruments_.begin(), instruments_.end(),
+                 [](const auto& a, const auto& b) {
+                     return a.maturity < b.maturity;
+                 });
+        
+        // Bootstrapping séquentiel
+        std::vector<double> discount_factors;
+        for (const auto& instrument : instruments_) {
+            double df = bootstrap_discount_factor(instrument);
+            discount_factors.push_back(df);
+        }
+        
+        return create_interpolated_curve(discount_factors);
+    }
+    
+private:
+    double bootstrap_discount_factor(const market_instrument& instrument) {
+        // Calcul du facteur d'actualisation pour l'instrument
+        if (instrument.type == instrument_type::ZC_SWAP) {
+            return bootstrap_zc_swap(instrument);
+        } else if (instrument.type == instrument_type::YOY_SWAP) {
+            return bootstrap_yoy_swap(instrument);
+        }
+        throw std::invalid_argument("Unsupported instrument type");
+    }
+};
+```
+*Cette implémentation C++ dans Our project montre comment construire une courbe d'inflation par bootstrapping séquentiel des instruments de marché, en utilisant différentes méthodes d'interpolation selon les besoins.*
+
+#### **Instruments de Marché Supportés**
+- **Inflation Forwards** : Contrats à terme sur indices d'inflation
+- **Zero-Coupon Swaps** : Swaps d'inflation zero-coupon
+- **Year-on-Year Swaps** : Swaps d'inflation annuels
+
+#### **Méthodes d'Interpolation**
+| Méthode | Description | Avantages | Inconvénients |
+|---------|-------------|-----------|---------------|
+| **LINEAR** | Interpolation linéaire | Simple, stable | Peut créer des discontinuités |
+| **PWCONST_L** | Constante par morceaux (gauche) | Continuité garantie | Moins lisse |
+| **CUBIC** | Interpolation cubique | Très lisse | Plus complexe |
+| **FLAT** | Interpolation plate | Très stable | Moins précise |
+
+---
+
+## 📊 **Risk Sensitivities**
+
+### **Sensibilités Calculées par le Modèle**
+Le tableau suivant liste les sensibilités de risque retournées par le modèle, avec leurs modes DBA correspondants :
+
+| Sensibilité | Mode DBA | Description | Unité |
+|-------------|----------|-------------|-------|
+| **Delta** | DELTA | Sensibilité au premier ordre aux mouvements de courbe | bp |
+| **Gamma** | GAMMA | Sensibilité au second ordre | bp² |
+| **OIS Spread Delta** | OISSPREAD | Sensibilité aux spreads OIS | bp |
+| **Discount Spread Delta** | DISCOUNTSPREAD | Sensibilité aux spreads de discount | bp |
+| **Spot Libor Spread Delta** | LIBORSPREAD | Sensibilité aux spreads Libor spot | bp |
+| **Inflation Delta** | INFLATIONDELTA | Sensibilité aux mouvements d'inflation | bp |
+
+### **Implémentation des Sensibilités dans Our project**
+
+#### **Calcul des Deltas**
+```cpp
+// Calcul des sensibilités Delta pour produits d'inflation
+class inflation_product_sensitivities {
+public:
+    struct sensitivity_results {
+        double ir_delta;           // Delta taux d'intérêt
+        double inflation_delta;    // Delta inflation
+        double ois_spread_delta;   // Delta spread OIS
+        double discount_spread_delta; // Delta spread discount
+        std::map<std::string, double> bucket_deltas; // Deltas par bucket
+    };
+    
+    sensitivity_results calculate_sensitivities(
+        const inflation_product& product,
+        const market_data& market) {
+        
+        sensitivity_results results;
+        
+        // Delta taux d'intérêt par différences finies
+        results.ir_delta = calculate_ir_delta(product, market);
+        
+        // Delta inflation
+        results.inflation_delta = calculate_inflation_delta(product, market);
+        
+        // Deltas de spreads
+        results.ois_spread_delta = calculate_ois_spread_delta(product, market);
+        results.discount_spread_delta = calculate_discount_spread_delta(product, market);
+        
+        // Deltas par bucket (par maturité)
+        results.bucket_deltas = calculate_bucket_deltas(product, market);
+        
+        return results;
+    }
+    
+private:
+    double calculate_ir_delta(const inflation_product& product, 
+                             const market_data& market) {
+        const double shock_size = 1e-4; // 1 bp
+        
+        // PV avec choc positif
+        auto market_up = shock_ir_curve(market, +shock_size);
+        double pv_up = product.calculate_pv(market_up);
+        
+        // PV avec choc négatif
+        auto market_down = shock_ir_curve(market, -shock_size);
+        double pv_down = product.calculate_pv(market_down);
+        
+        // Delta par différences finies centrées
+        return (pv_up - pv_down) / (2.0 * shock_size);
+    }
+    
+    double calculate_inflation_delta(const inflation_product& product,
+                                   const market_data& market) {
+        const double shock_size = 1e-4; // 1 bp
+        
+        auto market_up = shock_inflation_curve(market, +shock_size);
+        double pv_up = product.calculate_pv(market_up);
+        
+        auto market_down = shock_inflation_curve(market, -shock_size);
+        double pv_down = product.calculate_pv(market_down);
+        
+        return (pv_up - pv_down) / (2.0 * shock_size);
+    }
+};
+```
+*Cette implémentation C++ dans Our project montre comment calculer les différentes sensibilités de risque pour les produits d'inflation en utilisant des méthodes de différences finies robustes.*
+
+#### **Calcul des Gammas**
+```cpp
+// Calcul des sensibilités Gamma (second ordre)
+double calculate_gamma(const inflation_product& product,
+                      const market_data& market,
+                      risk_factor_type factor_type) {
+    const double shock_size = 1e-4; // 1 bp
+    
+    // PV central
+    double pv_center = product.calculate_pv(market);
+    
+    // PV avec chocs
+    auto market_up = shock_market(market, factor_type, +shock_size);
+    auto market_down = shock_market(market, factor_type, -shock_size);
+    
+    double pv_up = product.calculate_pv(market_up);
+    double pv_down = product.calculate_pv(market_down);
+    
+    // Gamma par différences finies du second ordre
+    return (pv_up - 2.0 * pv_center + pv_down) / (shock_size * shock_size);
+}
+```
+
+### **Validation des Sensibilités**
+
+#### **Tests de Cohérence Taylor**
+```cpp
+// Validation de la cohérence des sensibilités via expansion de Taylor
+void validate_taylor_consistency(const inflation_product& product,
+                                const market_data& market) {
+    auto sensitivities = calculate_sensitivities(product, market);
+    
+    // Test avec différentes tailles de choc
+    std::vector<double> shock_sizes = {0.1e-4, 0.5e-4, 1.0e-4, 2.0e-4, 5.0e-4};
+    
+    for (double shock : shock_sizes) {
+        // PV avec choc
+        auto market_shocked = shock_ir_curve(market, shock);
+        double pv_shocked = product.calculate_pv(market_shocked);
+        double pv_base = product.calculate_pv(market);
+        
+        // Approximation Taylor au premier ordre
+        double taylor_pv = pv_base + sensitivities.ir_delta * shock;
+        
+        // Erreur relative
+        double relative_error = std::abs(pv_shocked - taylor_pv) / std::abs(pv_base);
+        
+        // La convergence doit s'améliorer avec des chocs plus petits
+        EXPECT_LT(relative_error, tolerance_for_shock(shock));
+        
+        std::cout << "Shock: " << shock << ", Error: " << relative_error << std::endl;
+    }
+}
+```
+
+---
+
+## 🎯 **Model Outputs**
+
+### **Outputs Principaux**
+Le modèle peut extraire les outputs suivants :
+
+#### **📈 Present Value (PV)**
+- **PV total** du produit ou portefeuille
+- **PV par leg** pour les swaps
+- **PV par cashflow** pour analyse détaillée
+
+#### **📊 Risk Sensitivities ("Greeks")**
+- **Delta** : Sensibilité aux changements de paramètres
+- **Gamma** : Sensibilité du second ordre
+- **Vega** : Non applicable (modèle déterministe)
+- **Theta** : Sensibilité au temps
+
+#### **🔧 Sensibilités Spécialisées**
+- **OIS Spread Delta** : Sensibilité aux spreads OIS
+- **Discount Spread Delta** : Sensibilité aux spreads de discount
+- **Spot Libor Spread Delta** : Sensibilité aux spreads Libor spot
+
+### **Format des Outputs**
+
+#### **Structure de Données**
+```cpp
+// Structure des outputs du modèle dans Our project
+struct model_outputs {
+    // Valeurs principales
+    double present_value;
+    double accrued_interest;
+    
+    // Sensibilités de premier ordre
+    std::map<std::string, double> deltas;
+    
+    // Sensibilités de second ordre
+    std::map<std::string, double> gammas;
+    
+    // Sensibilités par bucket
+    std::map<std::string, std::vector<double>> bucket_sensitivities;
+    
+    // Métadonnées
+    datetime calculation_date;
+    std::string model_version;
+    std::map<std::string, std::string> parameters;
+    
+    // Méthodes d'accès
+    double get_delta(const std::string& risk_factor) const {
+        auto it = deltas.find(risk_factor);
+        return (it != deltas.end()) ? it->second : 0.0;
+    }
+    
+    double get_gamma(const std::string& risk_factor) const {
+        auto it = gammas.find(risk_factor);
+        return (it != gammas.end()) ? it->second : 0.0;
+    }
+};
+```
+
+#### **Reporting et Export**
+```cpp
+// Export des résultats vers différents formats
+class results_exporter {
+public:
+    void export_to_csv(const model_outputs& outputs, 
+                      const std::string& filename) {
+        std::ofstream file(filename);
+        
+        // Header
+        file << "Metric,Value,Unit\n";
+        
+        // PV
+        file << "Present Value," << outputs.present_value << ",USD\n";
+        
+        // Deltas
+        for (const auto& [factor, delta] : outputs.deltas) {
+            file << "Delta_" << factor << "," << delta << ",bp\n";
+        }
+        
+        // Gammas
+        for (const auto& [factor, gamma] : outputs.gammas) {
+            file << "Gamma_" << factor << "," << gamma << ",bp^2\n";
+        }
+    }
+    
+    void export_to_json(const model_outputs& outputs,
+                       const std::string& filename) {
+        nlohmann::json j;
+        
+        j["present_value"] = outputs.present_value;
+        j["calculation_date"] = outputs.calculation_date.to_string();
+        j["deltas"] = outputs.deltas;
+        j["gammas"] = outputs.gammas;
+        j["parameters"] = outputs.parameters;
+        
+        std::ofstream file(filename);
+        file << j.dump(4);
+    }
+};
+```
+
+---
+
+## 🔍 **Validation et Contrôle Qualité**
+
+### **Tests de Cohérence des Outputs**
+```cpp
+// Tests de validation des outputs
+void validate_model_outputs(const model_outputs& outputs) {
+    // Validation des valeurs finies
+    EXPECT_TRUE(std::isfinite(outputs.present_value));
+    
+    // Validation des sensibilités
+    for (const auto& [factor, delta] : outputs.deltas) {
+        EXPECT_TRUE(std::isfinite(delta));
+        EXPECT_LT(std::abs(delta), MAX_REASONABLE_DELTA);
+    }
+    
+    // Validation de cohérence Delta-Gamma
+    for (const auto& [factor, gamma] : outputs.gammas) {
+        EXPECT_TRUE(std::isfinite(gamma));
+        
+        // Gamma doit être cohérent avec Delta
+        if (outputs.deltas.count(factor)) {
+            validate_delta_gamma_consistency(
+                outputs.get_delta(factor), 
+                gamma, 
+                factor
+            );
+        }
+    }
+}
+```
+
+### **Monitoring des Performances**
+- **Temps de calcul** : Surveillance des performances
+- **Précision numérique** : Validation de la stabilité
+- **Cohérence temporelle** : Vérification de la continuité
+
+---
+
+*Cette section fournit une documentation complète de la calibration et des sensibilités de risque pour les modèles DBOPT, intégrant les implémentations C++ de Our project avec des méthodologies de validation rigoureuses.*

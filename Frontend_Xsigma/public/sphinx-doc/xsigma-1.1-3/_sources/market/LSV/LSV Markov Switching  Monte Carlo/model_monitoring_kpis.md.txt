@@ -1,0 +1,641 @@
+# Model Monitoring – KPIs
+
+## Overview
+
+Cette section définit les indicateurs clés de performance (KPIs) pour le monitoring continu du modèle LSV Markov Switching Monte Carlo en environnement de production.
+
+```cpp
+// Implémentation Our project du monitoring et KPIs pour LSV MS Monte Carlo
+namespace xsigma {
+    // Classe pour le monitoring des KPIs du modèle LSV MS
+    class LSVMSModelMonitoring {
+    public:
+        // Énumération des types de KPIs
+        enum class KPIType {
+            CALIBRATION_QUALITY,          // Qualité de calibration
+            PRICING_ACCURACY,             // Précision de pricing
+            PERFORMANCE_METRICS,          // Métriques de performance
+            RISK_METRICS,                 // Métriques de risque
+            OPERATIONAL_METRICS,          // Métriques opérationnelles
+            STABILITY_INDICATORS         // Indicateurs de stabilité
+        };
+        
+        // Structure pour un KPI individuel
+        struct KPI {
+            std::string name;                     // Nom du KPI
+            KPIType type;                        // Type de KPI
+            double current_value;                // Valeur actuelle
+            double threshold_warning;            // Seuil d'alerte
+            double threshold_critical;           // Seuil critique
+            std::string unit;                    // Unité de mesure
+            std::string description;             // Description
+            std::string calculation_method;      // Méthode de calcul
+            std::string frequency;               // Fréquence de calcul
+            bool is_active;                      // KPI actif
+        };
+        
+        // Structure pour le rapport de monitoring
+        struct MonitoringReport {
+            std::string report_date;             // Date du rapport
+            std::string model_version;           // Version du modèle
+            std::vector<KPI> kpis;              // Liste des KPIs
+            std::vector<std::string> alerts;    // Alertes générées
+            std::vector<std::string> recommendations; // Recommandations
+            std::string overall_status;          // Statut global
+        };
+        
+        // Initialisation des KPIs de monitoring
+        std::vector<KPI> initialize_monitoring_kpis() const {
+            std::vector<KPI> kpis;
+            
+            // KPIs de Qualité de Calibration
+            kpis.push_back({
+                "Calibration_RMSE",
+                KPIType::CALIBRATION_QUALITY,
+                0.0,
+                0.01,    // Warning à 1%
+                0.02,    // Critical à 2%
+                "%",
+                "RMSE entre volatilités implicites de marché et modèle",
+                "sqrt(mean((vol_market - vol_model)^2))",
+                "Daily",
+                true
+            });
+            
+            kpis.push_back({
+                "Calibration_Max_Error",
+                KPIType::CALIBRATION_QUALITY,
+                0.0,
+                0.03,    // Warning à 3%
+                0.05,    // Critical à 5%
+                "%",
+                "Erreur maximale de calibration sur tous les instruments",
+                "max(abs(vol_market - vol_model))",
+                "Daily",
+                true
+            });
+            
+            kpis.push_back({
+                "Calibration_Convergence",
+                KPIType::CALIBRATION_QUALITY,
+                0.0,
+                10.0,    // Warning à 10 itérations
+                20.0,    // Critical à 20 itérations
+                "iterations",
+                "Nombre d'itérations pour convergence de calibration",
+                "count(calibration_iterations)",
+                "Daily",
+                true
+            });
+            
+            // KPIs de Précision de Pricing
+            kpis.push_back({
+                "MC_Standard_Error",
+                KPIType::PRICING_ACCURACY,
+                0.0,
+                0.001,   // Warning à 0.1%
+                0.005,   // Critical à 0.5%
+                "%",
+                "Erreur standard Monte Carlo relative",
+                "standard_error / abs(price)",
+                "Per Trade",
+                true
+            });
+            
+            kpis.push_back({
+                "PDE_MC_Difference",
+                KPIType::PRICING_ACCURACY,
+                0.0,
+                0.002,   // Warning à 0.2%
+                0.01,    // Critical à 1%
+                "%",
+                "Différence relative entre pricers PDE et Monte Carlo",
+                "abs(price_MC - price_PDE) / abs(price_PDE)",
+                "Daily Sample",
+                true
+            });
+            
+            kpis.push_back({
+                "Greeks_Stability",
+                KPIType::PRICING_ACCURACY,
+                0.0,
+                0.05,    // Warning à 5%
+                0.10,    // Critical à 10%
+                "%",
+                "Stabilité des Greeks entre runs Monte Carlo",
+                "std(greeks_multiple_runs) / abs(mean(greeks))",
+                "Daily Sample",
+                true
+            });
+            
+            // KPIs de Performance
+            kpis.push_back({
+                "Pricing_Time",
+                KPIType::PERFORMANCE_METRICS,
+                0.0,
+                5.0,     // Warning à 5 secondes
+                10.0,    // Critical à 10 secondes
+                "seconds",
+                "Temps de pricing moyen par trade",
+                "mean(pricing_time_per_trade)",
+                "Continuous",
+                true
+            });
+            
+            kpis.push_back({
+                "Memory_Usage",
+                KPIType::PERFORMANCE_METRICS,
+                0.0,
+                8.0,     // Warning à 8 GB
+                12.0,    // Critical à 12 GB
+                "GB",
+                "Utilisation mémoire maximale",
+                "max(memory_usage_during_pricing)",
+                "Continuous",
+                true
+            });
+            
+            kpis.push_back({
+                "Convergence_Rate",
+                KPIType::PERFORMANCE_METRICS,
+                0.0,
+                100000,  // Warning à 100K simulations
+                200000,  // Critical à 200K simulations
+                "paths",
+                "Nombre de chemins nécessaires pour convergence",
+                "count(paths_for_convergence)",
+                "Per Trade",
+                true
+            });
+            
+            // KPIs de Risque
+            kpis.push_back({
+                "Delta_Accuracy",
+                KPIType::RISK_METRICS,
+                0.0,
+                0.02,    // Warning à 2%
+                0.05,    // Critical à 5%
+                "%",
+                "Précision du Delta vs différences finies",
+                "abs(delta_analytical - delta_finite_diff) / abs(delta_finite_diff)",
+                "Daily Sample",
+                true
+            });
+            
+            kpis.push_back({
+                "Vega_Stability",
+                KPIType::RISK_METRICS,
+                0.0,
+                0.03,    // Warning à 3%
+                0.08,    // Critical à 8%
+                "%",
+                "Stabilité du Vega entre différentes méthodes",
+                "std(vega_different_methods) / abs(mean(vega))",
+                "Daily Sample",
+                true
+            });
+            
+            // KPIs Opérationnels
+            kpis.push_back({
+                "Calibration_Success_Rate",
+                KPIType::OPERATIONAL_METRICS,
+                0.0,
+                0.95,    // Warning si < 95%
+                0.90,    // Critical si < 90%
+                "ratio",
+                "Taux de succès de calibration quotidienne",
+                "count(successful_calibrations) / count(total_calibrations)",
+                "Daily",
+                true
+            });
+            
+            kpis.push_back({
+                "Pricing_Success_Rate",
+                KPIType::OPERATIONAL_METRICS,
+                0.0,
+                0.98,    // Warning si < 98%
+                0.95,    // Critical si < 95%
+                "ratio",
+                "Taux de succès de pricing",
+                "count(successful_pricings) / count(total_pricings)",
+                "Daily",
+                true
+            });
+            
+            // KPIs de Stabilité
+            kpis.push_back({
+                "Parameter_Stability",
+                KPIType::STABILITY_INDICATORS,
+                0.0,
+                0.10,    // Warning à 10% de variation
+                0.20,    // Critical à 20% de variation
+                "%",
+                "Stabilité des paramètres calibrés",
+                "std(parameters_5_days) / abs(mean(parameters_5_days))",
+                "Daily",
+                true
+            });
+            
+            kpis.push_back({
+                "Model_Breakdown_Indicator",
+                KPIType::STABILITY_INDICATORS,
+                0.0,
+                0.05,    // Warning à 5% d'échecs
+                0.10,    // Critical à 10% d'échecs
+                "ratio",
+                "Indicateur de breakdown du modèle",
+                "count(pricing_failures) / count(total_pricings)",
+                "Daily",
+                true
+            });
+            
+            return kpis;
+        }
+        
+        // Calcul d'un KPI spécifique
+        double calculate_kpi(const KPI& kpi_definition, 
+                           const std::map<std::string, std::vector<double>>& data) const {
+            
+            if (kpi_definition.name == "Calibration_RMSE") {
+                return calculate_calibration_rmse(data);
+            } else if (kpi_definition.name == "MC_Standard_Error") {
+                return calculate_mc_standard_error(data);
+            } else if (kpi_definition.name == "Pricing_Time") {
+                return calculate_average_pricing_time(data);
+            } else if (kpi_definition.name == "Delta_Accuracy") {
+                return calculate_delta_accuracy(data);
+            } else if (kpi_definition.name == "Parameter_Stability") {
+                return calculate_parameter_stability(data);
+            }
+            // Ajouter d'autres calculs selon les besoins
+            
+            return 0.0;
+        }
+        
+        // Génération du rapport de monitoring
+        MonitoringReport generate_monitoring_report(
+            const std::map<std::string, std::vector<double>>& monitoring_data) const {
+            
+            MonitoringReport report;
+            report.report_date = get_current_date();
+            report.model_version = "LSV_MS_MC_v2.1";
+            
+            // Calcul de tous les KPIs
+            auto kpi_definitions = initialize_monitoring_kpis();
+            
+            for (auto& kpi_def : kpi_definitions) {
+                if (kpi_def.is_active) {
+                    KPI kpi = kpi_def;
+                    kpi.current_value = calculate_kpi(kpi_def, monitoring_data);
+                    
+                    // Vérification des seuils
+                    if (kpi.current_value > kpi.threshold_critical) {
+                        report.alerts.push_back("CRITICAL: " + kpi.name + 
+                                              " = " + std::to_string(kpi.current_value) + 
+                                              " > " + std::to_string(kpi.threshold_critical));
+                    } else if (kpi.current_value > kpi.threshold_warning) {
+                        report.alerts.push_back("WARNING: " + kpi.name + 
+                                              " = " + std::to_string(kpi.current_value) + 
+                                              " > " + std::to_string(kpi.threshold_warning));
+                    }
+                    
+                    report.kpis.push_back(kpi);
+                }
+            }
+            
+            // Détermination du statut global
+            report.overall_status = determine_overall_status(report.alerts);
+            
+            // Génération des recommandations
+            report.recommendations = generate_recommendations(report.kpis, report.alerts);
+            
+            return report;
+        }
+        
+        // Système d'alertes automatiques
+        void trigger_alerts(const MonitoringReport& report) const {
+            for (const auto& alert : report.alerts) {
+                if (alert.find("CRITICAL") != std::string::npos) {
+                    send_critical_alert(alert);
+                } else if (alert.find("WARNING") != std::string::npos) {
+                    send_warning_alert(alert);
+                }
+            }
+        }
+        
+    private:
+        // Méthodes de calcul spécifiques pour chaque KPI
+        double calculate_calibration_rmse(
+            const std::map<std::string, std::vector<double>>& data) const {
+            
+            auto market_vols = data.find("market_volatilities");
+            auto model_vols = data.find("model_volatilities");
+            
+            if (market_vols != data.end() && model_vols != data.end()) {
+                double sum_squared_errors = 0.0;
+                size_t n = std::min(market_vols->second.size(), model_vols->second.size());
+                
+                for (size_t i = 0; i < n; ++i) {
+                    double error = market_vols->second[i] - model_vols->second[i];
+                    sum_squared_errors += error * error;
+                }
+                
+                return std::sqrt(sum_squared_errors / n);
+            }
+            
+            return 0.0;
+        }
+        
+        double calculate_mc_standard_error(
+            const std::map<std::string, std::vector<double>>& data) const {
+            
+            auto prices = data.find("monte_carlo_prices");
+            auto standard_errors = data.find("standard_errors");
+            
+            if (prices != data.end() && standard_errors != data.end()) {
+                double avg_relative_error = 0.0;
+                size_t n = std::min(prices->second.size(), standard_errors->second.size());
+                
+                for (size_t i = 0; i < n; ++i) {
+                    if (std::abs(prices->second[i]) > 1e-10) {
+                        avg_relative_error += standard_errors->second[i] / std::abs(prices->second[i]);
+                    }
+                }
+                
+                return avg_relative_error / n;
+            }
+            
+            return 0.0;
+        }
+        
+        double calculate_average_pricing_time(
+            const std::map<std::string, std::vector<double>>& data) const {
+            
+            auto timing_data = data.find("pricing_times");
+            
+            if (timing_data != data.end() && !timing_data->second.empty()) {
+                double sum = std::accumulate(timing_data->second.begin(), 
+                                           timing_data->second.end(), 0.0);
+                return sum / timing_data->second.size();
+            }
+            
+            return 0.0;
+        }
+        
+        double calculate_delta_accuracy(
+            const std::map<std::string, std::vector<double>>& data) const {
+            
+            auto analytical_deltas = data.find("analytical_deltas");
+            auto finite_diff_deltas = data.find("finite_diff_deltas");
+            
+            if (analytical_deltas != data.end() && finite_diff_deltas != data.end()) {
+                double avg_relative_error = 0.0;
+                size_t n = std::min(analytical_deltas->second.size(), 
+                                  finite_diff_deltas->second.size());
+                
+                for (size_t i = 0; i < n; ++i) {
+                    if (std::abs(finite_diff_deltas->second[i]) > 1e-10) {
+                        double error = std::abs(analytical_deltas->second[i] - 
+                                              finite_diff_deltas->second[i]) / 
+                                     std::abs(finite_diff_deltas->second[i]);
+                        avg_relative_error += error;
+                    }
+                }
+                
+                return avg_relative_error / n;
+            }
+            
+            return 0.0;
+        }
+        
+        double calculate_parameter_stability(
+            const std::map<std::string, std::vector<double>>& data) const {
+            
+            auto parameters = data.find("calibrated_parameters");
+            
+            if (parameters != data.end() && parameters->second.size() >= 5) {
+                // Utilise les 5 derniers jours
+                std::vector<double> recent_params(parameters->second.end() - 5, 
+                                                parameters->second.end());
+                
+                double mean = std::accumulate(recent_params.begin(), recent_params.end(), 0.0) / 5.0;
+                
+                double variance = 0.0;
+                for (double param : recent_params) {
+                    double diff = param - mean;
+                    variance += diff * diff;
+                }
+                variance /= 4.0; // n-1 pour échantillon
+                
+                double std_dev = std::sqrt(variance);
+                return std_dev / std::max(std::abs(mean), 1e-10);
+            }
+            
+            return 0.0;
+        }
+        
+        std::string determine_overall_status(const std::vector<std::string>& alerts) const {
+            bool has_critical = false;
+            bool has_warning = false;
+            
+            for (const auto& alert : alerts) {
+                if (alert.find("CRITICAL") != std::string::npos) {
+                    has_critical = true;
+                } else if (alert.find("WARNING") != std::string::npos) {
+                    has_warning = true;
+                }
+            }
+            
+            if (has_critical) return "CRITICAL";
+            if (has_warning) return "WARNING";
+            return "HEALTHY";
+        }
+        
+        std::vector<std::string> generate_recommendations(
+            const std::vector<KPI>& kpis,
+            const std::vector<std::string>& alerts) const {
+            
+            std::vector<std::string> recommendations;
+            
+            // Recommandations basées sur les alertes
+            for (const auto& alert : alerts) {
+                if (alert.find("Calibration_RMSE") != std::string::npos) {
+                    recommendations.push_back("Vérifier la qualité des données de marché et recalibrer");
+                } else if (alert.find("MC_Standard_Error") != std::string::npos) {
+                    recommendations.push_back("Augmenter le nombre de simulations Monte Carlo");
+                } else if (alert.find("Pricing_Time") != std::string::npos) {
+                    recommendations.push_back("Optimiser les paramètres de performance ou infrastructure");
+                } else if (alert.find("Parameter_Stability") != std::string::npos) {
+                    recommendations.push_back("Investiguer les changements de régime de marché");
+                }
+            }
+            
+            if (recommendations.empty()) {
+                recommendations.push_back("Modèle fonctionnant dans les paramètres normaux");
+            }
+            
+            return recommendations;
+        }
+        
+        void send_critical_alert(const std::string& alert) const {
+            XSIGMA_LOG_CRITICAL("LSV MS Model Alert: " + alert);
+            // Implémentation d'envoi d'email/SMS pour alertes critiques
+        }
+        
+        void send_warning_alert(const std::string& alert) const {
+            XSIGMA_LOG_WARNING("LSV MS Model Warning: " + alert);
+            // Implémentation d'envoi d'email pour warnings
+        }
+        
+        std::string get_current_date() const {
+            auto now = std::chrono::system_clock::now();
+            auto time_t = std::chrono::system_clock::to_time_t(now);
+            std::stringstream ss;
+            ss << std::put_time(std::localtime(&time_t), "%Y-%m-%d");
+            return ss.str();
+        }
+    };
+}
+```
+*Cette implémentation C++ dans Our project fournit un système complet de monitoring et KPIs pour le modèle LSV MS Monte Carlo avec alertes automatiques, rapports détaillés et recommandations.*
+
+## Key Performance Indicators (KPIs)
+
+### 1. Calibration Quality KPIs
+
+#### Calibration RMSE
+- **Métrique** : RMSE entre volatilités implicites de marché et modèle
+- **Seuil Warning** : 1%
+- **Seuil Critical** : 2%
+- **Fréquence** : Quotidienne
+- **Action** : Vérifier qualité des données de marché
+
+#### Maximum Calibration Error
+- **Métrique** : Erreur maximale sur tous les instruments de calibration
+- **Seuil Warning** : 3%
+- **Seuil Critical** : 5%
+- **Fréquence** : Quotidienne
+- **Action** : Investiguer instruments problématiques
+
+#### Calibration Convergence
+- **Métrique** : Nombre d'itérations pour convergence
+- **Seuil Warning** : 10 itérations
+- **Seuil Critical** : 20 itérations
+- **Fréquence** : Quotidienne
+- **Action** : Vérifier stabilité des paramètres initiaux
+
+### 2. Pricing Accuracy KPIs
+
+#### Monte Carlo Standard Error
+- **Métrique** : Erreur standard relative des simulations MC
+- **Seuil Warning** : 0.1%
+- **Seuil Critical** : 0.5%
+- **Fréquence** : Par trade
+- **Action** : Augmenter nombre de simulations
+
+#### PDE-MC Price Difference
+- **Métrique** : Différence relative entre pricers PDE et MC
+- **Seuil Warning** : 0.2%
+- **Seuil Critical** : 1%
+- **Fréquence** : Échantillon quotidien
+- **Action** : Vérifier cohérence des paramètres
+
+#### Greeks Stability
+- **Métrique** : Stabilité des Greeks entre runs MC multiples
+- **Seuil Warning** : 5%
+- **Seuil Critical** : 10%
+- **Fréquence** : Échantillon quotidien
+- **Action** : Augmenter nombre de simulations pour Greeks
+
+### 3. Performance KPIs
+
+#### Average Pricing Time
+- **Métrique** : Temps de pricing moyen par trade
+- **Seuil Warning** : 5 secondes
+- **Seuil Critical** : 10 secondes
+- **Fréquence** : Continue
+- **Action** : Optimiser paramètres ou infrastructure
+
+#### Memory Usage
+- **Métrique** : Utilisation mémoire maximale
+- **Seuil Warning** : 8 GB
+- **Seuil Critical** : 12 GB
+- **Fréquence** : Continue
+- **Action** : Optimiser gestion mémoire
+
+#### Convergence Rate
+- **Métrique** : Nombre de chemins nécessaires pour convergence
+- **Seuil Warning** : 100K simulations
+- **Seuil Critical** : 200K simulations
+- **Fréquence** : Par trade
+- **Action** : Investiguer complexité du produit
+
+### 4. Risk Management KPIs
+
+#### Delta Accuracy
+- **Métrique** : Précision du Delta vs différences finies
+- **Seuil Warning** : 2%
+- **Seuil Critical** : 5%
+- **Fréquence** : Échantillon quotidien
+- **Action** : Vérifier méthode de calcul des Greeks
+
+#### Vega Stability
+- **Métrique** : Stabilité du Vega entre différentes méthodes
+- **Seuil Warning** : 3%
+- **Seuil Critical** : 8%
+- **Fréquence** : Échantillon quotidien
+- **Action** : Valider paramètres de bump de volatilité
+
+### 5. Operational KPIs
+
+#### Calibration Success Rate
+- **Métrique** : Taux de succès de calibration quotidienne
+- **Seuil Warning** : < 95%
+- **Seuil Critical** : < 90%
+- **Fréquence** : Quotidienne
+- **Action** : Investiguer échecs de calibration
+
+#### Pricing Success Rate
+- **Métrique** : Taux de succès de pricing
+- **Seuil Warning** : < 98%
+- **Seuil Critical** : < 95%
+- **Fréquence** : Quotidienne
+- **Action** : Analyser causes d'échec
+
+### 6. Stability Indicators
+
+#### Parameter Stability
+- **Métrique** : Stabilité des paramètres calibrés (5 jours)
+- **Seuil Warning** : 10% de variation
+- **Seuil Critical** : 20% de variation
+- **Fréquence** : Quotidienne
+- **Action** : Investiguer changements de régime de marché
+
+#### Model Breakdown Indicator
+- **Métrique** : Ratio d'échecs de pricing
+- **Seuil Warning** : 5% d'échecs
+- **Seuil Critical** : 10% d'échecs
+- **Fréquence** : Quotidienne
+- **Action** : Escalation immédiate
+
+## Monitoring Framework
+
+### Automated Reporting
+- **Rapport quotidien** : Tous les KPIs avec statut global
+- **Alertes temps réel** : Notifications automatiques pour seuils dépassés
+- **Rapport hebdomadaire** : Tendances et analyse de performance
+- **Rapport mensuel** : Revue complète et recommandations
+
+### Alert System
+- **Critical Alerts** : Email + SMS immédiat
+- **Warning Alerts** : Email dans l'heure
+- **Escalation** : Procédures automatiques si non-résolution
+- **Dashboard** : Visualisation temps réel des KPIs
+
+### Quality Control Actions
+- **Seuils Warning** : Investigation et documentation
+- **Seuils Critical** : Action corrective immédiate
+- **Tendances** : Analyse proactive des dégradations
+- **Audit Trail** : Historique complet des actions
+
+Le système de monitoring LSV MS Monte Carlo dans Our project assure une surveillance continue et proactive de la qualité, performance et stabilité du modèle avec des actions correctives automatisées et une escalation appropriée.

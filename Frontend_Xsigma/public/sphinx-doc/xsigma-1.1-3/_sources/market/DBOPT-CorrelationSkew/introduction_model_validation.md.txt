@@ -1,0 +1,412 @@
+# Introduction to Model and Validation
+
+## 🎯 **Validation Scope**
+
+### **Objectif de la Validation**
+Cette section définit le scope complet de la validation pour les modèles **DBOPT-CorrelationSkew**, incluant les trois configurations principales, les produits couverts, et les méthodologies de validation spécialisées pour la modélisation de corrélation.
+
+### **Modèles dans le Scope**
+1. **DBOPT-RateDeterministic_FXMarket_AssetMarket_CorrelationSkew**
+2. **DBOPT-RateDeterministic_EquityBlackScholes_AssetMarket_CorrelationSkew**
+3. **DBOPT-RatesMarketAFSABR_FXMarket_EquityBlackScholes_CorrelationSkew**
+
+### **Version du Modèle**
+Le modèle a été revu pour **DBAnalytics** avec validation complète des fonctionnalités de corrélation et performances Monte Carlo.
+
+---
+
+## 📊 **Product Description**
+
+### **Caractéristiques Générales des Produits**
+
+#### **Propriétés Fondamentales**
+Les produits couverts par ce framework partagent les caractéristiques suivantes :
+- **Dépendance** à deux sous-jacents (IR/EQ/FX/Asset)
+- **Fixation simultanée** des sous-jacents à la même date
+- **Payoffs 2D** avec corrélation complexe
+- **Pricing Monte Carlo** avec copule de corrélation
+
+#### **Structure Mathématique**
+Les produits peuvent être représentés sous la forme générale :
+
+$$\text{Payoff} = f(S_1, S_2, \rho(S_1, S_2))$$
+
+où $f$ est une fonction des deux sous-jacents $S_1, S_2$ et $\rho(S_1, S_2)$ est la corrélation dépendante des niveaux.
+
+### **Produits Spécifiques**
+
+#### **🔄 HybMultiDigital**
+**Description :** Digitaux hybrides multi-actifs avec payoffs binaires.
+
+**Formule de Payoff :**
+$$\text{Payoff} = N \times \mathbf{1}_{\{S_1 > K_1, S_2 > K_2\}}$$
+
+où :
+- $N$ = Notionnel
+- $S_1, S_2$ = Sous-jacents (IR/EQ/FX/Asset)
+- $K_1, K_2$ = Strikes des digitaux
+- $\mathbf{1}_{\{\cdot\}}$ = Fonction indicatrice
+
+#### **💰 HybContingentOptMultiAssetBasket**
+**Description :** Options contingentes sur panier multi-actifs.
+
+**Formule de Payoff :**
+$$\text{Payoff} = N \times \max(w_1 S_1 + w_2 S_2 - K, 0) \times \mathbf{1}_{\{S_1 > B_1, S_2 > B_2\}}$$
+
+où :
+- $w_1, w_2$ = Poids du panier
+- $K$ = Strike de l'option
+- $B_1, B_2$ = Barrières contingentes
+
+---
+
+## 🏗️ **Model Description**
+
+### **Framework Théorique**
+
+#### **Modèle DBOPT-CorrelationSkew**
+Le modèle DBOPT est une implémentation analytique et Monte Carlo single horizon pour pricing de dérivés sur un ou deux sous-jacents.
+
+**Composants Principaux :**
+- **AFSABR** pour volatilité IR
+- **PIV** pour volatilités FX, EQ et Asset
+- **Copule CorrelationSkew** pour distribution jointe
+
+#### **Copule de Corrélation**
+```cpp
+// Implémentation de la copule CorrelationSkew dans Our project
+class correlation_skew_copula : public copula {
+private:
+    struct term_skew_parameters {
+        int max_iterations;
+        bool smoothing_enabled;
+        std::string interpolation_type;
+        matrix<double> correlation_targets;
+    };
+    
+    term_skew_parameters params_;
+    std::unique_ptr<monte_carlo_engine> mc_engine_;
+    
+public:
+    correlation_skew_copula(const term_skew_parameters& params)
+        : params_(params) {
+        
+        // Validation des paramètres
+        XSIGMA_CHECK(params_.max_iterations > 0, 
+                     "TermSkewMaxIter must be positive");
+        XSIGMA_CHECK(!params_.correlation_targets.empty(),
+                     "CorrelationSkewTargets matrix required");
+        
+        // Initialisation du moteur Monte Carlo
+        mc_engine_ = std::make_unique<monte_carlo_engine>(
+            monte_carlo_config{
+                .num_simulations = 100000,
+                .random_seed = 12345,
+                .copula_method = "SIMCOPULA"
+            }
+        );
+    }
+    
+    std::pair<double, double> generate_correlated_pair(
+        double u1, double u2, 
+        double underlying_level_1, 
+        double underlying_level_2) const {
+        
+        // Corrélation dépendante des niveaux (sticky strike)
+        double correlation = get_correlation_for_levels(
+            underlying_level_1, underlying_level_2);
+        
+        // Génération via copule avec corrélation ajustée
+        return generate_gaussian_copula_pair(u1, u2, correlation);
+    }
+    
+private:
+    double get_correlation_for_levels(double s1, double s2) const {
+        // Interpolation dans la matrice de corrélation cible
+        return interpolate_correlation_matrix(s1, s2, params_.correlation_targets);
+    }
+};
+```
+*Cette implémentation C++ dans Our project montre la construction d'une copule de corrélation avec dépendance aux niveaux des sous-jacents (sticky strike) et paramètres configurables.*
+
+### **Méthodologie TermSkew**
+
+#### **Algorithme Itératif**
+```cpp
+// Algorithme TermSkew dans Our project
+class term_skew_algorithm {
+public:
+    struct iteration_result {
+        std::vector<std::pair<double, double>> simulated_pairs;
+        double achieved_correlation;
+        double target_correlation;
+        double convergence_error;
+        int iteration_number;
+    };
+    
+    std::vector<iteration_result> run_term_skew_calibration(
+        const correlation_skew_targets& targets) {
+        
+        std::vector<iteration_result> results;
+        
+        for (int iter = 0; iter < params_.max_iterations; ++iter) {
+            iteration_result result;
+            result.iteration_number = iter;
+            
+            // Génération de paires corrélées
+            result.simulated_pairs = generate_simulation_pairs(targets);
+            
+            // Calcul de la corrélation réalisée
+            result.achieved_correlation = calculate_empirical_correlation(
+                result.simulated_pairs);
+            
+            result.target_correlation = targets.get_target_correlation();
+            result.convergence_error = std::abs(
+                result.achieved_correlation - result.target_correlation);
+            
+            results.push_back(result);
+            
+            // Test de convergence
+            if (result.convergence_error < CONVERGENCE_TOLERANCE) {
+                break;
+            }
+            
+            // Ajustement pour itération suivante
+            adjust_correlation_parameters(result);
+        }
+        
+        return results;
+    }
+    
+private:
+    static constexpr double CONVERGENCE_TOLERANCE = 1e-6;
+    
+    void adjust_correlation_parameters(const iteration_result& result) {
+        // Ajustement adaptatif des paramètres de corrélation
+        double adjustment_factor = result.convergence_error * 0.1;
+        
+        if (result.achieved_correlation < result.target_correlation) {
+            increase_correlation_strength(adjustment_factor);
+        } else {
+            decrease_correlation_strength(adjustment_factor);
+        }
+    }
+};
+```
+*Cet algorithme C++ dans Our project implémente la méthode TermSkew avec calibration itérative pour atteindre les corrélations cibles.*
+
+---
+
+## 🔧 **Model Configurations**
+
+### **Configuration 1 : RateDeterministic_FXMarket_AssetMarket**
+
+#### **Paramètres de Modèle**
+```cpp
+// Configuration 1 dans Our project
+struct config_rate_fx_asset {
+    // Paramètres de courbe
+    struct curve_params {
+        std::string curve_type = "DETERMINISTIC";
+        std::string interpolation = "LINEAR";
+        std::string extrapolation = "FLAT";
+    } rates_config;
+    
+    // Paramètres FX
+    struct fx_params {
+        std::string vol_model = "PIV";
+        std::string smile_model = "DSLV";
+        bool auto_calibration = true;
+    } fx_config;
+    
+    // Paramètres Asset
+    struct asset_params {
+        std::string vol_model = "PIV";
+        std::string dividend_model = "DETERMINISTIC";
+    } asset_config;
+    
+    // Paramètres de corrélation
+    struct correlation_params {
+        std::string copula_method = "SIMCOPULA";
+        std::string correlation_space = "TERMSKEW";
+        int term_skew_max_iter = 1000;
+        bool term_skew_smoothing = true;
+        std::string interp_type = "LINEAR";
+    } correlation_config;
+};
+```
+
+### **Configuration 2 : RateDeterministic_EquityBlackScholes_AssetMarket**
+
+#### **Paramètres Equity Black-Scholes**
+```cpp
+// Configuration 2 avec Equity BS dans Our project
+struct config_rate_equity_asset {
+    // Paramètres Equity
+    struct equity_params {
+        std::string model_type = "BSANALYTIC";
+        std::string vol_surface = "IMPLIED";
+        std::string dividend_yield = "CONTINUOUS";
+        
+        // Validation du modèle BS
+        bool validate_bs_parameters() const {
+            return model_type == "BSANALYTIC" || model_type == "BSMC";
+        }
+    } equity_config;
+    
+    // Héritage des autres paramètres
+    config_rate_fx_asset::curve_params rates_config;
+    config_rate_fx_asset::asset_params asset_config;
+    config_rate_fx_asset::correlation_params correlation_config;
+};
+```
+
+### **Configuration 3 : RatesMarketAFSABR_FXMarket_EquityBlackScholes**
+
+#### **Paramètres AFSABR Complets**
+```cpp
+// Configuration 3 avec AFSABR dans Our project
+struct config_afsabr_fx_equity {
+    // Paramètres AFSABR
+    struct afsabr_params {
+        std::string model_type = "AFSABR";
+        std::string calibration_target = "CMS_SKEW";
+        bool auto_calibration = true;
+        
+        struct sabr_parameters {
+            double alpha;
+            double beta;
+            double rho;
+            double nu;
+        } sabr_params;
+        
+        // Validation AFSABR
+        bool validate_afsabr_setup() const {
+            return sabr_params.beta >= 0.0 && sabr_params.beta <= 1.0 &&
+                   sabr_params.rho >= -1.0 && sabr_params.rho <= 1.0;
+        }
+    } rates_config;
+    
+    // FX avec AUTO
+    struct fx_auto_params {
+        std::string model_type = "AUTO";
+        std::string vol_surface = "MARKET_IMPLIED";
+    } fx_config;
+    
+    // Equity BS analytique
+    config_rate_equity_asset::equity_params equity_config;
+    
+    // Corrélation TERMSKEW
+    struct correlation_termskew_params {
+        std::string method = "TERMSKEW";
+        std::string copula_method = "SIMCOPULA";
+        bool advanced_smoothing = true;
+    } correlation_config;
+};
+```
+
+---
+
+## 📈 **Feeder and Servicer Models**
+
+### **Architecture des Modèles**
+Les modèles DBOPT-CorrelationSkew fonctionnent dans un écosystème complexe :
+
+#### **Feeder Models**
+- **Market Data Feeds** : Courbes de taux, surfaces de volatilité
+- **Correlation Targets** : Matrices de corrélation cibles
+- **Calibration Data** : Prix de digitaux duaux pour calibration
+
+#### **Servicer Models**
+- **Risk Calculation Engines** : Calcul de sensibilités corrélées
+- **Stress Testing Frameworks** : CCAR, IRRBB avec corrélations
+- **Monte Carlo Engines** : Simulations pour pricing et risques
+
+### **Intégration avec Simulation Manager**
+```cpp
+// Intégration avec le gestionnaire de simulation dans Our project
+class correlation_simulation_manager : public simulation_manager {
+public:
+    void initialize_correlation_matrix(
+        const std::vector<asset_id>& assets,
+        const correlation_skew_targets& targets) {
+        
+        // Construction de la matrice de corrélation
+        size_t num_assets = assets.size();
+        correlation_matrix_ = matrix<double>(num_assets, num_assets);
+        
+        // Remplissage avec corrélations cibles
+        for (size_t i = 0; i < num_assets; ++i) {
+            for (size_t j = 0; j < num_assets; ++j) {
+                if (i == j) {
+                    correlation_matrix_(i, j) = 1.0;
+                } else {
+                    correlation_matrix_(i, j) = targets.get_correlation(
+                        assets[i], assets[j]);
+                }
+            }
+        }
+        
+        // Décomposition de Cholesky pour simulation
+        cholesky_decomposition(
+            correlation_matrix_.begin(),
+            static_cast<int>(correlation_matrix_.columns()),
+            cholesky_decomposition_enum::LOWER_TRIANGULAR
+        );
+    }
+    
+    std::vector<double> generate_correlated_random_variables(
+        const std::vector<double>& independent_randoms) {
+        
+        // Application de la décomposition de Cholesky
+        std::vector<double> correlated_randoms(independent_randoms.size());
+        
+        for (size_t i = 0; i < independent_randoms.size(); ++i) {
+            correlated_randoms[i] = 0.0;
+            for (size_t j = 0; j <= i; ++j) {
+                correlated_randoms[i] += correlation_matrix_(i, j) * 
+                                        independent_randoms[j];
+            }
+        }
+        
+        return correlated_randoms;
+    }
+};
+```
+*Cette classe C++ dans Our project montre l'intégration avec le gestionnaire de simulation pour gérer les corrélations complexes entre actifs.*
+
+---
+
+## 🧪 **Validation Outline**
+
+### **Méthodologie de Validation Spécialisée**
+
+#### **🔍 Phase 1 : Validation de Corrélation**
+- Vérification des copules de corrélation
+- Tests de convergence TermSkew
+- Validation sticky strike
+
+#### **🔍 Phase 2 : Tests Monte Carlo**
+- Convergence des simulations
+- Stabilité des prix et sensibilités
+- Validation des distributions marginales
+
+#### **🔍 Phase 3 : Tests de Produits**
+- Pricing de digitaux duaux
+- Options contingentes multi-actifs
+- Validation sous stress de corrélation
+
+#### **🔍 Phase 4 : Validation Réglementaire**
+- Tests CCAR avec corrélations
+- IRRBB avec actifs corrélés
+- HistSim multivariée
+
+### **Critères d'Acceptation Spécialisés**
+- **Convergence Monte Carlo** : Erreur < 0.1% avec 100k simulations
+- **Corrélation réalisée** : Écart < 1% vs cible
+- **Stabilité des risques** : Sensibilités stables sous stress
+- **Performance** : Temps de calcul < 30s par trade
+
+---
+
+*Cette section fournit une introduction complète aux modèles DBOPT-CorrelationSkew et à leur validation, intégrant les implémentations C++ de Our project avec les méthodologies de validation spécialisées pour la corrélation.*

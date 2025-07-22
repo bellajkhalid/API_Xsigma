@@ -1,0 +1,208 @@
+# Scope
+
+## Model Purpose and Intended Usage
+
+### Primary Objectives
+
+The ASV volatility has been designed to be used globally for all equity underlyings as a volatility-strike parameterization. The model serves as a unified framework that addresses the fundamental challenges in equity volatility surface modeling across different asset classes and market conditions.
+
+### Core Applications
+
+**Volatility Surface Construction**:
+- Primary parameterization for liquid maturity volatility surfaces
+- Strike-dependent volatility modeling for equity options
+- Unified approach for both single stocks and equity indices
+- Real-time volatility surface updates for trading applications
+
+**Risk Management**:
+- Greeks calculation for portfolio risk assessment
+- Scenario analysis and stress testing capabilities
+- Hedge ratio determination for volatility-sensitive positions
+- Model validation and performance monitoring
+
+**Derivative Pricing**:
+- Vanilla option pricing across all equity underlyings
+- Exotic option valuation requiring volatility surface inputs
+- Structured product pricing with complex volatility dependencies
+- Monte Carlo simulation inputs for path-dependent derivatives
+
+### Scope Boundaries
+
+**Included in ASV Framework**:
+- Volatility parameterization for liquid maturities
+- Strike-dependent volatility modeling
+- Parameter fitting and calibration procedures
+- Local volatility surface generation
+- Arbitrage-free validation support
+
+**Excluded from ASV Framework**:
+- **Time Interpolation**: Volatility computation for non-reference maturities is independent of ASV parameterization and is performed by the volatility surface class
+- **CCAR Volatility Scenarios**: Stress testing scenarios are independent of the parameterization used for liquid maturities
+- **Arbitrage Monitoring**: Calendar and butterfly arbitrages from negative forward volatility or negative probability density functions are handled by external frameworks
+
+### Integration with External Systems
+
+| Component | Responsibility | Integration Point |
+|-----------|----------------|-------------------|
+| **Time Interpolation** | Volatility Surface Class | Non-reference maturity volatility calculation |
+| **CCAR Scenarios** | Stress Testing Framework | Regulatory stress scenario application |
+| **Arbitrage Monitoring** | Volatility Fitter Framework | Real-time arbitrage detection and prevention |
+| **Forward Curves** | Market Data Systems | Reference forward and anchor strike determination |
+
+## Conceptual Soundness
+
+### Market Context
+
+The implied volatility surface construction requires a discrete set of market data (implied volatilities or prices) for different strikes and maturities. Financial institutions typically employ two major approaches, each with distinct advantages and limitations.
+
+### Alternative Approaches Analysis
+
+#### 1. Stochastic Volatility Models
+
+**Examples and Characteristics**:
+- **Heston Model**: Provides theoretical foundation but limited practical flexibility
+- **SABR Model**: Preferred for analytical approximations and theoretical rigor
+
+**Limitations**:
+- Struggle to fit liquid listed maturities accurately
+- Computationally intensive, unsuitable for continuous automated fitting
+- Non-intuitive parameters that lack direct market interpretation
+- Time-consuming calibration processes incompatible with real-time requirements
+
+**Assessment**: While theoretically sound, stochastic volatility models prove impractical for high-frequency, automated volatility surface construction required in modern trading environments.
+
+#### 2. Parametric Representations
+
+**Examples and Characteristics**:
+- **Quadratic Functions**: Simple moneyness-based parameterizations
+- **SVI (Stochastic Volatility Inspired)**: Popular industry standard with analytical tractability
+
+**Limitations**:
+- **SVI Challenges**: Non-intuitive parameters and non-orthogonal wing parameters
+- **Arbitrage Issues**: SVI may not guarantee arbitrage-free surfaces in all market conditions
+- **Limited Flexibility**: Simple parametric forms may not capture complex market dynamics
+- **Calibration Instability**: Parameter correlation can lead to unstable fitting results
+
+**Assessment**: Traditional parametric approaches provide computational efficiency but often sacrifice either interpretability or robustness.
+
+### ASV Design Rationale
+
+#### Historical Context in Our Project
+
+The development of ASV was driven by specific institutional requirements:
+
+**Business Requirements**:
+- Fast calibration of volatility surfaces for all traded underlyings
+- Intuitive parameterization with "strike-localized" parameter impacts
+- Unified approach reducing operational complexity across asset classes
+- Stable parameters suitable for automated trading systems
+
+**Legacy System Limitations**:
+Initial polynomial-based parameterizations included:
+
+**Taylor Parameterization**:
+- **Usage**: Primarily by index trading desks
+- **Characteristics**: Highest parameter count enabling fits to highly liquid index maturities
+- **Advantages**: Flexible fitting capability for complex volatility structures
+
+**Critical Shortcomings of Taylor**:
+- **Over-parameterization**: Led to overfitting and parameter instability
+- **Structural Irregularities**: Reliance on strike-axis cutoffs created discontinuities
+- **Poor Local Volatility**: Irregular functional forms degraded local volatility quality
+- **Asset Class Limitations**: Inadequate for single stocks due to low liquidity requirements
+- **Operational Complexity**: Different parameterizations sacrificed potential synergies
+
+### ASV Advantages Over Legacy Models
+
+#### Technical Improvements
+
+| Aspect | Taylor Parameterization | ASV Parameterization |
+|--------|------------------------|----------------------|
+| **Parameter Count** | High (overfitting risk) | Minimal (5 fitted + 3 non-fitted) |
+| **Parameter Orthogonality** | Poor (correlated parameters) | Excellent (independent effects) |
+| **Stability** | Poor (unstable under stress) | High (consistent across regimes) |
+| **Interpretability** | Low (mathematical constructs) | High (market-intuitive parameters) |
+| **Asset Class Coverage** | Index-focused | Universal (stocks and indices) |
+| **Local Volatility Quality** | Poor (discontinuities) | Good (smooth analytical form) |
+
+#### Conceptual Advantages
+
+**Minimal Parameter Design**:
+- Reduces overfitting risk inherent in high-dimensional parameter spaces
+- Enables stable calibration even with limited market data
+- Facilitates parameter interpretation and validation
+- Supports robust optimization algorithms
+
+**Orthogonal Parameter Structure**:
+- Each parameter has localized, interpretable impact on volatility surface
+- Reduces parameter correlation and calibration instability
+- Enables independent parameter validation and monitoring
+- Supports intuitive parameter adjustment and override capabilities
+
+**Market Consensus Alignment**:
+- Wing behavior consistent with established market practices
+- Parameter evolution aligns with trader expectations
+- Supports market-making and risk management workflows
+- Facilitates model validation and regulatory compliance
+
+### Technical Foundation
+
+#### Mathematical Approach
+
+**Analytical Solution**:
+- ASV relies on solving cubic equations for its parametric form
+- No dependence on numerical techniques, probability distributions, or simulation pathways
+- Deterministic, reproducible results across different computational environments
+- Fast evaluation suitable for real-time applications
+
+**Arbitrage Considerations**:
+- Unlike SABR and SVI, ASV does not include built-in butterfly arbitrage constraints
+- External fitting framework provides arbitrage monitoring and constraint enforcement
+- Flexible design allows integration with various arbitrage detection systems
+- Maintains computational efficiency while ensuring arbitrage-free surfaces
+
+#### Flexibility and Robustness
+
+**Market Regime Adaptability**:
+- Sufficient flexibility for high-liquidity names across different market regimes
+- Intuitive parameter behavior under stressed market conditions
+- Stable performance during volatility regime changes
+- Consistent results across different asset classes and market environments
+
+**Numerical Challenges**:
+- Higher implied volatilities on wings and front maturities may pose Monte Carlo convergence challenges
+- Requires sophisticated simulation techniques for high-wing scenarios
+- Balanced against benefits of stable, interpretable parameterization
+- Addressed through advanced numerical methods and convergence monitoring
+
+### Model Validation Framework
+
+#### Theoretical Validation
+
+**Mathematical Consistency**:
+- Analytical solution ensures mathematical rigor
+- Parameter orthogonality verified through sensitivity analysis
+- Stability properties demonstrated through perturbation testing
+- Convergence properties established through numerical analysis
+
+**Market Consistency**:
+- Parameter behavior validated against market expectations
+- Wing behavior confirmed through variance swap market analysis
+- Skew and smile parameters verified against option market dynamics
+- Cross-asset consistency demonstrated through comparative analysis
+
+#### Empirical Validation
+
+**Historical Performance**:
+- Extensive back-testing across multiple market regimes
+- Performance validation during crisis periods (2008-2009)
+- Cross-asset validation across indices and single stocks
+- Long-term parameter stability analysis
+
+**Comparative Analysis**:
+- Performance comparison with alternative parameterizations
+- Fit quality assessment relative to market standards
+- Computational efficiency benchmarking
+- Risk management effectiveness evaluation
+
+This comprehensive scope definition establishes ASV as a theoretically sound, practically effective solution for modern equity volatility surface modeling requirements.

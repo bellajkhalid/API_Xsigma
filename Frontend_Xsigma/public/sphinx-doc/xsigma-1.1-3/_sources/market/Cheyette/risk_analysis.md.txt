@@ -1,0 +1,205 @@
+# Risk Analysis
+
+## Overview
+
+The CLV model calculates various risk metrics to measure the sensitivity of derivative prices to changes in market conditions. The main risk metrics that can be calculated are sensitivities of the pricing function to:
+
+- **Volatility of the underlying (Vega)**
+- **Value of the underlying (Delta)**
+- **Mean reversion of the underlying**
+
+## Risk Calculation Methodology
+
+### External vs Internal Risks
+
+The most straightforward approach to calculating risks resulting from fluctuations in these quantities is to alter the market data directly and then to re-calibrate the entire model. However this is not ideal, as the method results in very noisy risk, requires significant computational resources, while at the same time introducing the possibility of calibration failures. 
+
+In this section, an alternative approach requiring only one base calibration step is applied. The two methods are distinguished by referring to the resulting risks as:
+
+- **External risks**: Calculated by re-calibrating the entire model with perturbed market data
+- **Internal risks**: Calculated using analytical sensitivities from a single base calibration
+
+### Risk Calculation Framework
+
+The three main risks discussed in this section are all computed using similar strategies. Even though each risk is calculated separately, the overall framework that the calculation is conducted in follows these steps:
+
+1. **Base Calibration**: Perform initial model calibration with market data
+2. **Sensitivity Analysis**: Calculate analytical derivatives of model parameters
+3. **Price Sensitivity**: Compute price sensitivities using chain rule
+4. **Risk Aggregation**: Aggregate individual sensitivities into portfolio risks
+
+## Risk Calculation Implementation in Our Project
+
+The risk calculation framework described above is implemented through a comprehensive risk engine that handles all sensitivity calculations for the Cheyette model.
+
+```cpp
+namespace xsigma {
+    // Main risk calculation engine for Cheyette model
+    class cheyette_risk_calculator {
+    public:
+        // Constructor initializes the risk calculator with model and market data
+        cheyette_risk_calculator(
+            const ptr_const<model_cheyette>& model,
+            const ptr_const<discount_curve>& curve,
+            const datetime& valuation_date
+        ) : model_(model), curve_(curve), valuation_date_(valuation_date) {}
+
+        // Delta calculation using internal risk approach
+        double calculate_delta(
+            const ptr_const<instrument>& instrument,
+            double shift_size = 0.0001  // 1bp parallel shift
+        ) const;
+
+        // Vega calculation for volatility sensitivity
+        double calculate_vega(
+            const ptr_const<instrument>& instrument,
+            double vol_shift = 0.01     // 1% volatility shift
+        ) const;
+
+        // Skew sensitivity specific to Cheyette local volatility
+        double calculate_skew_sensitivity(
+            const ptr_const<instrument>& instrument,
+            double skew_shift = 0.01    // 1% skew parameter shift
+        ) const;
+
+    private:
+        ptr_const<model_cheyette> model_;
+        ptr_const<discount_curve> curve_;
+        datetime valuation_date_;
+
+        // Helper function to create model with shifted parameters
+        ptr_const<model_cheyette> create_shifted_model(
+            const parameter_cheyette& shifted_params) const;
+    };
+}
+```
+
+*Cette infrastructure de calcul des risques implémente le framework décrit ci-dessus. La classe `cheyette_risk_calculator` encapsule toutes les méthodes de calcul de sensibilités, utilisant l'approche "internal risk" qui évite la re-calibration complète du modèle. Chaque méthode de calcul utilise des dérivées analytiques ou des différences finies optimisées pour minimiser le bruit numérique.*
+
+## Delta Risk
+
+Delta measures the sensitivity of the derivative price to changes in the underlying interest rates.
+
+### Calculation Method
+
+For CLV model, Delta is calculated by:
+
+1. **Rate Shock**: Apply small parallel shifts to the yield curve
+2. **Model Recalibration**: Recalibrate model parameters to shocked curve
+3. **Price Difference**: Calculate the difference in derivative prices
+4. **Sensitivity Extraction**: Extract Delta from price differences
+
+### Key Features
+
+- **Parallel Shifts**: Standard approach uses parallel yield curve shifts
+- **Bucket Deltas**: Can be calculated for specific maturity buckets
+- **Cross-Currency**: For multi-currency exposures (when applicable)
+
+## Vega Risk
+
+Vega measures the sensitivity of the derivative price to changes in volatility.
+
+### Volatility Sensitivities
+
+The CLV model captures several types of volatility sensitivities:
+
+1. **Term Volatility**: Sensitivity to volatility at specific expiry/tenor points
+2. **Forward Volatility**: Sensitivity to forward-starting volatility
+3. **Volatility Skew**: Sensitivity to the slope of volatility surface
+
+### Calculation Approach
+
+Vega calculation in CLV involves:
+
+1. **Volatility Shocks**: Apply shocks to swaption volatility surface
+2. **Model Recalibration**: Recalibrate $\sigma(t)$ and $b_r(t)$ curves
+3. **Price Sensitivity**: Calculate price changes due to volatility shifts
+4. **Risk Decomposition**: Decompose into term structure and skew components
+
+### SABR Risks
+
+For models using SABR volatility parameterization, additional risks include:
+
+- **Alpha Risk**: Sensitivity to SABR alpha parameter
+- **Beta Risk**: Sensitivity to SABR beta parameter  
+- **Rho Risk**: Sensitivity to SABR correlation parameter
+- **Nu Risk**: Sensitivity to SABR volatility of volatility
+
+## Mean Reversion Risk
+
+Mean reversion risk measures sensitivity to changes in the mean reversion parameter $\lambda(t)$.
+
+### Importance
+
+Mean reversion affects:
+
+- **Forward Volatility**: How volatility is distributed over time
+- **Exercise Timing**: Optimal exercise decisions for Bermudan options
+- **Convexity**: Convexity adjustments in rate projections
+
+### Calculation
+
+Mean reversion risk is calculated by:
+
+1. **Parameter Shock**: Apply shocks to mean reversion curve
+2. **Model Update**: Update model with new mean reversion parameters
+3. **Price Recalculation**: Recalculate derivative prices
+4. **Sensitivity Measurement**: Measure price sensitivity to mean reversion changes
+
+## Risk Aggregation
+
+### Portfolio Level Risks
+
+Individual trade risks are aggregated to portfolio level considering:
+
+- **Linear Aggregation**: For small shocks, risks can be linearly aggregated
+- **Cross-Gamma Effects**: Second-order effects between different risk factors
+- **Correlation Effects**: Correlations between different rate and volatility factors
+
+### Risk Reporting
+
+Risk reports typically include:
+
+- **Summary Risks**: Total Delta, Vega, and other key sensitivities
+- **Bucket Risks**: Risks broken down by maturity buckets
+- **Scenario Analysis**: Risks under various market scenarios
+- **Stress Testing**: Risks under extreme market conditions
+
+## Model-Specific Considerations
+
+### CLV Risk Characteristics
+
+The CLV model has specific risk characteristics:
+
+1. **Single Factor**: Being a one-factor model, correlation risks are not captured
+2. **Skew Sensitivity**: Enhanced sensitivity to volatility skew compared to simpler models
+3. **Forward Volatility**: Good capture of forward volatility sensitivities
+4. **PDE Accuracy**: High accuracy in risk calculation due to PDE pricing
+
+### Limitations
+
+Risk calculation limitations include:
+
+- **Correlation Blind**: Cannot capture risks related to rate correlations
+- **Model Risk**: Risks related to model choice and calibration
+- **Numerical Risk**: Risks from numerical approximations in PDE solver
+
+## Quality Control
+
+### Risk Validation
+
+Risk validation procedures include:
+
+1. **Bump and Revalue**: Comparison with external risk calculation methods
+2. **Cross-Model Validation**: Comparison with other model implementations
+3. **Historical Backtesting**: Validation against historical market moves
+4. **Stress Testing**: Validation under extreme market scenarios
+
+### Risk Monitoring
+
+Ongoing risk monitoring includes:
+
+- **Daily Risk Reports**: Regular monitoring of portfolio risks
+- **Risk Limit Monitoring**: Ensuring risks stay within approved limits
+- **Model Performance**: Monitoring model performance and calibration quality
+- **Market Regime Changes**: Adjusting risk calculations for changing market conditions

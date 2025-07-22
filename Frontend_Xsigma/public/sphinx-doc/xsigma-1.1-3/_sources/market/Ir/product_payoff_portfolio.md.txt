@@ -1,0 +1,493 @@
+# Product / Payoff / Portfolio
+
+## Description des Produits
+
+### Vue d'ensemble des Swaps de Taux d'Intérêt
+
+La description traditionnelle des manuels décrit typiquement un swap de base comme comprenant deux jambes de cash flows, où l'agent et une contrepartie échangent une jambe de cash flows à taux fixe pour une jambe de cash flows à taux flottant. Une jambe de cash flow comprend une série de cash flows périodiques depuis la date de début du swap jusqu'à la maturité du swap.
+
+```cpp
+// Implémentation Our project de la structure de base d'un swap
+namespace xsigma {
+    // Structure représentant un cash flow individuel
+    struct CashFlow {
+        datetime payment_date;        // Date de paiement
+        datetime accrual_start;      // Début de la période d'accrual
+        datetime accrual_end;        // Fin de la période d'accrual
+        datetime fixing_date;        // Date de fixing (pour jambes flottantes)
+        double amount;               // Montant du cash flow
+        double day_count_fraction;   // Fraction de jour
+        currency payment_currency;   // Devise de paiement
+        
+        // Validation du cash flow
+        void validate() const {
+            if (accrual_start >= accrual_end) {
+                XSIGMA_THROW("Accrual start must be before accrual end");
+            }
+            if (fixing_date > payment_date) {
+                XSIGMA_THROW("Fixing date cannot be after payment date");
+            }
+        }
+    };
+    
+    // Classe de base pour toutes les jambes de swap
+    class leg {
+    public:
+        virtual ~leg() = default;
+        
+        // Calcul du prix de la jambe
+        virtual double price(
+            const double_map_t& discount_factors,
+            const double_map_t& forecast_rates = {}) const = 0;
+        
+        // Génération des cash flows
+        virtual std::vector<CashFlow> generate_cash_flows(
+            const any_container_precomputed& market) const = 0;
+        
+        // Accès au schedule de paiement
+        virtual const schedule& get_payment_schedule() const = 0;
+    };
+}
+```
+*Cette implémentation C++ dans Our project fournit la structure de base pour les cash flows et jambes de swap avec validation complète.*
+
+## Catégorisation des Swaps
+
+### Swaps Single-Currency Fixed/Float
+
+Comprenant une jambe fixe et une jambe flottante toutes deux dans la même devise. Le taux fixe sur la jambe fixe est généralement défini de sorte que la PV du swap soit zéro à l'inception (par-swap). La fréquence de paiement de la jambe fixe peut être différente de celle de la jambe flottante.
+
+```cpp
+// Implémentation Our project d'un swap fixed/float standard
+namespace xsigma {
+    class ir_swap : public priceable {
+    public:
+        ir_swap(
+            const ptr_const<discount_curve_id>& discount,
+            const ptr_const<forecast_curve_id>& index,
+            datetime effective_date,
+            datetime maturity,
+            const ptr_const<leg>& pay_leg,      // Jambe payée
+            const ptr_const<leg>& receive_leg,  // Jambe reçue
+            double fixed_rate = 1.0);
+        
+        double price(const any_container_precomputed& market, 
+                    option_output_enum output_type) const override {
+            
+            const auto& dfs = market.at(*discount_curve_id_);
+            const auto& rates = market.at(*index_);
+            
+            switch (output_type) {
+                case option_output_enum::PV: {
+                    // Calcul PV = jambe reçue - jambe payée
+                    double receive_value = receive_leg_->price(dfs, rates);
+                    double pay_value = pay_leg_->price(dfs, rates);
+                    return receive_value - fixed_rate_ * pay_value;
+                }
+                case option_output_enum::PAR: {
+                    // Calcul du taux par
+                    double receive_value = receive_leg_->price(dfs, rates);
+                    double pay_annuity = pay_leg_->price(dfs);
+                    return receive_value / pay_annuity;
+                }
+                default:
+                    XSIGMA_THROW("Output type not supported");
+            }
+        }
+        
+    private:
+        ptr_const<discount_curve_id> discount_curve_id_;
+        ptr_const<forecast_curve_id> index_;
+        ptr_const<leg> pay_leg_;
+        ptr_const<leg> receive_leg_;
+        double fixed_rate_;
+    };
+}
+```
+*Cette implémentation C++ dans Our project montre un swap fixed/float avec calcul de PV et taux par.*
+
+### Swaps Single-Currency Basis
+
+Comprenant deux jambes flottantes, mais chacune payant/fixant sur une fréquence différente, par exemple trimestrielle vs. semestrielle (aussi connu comme un swap basis 3s/6s, c'est-à-dire 3M vs. 6M). Un spread sur le taux flottant est généralement appliqué à une des jambes et est généralement défini à une valeur telle que la PV du swap soit zéro à l'inception.
+
+### Cross-Currency Swaps
+
+Comprend deux jambes qui paient dans différentes devises avec le ratio de leurs notionnels défini au taux FX entre les deux devises. Ces jambes peuvent être toute combinaison de fixes et flottantes. Il y a aussi un type particulier de swap cross-currency où le notionnel d'une des jambes varie selon le taux FX prévalent.
+
+### Swaps Spécialisés
+
+#### Averaging Swaps
+Une des jambes paie une moyenne pondérée des taux observés pour chaque cash flow.
+
+#### Compounding Swaps
+Une des jambes paie un taux moyenné géométriquement pour chaque cash flow.
+
+#### IMM Swaps
+Les cash flows sont payés aux dates IMM - c'est-à-dire le 3ème mercredi de mars, juin, septembre, décembre.
+
+#### OIS Swaps
+Ce sont des swaps fixes vs. flottants où la jambe flottante est dérivée des taux Overnight (O/N) ; cependant plutôt que de payer quotidiennement, le taux est composé pour payer trimestriellement ou annuellement. Ils sont parfois référés comme 'Averaging' (c'est-à-dire moyenne géométrique).
+
+## Flexibilité du Modèle
+
+Malgré les catégorisations larges ci-dessus, il peut être vu que celles-ci peuvent ne pas être mutuellement exclusives et en fait, de nombreux swaps existent qui ont des combinaisons des catégorisations ci-dessus, par exemple un swap cross-currency IMM, un swap basis single-currency où une jambe est composée. Le Modèle de Swap Linéaire permet la combinaison flexible de ces catégories, ainsi que la capacité de généraliser un swap avec un nombre arbitraire de jambes.
+
+## Conventions de Dates
+
+### Notation des Dates
+
+- $t_{i}^{pay}$ correspond à la $i$ème période de coupon/cash flow
+- $t_{i}^{ps}$ Date de paiement pour la $i$ème période
+- $t_{i}^{as}$ Date de début d'accrual pour la $i$ème période. Cela dénote quand un taux commence à accumuler pour la période
+- $t_{i}^{ac}$ Date de fin d'accrual pour la $i$ème période. Cela dénote quand un taux arrête d'accumuler pour la période
+- $t_{i}^{fix}$ Date de fixing pour le taux flottant de la $i$ème période. C'est quand le taux est connu et publié
+- $t_{i}^{fs}$ Date de début de forecast pour le taux flottant de la $i$ème période
+- $t_{i}^{fe}$ Date de fin de forecast pour le taux flottant de la $i$ème période
+
+```cpp
+// Implémentation Our project de la gestion des dates
+namespace xsigma {
+    struct SwapPeriod {
+        datetime payment_date;       // t_i^pay
+        datetime accrual_start;     // t_i^as  
+        datetime accrual_end;       // t_i^ac
+        datetime fixing_date;       // t_i^fix
+        datetime forecast_start;    // t_i^fs
+        datetime forecast_end;      // t_i^fe
+        
+        // Validation de cohérence des dates
+        void validate() const {
+            if (accrual_start >= accrual_end) {
+                XSIGMA_THROW("Accrual start must be before accrual end");
+            }
+            if (fixing_date > accrual_start) {
+                XSIGMA_THROW("Fixing date should be before or at accrual start");
+            }
+            if (forecast_start >= forecast_end) {
+                XSIGMA_THROW("Forecast start must be before forecast end");
+            }
+        }
+        
+        // Calcul de la fraction de jour
+        double calculate_day_count_fraction(
+            const day_count_convention& dcc) const {
+            return dcc.year_fraction(accrual_start, accrual_end);
+        }
+    };
+    
+    // Générateur de schedule pour swaps
+    class SwapScheduleGenerator {
+    public:
+        std::vector<SwapPeriod> generate_schedule(
+            const datetime& effective_date,
+            const datetime& maturity,
+            const frequency& payment_freq,
+            const ptr_const<calendar>& holiday_calendar,
+            const business_day_convention& bdc) const {
+            
+            std::vector<SwapPeriod> periods;
+            
+            // Génération des dates de paiement
+            auto payment_dates = generate_payment_dates(
+                effective_date, maturity, payment_freq, holiday_calendar, bdc);
+            
+            // Création des périodes
+            for (size_t i = 0; i < payment_dates.size(); ++i) {
+                SwapPeriod period;
+                period.payment_date = payment_dates[i];
+                period.accrual_start = (i == 0) ? effective_date : payment_dates[i-1];
+                period.accrual_end = payment_dates[i];
+                
+                // Calcul des dates de fixing (généralement 2 jours ouvrés avant)
+                period.fixing_date = holiday_calendar->add_business_days(
+                    period.accrual_start, -2);
+                
+                // Dates de forecast alignées sur période d'accrual
+                period.forecast_start = period.accrual_start;
+                period.forecast_end = period.accrual_end;
+                
+                period.validate();
+                periods.push_back(period);
+            }
+            
+            return periods;
+        }
+        
+    private:
+        std::vector<datetime> generate_payment_dates(
+            const datetime& start, const datetime& end,
+            const frequency& freq, const ptr_const<calendar>& cal,
+            const business_day_convention& bdc) const;
+    };
+}
+```
+*Cette implémentation C++ dans Our project gère la génération complète de schedules avec validation des dates et conventions de marché.*
+
+## Notation Mathématique
+
+### Variables Principales
+
+- $A(t)$ montant de cash flow payé au temps $t$
+- $N,N(t_{i})$ Notionnel - soit constant partout, soit correspondant à la $i$ème période
+- $c,c(t_{i})$ Taux fixe connu - soit constant partout, soit correspondant à la $i$ème période
+- $\tau(t_{a},t_{b})$ Fraction de jour entre $t_{a}$ et $t_{b}$ calculée en utilisant la convention de jour pertinente
+- $Z(t_{a},t_{b})$ Facteur d'actualisation entre $t_{a}$ et $t_{b}$ lu de la courbe d'actualisation pertinente
+- $r(t_{i}^{fix},t_{i}^{fs},t_{i}^{fc})$ Taux d'intérêt flottant couvrant [$t_{i}^{fs}$, $t_{i}^{fc}$] qui fixe au temps $t_{i}^{fix}$
+- $s,s(t_{i})$ Spread connu sur le taux d'intérêt flottant
+- $\beta,\beta(t_{i})$ Multiplicateur de taux flottant connu
+
+```cpp
+// Implémentation Our project des calculs mathématiques de base
+namespace xsigma {
+    class SwapMathUtils {
+    public:
+        // Calcul du montant de cash flow pour jambe fixe
+        static double calculate_fixed_cash_flow(
+            double notional,
+            double fixed_rate,
+            double day_count_fraction) {
+            return notional * fixed_rate * day_count_fraction;
+        }
+        
+        // Calcul du montant de cash flow pour jambe flottante
+        static double calculate_floating_cash_flow(
+            double notional,
+            double floating_rate,
+            double spread,
+            double multiplier,
+            double day_count_fraction) {
+            return notional * (multiplier * floating_rate + spread) * day_count_fraction;
+        }
+        
+        // Calcul de la valeur présente d'un cash flow
+        static double present_value_cash_flow(
+            double cash_flow_amount,
+            double discount_factor) {
+            return cash_flow_amount * discount_factor;
+        }
+        
+        // Calcul de l'annuité (somme des facteurs d'actualisation pondérés)
+        static double calculate_annuity(
+            const std::vector<double>& day_count_fractions,
+            const std::vector<double>& discount_factors) {
+            
+            if (day_count_fractions.size() != discount_factors.size()) {
+                XSIGMA_THROW("Size mismatch between DCFs and discount factors");
+            }
+            
+            double annuity = 0.0;
+            for (size_t i = 0; i < day_count_fractions.size(); ++i) {
+                annuity += day_count_fractions[i] * discount_factors[i];
+            }
+            
+            return annuity;
+        }
+    };
+}
+```
+*Cette implémentation C++ dans Our project fournit les utilitaires mathématiques de base pour les calculs de swap avec validation des entrées.*
+
+## Types de Jambes
+
+### Jambe Fixe Standard
+
+C'est une jambe qui paie périodiquement (par exemple tous les trois mois) un taux fixe, $c$ pendant la vie du trade. Ainsi, le montant payé à chaque période de paiement est :
+
+$$A(t_{i}^{pay})=N\cdot c\cdot\tau(t_{i}^{as},t_{i}^{ac})$$ (3.1)
+
+Dans le cas le plus général, le notionnel et le taux fixe pourraient varier de manière déterministe (ces valeurs seraient pré-convenues entre les agents à l'inception du trade) pendant la vie du trade.
+
+$$A(t_{i}^{pay})=N(t_{i})\cdot c(t_{i})\cdot\tau(t_{i}^{as},t_{i}^{ac})$$ (3.2)
+
+```cpp
+// Implémentation Our project d'une jambe fixe
+namespace xsigma {
+    class fixed_leg : public leg {
+    public:
+        fixed_leg(
+            const datetime& effective_date,
+            const datetime& maturity,
+            const ptr_const<calendar>& holiday_list,
+            const swap_default_convention_config& config);
+
+        // Construction avec schedule explicite
+        fixed_leg(std::vector<datetime> payment_dates,
+                 std::vector<double> dcfs) noexcept;
+
+        double price(
+            const double_map_t& dfs,
+            const double_map_t& forecast_rates = {}) const noexcept override {
+
+            double total_value = 0.0;
+            const auto& schedule = paymenet_schedule_->get_periods();
+
+            for (const auto& period : schedule) {
+                // Calcul du cash flow fixe
+                double cash_flow = period.day_count_fraction;  // Annuité unitaire
+
+                // Actualisation
+                auto df_it = dfs.find(period.payment_date);
+                if (df_it != dfs.end()) {
+                    total_value += cash_flow * df_it->second;
+                }
+            }
+
+            return total_value;
+        }
+
+        std::vector<CashFlow> generate_cash_flows(
+            const any_container_precomputed& market) const override {
+
+            std::vector<CashFlow> flows;
+            const auto& schedule = paymenet_schedule_->get_periods();
+
+            for (const auto& period : schedule) {
+                CashFlow flow;
+                flow.payment_date = period.payment_date;
+                flow.accrual_start = period.accrual_start;
+                flow.accrual_end = period.accrual_end;
+                flow.day_count_fraction = period.day_count_fraction;
+                flow.amount = flow.day_count_fraction;  // Montant unitaire
+
+                flows.push_back(flow);
+            }
+
+            return flows;
+        }
+
+    private:
+        ptr_const<schedule> paymenet_schedule_;
+    };
+}
+```
+*Cette implémentation C++ dans Our project fournit une jambe fixe complète avec génération de cash flows et pricing.*
+
+### Jambe Flottante Standard
+
+C'est une jambe qui paie périodiquement un taux flottant, $r(t_{i}^{fix},t_{i}^{fs},t_{i}^{fe})$ pendant la vie du trade. Ce taux est généralement connu à l'avance avant le début de la période de cash flow et payé à la fin. Les taux inconnus sont prévus en utilisant une courbe de taux d'intérêt.
+
+$$A(t_{i}^{pay})=N\cdot r(t_{i}^{fix},t_{i}^{fs},t_{i}^{fe})\cdot\tau(t_{i}^{as},t_{i}^{ac})$$ (3.3)
+
+#### Jambe Flottante avec Spread/Marge
+
+Typiquement utilisée dans les swaps basis (flottant vs. flottant) :
+
+$$A(t_{i}^{pay})=N\cdot\left(r(t_{i}^{fix},t_{i}^{fs},t_{i}^{fe})+s\right)\cdot \tau(t_{i}^{as},t_{i}^{ac})$$ (3.4)
+
+#### Jambe Flottante avec Multiplicateur
+
+Il y a aussi des cas de multiplicateurs de taux flottant (aussi communément connus comme gearing), résultant en la formulation plus générique :
+
+$$A(t_{i}^{pay})=N\cdot\left(\beta\cdot r(t_{i}^{fix},t_{i}^{fs},t_{i}^{fe})+s \right)\cdot\tau(t_{i}^{as},t_{i}^{ac})$$ (3.5)
+
+Dans le cas le plus général, le notionnel, le spread, et le gearing pourraient varier de manière déterministe pendant la vie du trade :
+
+$$A(t_{i}^{pay})=N(t_{i})\cdot\left(\beta(t_{i})\cdot r(t_{i}^{fix},t_{i}^{fs},t_{i}^{fe})+s(t_{i})\right)\cdot\tau(t_{i}^{as},t_{i}^{ac})$$ (3.6)
+
+```cpp
+// Implémentation Our project d'une jambe flottante
+namespace xsigma {
+    class float_leg : public leg {
+    public:
+        float_leg(
+            const datetime& effective_date,
+            const datetime& maturity,
+            const ptr_const<calendar>& holiday_list,
+            const swap_default_convention_config& config,
+            double spread = 0.0,
+            double multiplier = 1.0);
+
+        double price(
+            const double_map_t& dfs,
+            const double_map_t& forecast_rates = {}) const noexcept override {
+
+            double total_value = 0.0;
+            const auto& schedule = payment_schedule_->get_periods();
+
+            for (const auto& period : schedule) {
+                // Récupération du taux forward
+                double forward_rate = 0.0;
+                auto rate_it = forecast_rates.find(period.fixing_date);
+                if (rate_it != forecast_rates.end()) {
+                    forward_rate = rate_it->second;
+                }
+
+                // Calcul du cash flow flottant
+                double cash_flow = (multiplier_ * forward_rate + spread_) *
+                                 period.day_count_fraction;
+
+                // Actualisation
+                auto df_it = dfs.find(period.payment_date);
+                if (df_it != dfs.end()) {
+                    total_value += cash_flow * df_it->second;
+                }
+            }
+
+            return total_value;
+        }
+
+        std::vector<CashFlow> generate_cash_flows(
+            const any_container_precomputed& market) const override {
+
+            std::vector<CashFlow> flows;
+            const auto& schedule = payment_schedule_->get_periods();
+
+            for (const auto& period : schedule) {
+                CashFlow flow;
+                flow.payment_date = period.payment_date;
+                flow.accrual_start = period.accrual_start;
+                flow.accrual_end = period.accrual_end;
+                flow.fixing_date = period.fixing_date;
+                flow.day_count_fraction = period.day_count_fraction;
+
+                // Projection du taux (si nécessaire)
+                // flow.amount sera calculé lors du pricing
+
+                flows.push_back(flow);
+            }
+
+            return flows;
+        }
+
+    private:
+        ptr_const<schedule> payment_schedule_;
+        double spread_;
+        double multiplier_;
+    };
+}
+```
+*Cette implémentation C++ dans Our project fournit une jambe flottante avec support pour spread et multiplicateur.*
+
+### Jambe de Composition (Compounding)
+
+Similaire à la jambe flottante standard, sauf que le taux pour chaque cash flow est un taux composé d'une série d'observations - essentiellement, l'intérêt d'une période n'est pas payé et est plutôt réinvesti pour les périodes subséquentes.
+
+#### Méthodes de Composition
+
+1. **CompoundInclusive** - Implémente la méthode de composition de base définie par ISDA où le spread est traité de la même manière que le taux observable
+2. **CompoundFlat** - Implémente la méthode Flat Compounding définie par ISDA où l'intérêt gagné du taux et le spread sont composés, mais seulement composés au taux observable
+3. **CompoundExclusive** - La composition affecte seulement l'intérêt gagné du taux d'intérêt observable et non sur le spread/marge
+
+### Jambe OIS (Overnight Index Swap)
+
+Ce sont un type de jambe de composition où le taux est basé sur le taux Overnight (O/N) et est composé quotidiennement jusqu'à la date de paiement. Les termes de composition OIS sont définis par ISDA :
+
+$$\left[\prod_{j=1}^{d_{0}}\left(1+\frac{ON_{i}\times n_{i}}{\alpha}\right)-1\right] \times\frac{\alpha}{d}$$ (3.7)
+
+Où :
+- $d_{0}$ : Nombre de jours ouvrés dans la période de calcul
+- $i$ : Index pour représenter le jour ouvré pertinent dans la période de calcul
+- $ON_{i}$ : Taux overnight pour le jour $i$
+- $n_{i}$ : Nombre total de jours calendaires pour lesquels le taux est $ON_{i}$
+- $d$ : Nombre de jours calendaires dans la période de calcul
+- $\alpha$ : Base de jour - généralement soit 360 (ex. USD-Fed-Funds) soit 365 (ex. GBP-SONIA)
+
+### Jambe d'Averaging
+
+Similaire à la jambe flottante standard, sauf que le taux pour chaque cash flow est un taux moyenné arithmétiquement d'une série d'observations :
+
+$$r(t_{i})=\frac{\sum_{j=1}^{m}r(t_{j-1})\cdot\tau(t_{j}^{start},t_{j}^{end})}{\tau(t_{i}^{start},t_{i}^{end})}$$ (3.8)
+
+Où : $t_{i-1}\leq t_{j}\leq t_{m}<t_{i}$
+
+Comme on peut le voir de la formule, l'averaging introduit un retard de paiement puisque les taux observés ne sont pas payés à leur maturité naturelle mais à une date de paiement ultérieure.

@@ -1,0 +1,216 @@
+# Assumptions and Limitations
+
+## Model Assumptions
+
+### Fundamental Assumptions
+
+**Single Factor Model**:
+The CLV model is fundamentally a one-factor short rate model. This assumption implies:
+- All interest rates are perfectly correlated
+- The entire yield curve is driven by a single stochastic factor
+- Forward rate correlations are implicitly assumed to be 1.0
+- Spread dynamics between different rate indices are deterministic
+
+**Risk-Neutral Pricing**:
+The model assumes:
+- Existence of a risk-neutral probability measure
+- No arbitrage opportunities in the market
+- Perfect liquidity and continuous trading
+- Zero transaction costs and bid-ask spreads
+
+**Market Completeness**:
+The model assumes:
+- Sufficient market instruments for calibration
+- Consistent and arbitrage-free market data
+- Stable market conditions during calibration period
+- Representative market prices for calibration instruments
+
+### Mathematical Assumptions
+
+**Short Rate Dynamics**:
+- Short rate follows displaced lognormal dynamics
+- Local volatility function is well-defined and bounded
+- Mean reversion parameter is positive and time-dependent
+- Volatility and skew parameters are piecewise constant
+
+**Analytical Approximations**:
+- First-order Taylor expansion accuracy for swap rate dynamics
+- Frozen $\Phi(t)$ approximation at its expectation
+- Time-averaging of volatility and skew parameters
+- Numerical integration accuracy for parameter calculation
+
+**PDE Solution**:
+- Existence and uniqueness of PDE solution
+- Boundary conditions are properly specified
+- Numerical discretization convergence
+- Stability of finite difference schemes
+
+### Market Data Assumptions
+
+**Yield Curve Construction**:
+- Input yield curve is arbitrage-free
+- Interpolation methods preserve smoothness
+- Forward rates are well-defined
+- Curve construction methodology is consistent
+
+**Volatility Surface**:
+- Swaption volatility surface is arbitrage-free
+- Volatility quotes are representative of market conditions
+- Skew parameters are stable and well-defined
+- Calibration instruments are liquid and reliable
+
+**Currency and Index Assumptions**:
+- Single currency framework (no FX risk)
+- Consistent index definitions across instruments
+- Stable fixing methodologies
+- No basis risk between different rate indices
+
+## Model Limitations
+
+### Structural Limitations
+
+**Single Factor Constraint**:
+The most significant limitation of the CLV model is its single-factor nature:
+
+- **Cannot price correlation-dependent payoffs**: Spread options, basis swaps, and other instruments dependent on rate correlations cannot be accurately priced
+- **Limited forward rate dynamics**: All forward rates move in perfect correlation, which may not reflect market reality
+- **Simplified yield curve evolution**: Complex yield curve reshaping scenarios are not captured
+
+**Local Volatility Framework**:
+- **Path dependency**: Local volatility depends on the level of the short rate, which may not capture all market dynamics
+- **Calibration constraints**: Limited flexibility in fitting complex volatility surfaces
+- **Forward skew limitations**: May not perfectly capture forward-starting volatility skew
+
+### Numerical Limitations
+
+**PDE Solver Constraints**:
+- **Grid limitations**: Finite grid size may introduce boundary effects
+- **Discretization errors**: Finite difference approximations introduce numerical errors
+- **Computational complexity**: Large grids required for high accuracy
+- **Stability conditions**: Time step restrictions for numerical stability
+
+**Calibration Limitations**:
+- **Local minima**: Optimization may converge to local rather than global minima
+- **Parameter instability**: Calibrated parameters may be sensitive to market data changes
+- **Overfitting risk**: Model may overfit to calibration instruments
+- **Convergence issues**: Calibration may fail under extreme market conditions
+
+### Market Condition Limitations
+
+**High Volatility Environments**:
+The model is not recommended for use under very high volatility conditions:
+- High volatility makes the rate process very diffusive
+- Affects numerical stability and accuracy of the PDE solver
+- May lead to unrealistic rate projections
+- Common limitation for HJM family of models
+
+**Extreme Skew Conditions**:
+The model is not recommended under very high skew conditions:
+- Displaced lognormal framework may break down
+- Analytical approximations may become inaccurate
+- Calibration may become unstable
+- Risk calculations may become unreliable
+
+**Market Stress Scenarios**:
+- **Liquidity crises**: Model assumes liquid markets for calibration
+- **Regime changes**: Model parameters may not adapt quickly to structural changes
+- **Extreme rate environments**: Very low or negative rates may challenge model assumptions
+- **Volatility spikes**: Sudden volatility changes may affect model stability
+
+### Product Limitations
+
+**Unsuitable Products**:
+The CLV model should not be used for:
+
+- **Spread options**: Require multi-factor modeling for correlation effects
+- **Cross-currency instruments**: Single currency framework limitation
+- **Correlation-dependent payoffs**: Any payoff depending on rate correlations
+- **Multi-curve products**: Products requiring explicit basis modeling
+
+**Limited Product Features**:
+- **Complex embedded options**: May require more sophisticated models
+- **Path-dependent features**: Some path-dependent payoffs may not be accurately captured
+- **Barrier options**: Barrier levels may not be properly monitored in single-factor framework
+- **Quanto products**: Currency hedging effects not captured
+
+### Operational Limitations
+
+**Data Requirements**:
+- **Market data quality**: Requires high-quality, consistent market data
+- **Calibration frequency**: May require frequent recalibration in volatile markets
+- **Computational resources**: PDE pricing requires significant computational power
+- **Model maintenance**: Requires ongoing monitoring and validation
+
+**Risk Management Limitations**:
+- **Correlation risks**: Cannot capture risks related to rate correlations
+- **Model risk**: Inherent model risk from single-factor assumption
+- **Basis risk**: Cannot capture basis between different rate indices
+- **Liquidity risk**: Does not account for liquidity effects on pricing
+
+## Usage Guidelines
+
+### Recommended Usage
+
+**Suitable Applications**:
+- Bermudan swaptions with single underlying index
+- Callable inverse floaters (CIF) and callable capped floaters (CCF)
+- Single-currency interest rate derivatives
+- Products with skew sensitivity but no correlation dependency
+
+**Market Conditions**:
+- Normal to moderate volatility environments
+- Stable market conditions with liquid calibration instruments
+- Well-behaved volatility surfaces with reasonable skew levels
+- Consistent market data availability
+
+### Risk Mitigation
+
+**Model Risk Management**:
+- Regular model validation and backtesting
+- Comparison with alternative models when available
+- Stress testing under various market scenarios
+- Ongoing monitoring of model performance
+
+**Operational Controls**:
+- Daily calibration quality checks
+- Risk limit monitoring and escalation procedures
+- Regular review of model assumptions and limitations
+- Documentation of model usage decisions and rationale
+
+### Alternative Models
+
+**When to Consider Alternatives**:
+- For correlation-dependent payoffs: Consider multi-factor models like LMM or QG2
+- For extreme market conditions: Consider more robust models or manual overrides
+- For cross-currency products: Use appropriate FX-IR models
+- For complex structured products: Consider Monte Carlo-based approaches
+
+**Model Selection Criteria**:
+- Product complexity and correlation requirements
+- Market condition stability and data quality
+- Computational resource availability
+- Risk management and validation requirements
+
+## Regulatory Considerations
+
+### Model Approval Requirements
+
+**Documentation Requirements**:
+- Complete model description and mathematical framework
+- Validation testing results and ongoing monitoring procedures
+- Limitation documentation and usage guidelines
+- Risk management and control procedures
+
+**Ongoing Compliance**:
+- Regular model performance review and validation
+- Documentation of any model changes or updates
+- Escalation procedures for model issues or limitations
+- Audit trail maintenance for model usage decisions
+
+### Disclosure Requirements
+
+**Risk Disclosure**:
+- Clear communication of model limitations to users
+- Documentation of unsuitable product types
+- Risk factor identification and management procedures
+- Model uncertainty quantification where applicable

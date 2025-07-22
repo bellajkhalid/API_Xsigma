@@ -1,0 +1,131 @@
+# Scope
+
+## Model Purpose and Intended Usage
+
+### Model Purpose
+
+The New Curve Framework (NCF) serves as the foundational infrastructure for interest rate and inflation curve construction at Xsigma. The framework addresses the fundamental requirements of modern fixed income markets by providing accurate, arbitrage-free, and globally consistent curves.
+
+### Curve Construction
+
+Interest rate and inflation curves are a fundamental building block of pricing, valuation, and risk.
+
+They will be used for linear products - interest rate swaps, FX Forwards, cross-currency swaps, zero-coupon inflation swaps, etc.
+
+They will also be consumed by more complex pricers, along with market data (e.g., vol surfaces) and other calibration parameters.
+
+### Risk Generation
+
+Risk management, and hence risk (in the case of curves, interest rate risk) is always required. This document will cover curve shocking.
+
+The output of NCF for "risk" is not the metrics themselves, but the shocked curves consumed by a pricer to produce those metrics.
+
+For the purposes of testing the Jacobian transform, delta is described in the Risk Analysis section.
+
+### Curve Construction Requirements
+
+The purpose of NCF is to provide a flexible approach to constructing interest rate and inflation curves to satisfy the fundamental requirements above: accurate, arbitrage-free, and globally consistent.
+
+#### Date/Node Structure
+
+To capture the market prices of liquid and tradeable instruments (rich market data), but also the underlying market structure, this can mean:
+
+- The points used to define the curve (node points) need not lie at the start/end of an instrument.
+- There may be more node points (degrees of freedom) than instruments (penalty functions), whereby smoothing is applied to the curve (additional penalty functions to enforce this smoothness).
+
+#### Arbitrage-Free (Single Set of Market Data)
+
+We must build curves with one set of market data (arbitrage-free), by one set of market data we mean a set of market data for all curves captured in a single snap/timestamp. If there are cross-dependencies, e.g., we have three curves that may be inter-dependent then they must be built simultaneously (i.e., in a single process or stage) - 3m (IR Futures), 6m (Swaps) & OIS (discounting). Once these curves are constructed together, other curves that are purely dependent on them (e.g., 1m, 12m) can be constructed using the prices required from the same snap of data.
+
+**Key Principles:**
+- Typically, we build mid curves - this is the basis on which price inputs are quoted/used
+- A quoted price that is generated through consumption of the curves would include a bid/offer spread, CVA/FVA adjustment, etc.
+- Dependent curves - curves that depend on other curves (spread or basis) are built in stages
+- We retain a single set of market data, to ensure curves are arbitrage-free
+
+**Implementation:**
+- Single set of market data used with no conflicts where two instruments define and are priced by the same point(s) on a curve
+- All market inputs reprice exactly from the curves
+- This requires the single set of market data to be the snapshot that produces all curves from that market data (no splitting of market data)
+
+**Important Exception:**
+The very short end (<6m) of USD Fed Fund curve may have quotes both for Fed Fund Futures and FRAOIS (LIBOR-OIS basis swaps) to define the curve. Neither may be the driver for the curve, so both sets of instruments can be used. This does not break the arbitrage-free principle as the most liquid instrument would be chosen, dependent on market conditions on a particular day.
+
+#### Global Consistency
+
+There is a need to use "external" curves - to build a globally consistent set of market data, including fx/xccy inputs, by utilising a single set of USD (& EUR) curves in any currencies that depend on them.
+
+Thus, in terms of the 'same' snap of market data, we can ensure the same USD market data is used in the USD curves, and in the curves driven by xccy/fx that use them.
+
+#### Correct Cross-Currency Basis
+
+Also called financing bias. This requires the use of three curves to derive a 4th. It is not possible in a simple "yield curve" framework where instruments may only depend on a maximum of two curves.
+
+#### Complex Interpolation
+
+Accurate pricing (a smooth or linear forward curve = no large "steps" in the forward rate, nor discontinuities) and flexible node structure lead to different interpolation requirements where:
+
+- **Granular market data exists** (e.g., a Futures strip informs quarterly granularity on a 3M LIBOR curve), as opposed to
+- **The longer end of a curve** (we may only have 20y, 25y, 30y ... swap quotes).
+
+Thus, a standard developed, where we require two different interpolation schemes for the two regions of the curve.
+
+### Intended Use
+
+#### Valuation and Curve Usage
+
+The above requirements drive the parameters used to build the curves. Once built, the curves would be queried in the valuation of trades. Types of query would be:
+
+1. **Forward rates/forecast of fixing** (forward rate or discount factor curve), i.e., for any index value required for the floating leg of a trade (swap, FRN, etc.). To give a more specific example, a curve would be built for a forecast of USD LIBOR 3M, this should be used only to project that index (e.g., not 6m LIBOR).
+
+2. **Discount factor to value a cashflow** (discount factor curve), i.e., any valuation of any cashflow would query the correct discount curve built for that purpose. Example - we need to value the EUR leg of a EURUSD FX Forward or xccy swap, if, in our valuation framework, both legs are valued at USD OIS, the curve for the EUR leg is USD OIS "FX'd" into EUR or USDOIS-discount curve in EUR.
+
+3. **Index value** (inflation curve). Index values can only be read from inflation curves, and inflation curves only return index values.
+
+The query used is dependent on the price of any particular trade type.
+
+#### Risk
+
+Risk in the NCF is associated with the flexibility of the curve construction above. There may be spreads between curves and spread/fly instruments that ensure efficient use of inputs, but do not represent a likely trade. Thus, to calculate risk involves:
+
+1. **The choice of instruments** (the risk factors that will be displayed) – tenors, curve dependencies
+2. **An intermediate step** of calculating the shocks to the chosen set of hedge instruments
+3. **Applying the effect** of these back onto the pricing curves.
+
+This is achieved by the introduction of a risk curve/hedge curve (commonly known as "hedge curve template" - HCT), the instruments of which are bumped instead of those of the pricing curve. Such a HCT in the new framework is more of a collection of hedging instruments rather than an actual curve. In NCF, it is used to generate shocks which will then be applied to the curves used for pricing/valuation.
+
+The semi-analytic approach to shocking curves described above will allow us, for example, to apply shocks using a local interpolation method to curves with non-local interpolation (for examples, the shocks can have geometric interpolation, and the underlying curves – log-cubic). It also allows us to generate risk scenarios via linear superposition of the shocks. E.g., apply a parallel shift to all curves (instruments), and then apply individual instrument shocks.
+
+## Conceptual Soundness
+
+The choice of developing NCF was based on the 5 requirements above, and the flexibility required for risk generation (separation of risk factors from the originating curve construction).
+
+This was not done as a comparison to pre-existing approaches (i.e., at the time, 2006, the single-curve Yield Curve approach was in use throughout the bank), but to provide what was needed for business needs.
+
+It was only deemed fit for purpose once extensively used in pricing (2007-9). This is a robust test – during these years NCF underwent incremental development, and testing in a live production environment. If the curves (the curve construction) are reliable and accurate for pricing intraday, in real-time, they provide an accurate representation of the market data inputs.
+
+### Validation Scale
+
+We should note 2 things:
+
+1. **The soundness of curve construction is simple to determine** – do the curves reprice the market data inputs, and follow the desired interpolation. There are tests below.
+
+2. **The magnitude of using curves daily, during trading hours for pricing** – in C4 alone there are over 20000 EOD instances (# currencies * # business days * # regional closes). However, if looking for anomalous behaviour – a problem with optimisation, repricing of instruments or interpolation – one might estimate at least one build of the curves every minute. This is over 4,500,000 instances. If we were to look at each Jacobian rebuild in this time the number would rise to over 200 million.
+
+Thus, additional justification or testing of conceptual soundness.
+
+Between 2009 and 2011, risk was also tested. The primary test of risk is P&L explain – this was validated in testing for the release of NCF in EOD systems (TQPL) in 2011.
+
+### Literature Review
+
+The fundamental point of NCF is the use of optimisation to construct the curves. The greater flexibility – choice of instruments, nodes dates, construction of a single market through pre-building dependent curves – are in essence additional features that are the choice of Xsigma for the implementation.
+
+In 2006, and for several years afterwards, (i.e., at the time of creation of NCF) the industry standard was for a traditional, single "bootstrapped" curve construction. Indeed, the problem was seen as one of smoothness & interpolation (Adams & van Deventer (1994), Hagan & West (2006) and Davis & Matiak-Pasier (2009)) and fitting market data accurately with the term structure of the underlying interest rate: Larson & Derry (1994), Brousseau (2002), Knoboldova & Kauermann (2004) and Hagan & West (2008)).
+
+To also quote Adams (2001) "Smoothness is a desirable characteristic of interpolated zero curves not only is it intuitively appealing, but there is some evidence that it provides more accurate pricing of securities.".
+
+This is largely the opposite of the need for NCF. The development of the framework was to solve the problems with a single curve framework. Notably, the financial crisis of 2008-9 and the widening of Libor-OIS basis in particular indicated the need for a different approach (Ito (2010), Bech & Lengwiler (2011)).
+
+At the time of development, NCF was far from the market standard.
+
+Between 2009 and 2013, this changed – the requirement to build multiple curves in a single optimisation became the standard (Mancusopoulos (2009) to Rugengarnana (2013)).

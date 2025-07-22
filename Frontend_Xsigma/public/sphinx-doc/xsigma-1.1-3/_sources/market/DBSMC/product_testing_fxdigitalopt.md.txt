@@ -1,0 +1,841 @@
+# Product Testing: FXDigitalOpt
+
+## 📊 **Vue d'Ensemble du Produit FXDigitalOpt**
+
+### **Description du Trade**
+Nous considérons un trade **FXDigitalOpt** (Option Digitale FX) dans un template de sécurité DBA avec les caractéristiques suivantes :
+
+#### **Structure du Produit**
+- **Type** : Option digitale (binaire) sur taux de change
+- **Sous-jacent** : Paire de devises (ex: EUR/USD, GBP/USD)
+- **Payoff** : Payout fixe si condition remplie, sinon zéro
+- **Exercise Style** : Européen (évaluation uniquement à l'expiry)
+- **Settlement** : Cash settlement
+- **Barrier** : Niveau de déclenchement (strike/barrier)
+
+### **Formule de Payoff**
+Pour une option digitale FX :
+- **Digital Call** : $\text{Payoff} = N \times \mathbf{1}_{\{S_T \geq K\}}$
+- **Digital Put** : $\text{Payoff} = N \times \mathbf{1}_{\{S_T \leq K\}}$
+
+où $N$ est le notionnel, $S_T$ le taux FX à l'expiry, $K$ la barrière, et $\mathbf{1}_{\{\cdot\}}$ la fonction indicatrice.
+
+### **Implémentation dans Our project**
+
+#### **🔧 Classe FXDigitalOpt**
+```cpp
+// Implémentation du produit FXDigitalOpt dans Our project
+class FXDigitalOpt : public fx_derivative_base {
+private:
+    struct digital_option_specification {
+        std::string currency_pair;
+        double barrier;
+        double expiry;
+        bool is_call;
+        double payout;
+        std::string settlement_currency;
+        digital_type type; // BINARY_CALL, BINARY_PUT
+    };
+
+    digital_option_specification spec_;
+
+public:
+    FXDigitalOpt(const digital_option_specification& spec) : spec_(spec) {
+        validate_digital_specification();
+    }
+
+    double calculate_pv(const fx_market_data& market) const override {
+        return calculate_digital_pv(market);
+    }
+
+    fx_sensitivities calculate_sensitivities(const fx_market_data& market) const override {
+        fx_sensitivities sens;
+
+        // Sensibilités spécialisées pour digitales
+        sens.fx_delta = calculate_digital_delta(market);
+        sens.fx_gamma = calculate_digital_gamma(market);
+        sens.vega = calculate_digital_vega(market);
+        sens.theta = calculate_digital_theta(market);
+        sens.domestic_ir_delta = calculate_digital_rho_domestic(market);
+        sens.foreign_ir_delta = calculate_digital_rho_foreign(market);
+
+        return sens;
+    }
+
+private:
+    double calculate_digital_pv(const fx_market_data& market) const {
+        // Récupération des paramètres de marché
+        double fx_spot = market.get_fx_spot(spec_.currency_pair);
+        double dom_rate = market.get_domestic_rate(spec_.expiry);
+        double for_rate = market.get_foreign_rate(spec_.expiry);
+        double volatility = market.get_fx_volatility(spec_.currency_pair,
+                                                   spec_.barrier, spec_.expiry);
+
+        // Calcul du forward FX
+        double forward = fx_spot * std::exp((dom_rate - for_rate) * spec_.expiry);
+
+        // Paramètres Black-Scholes
+        double sqrt_t = std::sqrt(spec_.expiry);
+        double vol_sqrt_t = volatility * sqrt_t;
+
+        double d2 = (std::log(forward / spec_.barrier) -
+                    0.5 * volatility * volatility * spec_.expiry) / vol_sqrt_t;
+
+        // Probabilité de finir dans la monnaie
+        double probability;
+        if (spec_.is_call) {
+            probability = normal_cdf(d2);
+        } else {
+            probability = normal_cdf(-d2);
+        }
+
+        // Prix actualisé
+        double discount_factor = std::exp(-dom_rate * spec_.expiry);
+        return spec_.payout * probability * discount_factor;
+    }
+
+    double calculate_digital_delta(const fx_market_data& market) const {
+        // Delta spécialisé pour options digitales
+        double fx_spot = market.get_fx_spot(spec_.currency_pair);
+        double dom_rate = market.get_domestic_rate(spec_.expiry);
+        double for_rate = market.get_foreign_rate(spec_.expiry);
+        double volatility = market.get_fx_volatility(spec_.currency_pair,
+                                                   spec_.barrier, spec_.expiry);
+
+        double forward = fx_spot * std::exp((dom_rate - for_rate) * spec_.expiry);
+        double sqrt_t = std::sqrt(spec_.expiry);
+        double vol_sqrt_t = volatility * sqrt_t;
+
+        double d2 = (std::log(forward / spec_.barrier) -
+                    0.5 * volatility * volatility * spec_.expiry) / vol_sqrt_t;
+
+        double phi_d2 = normal_pdf(d2);
+        double discount_factor = std::exp(-dom_rate * spec_.expiry);
+
+        // Delta digital = payout * DF * phi(d2) / (spot * vol * sqrt(T))
+        double delta_sign = spec_.is_call ? 1.0 : -1.0;
+        return delta_sign * spec_.payout * discount_factor * phi_d2 / (fx_spot * vol_sqrt_t);
+    }
+
+    void validate_digital_specification() const {
+        XSIGMA_CHECK(spec_.barrier > 0, "Barrier must be positive");
+        XSIGMA_CHECK(spec_.expiry > 0, "Expiry must be positive");
+        XSIGMA_CHECK(spec_.payout > 0, "Payout must be positive");
+        XSIGMA_CHECK(!spec_.currency_pair.empty(), "Currency pair required");
+    }
+};
+```
+*Cette implémentation C++ dans Our project montre la structure complète d'une option digitale FX avec pricing analytique et calcul de sensibilités spécialisées.*
+
+---
+
+## 🧪 **EOD Testing**
+
+### **Tests de Fin de Journée**
+
+#### **🔍 Digital Probability Validation**
+
+##### **Validation des Probabilités Digitales**
+```cpp
+// Tests de validation des probabilités pour FXDigitalOpt dans Our project
+class fxdigitalopt_probability_validation_tester {
+public:
+    struct probability_test_case {
+        double spot;
+        double barrier;
+        double expiry;
+        double dom_rate;
+        double for_rate;
+        double volatility;
+        bool is_call;
+        double expected_probability;
+        std::string description;
+    };
+
+    struct validation_results {
+        std::vector<double> probability_errors;
+        std::vector<double> pricing_errors;
+        bool all_tests_passed;
+        double max_probability_error;
+    };
+
+    validation_results test_digital_probabilities() {
+        validation_results results;
+
+        // Cas de test avec probabilités connues
+        std::vector<probability_test_case> test_cases = {
+            // ATM cases (probabilité ≈ 0.5)
+            {1.0, 1.0, 1.0, 0.05, 0.03, 0.2, true, 0.0, "ATM Digital Call"},
+            {1.0, 1.0, 1.0, 0.05, 0.03, 0.2, false, 0.0, "ATM Digital Put"},
+
+            // Deep ITM cases (probabilité ≈ 1.0)
+            {1.5, 1.0, 0.01, 0.05, 0.03, 0.1, true, 1.0, "Deep ITM Digital Call"},
+            {0.5, 1.0, 0.01, 0.05, 0.03, 0.1, false, 1.0, "Deep ITM Digital Put"},
+
+            // Deep OTM cases (probabilité ≈ 0.0)
+            {0.5, 1.0, 0.01, 0.05, 0.03, 0.1, true, 0.0, "Deep OTM Digital Call"},
+            {1.5, 1.0, 0.01, 0.05, 0.03, 0.1, false, 0.0, "Deep OTM Digital Put"},
+
+            // Zero volatility cases
+            {1.1, 1.0, 1.0, 0.05, 0.03, 0.0, true, 1.0, "Zero Vol ITM Digital Call"},
+            {0.9, 1.0, 1.0, 0.05, 0.03, 0.0, false, 1.0, "Zero Vol ITM Digital Put"}
+        };
+
+        for (auto& test_case : test_cases) {
+            // Calcul de la probabilité attendue
+            test_case.expected_probability = calculate_expected_probability(test_case);
+
+            // Configuration de l'option digitale
+            FXDigitalOpt::digital_option_specification spec;
+            spec.currency_pair = "EURUSD";
+            spec.barrier = test_case.barrier;
+            spec.expiry = test_case.expiry;
+            spec.is_call = test_case.is_call;
+            spec.payout = 1.0; // Payout unitaire pour test de probabilité
+
+            FXDigitalOpt digital_option(spec);
+
+            // Configuration du marché
+            fx_market_data market = create_test_market_data(test_case);
+
+            // Calcul du prix (= probabilité * DF pour payout=1)
+            double calculated_price = digital_option.calculate_pv(market);
+            double discount_factor = std::exp(-test_case.dom_rate * test_case.expiry);
+            double calculated_probability = calculated_price / discount_factor;
+
+            // Calcul des erreurs
+            double probability_error = std::abs(calculated_probability - test_case.expected_probability);
+            double pricing_error = std::abs(calculated_price - test_case.expected_probability * discount_factor);
+
+            results.probability_errors.push_back(probability_error);
+            results.pricing_errors.push_back(pricing_error);
+
+            // Validation avec tolérance appropriée
+            if (test_case.description.find("Zero Vol") != std::string::npos) {
+                EXPECT_LT(probability_error, 1e-12); // Très stricte pour vol=0
+            } else {
+                EXPECT_LT(probability_error, 1e-10); // Précision analytique
+            }
+        }
+
+        // Statistiques globales
+        results.max_probability_error = *std::max_element(results.probability_errors.begin(),
+                                                        results.probability_errors.end());
+        results.all_tests_passed = (results.max_probability_error < 1e-10);
+
+        return results;
+    }
+
+private:
+    double calculate_expected_probability(const probability_test_case& test_case) {
+        if (test_case.volatility == 0.0) {
+            // Cas de volatilité nulle : probabilité déterministe
+            double forward = test_case.spot * std::exp(
+                (test_case.dom_rate - test_case.for_rate) * test_case.expiry);
+
+            if (test_case.is_call) {
+                return (forward >= test_case.barrier) ? 1.0 : 0.0;
+            } else {
+                return (forward <= test_case.barrier) ? 1.0 : 0.0;
+            }
+        }
+
+        // Calcul analytique de la probabilité
+        double forward = test_case.spot * std::exp(
+            (test_case.dom_rate - test_case.for_rate) * test_case.expiry);
+
+        double vol_sqrt_t = test_case.volatility * std::sqrt(test_case.expiry);
+        double d2 = (std::log(forward / test_case.barrier) -
+                    0.5 * test_case.volatility * test_case.volatility * test_case.expiry) / vol_sqrt_t;
+
+        if (test_case.is_call) {
+            return normal_cdf(d2);
+        } else {
+            return normal_cdf(-d2);
+        }
+    }
+};
+```
+
+#### **🔍 Digital Greeks Validation**
+
+##### **Tests de Validation des Greeks Digitaux**
+```cpp
+// Tests de validation des Greeks pour FXDigitalOpt dans Our project
+class fxdigitalopt_greeks_validation_tester {
+public:
+    struct digital_greeks_test_results {
+        std::map<std::string, double> analytical_greeks;
+        std::map<std::string, double> finite_difference_greeks;
+        std::map<std::string, double> greek_errors;
+        bool all_greeks_validated;
+        std::string problematic_greek;
+    };
+
+    digital_greeks_test_results test_digital_greeks_validation(
+        const FXDigitalOpt& digital_option,
+        const fx_market_data& market) {
+
+        digital_greeks_test_results results;
+
+        // Greeks analytiques
+        auto sensitivities = digital_option.calculate_sensitivities(market);
+        results.analytical_greeks["DELTA"] = sensitivities.fx_delta;
+        results.analytical_greeks["GAMMA"] = sensitivities.fx_gamma;
+        results.analytical_greeks["VEGA"] = sensitivities.vega;
+        results.analytical_greeks["THETA"] = sensitivities.theta;
+        results.analytical_greeks["RHO_DOM"] = sensitivities.domestic_ir_delta;
+        results.analytical_greeks["RHO_FOR"] = sensitivities.foreign_ir_delta;
+
+        // Greeks par différences finies (avec chocs adaptés pour digitales)
+        results.finite_difference_greeks["DELTA"] = calculate_digital_delta_fd(digital_option, market);
+        results.finite_difference_greeks["GAMMA"] = calculate_digital_gamma_fd(digital_option, market);
+        results.finite_difference_greeks["VEGA"] = calculate_digital_vega_fd(digital_option, market);
+        results.finite_difference_greeks["THETA"] = calculate_digital_theta_fd(digital_option, market);
+        results.finite_difference_greeks["RHO_DOM"] = calculate_digital_rho_dom_fd(digital_option, market);
+        results.finite_difference_greeks["RHO_FOR"] = calculate_digital_rho_for_fd(digital_option, market);
+
+        // Calcul des erreurs
+        results.all_greeks_validated = true;
+        for (const auto& [greek_name, analytical_value] : results.analytical_greeks) {
+            double fd_value = results.finite_difference_greeks[greek_name];
+            double error = std::abs(analytical_value - fd_value);
+            results.greek_errors[greek_name] = error;
+
+            // Validation avec tolérance adaptée pour digitales
+            double tolerance = get_digital_greek_tolerance(greek_name);
+            if (error > tolerance) {
+                results.all_greeks_validated = false;
+                results.problematic_greek = greek_name;
+            }
+
+            EXPECT_LT(error, tolerance);
+        }
+
+        return results;
+    }
+
+private:
+    double calculate_digital_delta_fd(const FXDigitalOpt& digital_option,
+                                     const fx_market_data& market) {
+        // Choc plus petit pour digitales (sensibilité élevée près de la barrière)
+        const double spot_shock = 1e-8;
+
+        // PV de base
+        double pv_base = digital_option.calculate_pv(market);
+
+        // Choc positif du spot
+        auto market_up = shock_fx_spot(market, +spot_shock);
+        double pv_up = digital_option.calculate_pv(market_up);
+
+        // Choc négatif du spot
+        auto market_down = shock_fx_spot(market, -spot_shock);
+        double pv_down = digital_option.calculate_pv(market_down);
+
+        // Delta par différences finies centrées
+        return (pv_up - pv_down) / (2.0 * spot_shock);
+    }
+
+    double calculate_digital_gamma_fd(const FXDigitalOpt& digital_option,
+                                     const fx_market_data& market) {
+        const double spot_shock = 1e-8;
+
+        // PV de base
+        double pv_base = digital_option.calculate_pv(market);
+
+        // Chocs du spot
+        auto market_up = shock_fx_spot(market, +spot_shock);
+        double pv_up = digital_option.calculate_pv(market_up);
+
+        auto market_down = shock_fx_spot(market, -spot_shock);
+        double pv_down = digital_option.calculate_pv(market_down);
+
+        // Gamma par différences finies
+        return (pv_up - 2.0 * pv_base + pv_down) / (spot_shock * spot_shock);
+    }
+
+    double get_digital_greek_tolerance(const std::string& greek_name) {
+        // Tolérances plus larges pour digitales (discontinuités)
+        if (greek_name == "DELTA") return 1e-6;  // Plus large pour digitales
+        if (greek_name == "GAMMA") return 1e-4;  // Très large (pic de Dirac)
+        if (greek_name == "VEGA") return 1e-6;
+        if (greek_name == "THETA") return 1e-5;
+        if (greek_name == "RHO_DOM" || greek_name == "RHO_FOR") return 1e-6;
+        return 1e-6; // Défaut
+    }
+};
+```
+
+#### **🔍 Call Spread Replication Testing**
+
+##### **Tests de Réplication par Call Spread**
+```cpp
+// Tests de réplication digitale par call spread dans Our project
+class fxdigitalopt_call_spread_replication_tester {
+public:
+    struct replication_test_results {
+        double digital_price;
+        double call_spread_price;
+        double replication_error;
+        double convergence_rate;
+        bool replication_validated;
+    };
+
+    replication_test_results test_call_spread_replication(
+        const FXDigitalOpt& digital_option,
+        const fx_market_data& market) {
+
+        replication_test_results results;
+
+        // Prix de l'option digitale
+        results.digital_price = digital_option.calculate_pv(market);
+
+        // Test de convergence avec différents spreads
+        std::vector<double> spread_sizes = {0.1, 0.01, 0.001, 0.0001, 0.00001};
+        std::vector<double> call_spread_prices;
+
+        auto spec = digital_option.get_specification();
+
+        for (double spread : spread_sizes) {
+            // Création du call spread réplicant
+            double call_spread_price = calculate_replicating_call_spread(
+                spec, market, spread);
+            call_spread_prices.push_back(call_spread_price);
+        }
+
+        // Prix du call spread le plus fin
+        results.call_spread_price = call_spread_prices.back();
+        results.replication_error = std::abs(results.digital_price - results.call_spread_price);
+
+        // Analyse de la convergence
+        results.convergence_rate = analyze_convergence_rate(call_spread_prices, spread_sizes);
+
+        // Validation
+        results.replication_validated = (results.replication_error < 1e-4);
+
+        return results;
+    }
+
+private:
+    double calculate_replicating_call_spread(
+        const FXDigitalOpt::digital_option_specification& digital_spec,
+        const fx_market_data& market,
+        double spread_size) {
+
+        // Configuration des calls pour le spread
+        FXEuroOpt::european_option_specification call_lower_spec;
+        call_lower_spec.currency_pair = digital_spec.currency_pair;
+        call_lower_spec.strike = digital_spec.barrier - spread_size / 2.0;
+        call_lower_spec.expiry = digital_spec.expiry;
+        call_lower_spec.is_call = true;
+        call_lower_spec.notional = digital_spec.payout / spread_size;
+
+        auto call_upper_spec = call_lower_spec;
+        call_upper_spec.strike = digital_spec.barrier + spread_size / 2.0;
+
+        FXEuroOpt call_lower(call_lower_spec);
+        FXEuroOpt call_upper(call_upper_spec);
+
+        // Prix du call spread
+        double call_spread_price = call_lower.calculate_pv(market) -
+                                 call_upper.calculate_pv(market);
+
+        // Ajustement pour digital put
+        if (!digital_spec.is_call) {
+            // Digital put = Payout * DF - Digital call
+            double discount_factor = std::exp(-market.get_domestic_rate(digital_spec.expiry) *
+                                            digital_spec.expiry);
+            call_spread_price = digital_spec.payout * discount_factor - call_spread_price;
+        }
+
+        return call_spread_price;
+    }
+
+    double analyze_convergence_rate(const std::vector<double>& prices,
+                                   const std::vector<double>& spreads) {
+        // Analyse de la vitesse de convergence
+        if (prices.size() < 2) return 0.0;
+
+        double convergence_rate = 0.0;
+        for (size_t i = 1; i < prices.size(); ++i) {
+            double price_change = std::abs(prices[i] - prices[i-1]);
+            double spread_ratio = spreads[i-1] / spreads[i];
+
+            if (price_change > 1e-12) {
+                convergence_rate += std::log(price_change) / std::log(spread_ratio);
+            }
+        }
+
+        return convergence_rate / (prices.size() - 1);
+    }
+};
+```
+
+---
+
+## 🏛️ **Stability Testing**
+
+### **Tests de Stabilité sous Stress**
+
+#### **🔍 Barrier Proximity Stress Testing**
+
+##### **Tests de Stress de Proximité à la Barrière**
+```cpp
+// Tests de stabilité près de la barrière pour FXDigitalOpt dans Our project
+class fxdigitalopt_barrier_proximity_tester {
+public:
+    void test_barrier_proximity_stability(const FXDigitalOpt& digital_option,
+                                         const fx_market_data& base_market) {
+
+        auto spec = digital_option.get_specification();
+
+        // Tests de proximité à la barrière
+        test_spot_near_barrier_stability(digital_option, base_market);
+
+        // Tests de volatilité près de la barrière
+        test_volatility_near_barrier_stability(digital_option, base_market);
+
+        // Tests de temps près de l'expiry
+        test_time_to_expiry_stability(digital_option, base_market);
+    }
+
+private:
+    void test_spot_near_barrier_stability(const FXDigitalOpt& digital_option,
+                                         const fx_market_data& base_market) {
+
+        std::cout << "=== Barrier Proximity Stability Testing ===" << std::endl;
+
+        auto spec = digital_option.get_specification();
+
+        // Tests très près de la barrière (±0.01% à ±10%)
+        std::vector<double> proximity_factors = {
+            0.9999, 0.999, 0.99, 0.95, 0.9, 0.8,  // En dessous
+            1.0001, 1.001, 1.01, 1.05, 1.1, 1.2   // Au dessus
+        };
+
+        for (double factor : proximity_factors) {
+            double test_spot = spec.barrier * factor;
+            auto test_market = set_fx_spot(base_market, spec.currency_pair, test_spot);
+
+            // Calcul des métriques
+            double pv = digital_option.calculate_pv(test_market);
+            auto sensitivities = digital_option.calculate_sensitivities(test_market);
+
+            // Validation de stabilité numérique
+            EXPECT_TRUE(std::isfinite(pv));
+            EXPECT_GE(pv, 0.0);
+            EXPECT_LE(pv, spec.payout * std::exp(-base_market.get_domestic_rate(spec.expiry) * spec.expiry));
+
+            // Validation des sensibilités
+            EXPECT_TRUE(std::isfinite(sensitivities.fx_delta));
+            EXPECT_TRUE(std::isfinite(sensitivities.fx_gamma));
+
+            // Validation de cohérence économique
+            validate_digital_economic_coherence(spec, test_spot, pv, sensitivities);
+
+            double distance_to_barrier = std::abs(test_spot - spec.barrier) / spec.barrier * 100.0;
+            std::cout << "Distance to Barrier: " << distance_to_barrier << "%, "
+                      << "PV: " << pv << ", "
+                      << "Delta: " << sensitivities.fx_delta << std::endl;
+        }
+    }
+
+    void test_volatility_near_barrier_stability(const FXDigitalOpt& digital_option,
+                                               const fx_market_data& base_market) {
+
+        std::cout << "=== Volatility Near Barrier Stability Testing ===" << std::endl;
+
+        auto spec = digital_option.get_specification();
+
+        // Configuration avec spot très près de la barrière
+        double near_barrier_spot = spec.barrier * (1.0 + (spec.is_call ? 0.001 : -0.001));
+        auto near_barrier_market = set_fx_spot(base_market, spec.currency_pair, near_barrier_spot);
+
+        // Tests de volatilité de 0.1% à 500%
+        for (double vol_level = 0.001; vol_level <= 5.0; vol_level += 0.1) {
+            auto test_market = set_fx_volatility_level(near_barrier_market, vol_level);
+
+            double pv = digital_option.calculate_pv(test_market);
+            auto sensitivities = digital_option.calculate_sensitivities(test_market);
+
+            // Validation de stabilité
+            EXPECT_TRUE(std::isfinite(pv));
+            EXPECT_GE(pv, 0.0);
+            EXPECT_TRUE(std::isfinite(sensitivities.vega));
+
+            // Pour digitales, Vega peut être négatif près de la barrière
+            // mais doit rester fini
+
+            std::cout << "Vol Level: " << (vol_level * 100) << "%, "
+                      << "PV: " << pv << ", "
+                      << "Vega: " << sensitivities.vega << std::endl;
+        }
+    }
+
+    void validate_digital_economic_coherence(
+        const FXDigitalOpt::digital_option_specification& spec,
+        double spot,
+        double pv,
+        const fx_sensitivities& sensitivities) {
+
+        // Pour digital call, si spot >> barrier, PV doit approcher payout*DF
+        if (spec.is_call && spot > spec.barrier * 1.5) {
+            // Delta doit être proche de zéro (déjà dans la monnaie)
+            EXPECT_LT(std::abs(sensitivities.fx_delta), 1e-6);
+        }
+
+        // Pour digital put, si spot << barrier, PV doit approcher payout*DF
+        if (!spec.is_call && spot < spec.barrier * 0.5) {
+            // Delta doit être proche de zéro (déjà dans la monnaie)
+            EXPECT_LT(std::abs(sensitivities.fx_delta), 1e-6);
+        }
+
+        // Près de la barrière, Delta doit être significatif
+        double distance_ratio = std::abs(spot - spec.barrier) / spec.barrier;
+        if (distance_ratio < 0.01) { // Très près de la barrière
+            EXPECT_GT(std::abs(sensitivities.fx_delta), 1e-8);
+        }
+    }
+};
+```
+
+#### **🔍 Volatility Stress Testing**
+
+##### **Tests de Stress de Volatilité Extrême**
+```cpp
+// Tests de stress de volatilité pour FXDigitalOpt dans Our project
+class fxdigitalopt_volatility_stress_tester {
+public:
+    void test_extreme_volatility_scenarios(const FXDigitalOpt& digital_option,
+                                          const fx_market_data& base_market) {
+
+        // Tests de volatilité extrêmement faible
+        test_ultra_low_volatility(digital_option, base_market);
+
+        // Tests de volatilité extrêmement élevée
+        test_ultra_high_volatility(digital_option, base_market);
+
+        // Tests de chocs de volatilité
+        test_volatility_shock_stability(digital_option, base_market);
+    }
+
+private:
+    void test_ultra_low_volatility(const FXDigitalOpt& digital_option,
+                                  const fx_market_data& base_market) {
+
+        std::cout << "=== Ultra Low Volatility Testing ===" << std::endl;
+
+        // Volatilités très faibles (0.01% à 1%)
+        std::vector<double> ultra_low_vols = {0.0001, 0.0005, 0.001, 0.005, 0.01};
+
+        for (double vol : ultra_low_vols) {
+            auto low_vol_market = set_fx_volatility_level(base_market, vol);
+
+            double pv = digital_option.calculate_pv(low_vol_market);
+            auto sensitivities = digital_option.calculate_sensitivities(low_vol_market);
+
+            // Validation de stabilité numérique
+            EXPECT_TRUE(std::isfinite(pv));
+            EXPECT_GE(pv, 0.0);
+
+            // Avec volatilité très faible, le comportement doit converger vers déterministe
+            validate_low_volatility_convergence(digital_option, low_vol_market, pv);
+
+            std::cout << "Ultra Low Vol: " << (vol * 100) << "%, "
+                      << "PV: " << pv << ", "
+                      << "Vega: " << sensitivities.vega << std::endl;
+        }
+    }
+
+    void test_ultra_high_volatility(const FXDigitalOpt& digital_option,
+                                   const fx_market_data& base_market) {
+
+        std::cout << "=== Ultra High Volatility Testing ===" << std::endl;
+
+        // Volatilités très élevées (100% à 1000%)
+        std::vector<double> ultra_high_vols = {1.0, 2.0, 5.0, 10.0};
+
+        for (double vol : ultra_high_vols) {
+            auto high_vol_market = set_fx_volatility_level(base_market, vol);
+
+            double pv = digital_option.calculate_pv(high_vol_market);
+            auto sensitivities = digital_option.calculate_sensitivities(high_vol_market);
+
+            // Validation de stabilité numérique
+            EXPECT_TRUE(std::isfinite(pv));
+            EXPECT_GE(pv, 0.0);
+
+            // Avec volatilité très élevée, probabilité doit converger vers 0.5
+            validate_high_volatility_convergence(digital_option, high_vol_market, pv);
+
+            std::cout << "Ultra High Vol: " << (vol * 100) << "%, "
+                      << "PV: " << pv << ", "
+                      << "Vega: " << sensitivities.vega << std::endl;
+        }
+    }
+
+    void validate_low_volatility_convergence(const FXDigitalOpt& digital_option,
+                                            const fx_market_data& market,
+                                            double pv) {
+
+        auto spec = digital_option.get_specification();
+
+        // Calcul du forward
+        double spot = market.get_fx_spot(spec.currency_pair);
+        double dom_rate = market.get_domestic_rate(spec.expiry);
+        double for_rate = market.get_foreign_rate(spec.expiry);
+        double forward = spot * std::exp((dom_rate - for_rate) * spec.expiry);
+
+        // Prix déterministe attendu
+        double discount_factor = std::exp(-dom_rate * spec.expiry);
+        double deterministic_pv;
+
+        if (spec.is_call) {
+            deterministic_pv = (forward >= spec.barrier) ? spec.payout * discount_factor : 0.0;
+        } else {
+            deterministic_pv = (forward <= spec.barrier) ? spec.payout * discount_factor : 0.0;
+        }
+
+        // Validation de convergence (tolérance plus large pour cas limites)
+        double convergence_error = std::abs(pv - deterministic_pv);
+        EXPECT_LT(convergence_error, 0.01 * spec.payout * discount_factor);
+    }
+
+    void validate_high_volatility_convergence(const FXDigitalOpt& digital_option,
+                                             const fx_market_data& market,
+                                             double pv) {
+
+        auto spec = digital_option.get_specification();
+        double dom_rate = market.get_domestic_rate(spec.expiry);
+        double discount_factor = std::exp(-dom_rate * spec.expiry);
+
+        // Avec volatilité très élevée, probabilité converge vers 0.5
+        double expected_pv = 0.5 * spec.payout * discount_factor;
+        double convergence_error = std::abs(pv - expected_pv);
+
+        // Tolérance plus large pour volatilités extrêmes
+        EXPECT_LT(convergence_error, 0.1 * spec.payout * discount_factor);
+    }
+};
+```
+
+---
+
+## 📊 **Regulatory Framework Testing**
+
+### **Tests sous Frameworks Réglementaires**
+
+#### **🔍 CCAR Testing avec Options Digitales**
+
+##### **Tests CCAR Spécialisés pour Digitales**
+```cpp
+// Tests CCAR pour options digitales dans Our project
+class ccar_digital_option_tester {
+public:
+    void run_ccar_digital_tests(const FXDigitalOpt& digital_option) {
+
+        // Scénarios CCAR avec focus sur discontinuités digitales
+        std::vector<ccar_digital_scenario> scenarios = {
+            create_baseline_digital_scenario(),
+            create_severely_adverse_digital_scenario(),
+            create_adverse_digital_scenario()
+        };
+
+        for (const auto& scenario : scenarios) {
+            test_digital_under_ccar_scenario(digital_option, scenario);
+        }
+    }
+
+private:
+    struct ccar_digital_scenario {
+        std::string scenario_name;
+        std::vector<market_data_snapshot> quarterly_snapshots;
+        std::map<std::string, double> fx_stress_factors;
+        std::map<std::string, double> volatility_stress_factors;
+        std::string description;
+    };
+
+    void test_digital_under_ccar_scenario(const FXDigitalOpt& digital_option,
+                                         const ccar_digital_scenario& scenario) {
+
+        std::cout << "Testing digital option under: " << scenario.scenario_name << std::endl;
+
+        auto spec = digital_option.get_specification();
+
+        for (int quarter = 1; quarter <= 9; ++quarter) {
+            const auto& market_data = scenario.quarterly_snapshots[quarter-1];
+
+            // Application du stress FX et volatilité
+            auto stressed_market = apply_ccar_digital_stress(market_data, scenario);
+
+            // Calcul des métriques sous stress
+            double pv = digital_option.calculate_pv(stressed_market);
+            auto sensitivities = digital_option.calculate_sensitivities(stressed_market);
+
+            // Validation de stabilité
+            EXPECT_TRUE(std::isfinite(pv));
+            EXPECT_GE(pv, 0.0);
+
+            // Tests spécifiques aux digitales sous stress
+            validate_digital_behavior_under_ccar_stress(digital_option, stressed_market, scenario);
+
+            // Analyse de proximité à la barrière sous stress
+            analyze_barrier_proximity_under_stress(digital_option, stressed_market);
+
+            // Documentation des résultats CCAR
+            document_ccar_digital_results(scenario.scenario_name, quarter, pv, sensitivities);
+        }
+    }
+
+    void validate_digital_behavior_under_ccar_stress(
+        const FXDigitalOpt& digital_option,
+        const market_data& stressed_market,
+        const ccar_digital_scenario& scenario) {
+
+        auto spec = digital_option.get_specification();
+
+        // Vérification que les discontinuités restent gérables
+        double current_spot = stressed_market.get_fx_spot(spec.currency_pair);
+        double distance_to_barrier = std::abs(current_spot - spec.barrier) / spec.barrier;
+
+        // Alerte si très proche de la barrière sous stress
+        if (distance_to_barrier < 0.05) { // 5%
+            XSIGMA_WARN("Digital option very close to barrier under CCAR stress");
+
+            // Tests de sensibilité accrue
+            test_enhanced_sensitivity_near_barrier(digital_option, stressed_market);
+        }
+
+        // Validation que les Greeks restent dans des bornes raisonnables
+        auto sensitivities = digital_option.calculate_sensitivities(stressed_market);
+        validate_digital_greeks_bounds(sensitivities, spec);
+    }
+
+    void test_enhanced_sensitivity_near_barrier(const FXDigitalOpt& digital_option,
+                                               const market_data& stressed_market) {
+
+        // Tests de sensibilité avec chocs plus fins près de la barrière
+        std::vector<double> fine_shocks = {1e-6, 5e-6, 1e-5, 5e-5, 1e-4};
+
+        for (double shock : fine_shocks) {
+            auto market_up = shock_fx_spot(stressed_market, +shock);
+            auto market_down = shock_fx_spot(stressed_market, -shock);
+
+            double pv_up = digital_option.calculate_pv(market_up);
+            double pv_down = digital_option.calculate_pv(market_down);
+
+            // Validation de stabilité numérique avec chocs fins
+            EXPECT_TRUE(std::isfinite(pv_up));
+            EXPECT_TRUE(std::isfinite(pv_down));
+
+            double fine_delta = (pv_up - pv_down) / (2.0 * shock);
+            EXPECT_TRUE(std::isfinite(fine_delta));
+        }
+    }
+};
+```
+
+---
+
+*Cette section fournit une documentation complète des tests de produit pour FXDigitalOpt, intégrant les implémentations C++ de Our project avec des méthodologies de validation spécialisées pour les options digitales, incluant les tests de probabilités, Greeks, réplication par call spread et stabilité près des barrières.*
+```

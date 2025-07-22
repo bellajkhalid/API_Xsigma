@@ -1,0 +1,273 @@
+# Testing and Validation
+
+## Overview
+
+The testing and validation framework for the SABR/GSABR models in Our project ensures accuracy, reliability, and robustness across all market conditions. The comprehensive testing program includes unit tests, integration tests, historical validation, and stress testing to provide confidence in production deployment.
+
+## 8.1 Accuracy, Robustness, and Stability Testing
+
+### 8.1.1 Grid Convergence
+
+It is clear from figures (8.1, 8.2, 8.3) above that the model converges with a grid size of 400 points since the implied volatility difference between 400 points and 600 points is almost 0 for all strikes.
+
+### 8.1.2 Monotonicity and Call-Put Parity
+
+We consider the sanity checks of the monotonicity of the call price with respect to forward rates and strikes, we check the validity of the Call-Put Parity, and finally, the monotonicity of the right wing with respect to parameters $\beta_2$ and $d$.
+
+We consider a EUR 10Y 10Y with ATMByVol of 0.5543% and a forward of 0.5729%.
+
+**Figure 8.3:** Grid convergence - EUR 30Y30Y - 29/09/2020
+
+## 8.2 Scenario and Stress-Testing
+
+For dependent models, the only relevant output provided to downstream models is implied volatility, so all testing was conducted with that output. Furthermore, there's a one-to-one correspondence between PV and the implied volatility via BS/Bachelier formulas, so one can consider just implied volatility in general.
+
+We examine the CCAR 2021 stress scenarios using the SABR bumping methodology. As a reminder, that means:
+
+- The bumped model is centered around a new at-the-money by a parallel shift in strike space.
+- The bumped model is shifted in volatility space according to the vol bump.
+
+The stressed model is achieved by recalibration of a GSABR model using $\alpha$, $\rho$, speed, and $\nu_L$. The tests may be rerun in case of marked market conditions change or very different CCAR scenarios. Calibration is a best fit, so no precise error threshold can be specified, but as discussed, we are explicitly guaranteeing that the error on ATM is less than 2bp. In practice, though, the error is much smaller, with an average of 0.1bp and a maximum of 1.1bp on the tested scenarios.
+
+### 8.2.1 ATM Surface
+
+We have looked at the impact of stress on the implied ATM normal volatility on the surface with scalings of 0%, 25%, 50%, 75%, and 100%, and the implied surface is smoothly approaching the full stress as the scaling is increased.
+
+#### GSABR Model: ATM Error Analysis
+
+##### Scaling Impact on ATM Error Rates
+
+The following tables present ATM (At-The-Money) error measurements for the GSABR Beta Mixture model under different scaling factors. These measurements were taken on June 15, 2021, and demonstrate how the model's accuracy changes with different parameter scaling values.
+
+#### Figure 8.4: ATM Error - 25% Scaling - 15/06/2021
+
+This table shows the error measurements with a 25% scaling factor applied to the model parameters. The red cells indicate error values exceeding the acceptable threshold.
+
+| Tenor | 0.083 | 0.250 | 0.500 | 1.000 | 2.000 | 3.000 | 5.000 | 7.000 | 10.00 | 15.00 | 20.00 | 30.00 | 50.00 |
+|-------|-------|-------|-------|-------|-------|-------|-------|-------|-------|-------|-------|-------|-------|
+| 0.050 | -0.01 | -0.01 | -0.11 | -0.13 | -0.16 | -0.19 | -0.20 | -0.21 | -0.22 | -0.22 | -0.22 | -0.23 | -0.23 |
+| 0.250 | -0.12 | -0.08 | -0.06 | -0.04 | -0.03 | -0.02 | -0.01 | -0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 |
+| 1.000 | -0.10 | -0.11 | -0.10 | -0.09 | -0.08 | -0.07 | -0.05 | -0.04 | -0.03 | -0.03 | -0.02 | -0.02 | -0.01 |
+| 2.000 | -0.06 | -0.06 | -0.06 | -0.05 | -0.05 | -0.04 | -0.03 | -0.03 | -0.02 | -0.02 | -0.02 | -0.01 | -0.01 |
+| 3.000 | -0.03 | -0.03 | -0.03 | -0.03 | -0.02 | -0.02 | -0.01 | -0.01 | -0.01 | -0.01 | -0.01 | -0.00 | -0.00 |
+| 5.000 | -0.01 | -0.01 | -0.01 | -0.01 | -0.01 | -0.01 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 | 0.00 |
+| 7.000 | -0.01 | -0.01 | -0.01 | -0.01 | -0.01 | -0.01 | -0.01 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 | 0.00 |
+| 10.000 | -0.01 | -0.01 | -0.01 | -0.01 | -0.01 | -0.01 | -0.01 | -0.01 | -0.00 | -0.00 | -0.00 | -0.00 | 0.00 |
+| 20.000 | -0.01 | -0.01 | -0.01 | -0.01 | -0.01 | -0.01 | -0.01 | -0.01 | -0.01 | -0.00 | -0.00 | -0.00 | 0.00 |
+| 30.000 | -0.01 | -0.01 | -0.01 | -0.01 | -0.01 | -0.01 | -0.01 | -0.01 | -0.01 | -0.00 | -0.00 | -0.00 | -0.00 |
+
+#### Figure 8.5: ATM Error - 50% Scaling - 15/06/2021
+
+This table shows the error measurements with a 50% scaling factor applied to the model parameters.
+
+| Tenor | 0.083 | 0.250 | 0.500 | 1.000 | 2.000 | 3.000 | 5.000 | 7.000 | 10.00 | 15.00 | 20.00 | 30.00 | 50.00 |
+|-------|-------|-------|-------|-------|-------|-------|-------|-------|-------|-------|-------|-------|-------|
+| 0.050 | -0.01 | -0.01 | -0.10 | -0.12 | -0.15 | -0.18 | -0.20 | -0.20 | -0.21 | -0.21 | -0.21 | -0.22 | -0.22 |
+| 0.250 | -0.11 | -0.07 | -0.06 | -0.04 | -0.02 | -0.01 | -0.01 | -0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 |
+| 1.000 | -0.09 | -0.10 | -0.09 | -0.08 | -0.07 | -0.06 | -0.05 | -0.04 | -0.03 | -0.02 | -0.02 | -0.01 | -0.01 |
+| 2.000 | -0.05 | -0.05 | -0.05 | -0.05 | -0.04 | -0.04 | -0.03 | -0.02 | -0.02 | -0.01 | -0.01 | -0.01 | -0.01 |
+| 3.000 | -0.02 | -0.02 | -0.02 | -0.02 | -0.02 | -0.02 | -0.01 | -0.01 | -0.01 | -0.01 | -0.00 | -0.00 | -0.00 |
+| 5.000 | -0.01 | -0.01 | -0.01 | -0.01 | -0.01 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 | 0.00 | 0.00 |
+| 7.000 | -0.01 | -0.01 | -0.01 | -0.01 | -0.01 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 | 0.00 | 0.00 |
+| 10.000 | -0.01 | -0.01 | -0.01 | -0.01 | -0.01 | -0.01 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 | 0.00 | 0.00 |
+| 20.000 | -0.01 | -0.01 | -0.01 | -0.01 | -0.01 | -0.01 | -0.01 | -0.01 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 |
+| 30.000 | -0.01 | -0.01 | -0.01 | -0.01 | -0.01 | -0.01 | -0.01 | -0.01 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 |
+
+#### Figure 8.6: ATM Error - 75% Scaling - 15/06/2021
+
+This table shows the error measurements with a 75% scaling factor applied to the model parameters.
+
+| Tenor | 0.083 | 0.250 | 0.500 | 1.000 | 2.000 | 3.000 | 5.000 | 7.000 | 10.00 | 15.00 | 20.00 | 30.00 | 50.00 |
+|-------|-------|-------|-------|-------|-------|-------|-------|-------|-------|-------|-------|-------|-------|
+| 0.050 | -0.01 | -0.01 | -0.10 | -0.11 | -0.14 | -0.17 | -0.19 | -0.19 | -0.20 | -0.20 | -0.20 | -0.21 | -0.21 |
+| 0.250 | -0.10 | -0.07 | -0.05 | -0.03 | -0.02 | -0.01 | -0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 |
+| 1.000 | -0.08 | -0.09 | -0.08 | -0.07 | -0.06 | -0.05 | -0.04 | -0.03 | -0.02 | -0.02 | -0.01 | -0.01 | -0.01 |
+| 2.000 | -0.04 | -0.04 | -0.04 | -0.04 | -0.03 | -0.03 | -0.02 | -0.02 | -0.01 | -0.01 | -0.01 | -0.01 | -0.00 |
+| 3.000 | -0.02 | -0.02 | -0.02 | -0.02 | -0.02 | -0.01 | -0.01 | -0.01 | -0.01 | -0.00 | -0.00 | -0.00 | -0.00 |
+| 5.000 | -0.01 | -0.01 | -0.01 | -0.01 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 | 0.00 | 0.00 | 0.00 |
+| 7.000 | -0.01 | -0.01 | -0.01 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 | 0.00 | 0.00 | 0.00 |
+| 10.000 | -0.01 | -0.01 | -0.01 | -0.01 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 | 0.00 | 0.00 | 0.00 |
+| 20.000 | -0.01 | -0.01 | -0.01 | -0.01 | -0.01 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 |
+| 30.000 | -0.01 | -0.01 | -0.01 | -0.01 | -0.01 | -0.01 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 |
+
+#### Figure 8.7: ATM Error - 100% Scaling - 15/06/2021
+
+This table shows the error measurements with a 100% scaling factor applied to the model parameters.
+
+| Tenor | 0.083 | 0.250 | 0.500 | 1.000 | 2.000 | 3.000 | 5.000 | 7.000 | 10.00 | 15.00 | 20.00 | 30.00 | 50.00 |
+|-------|-------|-------|-------|-------|-------|-------|-------|-------|-------|-------|-------|-------|-------|
+| 0.050 | -0.00 | -0.01 | -0.09 | -0.11 | -0.13 | -0.16 | -0.18 | -0.18 | -0.19 | -0.19 | -0.19 | -0.19 | -0.20 |
+| 0.250 | -0.10 | -0.06 | -0.04 | -0.03 | -0.01 | -0.01 | -0.00 | 0.00 | 0.00 | 0.01 | 0.01 | 0.01 | 0.01 |
+| 1.000 | -0.07 | -0.08 | -0.07 | -0.06 | -0.05 | -0.04 | -0.03 | -0.03 | -0.02 | -0.01 | -0.01 | -0.01 | -0.00 |
+| 2.000 | -0.04 | -0.04 | -0.04 | -0.03 | -0.03 | -0.02 | -0.02 | -0.01 | -0.01 | -0.01 | -0.01 | -0.00 | -0.00 |
+| 3.000 | -0.02 | -0.02 | -0.02 | -0.01 | -0.01 | -0.01 | -0.01 | -0.01 | -0.00 | -0.00 | -0.00 | -0.00 | 0.00 |
+| 5.000 | -0.01 | -0.01 | -0.01 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 | 0.00 | 0.00 | 0.00 | 0.00 |
+| 7.000 | -0.01 | -0.01 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 |
+| 10.000 | -0.01 | -0.01 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 |
+| 20.000 | -0.01 | -0.01 | -0.01 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 |
+| 30.000 | -0.01 | -0.01 | -0.01 | -0.01 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 |
+
+##### Analysis of Scaling Effects
+
+The tables above demonstrate how different scaling factors (25%, 50%, 75%, and 100%) affect the ATM error rates in the GSABR Beta Mixture model. Several observations can be made:
+
+1. **Error Magnitude**: As the scaling factor increases from 25% to 100%, there is a general trend of error reduction across most tenor-maturity combinations.
+
+2. **Short-Term Tenors**: The shortest tenor (0.050) consistently shows the largest errors across all scaling factors, particularly for medium to long maturities.
+
+3. **Error Distribution**: Negative errors (model underpricing) are predominant across all scaling factors, with very few positive errors.
+
+4. **Optimal Scaling**: Based on the error patterns, higher scaling factors (75% and 100%) appear to produce better overall results, with fewer cells showing significant errors.
+
+5. **Long-Term Behavior**: For longer tenors (10+ years), the errors become minimal across all scaling factors, suggesting the model is more robust for long-dated instruments.
+
+This error analysis helps in determining the optimal scaling factor for the GSABR Beta Mixture model implementation, balancing accuracy across different regions of the volatility surface.
+
+## SABR Testing Implementation from Our Project
+
+**Test Infrastructure Classes**:
+```cpp
+namespace xsigma {
+    // Main test class for SABR model validation
+    class sabr_model_tester {
+    public:
+        // Constructor
+        sabr_model_tester(
+            const ptr_const<volatility_model_sabr>& model,
+            double forward,
+            double expiry);
+
+        // Unit tests for core functionality
+        bool test_sabr_basic_operations() const;
+        bool test_implied_volatility_accuracy() const;
+        bool test_calibration_convergence() const;
+        bool test_pde_solver_stability() const;
+        bool test_zabr_convergence() const;
+
+        // Integration tests
+        bool test_sabr_vs_zabr_consistency() const;
+        bool test_risk_calculation_accuracy() const;
+        bool test_cross_currency_consistency() const;
+
+        // Validation tests
+        bool test_market_data_repricing() const;
+        bool test_arbitrage_free_conditions() const;
+        bool test_volatility_smile_properties() const;
+
+        // Performance tests
+        bool test_pricing_performance() const;
+        bool test_calibration_performance() const;
+        bool test_memory_usage() const;
+
+        // Generate comprehensive test report
+        test_report generate_full_report() const;
+
+    private:
+        ptr_const<volatility_model_sabr> model_;
+        double forward_;
+        double expiry_;
+        
+        // Helper functions
+        bool compare_with_tolerance(double actual, double expected, double tolerance) const;
+        std::vector<test_result> run_test_suite(const std::string& suite_name) const;
+    };
+
+    // SABR implied volatility test function from Our project
+    double implied_volatility(
+        double fwd,
+        double strike,
+        double expiry,
+        double alpha,
+        double beta,
+        double nu,
+        double rho,
+        double shift,
+        bool is_skew_dampening,
+        bool bachelier = false) {
+        
+        volatility_model_sabr obj(alpha, beta, rho, nu, shift, is_skew_dampening);
+
+        const auto p = obj.price(fwd, strike, expiry, 1., 1.);
+        if (bachelier) {
+            return p > 0. ? xsigma::bachelier::implied_volatility(fwd, strike, expiry, p, 1., 1.) : 0.;
+        }
+        return p > 0. ? xsigma::black_scholes::implied_volatility(fwd, strike, expiry, p, 1., 1.) : 0.;
+    }
+}
+```
+
+**ZABR PDE Testing**:
+```cpp
+namespace xsigma {
+    // PDE convergence test for ZABR
+    bool test_zabr_pde_convergence() {
+        double gamma = 1.;
+        double beta = 0.25;
+        double nu = 1.0;
+        double rho = -0.1;
+        double shift = -0.0;
+        int N = 100;
+        int timesteps = 5;
+        double nd = 5.0;
+        double T = 30.0;
+        double forward = 0.02;
+        double sigma_atm = 0.004641966;
+
+        double alpha = sabr_analytics::alpha(sigma_atm, forward, T, beta, nu, rho);
+
+        const auto stdev = forward * nd * sqrt(T);
+
+        // Create ZABR PDE model
+        auto model_zabr_pde_ptr = util::make_ptr_mutable<xsigma::volatility_model_pde_classic>(
+            forward,
+            T,
+            alpha,
+            beta,
+            rho,
+            nu,
+            shift,
+            N,
+            timesteps,
+            std::max(forward - stdev, shift),
+            forward + stdev);
+
+        // Test density calculation
+        xsigma::matrix<double> results(3, N);
+        xsigma::vector<double> K = results[0];
+
+        K.deepcopy(model_zabr_pde_ptr->strikes());
+        std::vector<double> strikes(K.begin(), K.end());
+
+        xsigma::vector<double> density_sabr_pde = results[1];
+        density_sabr_pde.deepcopy(model_zabr_pde_ptr->density());
+
+        // Create ZABR classic model for comparison
+        auto zabr_ptr = std::make_unique<xsigma::volatility_model_zabr_classic>(
+            forward,
+            T,
+            volatility_model_zabr_output_enum::PRICES,
+            interpolation_enum::LINEAR,
+            N,
+            nd,
+            alpha,
+            beta,
+            rho,
+            nu,
+            shift,
+            gamma);
+
+        xsigma::vector<double> density_zabr = results[2];
+        density_zabr.deepcopy(zabr_ptr->density());
+
+        // Compare densities
+        double max_difference = 0.0;
+        for (size_t i = 0; i < density_sabr_pde.size(); ++i) {
+            double diff = std::abs(density_sabr_pde[i] - density_zabr[i]);
+            max_difference = std::max(max_difference, diff);
+        }
+
+        // Test passes if maximum difference is below tolerance
+        return max_difference < 1e-6;
+    }
+}
+```

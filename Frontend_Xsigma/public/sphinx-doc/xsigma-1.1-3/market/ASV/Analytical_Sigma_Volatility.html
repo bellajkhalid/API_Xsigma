@@ -1,0 +1,3030 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="../../">
+  <head><meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="author" title="About these documents" href="../../about.html" /><link rel="index" title="Index" href="../../genindex.html" /><link rel="search" title="Search" href="../../search.html" />
+
+    <link rel="shortcut icon" href="../../_static/xsigma_favicon.png"/><!-- Generated with Sphinx 7.2.6 and Furo 2023.09.10 -->
+        <title>Analytical Sigma Volatility (ASV) - XSIGMA documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=a746c00c" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?v=135e06be" />
+    <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../../_static/design-style.1e8bd061cd6da7fc9cf755528e8ffc24.min.css?v=0a3b3ea7" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo-extensions.css?v=36a5483c" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f8f8f8;
+  --color-code-foreground: black;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-half" viewBox="0 0 24 24">
+    <title>Auto light/dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-shadow">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M13 12h5" />
+      <path d="M13 15h4" />
+      <path d="M13 18h1" />
+      <path d="M13 9h4" />
+      <path d="M13 6h1" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc">
+<label class="overlay sidebar-overlay" for="__navigation">
+  <div class="visually-hidden">Hide navigation sidebar</div>
+</label>
+<label class="overlay toc-overlay" for="__toc">
+  <div class="visually-hidden">Hide table of contents sidebar</div>
+</label>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <div class="visually-hidden">Toggle site navigation sidebar</div>
+        <i class="icon"><svg><use href="#svg-menu"></use></svg></i>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../../index.html"><div class="brand">XSIGMA  documentation</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle">
+          <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+          <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <div class="visually-hidden">Toggle table of contents sidebar</div>
+        <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="../../index.html">
+  
+  <div class="sidebar-logo-container">
+    <img class="sidebar-logo" src="../../_static/Logo.ico" alt="Logo"/>
+  </div>
+  
+  <span class="sidebar-brand-text">XSIGMA  documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="../../search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../about.html">About</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../index.html">Market</a><input class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><div class="visually-hidden">Toggle navigation of Market</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../Cheyette/Cheyette_Model.html">Cheyette Local Vol Model</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Curve%20Construction/Curve_Construction.html">Curve Construction and Risk Framework (New Curve Framework)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Fx/fx_volatility_surface.html">FX Analytic Volatility Surfaces</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Ir/Linear_Interest_Rate_Swaps.html">Linear Interest Rate Swaps</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Local_Volatility_PDE_MC/Local_Volatility_PDE_MC.html">Local Volatility: PDE and MC</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Implied%20Volatility%20Filter/Implied_Volatility_Filter.html">Implied Volatility Filter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Model%20RateDeterministic/RateDeterministic.html">The model RateDeterministic</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Model%20Short%20Rate%20Normal/Short_Rate_Normal.html">Short Rate Normal Model Validation Document</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../DBX-ShortRate%20and%20FX%20Skew%20Stochastic%20Volatility%20models/DBX-ShortRate_FXSkewStochVol.html">DBX-ShortRate_FXSkewStochVol Document</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../DBX-ShortRate%20and%20FX%20Skew%20Stochastic%20Volatility%20models/DBX-ShortRate_FXSkewStochVol.html#table-102-difference-in-implied-volatility-between-the-market-and-model-for-different-starting-localvols-in-the-domestic-jpy-ir-vol-object">Table 102: Difference in implied volatility between the market and model for different starting LocalVols in the domestic (JPY) IR vol object.</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../DBX-ShortRate%20and%20FX%20Skew%20Stochastic%20Volatility%20models/DBX-ShortRate_FXSkewStochVol.html#table-103-difference-in-price-between-the-market-and-model-for-different-starting-localvols-in-the-domestic-jpy-ir-vol-object">Table 103: Difference in price between the market and model for different starting LocalVols in the domestic (JPY) IR vol object.</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../DBX-ShortRate%20and%20FX%20Skew%20Stochastic%20Volatility%20models/DBX-ShortRate_FXSkewStochVol.html#table-104-difference-in-implied-volatility-between-the-market-and-model-for-different-starting-localvols-in-the-foreign-aud-ir-vol-object">Table 104: Difference in implied volatility between the market and model for different starting LocalVols in the foreign (AUD) IR vol object.</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../DBX-ShortRate%20and%20FX%20Skew%20Stochastic%20Volatility%20models/DBX-ShortRate_FXSkewStochVol.html#table-105-difference-in-price-between-the-market-and-model-for-different-starting-localvols-in-the-foreign-aud-ir-vol-object">Table 105: Difference in price between the market and model for different starting LocalVols in the foreign (AUD) IR vol object.</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/SABR.html">Interest Rate Volatility Model GSABR</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../LSV/LSV.html">LSV</a><input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><div class="visually-hidden">Toggle navigation of LSV</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../LSV/FX%20LSV%20Markov%20Switching%20%20Monte%20Carlo/FX_LSV_Markov_Switching_Monte_Carlo.html">FX LSV Markov Switching : Monte Carlo</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../LSV/FX%20LSV%20Markov%20Switching%20PDE/FX_LSV_Markov_Switching_PDE.html">FX LSV Markov Switching : PDE</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../LSV/Local%20Volatility%20PDE%20and%20MC/Local_Volatility_PDE_and_MC.html">Local Volatility: PDE and MC</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../LSV/LSV%20Markov%20Switching%20%20Monte%20Carlo/LSV_Markov_Switching_Monte_Carlo.html">LSV Markov Switching : Monte Carlo</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../LSV/LSV%20Markov%20Switching%20%20PDE/LSV_Markov_Switching_PDE.html">LSV Markov Switching : PDE</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../getting_started/index.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../learning.html">Learning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../supported_data_formats.html">Supported Data Formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../supported_hardware.html">Supported Hardware</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../modules/index.html">Modules</a><input class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" role="switch" type="checkbox"/><label for="toctree-checkbox-3"><div class="visually-hidden">Toggle navigation of Modules</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../modules/xsigma-modules/Wrapping/PythonCore/README.html">Python Wrapper Core Classes</a></li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../build_instructions/index.html">Building</a><input class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" role="switch" type="checkbox"/><label for="toctree-checkbox-4"><div class="visually-hidden">Toggle navigation of Building</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../build_instructions/build_settings.html">Build Settings</a></li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../api/index.html">API</a><input class="toctree-checkbox" id="toctree-checkbox-5" name="toctree-checkbox-5" role="switch" type="checkbox"/><label for="toctree-checkbox-5"><div class="visually-hidden">Toggle navigation of API</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../api/cpp.html">C++</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../api/python.html">Python</a><input class="toctree-checkbox" id="toctree-checkbox-6" name="toctree-checkbox-6" role="switch" type="checkbox"/><label for="toctree-checkbox-6"><div class="visually-hidden">Toggle navigation of Python</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules</span></code></a><input class="toctree-checkbox" id="toctree-checkbox-7" name="toctree-checkbox-7" role="switch" type="checkbox"/><label for="toctree-checkbox-7"><div class="visually-hidden">Toggle navigation of xsigmamodules</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l4 has-children"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.common.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.common</span></code></a><input class="toctree-checkbox" id="toctree-checkbox-8" name="toctree-checkbox-8" role="switch" type="checkbox"/><label for="toctree-checkbox-8"><div class="visually-hidden">Toggle navigation of xsigmamodules.common</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.common.helper.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.common.helper</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.common.instrument.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.common.instrument</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l4 has-children"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.market.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.market</span></code></a><input class="toctree-checkbox" id="toctree-checkbox-9" name="toctree-checkbox-9" role="switch" type="checkbox"/><label for="toctree-checkbox-9"><div class="visually-hidden">Toggle navigation of xsigmamodules.market</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.market.market_data.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.market.market_data</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l4 has-children"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.simulation.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.simulation</span></code></a><input class="toctree-checkbox" id="toctree-checkbox-10" name="toctree-checkbox-10" role="switch" type="checkbox"/><label for="toctree-checkbox-10"><div class="visually-hidden">Toggle navigation of xsigmamodules.simulation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.simulation.simulation.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.simulation.simulation</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l4 has-children"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.test.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.test</span></code></a><input class="toctree-checkbox" id="toctree-checkbox-11" name="toctree-checkbox-11" role="switch" type="checkbox"/><label for="toctree-checkbox-11"><div class="visually-hidden">Toggle navigation of xsigmamodules.test</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.test.BlackBox.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.test.BlackBox</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.test.Testing.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.test.Testing</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l4 has-children"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.util.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.util</span></code></a><input class="toctree-checkbox" id="toctree-checkbox-12" name="toctree-checkbox-12" role="switch" type="checkbox"/><label for="toctree-checkbox-12"><div class="visually-hidden">Toggle navigation of xsigmamodules.util</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.util.misc.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.util.misc</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.util.numpy_support.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.util.numpy_support</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.util.object_converter.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.util.object_converter</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.util.xsigmaConstants.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.util.xsigmaConstants</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.util.xsigmaMethodParser.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.util.xsigmaMethodParser</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l4 has-children"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.xlwing.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.xlwing</span></code></a><input class="toctree-checkbox" id="toctree-checkbox-13" name="toctree-checkbox-13" role="switch" type="checkbox"/><label for="toctree-checkbox-13"><div class="visually-hidden">Toggle navigation of xsigmamodules.xlwing</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.xlwing.hartman_watson_template.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.xlwing.hartman_watson_template</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.xlwing.sabr_template.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.xlwing.sabr_template</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l4"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.generate_pyi.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.generate_pyi</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../api/cmake/cmake-modules.html">CMake</a><input class="toctree-checkbox" id="toctree-checkbox-14" name="toctree-checkbox-14" role="switch" type="checkbox"/><label for="toctree-checkbox-14"><div class="visually-hidden">Toggle navigation of CMake</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../api/cmake/ModuleSystem.html">Module System</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/cmake/xsigmaModule.html">xsigmaModule</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/cmake/xsigmaModuleTesting.html">xsigmaModuleTesting</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/cmake/xsigmaModuleWrapPython.html">xsigmaModuleWrapPython</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/cmake/xsigmaModuleWrapJava.html">xsigmaModuleWrapJava</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/cmake/xsigmaModuleJSON.html">xsigmaModuleJSON</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/cmake/xsigmaModuleGraphviz.html">xsigmaModuleGraphviz</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../advanced/index.html">Advanced Topics</a><input class="toctree-checkbox" id="toctree-checkbox-15" name="toctree-checkbox-15" role="switch" type="checkbox"/><label for="toctree-checkbox-15"><div class="visually-hidden">Toggle navigation of Advanced Topics</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../advanced/available_python_wheels.html">Additional Python Wheels</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../advanced/spdx_and_sbom.html">SPDX &amp; SBOM</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../advanced/build_python_wheels.html">Building Python Wheels</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../advanced/build_wasm_emscripten.html">Building using emscripten for WebAssembly</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../advanced/build_for_mobile.html">Cross-compiling for Mobile devices</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../advanced/build_documentation.html">Building documentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../advanced/marshalling_hints.html">Marshalling Hints</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../advanced/object_manager.html">Object manager</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../advanced/object_serialization.html">Auto serialization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../advanced/PythonWrappers.html">Python Wrappers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../advanced/runtime_settings.html">Runtime settings</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../advanced/WrappingTools.html">Wrapping Tools</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../advanced/migration_guides/index.html">Migration Guides</a><input class="toctree-checkbox" id="toctree-checkbox-16" name="toctree-checkbox-16" role="switch" type="checkbox"/><label for="toctree-checkbox-16"><div class="visually-hidden">Toggle navigation of Migration Guides</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../advanced/migration_guides/ModuleMigration.html">Module Migration from XSIGMA 8.2 to 9+</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../design_documents/index.html">Design Documents</a><input class="toctree-checkbox" id="toctree-checkbox-17" name="toctree-checkbox-17" role="switch" type="checkbox"/><label for="toctree-checkbox-17"><div class="visually-hidden">Toggle navigation of Design Documents</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../design_documents/XSIGMAFileFormats.html">XSIGMA File Formats</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../design_documents/smptools.html">Parallel Processing with XSIGMA’s SMP Framework</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../design_documents/data_assemply.html">Data Assembly</a></li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../developers_guide/index.html">Developer’s Guide</a><input class="toctree-checkbox" id="toctree-checkbox-18" name="toctree-checkbox-18" role="switch" type="checkbox"/><label for="toctree-checkbox-18"><div class="visually-hidden">Toggle navigation of Developer’s Guide</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../developers_guide/git/develop.html">Develop</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../developers_guide/testing.html">Regression Testing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../developers_guide/git/test.html">Adding Tests</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../developers_guide/git/dashboard.html">Dashboard Scripts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../developers_guide/git/thirdparty.html">Imported Third Party Projects</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../developers_guide/git/thirdparty-projects.html">Imported Third Party Projects</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../developers_guide/git/deprecation.html">Deprecation Process</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../developers_guide/release_process.html">Release Process</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../developers_guide/coding_conventions.html">Coding Conventions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../developers_guide/about_this_documentation.html">About this documentation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../resources.html">Resources</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../release_details/index.html">Release Details</a><input class="toctree-checkbox" id="toctree-checkbox-19" name="toctree-checkbox-19" role="switch" type="checkbox"/><label for="toctree-checkbox-19"><div class="visually-hidden">Toggle navigation of Release Details</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="simple">
+</ul>
+</li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle">
+              <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+              <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <div class="visually-hidden">Toggle table of contents sidebar</div>
+            <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+          </label>
+        </div>
+        <article role="main">
+          <section class="tex2jax_ignore mathjax_ignore" id="analytical-sigma-volatility-asv">
+<h1>Analytical Sigma Volatility (ASV)<a class="headerlink" href="#analytical-sigma-volatility-asv" title="Link to this heading">#</a></h1>
+<section id="table-of-contents">
+<h2>Table of Contents<a class="headerlink" href="#table-of-contents" title="Link to this heading">#</a></h2>
+<ul class="simple">
+<li><p><a class="reference internal" href="#analytical-sigma-volatility-asv">Analytical Sigma Volatility (ASV)</a></p>
+<ul>
+<li><p><a class="reference internal" href="#table-of-contents">Table of Contents</a></p></li>
+<li><p><a class="reference internal" href="#executive-summary">1. Executive Summary</a></p>
+<ul>
+<li><p><a class="reference internal" href="#asv-parameters">ASV Parameters</a></p></li>
+<li><p><a class="reference internal" href="#advantages-of-asv">Advantages of ASV</a></p></li>
+<li><p><a class="reference internal" href="#limitations-of-asv">Limitations of ASV</a></p></li>
+<li><p><a class="reference internal" href="#testing-and-validation">Testing and Validation</a></p></li>
+<li><p><a class="reference internal" href="#implications-and-recommendations">Implications and Recommendations</a></p></li>
+</ul>
+</li>
+<li><p><a class="reference internal" href="#scope">2. Scope</a></p>
+<ul>
+<li><p><a class="reference internal" href="#model-purpose-and-intended-usage">2.1 Model Purpose and Intended Usage</a></p></li>
+<li><p><a class="reference internal" href="#conceptual-soundness">2.2 Conceptual Soundness</a></p></li>
+</ul>
+</li>
+<li><p><a class="reference internal" href="#product-payoff-portfolio">3. Product / Payoff / Portfolio</a></p>
+<ul>
+<li><p><a class="reference internal" href="#description">3.1 Description</a></p></li>
+<li><p><a class="reference internal" href="#inputs">3.2 Inputs</a></p></li>
+<li><p><a class="reference internal" href="#outputs">3.3 Outputs</a></p></li>
+</ul>
+</li>
+<li><p><a class="reference internal" href="#model-methodology">4. Model / Methodology</a></p>
+<ul>
+<li><p><a class="reference internal" href="#id1">4.1 Description</a></p>
+<ul>
+<li><p><a class="reference internal" href="#overview">4.1.1 Overview</a></p></li>
+<li><p><a class="reference internal" href="#term-structure-parameters">4.1.2 Term Structure Parameters</a></p>
+<ul>
+<li><p><a class="reference internal" href="#smooth-ts-with-double-exponential">4.1.2.1 Smooth TS with Double Exponential</a></p></li>
+<li><p><a class="reference internal" href="#smooth-ts-with-single-exponential">4.1.2.2 Smooth TS with Single Exponential</a></p></li>
+<li><p><a class="reference internal" href="#non-smooth-ts">4.1.2.3 Non-Smooth TS</a></p></li>
+</ul>
+</li>
+<li><p><a class="reference internal" href="#parameterisation">4.1.3 Parameterisation</a></p>
+<ul>
+<li><p><a class="reference internal" href="#a-for--textsmile-geq-0-"><span class="xref myst">a) For <span class="math notranslate nohighlight">\( \\text{smile} \\geq 0 \)</span>:</span></a></p></li>
+<li><p><a class="reference internal" href="#b-for--textsmile--0--and--1_k-leq-f-textput--1_k-leq-f-textcall-geq-0-"><span class="xref myst">b) For <span class="math notranslate nohighlight">\( \\text{smile} \&lt; 0 \)</span> and <span class="math notranslate nohighlight">\( 1\_{K \\leq F} \\text{Put} + 1\_{K \\leq F} \\text{Call} \\geq 0 \)</span>:</span></a></p></li>
+</ul>
+</li>
+<li><p><a class="reference internal" href="#adjustment-for-negative-wings">4.1.4 Adjustment for Negative Wings</a></p>
+<ul>
+<li><p><a class="reference internal" href="#adjustment-for-negative-smile">4.1.4.3 Adjustment for Negative Smile</a></p></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p><a class="reference internal" href="#term-structure-motivation">4.1.4.4. Term structure motivation</a></p></li>
+<li><p><a class="reference internal" href="#solving-the-variance-equation-for-positive-wings">4.1.5 Solving the variance equation for positive wings</a></p></li>
+<li><p><a class="reference internal" href="#existence-of-a-solution">4.1.5.1. Existence of a solution</a></p></li>
+<li><p><a class="reference internal" href="#solution">4.1.5.2. Solution</a></p>
+<ul>
+<li><p><a class="reference internal" href="#implemented-solution">4.1.5.2.1. Implemented solution</a></p></li>
+<li><p><a class="reference internal" href="#alternative-expression-for-the-solution">4.1.5.2.2. Alternative expression for the solution</a></p></li>
+</ul>
+</li>
+<li><p><a class="reference internal" href="#continuity">4.1.5.3. Continuity</a></p></li>
+<li><p><a class="reference internal" href="#bounded-volatility-values">4.1.5.4. Bounded volatility values</a></p></li>
+<li><p><a class="reference internal" href="#solving-the-variance-equation-for-positive-smile-and-negative-wing">4.1.6 Solving the variance equation for positive smile and negative wing</a></p></li>
+<li><p><a class="reference internal" href="#solving-the-variance-equation-for-negative-smile-and-positive-wing">4.1.7 Solving the variance equation for negative smile and positive wing</a></p></li>
+<li><p><a class="reference internal" href="#solving-the-variance-equation-for-negative-smile-and-negative-wing">4.1.8 Solving the variance equation for negative smile and negative wing</a></p></li>
+<li><p><a class="reference internal" href="#model-design-development">4.1.9 Model design &amp; development</a></p></li>
+<li><p><a class="reference internal" href="#regulatory-compliance">4.1.10 Regulatory compliance</a></p></li>
+</ul>
+</li>
+<li><p><a class="reference internal" href="#assumptions-limitations-and-outliers">4.2 Assumptions, Limitations and Outliers</a></p>
+<ul>
+<li><p><a class="reference internal" href="#model-parameters-variables">4.3 Model Parameters / Variables</a></p></li>
+<li><p><a class="reference internal" href="#model-outputs">4.4 Model Outputs</a></p></li>
+<li><p><a class="reference internal" href="#risk-factor">4.6 Risk Factor</a></p></li>
+<li><p><a class="reference internal" href="#feeder-models">4.7 Feeder Models</a></p></li>
+<li><p><a class="reference internal" href="#justification-against-alternative-approaches">4.8 Justification Against Alternative Approaches</a></p></li>
+<li><p><a class="reference internal" href="#conditions-of-use">4.9 Conditions of Use</a></p>
+<ul>
+<li><p><a class="reference internal" href="#stressed-market-conditions">4.9.1 Stressed Market Conditions</a></p></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p><a class="reference internal" href="#implementation-numerical-schema-description">5. Implementation / Numerical Schema Description</a></p>
+<ul>
+<li><p><a class="reference internal" href="#id2">5.1 Description</a></p>
+<ul>
+<li><p><a class="reference internal" href="#function-in-asv-qas">Function in <code class="docutils literal notranslate"><span class="pre">asv.qas</span></code></a></p></li>
+</ul>
+</li>
+<li><p><a class="reference internal" href="#id3">5.2 Inputs</a></p></li>
+<li><p><a class="reference internal" href="#quality-control">5.3 Quality Control</a></p></li>
+<li><p><a class="reference internal" href="#limitations">5.4 Limitations</a></p></li>
+</ul>
+</li>
+<li><p><a class="reference internal" href="#calibration">6. Calibration</a></p>
+<ul>
+<li><p><a class="reference internal" href="#id4">6.1 Description</a></p></li>
+<li><p><a class="reference internal" href="#id5">6.2 Inputs</a></p></li>
+<li><p><a class="reference internal" href="#id6">6.3 Justification Against Alternative Approaches</a></p></li>
+<li><p><a class="reference internal" href="#id7">6.4 Quality Control</a></p></li>
+<li><p><a class="reference internal" href="#limitations-and-risk-assessment">6.5 Limitations and Risk Assessment</a></p>
+<ul>
+<li><p><a class="reference internal" href="#id8">6.5.1 Stressed Market Conditions</a></p></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p><a class="reference internal" href="#risk">7. Risk</a></p>
+<ul>
+<li><p><a class="reference internal" href="#id9">7.1 Description</a></p></li>
+<li><p><a class="reference internal" href="#id10">7.2 Inputs</a></p></li>
+<li><p><a class="reference internal" href="#id11">7.3 Limitations and Risk Assessment</a></p>
+<ul>
+<li><p><a class="reference internal" href="#risk-mitigation-strategies">Risk Mitigation Strategies:</a></p></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p><a class="reference internal" href="#test-and-outcome-analyses-performed-on-model">8. Test and Outcome Analyses Performed on Model</a></p>
+<ul>
+<li><p><a class="reference internal" href="#back-testing">8.1 Back-testing</a></p>
+<ul>
+<li><p><a class="reference internal" href="#parameters-time-series">8.1.1 Parameters Time Series</a></p></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p><a class="reference internal" href="#asv-parameters-by-tenor">ASV Parameters by Tenor</a></p>
+<ul>
+<li><p><a class="reference internal" href="#stoxx50e-january-2009-to-may-2012">STOXX50E - January 2009 to May 2012</a></p></li>
+<li><p><a class="reference internal" href="#gdaxi-january-2009-to-march-2012">GDAXI - January 2009 to March 2012</a></p></li>
+</ul>
+</li>
+<li><p><a class="reference internal" href="#monte-carlo-convergence-analysis">8.1.2 Monte Carlo Convergence Analysis</a></p></li>
+<li><p><a class="reference internal" href="#comparison-of-asv-and-taylor-models-with-varying-intraday-steps">Comparison of ASV and Taylor Models with Varying Intraday Steps</a></p></li>
+<li><p><a class="reference internal" href="#scenario-and-stress-testing">8.2 Scenario and Stress-testing</a></p>
+<ul>
+<li><p><a class="reference internal" href="#id12">8.2.1 Scenario and Stress-testing</a></p></li>
+<li><p><a class="reference internal" href="#ccar-stress-testing">8.2.2 CCAR Stress-testing</a></p></li>
+<li><p><a class="reference internal" href="#statistical-testing">8.3 Statistical Testing</a></p></li>
+<li><p><a class="reference internal" href="#impact-of-assumptions-and-limitations">8.4 Impact of Assumptions and Limitations</a></p></li>
+<li><p><a class="reference internal" href="#accuracy-convergence-stability-and-sensitivity">8.5 Accuracy, Convergence, Stability, and Sensitivity</a></p>
+<ul>
+<li><p><a class="reference internal" href="#accuracy-and-convergence">8.5.1 Accuracy and Convergence</a></p></li>
+<li><p><a class="reference internal" href="#stability">8.5.2 Stability</a></p></li>
+<li><p><a class="reference internal" href="#sensitivity">8.5.3 Sensitivity</a></p></li>
+<li><p><a class="reference internal" href="#bump-by-3-stdev">Bump by 3 Stdev</a></p>
+<ul>
+<li><p><a class="reference internal" href="#bump-by-7-stdev">Bump by 7 Stdev</a></p></li>
+<li><p><a class="reference internal" href="#bumping-the-skew-parameter-by-3-stdev">Bumping the Skew Parameter by 3 Stdev</a></p></li>
+<li><p><a class="reference internal" href="#bumping-the-smile-parameter-by-3-stdev">Bumping the Smile Parameter by 3 Stdev</a></p></li>
+<li><p><a class="reference internal" href="#bumping-the-call-parameter-by-3-stdev">Bumping the Call Parameter by 3 Stdev</a></p></li>
+<li><p><a class="reference internal" href="#id13">Bump by 3 Stdev</a></p></li>
+<li><p><a class="reference internal" href="#bump-by-20-stdev">Bump by 20 Stdev</a></p></li>
+<li><p><a class="reference internal" href="#bumping-the-put-parameter-by-3-stdev">Bumping the Put Parameter by 3 Stdev</a></p></li>
+<li><p><a class="reference internal" href="#bump-by-10-stdev">Bump by 10 Stdev</a></p>
+<ul>
+<li><p><a class="reference internal" href="#bump-by-2-stdev">Bump by 2 Stdev</a></p></li>
+</ul>
+</li>
+<li><p><a class="reference internal" href="#sx5e-as-of-17-02-2017-tenor-1w"><strong>SX5E as of 17/02/2017 - Tenor = 1W</strong></a></p></li>
+<li><p><a class="reference internal" href="#sx5e-as-of-17-02-2017-maturity-jun-2017-and-2019"><strong>SX5E as of 17/02/2017 - Maturity = Jun 2017 and 2019</strong></a></p></li>
+<li><p><a class="reference internal" href="#spx-as-of-01-31-2020-maturity-dec-2020">SPX as of 01/31/2020 - Maturity Dec 2020</a></p></li>
+<li><p><a class="reference internal" href="#ctrl-0-8"><strong>Ctrl = 0.8</strong></a></p></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p><a class="reference internal" href="#boundary-cases">8.6 Boundary Cases</a></p>
+<ul>
+<li><p><a class="reference internal" href="#low-vol-high-skew">8.6.1 Low Vol, High Skew</a></p></li>
+<li><p><a class="reference internal" href="#high-vol-skew-smile-and-put">8.6.2 High Vol, Skew, Smile, and Put</a></p></li>
+<li><p><a class="reference internal" href="#high-skew-low-vol-smile-put-and-call">8.6.3 High Skew, Low Vol, Smile, Put, and Call</a></p></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p><a class="reference internal" href="#negative-smile">8.6.4 Negative Smile</a></p>
+<ul>
+<li><p><a class="reference internal" href="#impact-of-negative-smile-adjustment">8.6.4.1. Impact of negative smile adjustment</a></p>
+<ul>
+<li><p><a class="reference internal" href="#asv-parameters-and-implied-volatilities">ASV Parameters and Implied Volatilities</a></p></li>
+<li><p><a class="reference internal" href="#monte-carlo-convergence">Monte Carlo Convergence</a></p></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p><a class="reference internal" href="#comparison-to-other-models">8.7 Comparison to Other Models</a></p>
+<ul>
+<li><p><a class="reference internal" href="#one-year-fitting-dec12-maturity-of-stoxx50e-index-about-a-year-before-expiry">One-Year Fitting: Dec12 Maturity of STOXX50E Index About a Year Before Expiry</a></p>
+<ul>
+<li><p><a class="reference internal" href="#asv-additional-comparison-and-testing-results">ASV Additional Comparison and Testing Results</a></p>
+<ul>
+<li><p><a class="reference internal" href="#asv-vs-taylor-model-comparison">ASV vs TAYLOR Model Comparison</a></p></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p><a class="reference internal" href="#other-outcome-analysis-testing">8.8 Other Outcome Analysis / Testing</a></p></li>
+<li><p><a class="reference internal" href="#general-limitations">9. General Limitations</a></p></li>
+<li><p><a class="reference internal" href="#model-monitoring-kpis">10. Model Monitoring – KPIs</a></p>
+<ul>
+<li><p><a class="reference internal" href="#monitoring-tests-and-key-performance-indicators-kpi">10.1 Monitoring Tests and Key Performance Indicators (KPI)</a></p></li>
+<li><p><a class="reference internal" href="#performance-exceptions">10.2 Performance Exceptions</a></p></li>
+<li><p><a class="reference internal" href="#exception-mitigation-plan">10.3 Exception Mitigation Plan</a></p></li>
+</ul>
+</li>
+<li><p><a class="reference internal" href="#references">11. References</a></p></li>
+</ul>
+</li>
+</ul>
+</section>
+<hr class="docutils" />
+<section id="executive-summary">
+<h2>1. Executive Summary<a class="headerlink" href="#executive-summary" title="Link to this heading">#</a></h2>
+<p>The Analytical Sigma Volatility (ASV) is a parameterization of the volatility by strike for the reference maturities. It has been designed to create a common parameterization for single-stock and index volatilities, which historically relied on different parameterizations due to their varying liquidity profiles.
+The ASV parameterization is a structured approach to modeling volatility surfaces for both single stocks and indices. Its design emphasizes simplicity, stability, and compatibility across different asset classes. Below are the key aspects:</p>
+<section id="asv-parameters">
+<h3>ASV Parameters<a class="headerlink" href="#asv-parameters" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><strong>Non-fitted Parameters (3):</strong></p>
+<ul>
+<li><p>Reference Forward: Derived from the forward curve at fitting time.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Ctrl_C</span></code> and <code class="docutils literal notranslate"><span class="pre">Ctrl_P</span></code>: User-defined parameters affecting the flattening of the vol curve for higher (<code class="docutils literal notranslate"><span class="pre">Ctrl_C</span></code>) and lower (<code class="docutils literal notranslate"><span class="pre">Ctrl_P</span></code>) strikes, respectively. For backward compatibility, ASV supports a single <code class="docutils literal notranslate"><span class="pre">Ctrl</span></code> parameter input, setting both <code class="docutils literal notranslate"><span class="pre">Ctrl_C</span></code> and <code class="docutils literal notranslate"><span class="pre">Ctrl_P</span></code> to the same value.</p></li>
+</ul>
+</li>
+<li><p><strong>Fitted Parameters (5):</strong></p>
+<ul>
+<li><p>These control the volatility level at the reference forward, skew, convexity, and the wings (Put for lower strikes and Call for higher strikes). These parameters are fitted as described in [1].</p></li>
+</ul>
+</li>
+</ul>
+</section>
+<section id="advantages-of-asv">
+<h3>Advantages of ASV<a class="headerlink" href="#advantages-of-asv" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p>Minimal number of parameters, reducing overfitting.</p></li>
+<li><p>Orthogonal parameters for better interpretability.</p></li>
+<li><p>Stable parameters ensuring consistency under market stress.</p></li>
+<li><p>Agrees with market consensus on wing behavior.</p></li>
+</ul>
+</section>
+<section id="limitations-of-asv">
+<h3>Limitations of ASV<a class="headerlink" href="#limitations-of-asv" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p>Minimal parameters limit flexibility in tuning the fit.</p></li>
+<li><p>High wings present numerical challenges, such as Monte Carlo convergence issues.</p></li>
+</ul>
+</section>
+<section id="testing-and-validation">
+<h3>Testing and Validation<a class="headerlink" href="#testing-and-validation" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><strong>Back-testing on Indices</strong>: A 3.5-year time series (January 2009 to May 2012) was tested on SX5E and DAX indices during a period of high market stress. Fit quality and local volatility quality were verified.</p></li>
+<li><p><strong>Implied Volatility Fitter Framework</strong>: Back-testing was performed on the implied volatility fitter framework with SPX and two single names (one large cap and one small cap), as described in [1].</p></li>
+</ul>
+</section>
+<section id="implications-and-recommendations">
+<h3>Implications and Recommendations<a class="headerlink" href="#implications-and-recommendations" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><strong>Strengths</strong>: ASV provides a unified, stable, and interpretable framework for both indices and single stocks.</p></li>
+<li><p><strong>Addressing Limitations</strong>: Consider hybrid models for additional flexibility and advanced simulation techniques for high-wing challenges.</p></li>
+<li><p><strong>Future Enhancements</strong>: Incorporate machine learning for dynamic parameter adjustments and extend back-testing to modern market conditions.</p></li>
+</ul>
+</section>
+</section>
+<section id="scope">
+<h2>2. Scope<a class="headerlink" href="#scope" title="Link to this heading">#</a></h2>
+<section id="model-purpose-and-intended-usage">
+<h3>2.1 Model Purpose and Intended Usage<a class="headerlink" href="#model-purpose-and-intended-usage" title="Link to this heading">#</a></h3>
+<p>The ASV volatility has been designed to be used globally for all equity underlyings as a volatility-strike parameterisation.</p>
+<ul class="simple">
+<li><p><strong>Time Interpolation</strong>: Used to compute the volatility by strike for non-reference maturities, is independent of the ASV parameterisation. It is performed by the volatility surface class. Time interpolation is discussed in [2].</p></li>
+<li><p><strong>CCAR Volatility Scenarios</strong>: These are independent of the parameterisation used for the liquid maturities. The bumping mechanism is described in [2].</p></li>
+<li><p><strong>Arbitrage Monitoring</strong>: Calendar and butterfly arbitrages that can arise from negative forward vol or negative PDF are not covered in this document. At fitting time, the volatility fitter framework monitors the forward vol and butterfly arbitrage to ensure that the volatility is arbitrage-free. The volatility fitter is described in [1].</p></li>
+</ul>
+</section>
+<hr class="docutils" />
+<section id="conceptual-soundness">
+<h3>2.2 Conceptual Soundness<a class="headerlink" href="#conceptual-soundness" title="Link to this heading">#</a></h3>
+<p>The implied volatility surface is constructed using a discrete set of market data (implied volatilities or prices) for different strikes and maturities. Broadly speaking, two major approaches are used by financial institutions:</p>
+<ol class="arabic simple">
+<li><p><strong>Stochastic Volatility Models</strong>:</p>
+<ul class="simple">
+<li><p>Examples include Heston (as described in [3]) and SABR (preferred due to its analytical approximations as described in [4]).</p></li>
+<li><p>Limitations:</p>
+<ul>
+<li><p>Struggle to fit liquid listed maturities.</p></li>
+<li><p>Time-consuming and not suitable for continuous automated fitting of liquid names.</p></li>
+<li><p>Parameters are non-intuitive.</p></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p><strong>Parametric Representations</strong>:</p>
+<ul class="simple">
+<li><p>Examples include quadratic functions of moneyness (presented in [5]) and SVI (described in [6]).</p></li>
+<li><p>Limitations:</p>
+<ul>
+<li><p>SVI has non-intuitive parameters, and wing parameters are not orthogonal.</p></li>
+<li><p>[7] shows that SVI might not be arbitrage-free in all situations.</p></li>
+</ul>
+</li>
+</ul>
+</li>
+</ol>
+<p>At Barclays, bespoke parametric representations were developed due to the need for:</p>
+<ul class="simple">
+<li><p>A fast calibration of volatility surfaces for all traded underlyings.</p></li>
+<li><p>An intuitive parameterisation where each parameter has a “strike-localised” impact.</p></li>
+</ul>
+<p>Initial polynomial-based parameterisations were developed:</p>
+<ul class="simple">
+<li><p><strong>Taylor Parameterisation</strong>: Used by the index desk, it had the highest number of parameters, allowing it to fit highly liquid listed maturities of indices.</p></li>
+<li><p>Shortcomings of Taylor:</p>
+<ul>
+<li><p>Over-parameterisation leading to overfitting or instability in parameters.</p></li>
+<li><p>Reliance on cutoffs along the strike axis to define functionals for regions (polynomial around the forward and exponential on the wings, as described in section 14.2), causing irregularity problems and poor local volatility.</p></li>
+<li><p>Inadequate for single stocks due to their low liquidity, necessitating different parameterisations and sacrificing potential synergies.</p></li>
+</ul>
+</li>
+</ul>
+<p>ASV was designed as a replacement for Taylor to address these shortcomings. Key benefits of ASV include:</p>
+<ul class="simple">
+<li><p>Minimal number of parameters.</p></li>
+<li><p>Orthogonal parameters.</p></li>
+<li><p>Stable parameters.</p></li>
+<li><p>Agreement with market consensus on the wings.</p></li>
+<li><p>A flexible parametric form that fits both Single Stocks and Indices volatility specifics.</p></li>
+</ul>
+<p>While ASV offers advantages over legacy models, it introduces new challenges:</p>
+<ul class="simple">
+<li><p>The minimal number of parameters gives less flexibility to tune the fit compared to Taylor.</p></li>
+<li><p>ASV often gives higher implied volatilities on the wings and for front maturities close to expiry, posing numerical challenges such as slower Monte Carlo convergence.</p></li>
+<li><p>Unlike SABR and SVI, ASV does not come with built-in constraints to avoid butterfly arbitrage. However, the fitting framework addresses this by using butterfly arbitrage constraints for all liquid maturities.</p></li>
+<li><p>ASV remains flexible enough to allow good fits for names with high liquidity under different regimes (described in section 8.1) using intuitive parameters that behave as expected under stressed market conditions.</p></li>
+</ul>
+<p>ASV relies on solving a cubic equation for its parametric form and does not use other numerical techniques, probability distributions, or simulation pathways.</p>
+</section>
+</section>
+<section id="product-payoff-portfolio">
+<h2>3. Product / Payoff / Portfolio<a class="headerlink" href="#product-payoff-portfolio" title="Link to this heading">#</a></h2>
+<section id="description">
+<h3>3.1 Description<a class="headerlink" href="#description" title="Link to this heading">#</a></h3>
+<p>This section describes the financial products, payoffs, or portfolios that interact with the Analytical Sigma Volatility (ASV) parameterization. These could include options, futures, or other derivatives whose pricing and risk management rely on the volatility surface constructed using ASV.</p>
+<ul class="simple">
+<li><p><strong>Financial Products</strong>: Single-stock options, index options, variance swaps.</p></li>
+<li><p><strong>Payoff Structures</strong>: Vanilla options, exotic options, structured products.</p></li>
+<li><p><strong>Portfolio Context</strong>: Risk assessment and hedging strategies across multiple assets.</p></li>
+</ul>
+</section>
+<hr class="docutils" />
+<section id="inputs">
+<h3>3.2 Inputs<a class="headerlink" href="#inputs" title="Link to this heading">#</a></h3>
+<p>Inputs required for applying the ASV parameterization:</p>
+<ul class="simple">
+<li><p><strong>Market Data</strong>: Implied volatilities, underlying asset prices, forward curves.</p></li>
+<li><p><strong>User-Defined Parameters</strong>: <code class="docutils literal notranslate"><span class="pre">Ctrl_C</span></code>, <code class="docutils literal notranslate"><span class="pre">Ctrl_P</span></code>, reference forward.</p></li>
+<li><p><strong>Additional Inputs</strong>: Strike grid, maturity dates.</p></li>
+</ul>
+</section>
+<hr class="docutils" />
+<section id="outputs">
+<h3>3.3 Outputs<a class="headerlink" href="#outputs" title="Link to this heading">#</a></h3>
+<p>Outputs generated by the ASV parameterization:</p>
+<ul class="simple">
+<li><p><strong>Volatility Surface</strong>: Continuous implied volatility as a function of strike and maturity.</p></li>
+<li><p><strong>Local Volatility Surface</strong>: For pricing models like Monte Carlo.</p></li>
+<li><p><strong>Risk Metrics</strong>: Sensitivities (Greeks) such as Vega, Delta, Gamma.</p></li>
+<li><p><strong>Arbitrage-Free Validation</strong>: No-butterfly-arbitrage confirmation.</p></li>
+</ul>
+</section>
+</section>
+<hr class="docutils" />
+<section id="model-methodology">
+<h2>4. Model / Methodology<a class="headerlink" href="#model-methodology" title="Link to this heading">#</a></h2>
+<section id="id1">
+<h3>4.1 Description<a class="headerlink" href="#id1" title="Link to this heading">#</a></h3>
+<section id="overview">
+<h4>4.1.1 Overview<a class="headerlink" href="#overview" title="Link to this heading">#</a></h4>
+<p>ASV is a parametric form that expresses the implied volatility as a function of the strike for the liquid maturities. Time interpolation is independent from the liquid maturities parameterisation and is done as described in the European option QA doc [2]. The smile is described thanks to the following parameters for each listed maturity:</p>
+<ul class="simple">
+<li><p><strong>ATM Volatility</strong></p></li>
+<li><p><strong>Skew</strong></p></li>
+<li><p><strong>Smile</strong></p></li>
+<li><p><strong>Put Wing</strong></p></li>
+<li><p><strong>Call Wing</strong></p></li>
+</ul>
+<p>These parameters are stated explicitly for each maturity until an optional term structure start date, which is different for each parameter. The term structure is used to imply the ATM vol/skew/smile/wing parameters for each liquid maturity falling after the term structure start date.</p>
+<p>Typically, an ASV vol surface definition will contain the two following parts:</p>
+<ol class="arabic simple">
+<li><p><strong>A matrix of parameter values per maturity:</strong></p></li>
+</ol>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Maturities</p></th>
+<th class="head"><p>AnchorStrike</p></th>
+<th class="head"><p>atmVol</p></th>
+<th class="head"><p>skew</p></th>
+<th class="head"><p>smile</p></th>
+<th class="head"><p>wc</p></th>
+<th class="head"><p>wp</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>22-Feb-11</p></td>
+<td><p>86.78</p></td>
+<td><p>53.35</p></td>
+<td><p>53.35</p></td>
+<td><p>0.2</p></td>
+<td><p>0.09</p></td>
+<td><p>0.04</p></td>
+</tr>
+<tr class="row-odd"><td><p>25-Feb-11</p></td>
+<td><p>86.8</p></td>
+<td><p>53.35</p></td>
+<td><p>53.35</p></td>
+<td><p>0.2</p></td>
+<td><p>0.09</p></td>
+<td><p>0.03</p></td>
+</tr>
+<tr class="row-even"><td><p>26-Feb-11</p></td>
+<td><p>86.81</p></td>
+<td><p>55.35</p></td>
+<td><p>54.35</p></td>
+<td><p>0.2</p></td>
+<td><p>0.04</p></td>
+<td><p>0.03</p></td>
+</tr>
+<tr class="row-odd"><td><p>01-Mar-11</p></td>
+<td><p>86.83</p></td>
+<td><p>56.35</p></td>
+<td><p>51.35</p></td>
+<td><p>0.2</p></td>
+<td><p>0.02</p></td>
+<td><p>0.02</p></td>
+</tr>
+<tr class="row-even"><td><p>26-Mar-11</p></td>
+<td><p>87.04</p></td>
+<td><p>55.85</p></td>
+<td><p>50.35</p></td>
+<td><p>0.2</p></td>
+<td><p>0.01</p></td>
+<td><p>0.02</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<ol class="arabic simple" start="2">
+<li><p><strong>Optional term structure (TS) for each parameter.</strong> If a TS definition is provided for a parameter, and if a listed maturity is after the TS start date, the TS implied parameters override the values provided in the previous grid.</p></li>
+</ol>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Start</p></th>
+<th class="head"><p>Tower</p></th>
+<th class="head"><p>PD</p></th>
+<th class="head"><p>Pinf</p></th>
+<th class="head"><p>T1</p></th>
+<th class="head"><p>P2</p></th>
+<th class="head"><p>Decay</p></th>
+<th class="head"><p>Type</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>(arrow)</p></td>
+<td><p>3</p></td>
+<td><p>36.04</p></td>
+<td><p>31.01</p></td>
+<td><p>1</p></td>
+<td><p>33.51</p></td>
+<td><p>1</p></td>
+<td><p>DoubleRegenerated</p></td>
+</tr>
+<tr class="row-odd"><td><p>Index</p></td>
+<td><p>2</p></td>
+<td><p>56.03</p></td>
+<td><p>17.28</p></td>
+<td><p>2</p></td>
+<td><p>35.07</p></td>
+<td><p>1</p></td>
+<td><p>DoubleRegenerated</p></td>
+</tr>
+<tr class="row-even"><td><p>Scale</p></td>
+<td><p>0</p></td>
+<td><p>0.61</p></td>
+<td><p>0.25</p></td>
+<td><p>0.05</p></td>
+<td><p>14.4</p></td>
+<td><p>1</p></td>
+<td><p>Moderboard</p></td>
+</tr>
+<tr class="row-odd"><td><p>Cell</p></td>
+<td><p>0</p></td>
+<td><p>0.08</p></td>
+<td><p>0.01</p></td>
+<td><p>0.08</p></td>
+<td><p>0</p></td>
+<td><p>1</p></td>
+<td><p>Moderboard</p></td>
+</tr>
+<tr class="row-even"><td><p>Put</p></td>
+<td><p>0</p></td>
+<td><p>0.08</p></td>
+<td><p>0.01</p></td>
+<td><p>0.08</p></td>
+<td><p>0.7</p></td>
+<td><p>1</p></td>
+<td><p>Moderboard</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Some extra parameters are used:</p>
+<ul class="simple">
+<li><p><strong>Control parameters (<code class="docutils literal notranslate"><span class="pre">Ctrl_C</span></code> and <code class="docutils literal notranslate"><span class="pre">Ctrl_P</span></code>)</strong>: Allow the implied volatility to tend towards a flat level asymptotically for high values in the log-moneyness strike space. These parameters are usually static once a name has been set up initially to be fitted with ASV. Low values of <code class="docutils literal notranslate"><span class="pre">Ctrl_C</span></code> and <code class="docutils literal notranslate"><span class="pre">Ctrl_P</span></code> are appropriate for names with good liquidity on the wings. In practice, these parameters are set initially to 0.2. This value has been chosen after comprehensive testing, which included long-dated variance swap quotes. It can be fine-tuned over time, especially when evidence from the variance swap market indicates that this needs to be done.</p></li>
+<li><p><strong>Anchor strikes</strong>: The strikes where the volatility is equal to the ATM Vol parameter. Typically, these strikes are equal to the forward. These are set by the volatility fitter to be equal to the forward.</p></li>
+<li><p><strong>Lambda parameters</strong>: Currently set to 0. It has been designed to be used for volatility dynamics (as the spot moves). It ranges between 0 and 1. If set to 0, re-anchoring the vol would be done by setting the ATM vol to the vol at the new reference as read from the original vol. If set to 1, the new vol will be computed by following the skew (keeping the skew parameters the same). This is currently deactivated and will not be covered in this document.</p></li>
+</ul>
+</section>
+<hr class="docutils" />
+<section id="term-structure-parameters">
+<h4>4.1.2 Term Structure Parameters<a class="headerlink" href="#term-structure-parameters" title="Link to this heading">#</a></h4>
+<p>Three parameterizations are available for the term structure:</p>
+<section id="smooth-ts-with-double-exponential">
+<h5>4.1.2.1 Smooth TS with Double Exponential<a class="headerlink" href="#smooth-ts-with-double-exponential" title="Link to this heading">#</a></h5>
+<p>This TS uses a double exponential interpolation. An exponential term would control the short term, and the second one would control the long term:
+<span class="math notranslate nohighlight">\(
+P_t = a_c e^{-\frac{t}{decay}} + b_c e^{-\frac{10t}{decay}} + c
+\)</span>
+This term structure is defined by these parameters:</p>
+<ul class="simple">
+<li><p><span class="math notranslate nohighlight">\( P_0 \)</span>: Parameter value at <span class="math notranslate nohighlight">\( T_0 \)</span> (internally set to 1 day).</p></li>
+<li><p><span class="math notranslate nohighlight">\( P_\infty \)</span>: Parameter value at <span class="math notranslate nohighlight">\( T_\infty \)</span> (internally set to 10 years).</p></li>
+<li><p><span class="math notranslate nohighlight">\( P_1, T_1 \)</span>: Parameter value at provided date.</p></li>
+</ul>
+<p>The functional form factors are then implied by inverting the 3 equations that derive from these parameters.</p>
+</section>
+<section id="smooth-ts-with-single-exponential">
+<h5>4.1.2.2 Smooth TS with Single Exponential<a class="headerlink" href="#smooth-ts-with-single-exponential" title="Link to this heading">#</a></h5>
+<p>This is a simplified version of the double exponential TS with fewer parameters:</p>
+<div class="math-wrapper docutils container">
+<div class="math notranslate nohighlight">
+\[
+P_t = a_c e^{-\frac{t}{decay}} + c
+\]</div>
+</div>
+<p>This term structure is defined by these parameters:</p>
+<ul class="simple">
+<li><p><span class="math notranslate nohighlight">\( P_0 \)</span>: Parameter value at <span class="math notranslate nohighlight">\( T_0 \)</span> (internally set to 1 day).</p></li>
+<li><p><span class="math notranslate nohighlight">\( P_\infty \)</span>: Parameter value at <span class="math notranslate nohighlight">\( T_\infty \)</span> (internally set to 10 years).</p></li>
+</ul>
+</section>
+<section id="non-smooth-ts">
+<h5>4.1.2.3 Non-Smooth TS<a class="headerlink" href="#non-smooth-ts" title="Link to this heading">#</a></h5>
+<p>This TS is used for smile, put, and call terms. It has been validated empirically by fitting the vols on very liquid names. The fits showed a behavior where the parameter would decrease in the short term and then increase. The term structure is again defined using the same parameters as the one used in the smooth case. However, <span class="math notranslate nohighlight">\( T_0 \)</span> is set internally to 5 days, and <span class="math notranslate nohighlight">\( T_\infty \)</span> is set to 5 years. This has been approached by the following functional form:</p>
+<div class="math-wrapper docutils container">
+<div class="math notranslate nohighlight">
+\[\begin{split}
+P_t = 
+\begin{cases} 
+\frac{1}{\tau} \left( P_0, t_0 + \left( P_1, t_1 - P_0, t_0 \right), \frac{t - t_0}{t_1 - t_0} \right) &amp; t &lt; t_0 \\ 
+\frac{a \cdot t'eecay + b \cdot t'deecay}{t'eecay} &amp; t_1 \leq t 
+\end{cases}
+\end{split}\]</div>
+</div>
+<div class="math-wrapper docutils container">
+<div class="math notranslate nohighlight">
+\[
+a = \frac{P_{\infty} \cdot t_{\infty} \cdot deecay - P_1 \cdot t_1 \cdot deecay}{t_{\infty} \cdot deecay - t_1 \cdot deecay}
+\]</div>
+</div>
+<div class="math-wrapper docutils container">
+<div class="math notranslate nohighlight">
+\[
+b = \frac{(P_1 - a) \cdot t_1 \cdot deecay}{t_1 - t_0}
+\]</div>
+</div>
+</section>
+</section>
+<hr class="docutils" />
+<section id="parameterisation">
+<h4>4.1.3 Parameterisation<a class="headerlink" href="#parameterisation" title="Link to this heading">#</a></h4>
+<p>For a maturity <span class="math notranslate nohighlight">\( T \)</span>, fixed strike <span class="math notranslate nohighlight">\( K \)</span>, and anchor strike <span class="math notranslate nohighlight">\( F \)</span>, the volatility <span class="math notranslate nohighlight">\( \sigma(k) \)</span> is the maximum real solution satisfying the equation below:</p>
+<div class="math-wrapper docutils container">
+<div class="math notranslate nohighlight">
+\[
+k = \frac{\tanh \left( \text{Ctrl} * \log \left( \frac{K}{F} \right) \right)}{\text{Ctrl} * \sqrt{T}}
+\]</div>
+</div>
+<section id="a-for-text-smile-geq-0">
+<h5>a) For <span class="math notranslate nohighlight">\( \text{smile} \geq 0 \)</span>:<a class="headerlink" href="#a-for-text-smile-geq-0" title="Link to this heading">#</a></h5>
+<div class="math-wrapper docutils container">
+<div class="math notranslate nohighlight">
+\[
+\sigma^2 (k) = \sigma_0^2 + 2 \, \text{skew} \, k \, \sigma_0 + \frac{\text{smile}}{\sigma^2 (k)} \, k^2 + \frac{1_{K \leq F} \text{Put} + 1_{K \leq F} \text{Call}}{\tilde{\sigma}^6 (k)} \sigma^2 (k) \, k^4
+\]</div>
+</div>
+<p>where <span class="math notranslate nohighlight">\( \tilde{\sigma} \)</span> is the solution of:</p>
+<div class="math-wrapper docutils container">
+<div class="math notranslate nohighlight">
+\[
+\tilde{\sigma}^2 (k) = \sigma_0^2 + 2 \, \text{skew} \, k \, \sigma_0 + \frac{\text{smile}}{\tilde{\sigma}^2 (k)} \, k^2 + \max \left( 0, 1_{K \leq F} \text{Put} + 1_{K \leq F} \text{Call} \right) \, k^4
+\]</div>
+</div>
+</section>
+<section id="b-for-text-smile-0-and-1-k-leq-f-text-put-1-k-leq-f-text-call-geq-0">
+<h5>b) For <span class="math notranslate nohighlight">\( \text{smile} &lt; 0 \)</span> and <span class="math notranslate nohighlight">\( 1_{K \leq F} \text{Put} + 1_{K \leq F} \text{Call} \geq 0 \)</span>:<a class="headerlink" href="#b-for-text-smile-0-and-1-k-leq-f-text-put-1-k-leq-f-text-call-geq-0" title="Link to this heading">#</a></h5>
+<div class="math-wrapper docutils container">
+<div class="math notranslate nohighlight">
+\[
+\sigma^2 (k) = \sigma_0^2 + 2 \, \text{skew} \, k \, \sigma_0 + \frac{\text{smile}}{\tilde{\sigma}^4 (k)} \, \sigma^2 (k) \, k^2 + \frac{1_{K \leq F} \text{Put} + 1_{K \leq F} \text{Call}}{\tilde{\sigma}^4 (k)} \, k^4
+\]</div>
+</div>
+<p>where <span class="math notranslate nohighlight">\( \tilde{\sigma} \)</span> is the solution of:</p>
+</section>
+</section>
+<section id="adjustment-for-negative-wings">
+<h4>4.1.4 Adjustment for Negative Wings<a class="headerlink" href="#adjustment-for-negative-wings" title="Link to this heading">#</a></h4>
+<p>Even when the call value is zero, the above formula returned vols exhibiting a skew on the higher strikes side, which tends to overestimate the market consensus. Negative calls in the cubic equation would imply the needed negative slope. However, as the strike increases:</p>
+<ul class="simple">
+<li><p>The <span class="math notranslate nohighlight">\( k^+ \)</span> term increases.</p></li>
+<li><p>The <span class="math notranslate nohighlight">\( \frac{\text{call}}{\sigma^4(k)} k^4 \)</span> term decreases.</p></li>
+<li><p>This makes the vol drop further, which implies a further decrease in the <span class="math notranslate nohighlight">\( \frac{\text{call}}{\sigma^4(k)} k^4 \)</span> term.</p></li>
+</ul>
+<p>Hence, the vol ends up collapsing to 0.</p>
+<p>In order to introduce a natural cut-off, the last term is transformed into: <span class="math notranslate nohighlight">\( \text{call} \cdot k^+ \cdot [\sigma(k)] \)</span>, where <span class="math notranslate nohighlight">\( f \)</span> is an increasing function of the vol (as <span class="math notranslate nohighlight">\( \sigma(k) \)</span> decreases, it counters the impact of increasing strikes in the call term). In order to have an easy-to-solve and continuous function, we chose this form:</p>
+<div class="math-wrapper docutils container">
+<div class="math notranslate nohighlight">
+\[
+\frac{\text{call}}{\tilde{\sigma}^6(k)} k^4 \cdot \sigma^2(k).
+\]</div>
+</div>
+<section id="adjustment-for-negative-smile">
+<h5>4.1.4.3 Adjustment for Negative Smile<a class="headerlink" href="#adjustment-for-negative-smile" title="Link to this heading">#</a></h5>
+<p>The initial implementation of ASV, which is the case (a) in section 4.1.3, can only guarantee the existence and continuity of the solution when the smile is non-negative. Please refer to sections 4.1.5.3 and 4.1.6 for more details. In order to get a continuous solution with a negative smile as well, a two-step process is introduced, as described in cases (b) and (c) in section 4.1.3. In the first step, the negative smile and Call/Put wing parameters are floored by zero, and the solution of the corresponding equation is denoted by <span class="math notranslate nohighlight">\( \tilde{\sigma} \)</span>. In the second step, <span class="math notranslate nohighlight">\( \sigma \)</span> is solved with an adjusted formula, which is the same as the original equation with scaled parameters and zero smile. Please refer to sections 4.1.7 and 4.1.8 for more details. Hence, the existence and continuity of both <span class="math notranslate nohighlight">\( \sigma \)</span> and <span class="math notranslate nohighlight">\( \tilde{\sigma} \)</span> can be implied from the existence and continuity of the non-negative smile scenario.</p>
+<p>and <span class="math notranslate nohighlight">\(\hat{\sigma}\)</span> can be implied from the existence and continuity of
+non-negative smile scenario.</p>
+</section>
+</section>
+</section>
+<section id="term-structure-motivation">
+<h3>4.1.4.4. Term structure motivation<a class="headerlink" href="#term-structure-motivation" title="Link to this heading">#</a></h3>
+<p>ASV “parameter term-structure” has the purpose of defining
+the ASV skew/smile/wing parameters for the liquid maturities in terms of a smaller number of parameters, in particular
+for more illiquid market vols. They overwrite the input ASV
+parameters by the parameterised form.</p>
+</section>
+<section id="solving-the-variance-equation-for-positive-wings">
+<h3>4.1.5 Solving the variance equation for positive wings<a class="headerlink" href="#solving-the-variance-equation-for-positive-wings" title="Link to this heading">#</a></h3>
+<p>The vol equation can be rewritten as:</p>
+<div class="math-wrapper docutils container">
+<div class="math notranslate nohighlight">
+\[f_k(\sigma) = \sigma^6 - \sigma^4(\sigma_0^2 + 2 \text{ skew } k \sigma_0) - \sigma^2.\text{smile}.k^2 - \text{wing}(k).k^4\]</div>
+</div>
+<div class="math-wrapper docutils container">
+<div class="math notranslate nohighlight">
+\[\text{wing}(k) = 1_{k&lt;F}\text{Put} + 1_{k&gt;F}\text{Call}\]</div>
+</div>
+</section>
+<section id="existence-of-a-solution">
+<h3>4.1.5.1. Existence of a solution<a class="headerlink" href="#existence-of-a-solution" title="Link to this heading">#</a></h3>
+<p>A real positive solution at least exists as:</p>
+<div class="math-wrapper docutils container">
+<div class="math notranslate nohighlight">
+\[f_k(0) = - \text{wing}(k).k^4 \leq 0\]</div>
+</div>
+<div class="math-wrapper docutils container">
+<div class="math notranslate nohighlight">
+\[f_k(\sigma) \xrightarrow{\sigma\rightarrow+\infty} +\infty\]</div>
+</div>
+</section>
+<section id="solution">
+<h3>4.1.5.2. Solution<a class="headerlink" href="#solution" title="Link to this heading">#</a></h3>
+<section id="implemented-solution">
+<h4>4.1.5.2.1. Implemented solution<a class="headerlink" href="#implemented-solution" title="Link to this heading">#</a></h4>
+<p>This paragraph summarises the detailed derivation in 14.1.</p>
+<p>Let’s start by introducing intermediate values:</p>
+<div class="math-wrapper docutils container">
+<div class="math notranslate nohighlight">
+\[a = 1, b = -(\sigma_0^2 + 2 \text{ skew } k \sigma_0), c = - \text{ smile}.k^2, d = - \text{wing}(k).k^4\]</div>
+</div>
+<div class="math-wrapper docutils container">
+<div class="math notranslate nohighlight">
+\[\Delta = (2.b^3 - 9.b.c + 27.d)^2 - 4.(b^2 - 3.c)^3\]</div>
+</div>
+<div class="math-wrapper docutils container">
+<div class="math notranslate nohighlight">
+\[\Delta_0 = b^2 - 3.c = -3.p\]</div>
+</div>
+<div class="math-wrapper docutils container">
+<div class="math notranslate nohighlight">
+\[\Delta_1 = \frac{-2.b^3 + 9.b.c - 27d}{2} = \frac{27}{2} q\]</div>
+</div>
+<div class="math-wrapper docutils container">
+<div class="math notranslate nohighlight">
+\[\tilde{\Delta} = \Delta_1^2 - \Delta_0^3 = \frac{1}{27^2} \Delta\]</div>
+</div>
+<p>As described in 14.1, in order to compute the largest positive root which exists as proofed before, two cases should
+be considered</p>
+<ul class="simple">
+<li><p><span class="math notranslate nohighlight">\(\tilde{\Delta} &gt; 0\)</span>:</p></li>
+</ul>
+<div class="math-wrapper docutils container">
+<div class="math notranslate nohighlight">
+\[z = \frac{1}{3}\left(-b + \sqrt[3]{\Delta_1 + \sqrt{\tilde{\Delta}}} + \sqrt[3]{\Delta_1 - \sqrt{\tilde{\Delta}}}\right)\]</div>
+</div>
+<div class="math-wrapper docutils container">
+<div class="math notranslate nohighlight">
+\[= \frac{1}{3}\left(-b + \frac{\Delta_0}{\sqrt[3]{\Delta_1 - \sqrt{\tilde{\Delta}}}} + \sqrt[3]{\Delta_1 - \sqrt{\tilde{\Delta}}}\right)\]</div>
+</div>
+<div class="math-wrapper docutils container">
+<div class="math notranslate nohighlight">
+\[= \frac{1}{3}\left(-b + \sqrt[3]{\Delta_1 + \sqrt{\tilde{\Delta}}} + \frac{\Delta_0}{\sqrt[3]{\Delta_1 + \sqrt{\tilde{\Delta}}}}\right)\]</div>
+</div>
+<p>To reduce numerical error, we will switch between the
+two last formulas depending on the sign of <span class="math notranslate nohighlight">\(\Delta_1\)</span> in order
+to guarantee the largest possible denominator.</p>
+<ul>
+<li><p><span class="math notranslate nohighlight">\(\tilde{\Delta} \leq 0\)</span>:</p>
+<div class="math-wrapper docutils container">
+<div class="math notranslate nohighlight">
+\[z = \frac{1}{3}\left(-b + 2\sqrt{\Delta_0} \cos\left(\frac{\phi}{3}\right)\right)\]</div>
+</div>
+</li>
+</ul>
+<p>where</p>
+<div class="math-wrapper docutils container">
+<div class="math notranslate nohighlight">
+\[\phi = \text{atan2}\left(\sqrt{|\tilde{\Delta}|}, \Delta_1\right)\]</div>
+</div>
+<p>This solution is floored by 0.01 in vol terms.</p>
+</section>
+<section id="alternative-expression-for-the-solution">
+<h4>4.1.5.2.2. Alternative expression for the solution<a class="headerlink" href="#alternative-expression-for-the-solution" title="Link to this heading">#</a></h4>
+<p>Another possible derivation for this equation can be found
+in section 14.1. This derivation gives more intuitive solutions which we will use during the following section to discuss the continuity of the resulting sigma. Reusing the
+same notations as previously, the cubic roots can be expressed as follows:</p>
+<div class="math-wrapper docutils container">
+<div class="math notranslate nohighlight">
+\[\begin{split}z_1 = \begin{cases}
+\frac{-b}{3} \\
+-\frac{1}{3}\left(\frac{1}{2}.(2.b^3-9.b.c+27.d)-\frac{1}{2}\sqrt{(2.b^3-9.b.c+27.d)^2-} \right. \\
+\left. -\frac{1}{3}\left(\frac{1}{2}.(2.b^3-9.b.c+27.d)+\frac{1}{2}\sqrt{(2.b^3-9.b.c+27.d)^2-} \right. \right.
+\end{cases}\end{split}\]</div>
+</div>
+<div class="math-wrapper docutils container">
+<div class="math notranslate nohighlight">
+\[\begin{split}z_2 = \begin{cases}
+\frac{-b}{3} \\
++\frac{1+\sqrt{3}i}{6}\left(\frac{1}{2}.(2.b^3-9.b.c+27.d)-\frac{1}{2}\sqrt{(2.b^3-9.b.c+27.} \right. \\
+\left. +\frac{1-\sqrt{3}i}{6}\left(\frac{1}{2}.(2.b^3-9.b.c+27.d)+\frac{1}{2}\sqrt{(2.b^3-9.b.c+27.} \right. \right.
+\end{cases}\end{split}\]</div>
+</div>
+<div class="math-wrapper docutils container">
+<div class="math notranslate nohighlight">
+\[\begin{split}z_3 = \begin{cases}
+\frac{-b}{3} \\
++\frac{1-\sqrt{3}i}{6}\left(\frac{1}{2}.(2.b^3-9.b.c+27.d)-\frac{1}{2}\sqrt{(2.b^3-9.b.c+27.} \right. \\
+\left. +\frac{1+\sqrt{3}i}{6}\left(\frac{1}{2}.(2.b^3-9.b.c+27.d)+\frac{1}{2}\sqrt{(2.b^3-9.b.c+27.} \right. \right.
+\end{cases}\end{split}\]</div>
+</div>
+<p>Depending on the sign of <span class="math notranslate nohighlight">\(\Delta\)</span>, the cubic equation has:</p>
+<ul class="simple">
+<li><p>3 different real solutions if <span class="math notranslate nohighlight">\(\Delta &lt; 0\)</span></p></li>
+<li><p>3 real solutions with a multiple root if <span class="math notranslate nohighlight">\(\Delta = 0\)</span></p></li>
+<li><p>1 real solution and 2 complex ones if <span class="math notranslate nohighlight">\(\Delta &gt; 0\)</span>.</p></li>
+</ul>
+</section>
+</section>
+<section id="continuity">
+<h3>4.1.5.3. Continuity<a class="headerlink" href="#continuity" title="Link to this heading">#</a></h3>
+<p>The produced vol is a continuous function of the strike and
+the vol params (atm vol, skew …).</p>
+<p>The continuity is obvious when these params change without causing a sign switch in the <span class="math notranslate nohighlight">\(\Delta\)</span>. When <span class="math notranslate nohighlight">\(\Delta\)</span>
+s sign changes
+(i.e. <span class="math notranslate nohighlight">\(\Delta = 0\)</span> as <span class="math notranslate nohighlight">\(\Delta\)</span> is a continuous function of strike), we need to
+check that the continuity is still respected.</p>
+<p>When <span class="math notranslate nohighlight">\(\Delta(k) = 0\)</span>, this equality is verified <span class="math notranslate nohighlight">\((2.b^3-9.b.c+27.d)^2 = 4.(b^2-3.c)^3\)</span>. Two cases can be distinguished for such a strike k:</p>
+<ul class="simple">
+<li><p><span class="math notranslate nohighlight">\(\mathbf{2.b^3-9.b.c+27.d \leq 0}\)</span>, in this case the roots are:
+<span class="math notranslate nohighlight">\(z_1 = -\frac{b}{3}+\frac{2}{3}\sqrt{b^2-3.c}\)</span>
+<span class="math notranslate nohighlight">\(z_2 = z_3 = -\frac{b}{3}-\frac{1}{3}\sqrt{b^2-3.c}\)</span>
+<span class="math notranslate nohighlight">\(\sigma^2 = Max(10^{-4},z_1,z_2=z_3) = Max(10^{-4},z_1)\)</span></p></li>
+</ul>
+<p>And hence no continuity issue arises in this case as for:</p>
+<ul class="simple">
+<li><p><span class="math notranslate nohighlight">\(\Delta &gt; 0, z_1\)</span> is the only real solution</p></li>
+<li><p>For sufficiently small <span class="math notranslate nohighlight">\(\epsilon\)</span>, <span class="math notranslate nohighlight">\(0 &gt; \Delta \geq -\epsilon, max(z_1,z_2,z_3) = z_1\)</span> (by continuity argument)</p></li>
+<li><p><span class="math notranslate nohighlight">\(\mathbf{2.b^3-9.b.c+27.d &gt; 0}\)</span>, in this case the roots are:
+<span class="math notranslate nohighlight">\(z_1 = -\frac{b}{3}-\frac{2}{3}\sqrt{b^2-3.c}\)</span>
+<span class="math notranslate nohighlight">\(z_2 = z_3 = -\frac{b}{3}+\frac{1}{3}\sqrt{b^2-3.c}\)</span>
+<span class="math notranslate nohighlight">\(\sigma^2 = Max(10^{-4},z_1,z_2=z_3) = Max(10^{-4},z_2=z_3)\)</span></p></li>
+</ul>
+<p>If for such a strike <span class="math notranslate nohighlight">\(k, b &gt; 0\)</span> and <span class="math notranslate nohighlight">\(smile &lt; 0\)</span>: all solutions are negative at k. As we know that a positive solution exists, this case cannot happen.</p>
+<p>If for such a strike <span class="math notranslate nohighlight">\(k, b &gt; 0\)</span> and <span class="math notranslate nohighlight">\(smile \geq 0\)</span>: then <span class="math notranslate nohighlight">\(z_1 &lt; 0\)</span>. In this case, for no strike <span class="math notranslate nohighlight">\(k + \epsilon\)</span> should <span class="math notranslate nohighlight">\(\Delta\)</span> become positive as it would mean that <span class="math notranslate nohighlight">\(z_1 &lt; 0\)</span> at <span class="math notranslate nohighlight">\(k + \epsilon\)</span> and all real solutions are negative. Hence the only possible direction for <span class="math notranslate nohighlight">\(\Delta\)</span> in the neighbourhood of <span class="math notranslate nohighlight">\(k\)</span> would make it negative. The equation will then have 3 real solutions with <span class="math notranslate nohighlight">\(z_1 &lt; 0\)</span>.</p>
+<p>Hence <span class="math notranslate nohighlight">\(z_2\)</span> or <span class="math notranslate nohighlight">\(z_3\)</span> will be the only possible solutions in such neighbourhood. This guarantees the continuity.</p>
+<p>If for such a strike <span class="math notranslate nohighlight">\(k, b &lt; 0\)</span>: then <span class="math notranslate nohighlight">\(z_1 &gt; 0\)</span>. This cannot happen when smile is non-negative (non-negative smile guarantees that a negative solution exists). For negative smile,
+○ When <span class="math notranslate nohighlight">\(1_{K&lt;F}Put + 1_{K \geq F}Call \geq 0\)</span>, both the function of <span class="math notranslate nohighlight">\(\hat{\sigma}^2\)</span> and <span class="math notranslate nohighlight">\(\sigma^2\)</span> are a new cubic polynomial with c = 0, so both of them are continuous following the previous discussion
+○ When <span class="math notranslate nohighlight">\(1_{K&lt;F}Put + 1_{K \geq F}Call &lt; 0\)</span>, both <span class="math notranslate nohighlight">\(\hat{\sigma}\)</span> and <span class="math notranslate nohighlight">\(\sigma\)</span> are continuous functions of the asv parameters</p>
+</section>
+<section id="bounded-volatility-values">
+<h3>4.1.5.4. Bounded volatility values<a class="headerlink" href="#bounded-volatility-values" title="Link to this heading">#</a></h3>
+<p>For a given maturity and a set of vol parameters, the vol values are bounded. This is guaranteed because:</p>
+<ul class="simple">
+<li><p>the volatility function is a continuous function of k</p></li>
+<li><p><span class="math notranslate nohighlight">\(\frac{-1}{Ctrl\_P_* \sqrt{T}} \leq k \leq \frac{1}{Ctrl\_C_* \sqrt{T}}\)</span></p></li>
+</ul>
+</section>
+<section id="solving-the-variance-equation-for-positive-smile-and-negative-wing">
+<h3>4.1.6 Solving the variance equation for positive smile and negative wing<a class="headerlink" href="#solving-the-variance-equation-for-positive-smile-and-negative-wing" title="Link to this heading">#</a></h3>
+<p>The vol equation in case (a) of section 4.1.3 can be rewritten as:</p>
+<div class="math-wrapper docutils container">
+<div class="math notranslate nohighlight">
+\[f_k(\sigma) = \sigma^4(1-\frac{wing(k)}{\tilde{\sigma}^6(k)}k^4) - \sigma^2(\sigma_0^2 + 2 skew k \sigma_0) - smile.k^2 = 0\]</div>
+</div>
+<p><span class="math notranslate nohighlight">\(\tilde{\sigma}\)</span> existence and continuity has been covered in the previous section 4.1.5 and should be fine as long as the smile is positive.</p>
+<p>Let’s introduce the <span class="math notranslate nohighlight">\(\Delta\)</span> for the quadratic equation:</p>
+<div class="math-wrapper docutils container">
+<div class="math notranslate nohighlight">
+\[\Delta = \sigma_0^2.(\sigma_0 + 2 skew.k)^2 + 4.(1-\frac{wing(k)}{\tilde{\sigma}^6(k)}k^4) \cdot smile.k^2\]</div>
+</div>
+<p>If the smile is negative, the <span class="math notranslate nohighlight">\(\Delta\)</span> can become negative under which condition no solution exists.</p>
+<p>If the smile is positive, two solutions with different signs exist. The solution will be equal to:</p>
+<div class="math-wrapper docutils container">
+<div class="math notranslate nohighlight">
+\[z = \frac{\sigma_0^2 + 2 skew k \sigma_0 + \sqrt{\Delta}}{2 \cdot \left(1-\frac{wing(k)}{\tilde{\sigma}^6(k)}k^4\right)}\]</div>
+</div>
+<p>For positive smile, the continuity of the solution in strikes is obvious given that the expression is a continuous function of strikes.</p>
+<p>The final returned vol will be floored by 1% in vol terms.</p>
+</section>
+<section id="solving-the-variance-equation-for-negative-smile-and-positive-wing">
+<h3>4.1.7 Solving the variance equation for negative smile and positive wing<a class="headerlink" href="#solving-the-variance-equation-for-negative-smile-and-positive-wing" title="Link to this heading">#</a></h3>
+<p>The equation for <span class="math notranslate nohighlight">\(\hat{\sigma}^2\)</span> in case (b) of section 4.1.3 can be converted to the cubic equation that is discussed in the section 4.1.5 with smile = 0. The equation for <span class="math notranslate nohighlight">\(\sigma^2\)</span> can also be converted to the cubic equation with the following scaling:</p>
+<div class="math-wrapper docutils container">
+<div class="math notranslate nohighlight">
+\[\sigma'_0 = \frac{\sigma_0}{\sqrt{\lambda}}, skew' = \frac{skew}{\sqrt{\lambda}} \text{ and } wing' = \frac{wing}{\lambda}\]</div>
+</div>
+<p>Where <span class="math notranslate nohighlight">\(\lambda = 1 - \frac{smile}{\sigma^4} k^2\)</span> and <span class="math notranslate nohighlight">\(wing(k) = 1_{K&lt;F}Put + 1_{K&gt;F}Call\)</span>. Please note that <span class="math notranslate nohighlight">\(\lambda &gt; 0\)</span> when <span class="math notranslate nohighlight">\(smile &lt; 0\)</span>. The existence and continuity of <span class="math notranslate nohighlight">\(\hat{\sigma}^2\)</span> and <span class="math notranslate nohighlight">\(\sigma^2\)</span> can be followed by the discussion of section 4.1.5.</p>
+</section>
+<section id="solving-the-variance-equation-for-negative-smile-and-negative-wing">
+<h3>4.1.8 Solving the variance equation for negative smile and negative wing<a class="headerlink" href="#solving-the-variance-equation-for-negative-smile-and-negative-wing" title="Link to this heading">#</a></h3>
+<p>In this case,</p>
+<div class="math-wrapper docutils container">
+<div class="math notranslate nohighlight">
+\[\sigma^2(k) = \max\left(\frac{\sigma_0^2 + 2 skew k \sigma_0}{\lambda}, 0.01^2\right)\]</div>
+</div>
+<p>Where <span class="math notranslate nohighlight">\(\lambda = 1 - \frac{smile}{\sigma^4(k)} k^2 - \frac{1_{K&lt;F}Put+1_{K\geq F}Call}{\sigma^6(k)} k^4\)</span>. When <span class="math notranslate nohighlight">\(smile &lt; 0\)</span> and <span class="math notranslate nohighlight">\(1_{K&lt;F}Put+1_{K\geq F}Call &lt; 0\)</span>, <span class="math notranslate nohighlight">\(\lambda &gt; 0\)</span>. Thus, <span class="math notranslate nohighlight">\(\sigma^2\)</span> is continuous. Please note that we always return 1% volatility when the solution of volatility does not exist or smaller than 1%, which is described in section 4.2.</p>
+</section>
+<section id="model-design-development">
+<h3>4.1.9 Model design &amp; development<a class="headerlink" href="#model-design-development" title="Link to this heading">#</a></h3>
+<p>We have initially implemented the solution described in 4.1.5.2.2 but for performance reasons we have switched to the solution described in 4.1.5.2.1 as it does require neither handling complex numbers nor cubic root calculation.</p>
+</section>
+<section id="regulatory-compliance">
+<h3>4.1.10 Regulatory compliance<a class="headerlink" href="#regulatory-compliance" title="Link to this heading">#</a></h3>
+<p>NA</p>
+</section>
+</section>
+<section id="assumptions-limitations-and-outliers">
+<h2>4.2 Assumptions, Limitations and Outliers<a class="headerlink" href="#assumptions-limitations-and-outliers" title="Link to this heading">#</a></h2>
+<p>Whilst the ASV parameterisation presents a number of advantages when compared to the legacy models, it does pose a few new challenges:</p>
+<ul class="simple">
+<li><p><strong>Parsimonious parameterisation</strong>: The ASV parameterisation describes the vol curve in terms of only five volatility parameters. This reduces the risk of over-parameterisation or over-fitting of market data. On the other hand, using a small number of parameters makes the ASV surface less flexible to fit irregular market quotes.</p></li>
+<li><p><strong>Arbitrage in strike</strong>: The ASV parameterisation is not derived from a rigorous no-arbitrage model (such as Stochastic Volatility or Jump Diffusion) and therefore does not guarantee absence of arbitrage across strikes. Butterfly arbitrage is controlled in the vol fitting framework instead. Having a combination of bespoke parameterisation that uses orthogonal and intuitive parameters along with a vol fitting framework controlling strike-arbitrage was preferred to using model-driven approach that would lead to time-consuming calibrations, dependencies between the higher and lower strike wings, and non-intuitive parameters.</p></li>
+</ul>
+<ul class="simple">
+<li><p><strong>Existence of a Solution:</strong> A solution for the volatility by strike may not exist if both Put/Call Wing and Smile parameters are negative. If no solution exists or the solution is smaller than 1%, ASV returns a (hard-coded) value of 1%. Returning an exception would prevent the volatility fitting algorithm from completing the solving process as it explores the space of possible solutions for ASV parameters. Also, in case the fitter returns a set of ASV parameters for which a solution might not exist or for which a continuity issue arises, a final sanity local volatility check will prevent such a surface from being committed.</p></li>
+<li><p><strong>Continuity of the Solution Across Strikes:</strong> The volatility is guaranteed to be smooth in strike and parameters for a positive Smile parameter in the original formula. In the case of a negative smile and wing, volatility is smooth with the adjusted formula. However, non-smoothness can appear when the volatility hits the lower bound of 1%. Non-smooth volatility may cause numerical issues in some pricing models (e.g., spikes in the local volatility surface generated by the Local Volatility or LSV model).</p></li>
+<li><p><strong>Higher Wings:</strong> ASV often gives higher implied volatilities on the wings and for front maturities that are close to expiry. This can pose numerical challenges. For example, it has a detrimental effect on the convergence of Monte Carlo prices (because the standard error is a function of volatility). To combat this effect in the Monte Carlo price, we have added finer discretisation in time and back-tested thoroughly, as discussed in section 8.1.2.</p></li>
+</ul>
+<hr class="docutils" />
+<section id="model-parameters-variables">
+<h3>4.3 Model Parameters / Variables<a class="headerlink" href="#model-parameters-variables" title="Link to this heading">#</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Parameter / Variable Name</p></th>
+<th class="head"><p>Description</p></th>
+<th class="head"><p>Type - Data (Method) / Input / Calibration</p></th>
+<th class="head"><p>Impact</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>ATM Vol</strong></p></td>
+<td><p>Per maturity at-the-money forward volatility. This is scaled by 0.01 when solving in the cubic/quadratic equation.</p></td>
+<td><p>Calibration</p></td>
+<td><p>Major</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Skew</strong></p></td>
+<td><p>Per maturity skew. This is scaled by 0.01 when solving in the cubic/quadratic equation.</p></td>
+<td><p>Calibration</p></td>
+<td><p>Major</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Smile</strong></p></td>
+<td><p>Per maturity convexity. This is scaled by 0.01 when solving in the cubic/quadratic equation.</p></td>
+<td><p>Calibration</p></td>
+<td><p>Major</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Put</strong></p></td>
+<td><p>Per maturity adjustment for the put (downside) wing. This is scaled by 0.01 when solving in the cubic/quadratic equation.</p></td>
+<td><p>Calibration</p></td>
+<td><p>Major</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Call</strong></p></td>
+<td><p>Per maturity adjustment for the call (upside) wing. This is scaled by 0.01 when solving in the cubic/quadratic equation.</p></td>
+<td><p>Calibration</p></td>
+<td><p>Major</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Anchor Strikes</strong></p></td>
+<td><p>Per maturity strike at which the implied volatility matches the ATM volatility.</p></td>
+<td><p>Calibration</p></td>
+<td><p>Major</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Control (Call and Put)</strong></p></td>
+<td><p>Controls the flattening of the wings for high and low values of the strike.</p></td>
+<td><p>Input</p></td>
+<td><p>Major on the wings</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Term Structure Start Tenor</strong></p></td>
+<td><p>This defines when the parameters are to be implied from the term structure form.</p></td>
+<td><p>Input</p></td>
+<td><p>Major</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>PD</strong></p></td>
+<td><p>Value returned by the term structure form at 0.1.</p></td>
+<td><p>Calibrated</p></td>
+<td><p>Major</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>These parameters are calibrated in the volatility fitter framework as described in [1].</p>
+</section>
+<hr class="docutils" />
+<section id="model-outputs">
+<h3>4.4 Model Outputs<a class="headerlink" href="#model-outputs" title="Link to this heading">#</a></h3>
+<p>ASV volatility returns the result of the parametric form as described in section 4.1.</p>
+</section>
+<hr class="docutils" />
+<section id="risk-factor">
+<h3>4.6 Risk Factor<a class="headerlink" href="#risk-factor" title="Link to this heading">#</a></h3>
+<p>The risk factors are related to the fitting mechanism. The implied volatility fitting framework is described extensively in [1].</p>
+</section>
+<hr class="docutils" />
+<section id="feeder-models">
+<h3>4.7 Feeder Models<a class="headerlink" href="#feeder-models" title="Link to this heading">#</a></h3>
+<p>The volatility fitter framework is used to fit ASV to the listed options (as described in [1]).</p>
+</section>
+<hr class="docutils" />
+<section id="justification-against-alternative-approaches">
+<h3>4.8 Justification Against Alternative Approaches<a class="headerlink" href="#justification-against-alternative-approaches" title="Link to this heading">#</a></h3>
+<p>Barclays’ equity derivatives business began life using an implied volatility grid and progressed to parameterisations. Taylor was the parameterisation with the highest number of parameters and was used widely. While it was in production, a number of shortcomings surfaced:</p>
+<ul class="simple">
+<li><p><strong>Taylor is over-parameterised:</strong> It has a large number of parameters, which have overlapping effects on the volatility surface. This makes fitting a time-consuming process for traders and also leads to oscillation of parameters, where a relatively stable set of quotes is captured in different ways as the parameters compete with each other.</p></li>
+<li><p><strong>Taylor can produce poor local volatility:</strong> This is due to non-smooth curves, which create local volatility spikes.</p></li>
+<li><p><strong>Taylor cannot be used for single stocks:</strong> It was too rich for the available market observables. Having different parameterisations for single stocks and indices sacrifices a host of potential synergies.</p></li>
+</ul>
+<p>ASV solves the problems above and provides a number of improvements:</p>
+<ul class="simple">
+<li><p><strong>Minimal number of parameters:</strong> There are only 5 parameters for ASV per maturity. Each of these has an intuitive meaning and can be traded in the market.</p></li>
+<li><p><strong>Orthogonal parameters:</strong> If any parameter is bumped, the surface will change with respect to this parameter without forcing the whole surface into an unrealistic state (for example, bumping the skew will not cause unrealistically low implied volatility on the call wing). This makes implied volatility surfaces easier to mark and allows for more realistic Greeks.</p></li>
+<li><p><strong>Agrees with market consensus on the wings:</strong> When compared to Taylor, ASV gives higher implied volatility on the wings and for front maturities that are close to expiry (Section 8.1.2 presents test results for this point).</p></li>
+<li><p><strong>Smooth curves:</strong> The volatility by strike is described uniformly by an analytic form across the whole strike region; there is no kind of cut-off and extrapolation involved in the wings (which may give rise to discontinuity in the derivatives of the volatility around cut-off strikes). Consequently, the implied volatility, the implied PDF, and the local volatility (generated by the LV model) are generally smooth (Section 8.7 presents test results for this point).</p></li>
+</ul>
+</section>
+<hr class="docutils" />
+<section id="conditions-of-use">
+<h3>4.9 Conditions of Use<a class="headerlink" href="#conditions-of-use" title="Link to this heading">#</a></h3>
+<p>Given our back-testing, we have found ASV suitable for use on all indices and single stocks, in all market conditions. However, we have not looked into other asset classes, such as bonds.</p>
+<section id="stressed-market-conditions">
+<h4>4.9.1 Stressed Market Conditions<a class="headerlink" href="#stressed-market-conditions" title="Link to this heading">#</a></h4>
+<p>The behavior of the model has been back-tested for a period of 3+ years, including periods of market stress, as described in section 8.1.</p>
+</section>
+</section>
+</section>
+<section id="implementation-numerical-schema-description">
+<h2>5. Implementation / Numerical Schema Description<a class="headerlink" href="#implementation-numerical-schema-description" title="Link to this heading">#</a></h2>
+<section id="id2">
+<h3>5.1 Description<a class="headerlink" href="#id2" title="Link to this heading">#</a></h3>
+<p>The ASV volatility surface is available in the Aleph library as the <strong>“volatility_surface_asv”</strong> class. When created, an ASV volatility object uses the provided Term Structure and the explicit parameter matrix to build the actual parameters to use. This is done in the function <code class="docutils literal notranslate"><span class="pre">volatility_surface_asv::initialise()</span></code>.<br />
+For each maturity, a <strong>“parameter_asv”</strong> object is constructed.</p>
+<p>When the volatility object receives a request for an implied volatility at a strike <strong>K</strong> and date <strong>T</strong>, <code class="docutils literal notranslate"><span class="pre">volatility_surface::value</span></code> generates calls to<br />
+<code class="docutils literal notranslate"><span class="pre">volatility_surface_asv::raw_value(size_t</span> <span class="pre">idx,</span> <span class="pre">double</span> <span class="pre">strike)</span></code>.<br />
+This function delegates the calculations of the implied volatility to the appropriate <code class="docutils literal notranslate"><span class="pre">parameter_asv</span></code> object by calling:<br />
+<code class="docutils literal notranslate"><span class="pre">parameter_asv::value(double</span> <span class="pre">anchor_strike,</span> <span class="pre">double</span> <span class="pre">strike)</span></code>.</p>
+<p>As the code for ASV is to be accessed only on a need-to-know basis at the request of trading,<br />
+the <code class="docutils literal notranslate"><span class="pre">parameter_asv</span></code> calls a function exposed in a separate DLL built with a special feature that makes reverse engineering challenging.</p>
+<p>The live version of this DLL at the time of writing this document (07/15/2020) is named <strong>asv_1.0.9.qas</strong>.</p>
+<p>The ASV controlled access code is under:<br />
+<code class="docutils literal notranslate"><span class="pre">//depot/QA/EDG/Restricted/ASV/_trunk/asv/asv.cpp</span></code>.</p>
+<p>In Markdown, the <code class="docutils literal notranslate"><span class="pre">###</span></code> syntax is used to create a level 3 heading, which should appear as a title. If the title “### 5.2 Inputs” is not appearing as a blue title (or styled as a heading) after the code block, it might be due to the way the Markdown renderer processes the content. Here’s the corrected Markdown format to ensure proper rendering:</p>
+<section id="function-in-asv-qas">
+<h4>Function in <code class="docutils literal notranslate"><span class="pre">asv.qas</span></code><a class="headerlink" href="#function-in-asv-qas" title="Link to this heading">#</a></h4>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="kt">void</span><span class="w"> </span><span class="nf">asv</span><span class="p">(</span>
+<span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="kt">double</span><span class="o">*</span><span class="w"> </span><span class="n">strikes</span><span class="p">,</span><span class="w">    </span><span class="c1">// Array of strike prices</span>
+<span class="w">    </span><span class="kt">size_t</span><span class="w"> </span><span class="n">num_strikes</span><span class="p">,</span><span class="w">       </span><span class="c1">// Number of strike prices</span>
+<span class="w">    </span><span class="kt">double</span><span class="w"> </span><span class="n">ref</span><span class="p">,</span><span class="w">               </span><span class="c1">// Reference value</span>
+<span class="w">    </span><span class="kt">double</span><span class="w"> </span><span class="n">time</span><span class="p">,</span><span class="w">              </span><span class="c1">// Time to maturity</span>
+<span class="w">    </span><span class="kt">double</span><span class="w"> </span><span class="n">ctrl</span><span class="p">,</span><span class="w">              </span><span class="c1">// Control parameter</span>
+<span class="w">    </span><span class="kt">double</span><span class="w"> </span><span class="n">atm</span><span class="p">,</span><span class="w">               </span><span class="c1">// At-the-money volatility</span>
+<span class="w">    </span><span class="kt">double</span><span class="w"> </span><span class="n">skew</span><span class="p">,</span><span class="w">              </span><span class="c1">// Skew parameter</span>
+<span class="w">    </span><span class="kt">double</span><span class="w"> </span><span class="n">smile</span><span class="p">,</span><span class="w">             </span><span class="c1">// Smile parameter</span>
+<span class="w">    </span><span class="kt">double</span><span class="w"> </span><span class="n">put</span><span class="p">,</span><span class="w">               </span><span class="c1">// Put parameter</span>
+<span class="w">    </span><span class="kt">double</span><span class="o">*</span><span class="w"> </span><span class="n">vols</span><span class="w">              </span><span class="c1">// Output array for volatilities</span>
+<span class="p">);</span>
+</pre></div>
+</div>
+<p>This function performs the cubic equation solving.</p>
+</section>
+</section>
+<hr class="docutils" />
+<section id="id3">
+<h3>5.2 Inputs<a class="headerlink" href="#id3" title="Link to this heading">#</a></h3>
+<p>Please refer to <strong>Section 4.3</strong> for the input parameters for the ASV volatility surface.</p>
+<p>If the issue persists, it could be related to the specific Markdown renderer or editor you’re using. Some renderers may not fully support all Markdown features or may require additional configuration.</p>
+</section>
+<section id="quality-control">
+<h3>5.3 Quality Control<a class="headerlink" href="#quality-control" title="Link to this heading">#</a></h3>
+<p>The implied volatility profiles can be viewed either in <strong>iPricer</strong> or <strong>AMD</strong> for each listed maturity.</p>
+</section>
+<hr class="docutils" />
+<section id="limitations">
+<h3>5.4 Limitations<a class="headerlink" href="#limitations" title="Link to this heading">#</a></h3>
+<p>Please refer to <strong>Section 4.2</strong> for the limitations of the ASV model.</p>
+<hr class="docutils" />
+<p>This section provides an overview of the inputs, quality control measures, and limitations of the ASV volatility surface. Let me know if you need further details or adjustments!</p>
+</section>
+</section>
+<section id="calibration">
+<h2>6. Calibration<a class="headerlink" href="#calibration" title="Link to this heading">#</a></h2>
+<p>The ASV volatility surface is calibrated using the <strong>Implied Volatility Fitter Framework</strong> described in detail in <strong>[1]</strong>. Below, we provide an expanded overview of the calibration process, with specific details referenced to the comprehensive documentation in <strong>[1]</strong>.</p>
+<hr class="docutils" />
+<section id="id4">
+<h3>6.1 Description<a class="headerlink" href="#id4" title="Link to this heading">#</a></h3>
+<p>The calibration process for the ASV volatility surface involves fitting the model parameters to observed market data. The primary goal is to construct a volatility surface that accurately represents implied volatilities across different strikes and maturities while adhering to no-arbitrage constraints. Key aspects of the calibration process include:</p>
+<ul class="simple">
+<li><p><strong>Parameter Estimation</strong>: The ASV model uses five key parameters (ATM Volatility, Skew, Smile, Put Wing, Call Wing) for each maturity, which are estimated based on market quotes.</p></li>
+<li><p><strong>Term Structure Definition</strong>: Optional term structure parameters can be used to extrapolate parameter values beyond liquid maturities, ensuring consistency across the entire surface.</p></li>
+<li><p><strong>Control Parameters (<code class="docutils literal notranslate"><span class="pre">Ctrl_C</span></code> and <code class="docutils literal notranslate"><span class="pre">Ctrl_P</span></code>)</strong>: These user-defined parameters control the flattening of the wings for high and low strike values, ensuring stability in extreme regions.</p></li>
+</ul>
+<p>For a detailed explanation of the calibration methodology, refer to <strong>[1]</strong>.</p>
+</section>
+<hr class="docutils" />
+<section id="id5">
+<h3>6.2 Inputs<a class="headerlink" href="#id5" title="Link to this heading">#</a></h3>
+<p>The inputs required for the calibration process include:</p>
+<ul class="simple">
+<li><p><strong>Market Data</strong>: Observed implied volatilities or option prices for various strikes and maturities.</p></li>
+<li><p><strong>Forward Curve</strong>: Used to determine anchor strikes where the volatility equals the ATM Vol parameter.</p></li>
+<li><p><strong>Control Parameters (<code class="docutils literal notranslate"><span class="pre">Ctrl_C</span></code> and <code class="docutils literal notranslate"><span class="pre">Ctrl_P</span></code>)</strong>: User-defined values that influence the behavior of the wings.</p></li>
+<li><p><strong>Term Structure Parameters</strong>: Optional inputs for extrapolating parameters beyond liquid maturities.</p></li>
+<li><p><strong>Historical Data</strong>: For back-testing and validating the robustness of the model under different market conditions.</p></li>
+</ul>
+<p>For a complete list of inputs and their descriptions, see <strong>[1]</strong>.</p>
+</section>
+<hr class="docutils" />
+<section id="id6">
+<h3>6.3 Justification Against Alternative Approaches<a class="headerlink" href="#id6" title="Link to this heading">#</a></h3>
+<p>ASV was chosen over alternative approaches due to its advantages in terms of simplicity, stability, and flexibility:</p>
+<ul class="simple">
+<li><p><strong>Minimal Parameters</strong>: Reduces the risk of overfitting and ensures faster calibration compared to models like Taylor, which have a large number of overlapping parameters.</p></li>
+<li><p><strong>Orthogonal Parameters</strong>: Each parameter has a distinct impact on the volatility surface, avoiding multicollinearity and ensuring intuitive adjustments.</p></li>
+<li><p><strong>Smooth Curves</strong>: Avoids discontinuities and oscillations, leading to more stable local volatility surfaces.</p></li>
+<li><p><strong>Market Consensus on Wings</strong>: Aligns with industry-standard practices for wing behavior, particularly for front maturities and extreme strikes.</p></li>
+</ul>
+<p>For a detailed comparison with other models, refer to <strong>[1]</strong>.</p>
+</section>
+<hr class="docutils" />
+<section id="id7">
+<h3>6.4 Quality Control<a class="headerlink" href="#id7" title="Link to this heading">#</a></h3>
+<p>Quality control measures ensure that the calibrated ASV volatility surface adheres to market standards and avoids arbitrage opportunities:</p>
+<ul class="simple">
+<li><p><strong>Butterfly Arbitrage Checks</strong>: Ensures the absence of butterfly arbitrage by verifying the positivity of the implied probability density function (PDF).</p></li>
+<li><p><strong>Local Volatility Validation</strong>: Confirms the smoothness and consistency of the local volatility surface derived from the implied volatility surface.</p></li>
+<li><p><strong>Back-Testing</strong>: Validates the model’s performance under historical market conditions, including periods of stress.</p></li>
+<li><p><strong>Sensitivity Analysis</strong>: Evaluates the impact of parameter changes on the volatility surface to ensure robustness.</p></li>
+</ul>
+<p>For a comprehensive description of quality control procedures, see <strong>[1]</strong>.</p>
+</section>
+<hr class="docutils" />
+<section id="limitations-and-risk-assessment">
+<h3>6.5 Limitations and Risk Assessment<a class="headerlink" href="#limitations-and-risk-assessment" title="Link to this heading">#</a></h3>
+<p>While ASV offers numerous advantages, it also has certain limitations that must be considered:</p>
+<ul class="simple">
+<li><p><strong>Parsimonious Parameterization</strong>: The small number of parameters reduces flexibility in fitting irregular market quotes.</p></li>
+<li><p><strong>Arbitrage in Strike</strong>: ASV does not inherently guarantee the absence of arbitrage across strikes, relying instead on external checks within the volatility fitter framework.</p></li>
+<li><p><strong>Numerical Challenges</strong>: Higher implied volatilities on the wings and for front maturities close to expiry can pose challenges in Monte Carlo simulations, requiring finer discretization or adjustments.</p></li>
+<li><p><strong>Continuity Issues</strong>: Non-smoothness can appear when the volatility hits the lower bound of 1%, potentially causing numerical issues in pricing models.</p></li>
+</ul>
+<section id="id8">
+<h4>6.5.1 Stressed Market Conditions<a class="headerlink" href="#id8" title="Link to this heading">#</a></h4>
+<p>The behavior of the ASV model under stressed market conditions has been extensively back-tested for a period of 3+ years, including periods of significant market stress. These tests confirm the model’s robustness and ability to maintain stability even during volatile market environments.</p>
+<p>For detailed results of back-testing and stress testing, refer to <strong>[1]</strong>.</p>
+<hr class="docutils" />
+<p>This section provides an expanded overview of the calibration process for the ASV volatility surface, referencing the detailed documentation in <strong>[1]</strong>. If further details or adjustments are needed, please let me know!</p>
+</section>
+</section>
+</section>
+<section id="risk">
+<h2>7. Risk<a class="headerlink" href="#risk" title="Link to this heading">#</a></h2>
+<p>No risks are computed directly by the ASV volatility model itself. The computation of risk factors is handled separately within the broader implied volatility fitting framework, as described in [1]. Below is an expanded explanation of this section.</p>
+<hr class="docutils" />
+<section id="id9">
+<h3>7.1 Description<a class="headerlink" href="#id9" title="Link to this heading">#</a></h3>
+<p>The ASV volatility model does not compute risk metrics directly. Instead, it focuses on constructing a robust and accurate volatility surface using its parameterization. Risk assessment and computation are delegated to external frameworks, such as the implied volatility fitter, which evaluates the sensitivity of the volatility surface to various market inputs and parameters.</p>
+<p>Key aspects:</p>
+<ul class="simple">
+<li><p><strong>Volatility Surface Construction</strong>: ASV ensures that the constructed surface adheres to no-arbitrage constraints and aligns with market consensus.</p></li>
+<li><p><strong>Risk Computation</strong>: Sensitivities (e.g., Greeks) and other risk metrics are derived from the volatility surface generated by ASV.</p></li>
+</ul>
+<p>For more details on risk computation, refer to the implied volatility fitter framework documentation in [1].</p>
+</section>
+<hr class="docutils" />
+<section id="id10">
+<h3>7.2 Inputs<a class="headerlink" href="#id10" title="Link to this heading">#</a></h3>
+<p>While ASV itself does not compute risks, the following inputs are relevant for assessing risks associated with the volatility surface:</p>
+<ul class="simple">
+<li><p><strong>Market Data</strong>: Observed implied volatilities or option prices used to calibrate the ASV parameters.</p></li>
+<li><p><strong>ASV Parameters</strong>: ATM Volatility, Skew, Smile, Put Wing, Call Wing, and Control parameters (<code class="docutils literal notranslate"><span class="pre">Ctrl_C</span></code> and <code class="docutils literal notranslate"><span class="pre">Ctrl_P</span></code>) that define the shape of the volatility surface.</p></li>
+<li><p><strong>Term Structure Definitions</strong>: Optional term structure parameters that influence the extrapolation of ASV parameters beyond liquid maturities.</p></li>
+<li><p><strong>Historical Data</strong>: Used for back-testing and stress testing the robustness of the ASV model under varying market conditions.</p></li>
+</ul>
+<p>These inputs are critical for evaluating the stability and reliability of the volatility surface in risk management contexts.</p>
+</section>
+<hr class="docutils" />
+<section id="id11">
+<h3>7.3 Limitations and Risk Assessment<a class="headerlink" href="#id11" title="Link to this heading">#</a></h3>
+<p>Although ASV provides numerous advantages in terms of stability and simplicity, there are certain limitations that must be considered when assessing risks:</p>
+<ol class="arabic simple">
+<li><p><strong>Parsimonious Parameterization</strong>:</p>
+<ul class="simple">
+<li><p>The minimal number of parameters reduces flexibility in fitting irregular market quotes, potentially leading to suboptimal risk representation in highly volatile or illiquid markets.</p></li>
+</ul>
+</li>
+<li><p><strong>Arbitrage in Strike</strong>:</p>
+<ul class="simple">
+<li><p>ASV does not inherently guarantee the absence of arbitrage across strikes. Butterfly arbitrage checks are performed externally within the volatility fitting framework to ensure consistency.</p></li>
+</ul>
+</li>
+<li><p><strong>Existence of a Solution</strong>:</p>
+<ul class="simple">
+<li><p>In some cases, particularly when both Put/Call Wing and Smile parameters are negative, a solution for the volatility by strike may not exist. In such scenarios, ASV defaults to a hard-coded value of 1%, which could impact risk computations.</p></li>
+</ul>
+</li>
+<li><p><strong>Continuity of the Solution Across Strikes</strong>:</p>
+<ul class="simple">
+<li><p>While ASV ensures smoothness in strike and parameters for positive Smile values, non-smoothness can occur when the volatility hits the lower bound of 1%. This may introduce numerical issues in pricing models, such as spikes in the local volatility surface.</p></li>
+</ul>
+</li>
+<li><p><strong>Higher Wings</strong>:</p>
+<ul class="simple">
+<li><p>ASV often produces higher implied volatilities on the wings and for front maturities close to expiry. This can pose challenges in Monte Carlo simulations, affecting convergence and requiring finer discretization.</p></li>
+</ul>
+</li>
+<li><p><strong>Stressed Market Conditions</strong>:</p>
+<ul class="simple">
+<li><p>While ASV has been extensively back-tested for periods of market stress, its behavior under extreme conditions should be monitored closely to ensure robustness.</p></li>
+</ul>
+</li>
+</ol>
+<section id="risk-mitigation-strategies">
+<h4>Risk Mitigation Strategies:<a class="headerlink" href="#risk-mitigation-strategies" title="Link to this heading">#</a></h4>
+<ul class="simple">
+<li><p><strong>Back-Testing</strong>: Regular back-testing of the ASV model against historical data ensures its reliability under different market regimes.</p></li>
+<li><p><strong>Monte Carlo Adjustments</strong>: Finer discretization in time can help mitigate numerical challenges caused by high wing volatilities.</p></li>
+<li><p><strong>External Validation</strong>: Continuous validation through the implied volatility fitter framework ensures that the constructed surface remains arbitrage-free and consistent with market expectations.</p></li>
+</ul>
+<p>For detailed risk assessment procedures, refer to the implied volatility fitter framework documentation in [1].</p>
+</section>
+</section>
+</section>
+<section id="test-and-outcome-analyses-performed-on-model">
+<h2>8. Test and Outcome Analyses Performed on Model<a class="headerlink" href="#test-and-outcome-analyses-performed-on-model" title="Link to this heading">#</a></h2>
+<section id="back-testing">
+<h3>8.1 Back-testing<a class="headerlink" href="#back-testing" title="Link to this heading">#</a></h3>
+<p>When ASV volatility was introduced as a new parameterisation, a number of concerns were raised:</p>
+<ul class="simple">
+<li><p><strong>Fit consistency:</strong> The parameterisation was developed to fit a small test set of market data. However, we needed to be confident it would behave well under a wide range of market conditions.</p></li>
+<li><p><strong>Local volatility:</strong> We needed to ensure that the parameterisation would produce local volatility grids that allow accurate pricing of exotics.</p></li>
+</ul>
+<p>To investigate these properties, ASV was back-tested against two time-series of data:</p>
+<ul class="simple">
+<li><p>Daily <strong>.STOXX50E</strong> option quotes for the period 5 January 2009 to 31 May 2012.</p></li>
+<li><p>Daily <strong>.CDAXI</strong> option quotes for the period 2 January 2009 to 28 March 2012.</p></li>
+</ul>
+<p>Full data for the back-testing can be found in the directory:<br />
+<code class="docutils literal notranslate"><span class="pre">\NAQAQAMembers\Ayman\Intraday</span> <span class="pre">MC</span> <span class="pre">Points</span> <span class="pre">Study</span></code></p>
+<hr class="docutils" />
+<section id="parameters-time-series">
+<h4>8.1.1 Parameters Time Series<a class="headerlink" href="#parameters-time-series" title="Link to this heading">#</a></h4>
+<p>Below, we graph the ASV parameters by tenor for the period ranging from January 2009 to May 2012 for both <strong>.STOXX50E</strong> and <strong>.CDAXI</strong>. This timeframe included 3 periods of extremely high stress in the markets, as shown by the time series for ATM volatility. We can see that the parameters are stable and have a narrow range. Furthermore, we observe that the parameters have consistent and informative dynamics:</p>
+<ul class="simple">
+<li><p><strong>Skew</strong> remains relatively stable, particularly at longer tenors.</p></li>
+<li><p><strong>Smile</strong> shows a strong positive correlation to ATM volatility during periods of crisis.</p></li>
+<li><p>The <strong>call</strong> and <strong>put wings</strong> are responsive to periods of stress in the markets. We see particularly sharp responses in the put wing (A.K.A. the “fear index”) at the onset of crises.</p></li>
+</ul>
+</section>
+</section>
+</section>
+<section id="asv-parameters-by-tenor">
+<h2>ASV Parameters by Tenor<a class="headerlink" href="#asv-parameters-by-tenor" title="Link to this heading">#</a></h2>
+<section id="stoxx50e-january-2009-to-may-2012">
+<h3>STOXX50E - January 2009 to May 2012<a class="headerlink" href="#stoxx50e-january-2009-to-may-2012" title="Link to this heading">#</a></h3>
+<p><img alt="Figure 1: ASV Parameters by Tenor for STOXX50E - January 2009 to May 2012" src="../../_images/1.png" /></p>
+<p>The graphs show the evolution of different ASV parameters for STOXX50E from January 2009 to May 2012:</p>
+<ul class="simple">
+<li><p>ATM Volatility by Tenor</p></li>
+<li><p>Skew by Tenor</p></li>
+<li><p>Smile by Tenor</p></li>
+<li><p>Call Wing by Tenor</p></li>
+<li><p>Put Wing by Tenor</p></li>
+</ul>
+</section>
+<section id="gdaxi-january-2009-to-march-2012">
+<h3>GDAXI - January 2009 to March 2012<a class="headerlink" href="#gdaxi-january-2009-to-march-2012" title="Link to this heading">#</a></h3>
+<p><img alt="Figure 2: ASV Parameters by Tenor for GDAXI - January 2009 to March 2012" src="../../_images/2.png" /></p>
+<p><img alt="Figure 3: ASV Parameters by Tenor for GDAXI - January 2009 to March 2012" src="../../_images/3.png" /></p>
+<p>The graphs show the evolution of different ASV parameters for GDAXI from January 2009 to March 2012:</p>
+<ul class="simple">
+<li><p>ATM Volatility by Tenor</p></li>
+<li><p>Skew by Tenor</p></li>
+<li><p>Smile by Tenor</p></li>
+<li><p>Call Wing by Tenor</p></li>
+<li><p>Put Wing by Tenor</p></li>
+</ul>
+</section>
+</section>
+<section id="monte-carlo-convergence-analysis">
+<h2>8.1.2 Monte Carlo Convergence Analysis<a class="headerlink" href="#monte-carlo-convergence-analysis" title="Link to this heading">#</a></h2>
+<p>In order to analyse the quality of ASV local vols for exotic pricing, we used the same SX5E historical ASV vols as described in section 8.1.1.</p>
+<p>For each selected volatility surface, we generated the local vol grids. We used 80,000 paths for each Monte Carlo run, and compared MC prices to analytic prices for options with strikes ranging from 10% to 500% of spot, and expiring at each reference maturity of the studied vol surface. The Monte Carlo path time increments were once per day for 6 months, and once per fortnight thereafter. For each studied ASV volatility surface, we report the maximum absolute error off all the generated options. The aggregated results are as follows:
+<img alt="Figure 4: Grid Convergence - EUR 30Y30Y - 29/09/2020" src="../../_images/4.png" />
+<strong>Figure 4:</strong> Grid convergence - EUR 30Y30Y - 29/09/2020</p>
+<p>ASV gives higher implied vols on the wings for front maturities which can have a detrimental effect on the convergence of Monte Carlo prices however adding more time steps in MC mitigates this issue from the results below.</p>
+</section>
+<section id="comparison-of-asv-and-taylor-models-with-varying-intraday-steps">
+<h2>Comparison of ASV and Taylor Models with Varying Intraday Steps<a class="headerlink" href="#comparison-of-asv-and-taylor-models-with-varying-intraday-steps" title="Link to this heading">#</a></h2>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Intraday Steps</p></th>
+<th class="head"><p>0</p></th>
+<th class="head"><p></p></th>
+<th class="head"><p>3</p></th>
+<th class="head"><p></p></th>
+<th class="head"><p>5</p></th>
+<th class="head"><p></p></th>
+<th class="head"><p>7</p></th>
+<th class="head"><p></p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p></p></td>
+<td><p>ASV</p></td>
+<td><p>Taylor</p></td>
+<td><p>ASV</p></td>
+<td><p>Taylor</p></td>
+<td><p>ASV</p></td>
+<td><p>Taylor</p></td>
+<td><p>ASV</p></td>
+<td><p>Taylor</p></td>
+</tr>
+<tr class="row-odd"><td><p>0 - 2 bps</p></td>
+<td><p>332</p></td>
+<td><p>385</p></td>
+<td><p>308</p></td>
+<td><p>329</p></td>
+<td><p>273</p></td>
+<td><p>292</p></td>
+<td><p>236</p></td>
+<td><p>242</p></td>
+</tr>
+<tr class="row-even"><td><p>2 - 4 bps</p></td>
+<td><p>1063</p></td>
+<td><p>969</p></td>
+<td><p>1169</p></td>
+<td><p>1048</p></td>
+<td><p>1198</p></td>
+<td><p>1085</p></td>
+<td><p>1211</p></td>
+<td><p>1124</p></td>
+</tr>
+<tr class="row-odd"><td><p>4 - 10 bps</p></td>
+<td><p>252</p></td>
+<td><p>270</p></td>
+<td><p>185</p></td>
+<td><p>251</p></td>
+<td><p>192</p></td>
+<td><p>253</p></td>
+<td><p>215</p></td>
+<td><p>264</p></td>
+</tr>
+<tr class="row-even"><td><p>10 + bps</p></td>
+<td><p>17</p></td>
+<td><p>40</p></td>
+<td><p>2</p></td>
+<td><p>36</p></td>
+<td><p>1</p></td>
+<td><p>34</p></td>
+<td><p>2</p></td>
+<td><p>34</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><img alt="Figure 1: Max MC Error with No Intra-Day Points" src="../../_images/5.png" /></p>
+</section>
+<section id="scenario-and-stress-testing">
+<h2>8.2 Scenario and Stress-testing<a class="headerlink" href="#scenario-and-stress-testing" title="Link to this heading">#</a></h2>
+<section id="id12">
+<h3>8.2.1 Scenario and Stress-testing<a class="headerlink" href="#id12" title="Link to this heading">#</a></h3>
+<p>The back-testing discussed above was run over the period ranging from January 2009 to May 2012. This was a time of high stress in the markets, including fallout from the <strong>Lehman Brothers collapse</strong> and the <strong>Greek debt crisis</strong>. We have seen that ASV performed well in terms of fit quality, parameter stability, and local volatility quality over this period.</p>
+</section>
+<hr class="docutils" />
+<section id="ccar-stress-testing">
+<h3>8.2.2 CCAR Stress-testing<a class="headerlink" href="#ccar-stress-testing" title="Link to this heading">#</a></h3>
+<p>The volatility surface CCAR scenario is independent of the reference maturities parameterisation. The bumping procedure is described and tested in the <strong>European option document [2]</strong>.</p>
+</section>
+<hr class="docutils" />
+<section id="statistical-testing">
+<h3>8.3 Statistical Testing<a class="headerlink" href="#statistical-testing" title="Link to this heading">#</a></h3>
+</section>
+<hr class="docutils" />
+<section id="impact-of-assumptions-and-limitations">
+<h3>8.4 Impact of Assumptions and Limitations<a class="headerlink" href="#impact-of-assumptions-and-limitations" title="Link to this heading">#</a></h3>
+<p>ASV gives high implied volatilities on the wings, and this can have an adverse effect on pricing accuracy, as we have seen with Monte Carlo in the back-testing. However, it should be noted that:</p>
+<ol class="arabic simple">
+<li><p>The high wings agree with market consensus.</p></li>
+<li><p>The adverse effect of high implied volatilities is more than offset by the smooth local volatility grids produced by ASV, as we saw in the back-testing. Please refer to section <strong>8.1.2</strong> for test results showing how adding more time steps in Monte Carlo mitigates this issue.</p></li>
+</ol>
+</section>
+<hr class="docutils" />
+<section id="accuracy-convergence-stability-and-sensitivity">
+<h3>8.5 Accuracy, Convergence, Stability, and Sensitivity<a class="headerlink" href="#accuracy-convergence-stability-and-sensitivity" title="Link to this heading">#</a></h3>
+<p>We saw in the back-testing report in section <strong>8.1.2</strong> that ASV outperformed <strong>Taylor</strong> in terms of Monte Carlo convergence over two 3+ year time series on <strong>.STOXX50E</strong> and <strong>.GDAXI</strong>.</p>
+<p>The ASV parameterisation is highly stable due to its minimal number of <strong>orthogonal parameters</strong>. In contrast, Taylor is over-parameterised, which creates instability. Taylor has a large number of parameters that have overlapping effects on the shape of the volatility surface. This can lead to instability due to parameter transfer, where a relatively stable set of market quotes is fit accurately by using different combinations of the overlapping parameters.</p>
+<hr class="docutils" />
+<section id="accuracy-and-convergence">
+<h4>8.5.1 Accuracy and Convergence<a class="headerlink" href="#accuracy-and-convergence" title="Link to this heading">#</a></h4>
+<p>This has been discussed above and in sections <strong>4.8</strong> and <strong>8.1.2</strong>.</p>
+</section>
+<hr class="docutils" />
+<section id="stability">
+<h4>8.5.2 Stability<a class="headerlink" href="#stability" title="Link to this heading">#</a></h4>
+<p>This has been discussed in section <strong>8.1.1</strong>.</p>
+</section>
+<hr class="docutils" />
+<section id="sensitivity">
+<h4>8.5.3 Sensitivity<a class="headerlink" href="#sensitivity" title="Link to this heading">#</a></h4>
+<p>By analyzing the time series of 1-year <strong>SX5E</strong> ASV parameters from <strong>02/01/2013</strong> to <strong>02/02/2017</strong>, we get the following statistics:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Parameter</p></th>
+<th class="head"><p>Max</p></th>
+<th class="head"><p>Min</p></th>
+<th class="head"><p>Average</p></th>
+<th class="head"><p>Stdev</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>ATM Vol</strong></p></td>
+<td><p>37.56</p></td>
+<td><p>16.18</p></td>
+<td><p>20.96</p></td>
+<td><p>1.86</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Skew</strong></p></td>
+<td><p>36.57</p></td>
+<td><p>16.19</p></td>
+<td><p>20.06</p></td>
+<td><p>2.13</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Smile</strong></p></td>
+<td><p>0.021</p></td>
+<td><p>0.023</p></td>
+<td><p>0.030</p></td>
+<td><p>0.018</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Put Wing</strong></p></td>
+<td><p>0.002</p></td>
+<td><p>0.003</p></td>
+<td><p>0.000</p></td>
+<td><p>0.012</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Call Wing</strong></p></td>
+<td><p>0.641</p></td>
+<td><p>0.623</p></td>
+<td><p>0.174</p></td>
+<td><p>0.048</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>The 1-year ASV parameters for <strong>SX5E</strong> as observed on <strong>02/02/2017</strong> are:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Parameter</p></th>
+<th class="head"><p>Value</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>ATM Vol</strong></p></td>
+<td><p>15.29</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Skew</strong></p></td>
+<td><p>22.68</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Smile</strong></p></td>
+<td><p>0.317</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Put Wing</strong></p></td>
+<td><p>0.006</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Call Wing</strong></p></td>
+<td><p>0.213</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>These ASV parameters will be denoted as the <strong>original scenario</strong>.</p>
+<p>Using these statistics, we look at the following scenario where we bump each of the parameters by <strong>3 standard deviations</strong> while keeping them inside the min/max range:</p>
+<ul class="simple">
+<li><p><strong>Bumping the ATM Vol parameter by 3 Stdev:</strong> The bump is localized to the ATM region, which is a desired behavior. Please note that it is hard to give an intuitive approximation of the impact of the bump around areas other than the ATM, given the non-intuitive expression of the cubic equation.</p></li>
+</ul>
+</section>
+<section id="bump-by-3-stdev">
+<h4>Bump by 3 Stdev<a class="headerlink" href="#bump-by-3-stdev" title="Link to this heading">#</a></h4>
+<p><img alt="Figure 1: Max MC Error with No Intra-Day Points" src="../../_images/6.png" />
+If we stress this bump (while keeping the ATM volatility positive), the behavior remains stable and consistent with the one observed with lower bumps.</p>
+<hr class="docutils" />
+<section id="bump-by-7-stdev">
+<h5>Bump by 7 Stdev<a class="headerlink" href="#bump-by-7-stdev" title="Link to this heading">#</a></h5>
+<p><img alt="Figure 1: Max MC Error with No Intra-Day Points" src="../../_images/7.png" /></p>
+</section>
+<section id="bumping-the-skew-parameter-by-3-stdev">
+<h5>Bumping the Skew Parameter by 3 Stdev<a class="headerlink" href="#bumping-the-skew-parameter-by-3-stdev" title="Link to this heading">#</a></h5>
+<p>The skew bump does not make the wings diverge. This is again a desired behavior.</p>
+<p><img alt="Figure 1: Max MC Error with No Intra-Day Points" src="../../_images/8.png" />
+If we stress this bump, the behavior remains stable and consistent with the one observed with lower bumps as long as the smile is positive. Please note that a <strong>10-Stdev bump down</strong> pushes the smile to <strong>-0.7</strong>.</p>
+</section>
+<hr class="docutils" />
+<section id="bumping-the-smile-parameter-by-3-stdev">
+<h5>Bumping the Smile Parameter by 3 Stdev<a class="headerlink" href="#bumping-the-smile-parameter-by-3-stdev" title="Link to this heading">#</a></h5>
+<p>The smile bump does not result in increased convexity in the wings. This is again a desired behavior.</p>
+</section>
+<hr class="docutils" />
+<section id="bumping-the-call-parameter-by-3-stdev">
+<h5>Bumping the Call Parameter by 3 Stdev<a class="headerlink" href="#bumping-the-call-parameter-by-3-stdev" title="Link to this heading">#</a></h5>
+<p>The bump impact is localized to the wing region. This is again a desired behavior.</p>
+<p>If we stress this bump, the behavior remains stable and consistent with the one observed with lower bumps.</p>
+</section>
+<section id="id13">
+<h5>Bump by 3 Stdev<a class="headerlink" href="#id13" title="Link to this heading">#</a></h5>
+<p><img alt="Figure 1: Max MC Error with No Intra-Day Points" src="../../_images/9.png" /></p>
+<p>If we stress this bump, the behavior remains stable and consistent with the one observed with lower bumps.</p>
+</section>
+<hr class="docutils" />
+<section id="bump-by-20-stdev">
+<h5>Bump by 20 Stdev<a class="headerlink" href="#bump-by-20-stdev" title="Link to this heading">#</a></h5>
+<p><img alt="Figure 1: Max MC Error with No Intra-Day Points" src="../../_images/10.png" /></p>
+</section>
+<section id="bumping-the-put-parameter-by-3-stdev">
+<h5>Bumping the Put Parameter by 3 Stdev<a class="headerlink" href="#bumping-the-put-parameter-by-3-stdev" title="Link to this heading">#</a></h5>
+<p>The bump impact is localized to the wing region. This is again a desired behavior.</p>
+<p><img alt="Figure 1: Max MC Error with No Intra-Day Points" src="../../_images/11.png" /></p>
+<p>If we stress this bump, the behavior remains stable and consistent with the one observed with lower bumps.</p>
+</section>
+<hr class="docutils" />
+<section id="bump-by-10-stdev">
+<h5>Bump by 10 Stdev<a class="headerlink" href="#bump-by-10-stdev" title="Link to this heading">#</a></h5>
+<p><img alt="Figure 1: Max MC Error with No Intra-Day Points" src="../../_images/12.png" /></p>
+<ul class="simple">
+<li><p>Considering a cumulative bump of lower amplitude (<strong>2 Stdev</strong>), we obtain the combined impact below, which is consistent with an aggregation of the previously observed behaviors.</p></li>
+</ul>
+<hr class="docutils" />
+<section id="bump-by-2-stdev">
+<h6>Bump by 2 Stdev<a class="headerlink" href="#bump-by-2-stdev" title="Link to this heading">#</a></h6>
+<p><img alt="Figure 1: Max MC Error with No Intra-Day Points" src="../../_images/13.png" /></p>
+<hr class="docutils" />
+<p><img alt="Figure 1: Max MC Error with No Intra-Day Points" src="../../_images/14.png" /></p>
+<ul class="simple">
+<li><p>In conclusion, as required at design time, the ASV volatility parameters are orthogonal, and the impact of the volatility surface for each parameter is as expected (in detail: increasing skew decreases the slope of the volatility at the reference forward; increasing the smile parameter will increase the convexity of the volatility curve around the reference forward; increasing call and put parameters will affect the volatility on call/put wings but not skew/convexity around the reference forward, etc.). Stressed bump results are consistent with those of the lower amplitude bumps. Hence, the considered parametric form successfully delivers intuitive orthogonal parameters. Such a feature is instrumental in producing stable calibration of the parameters.</p></li>
+</ul>
+<hr class="docutils" />
+<p>In the next tests, we look at the <strong>SX5E</strong> volatility as of <strong>17/02/2017</strong>. We assess the impact of changing the <strong>Ctrl</strong> parameter for different maturities. As expected, increasing the <strong>Ctrl</strong> pushes the wings down.</p>
+</section>
+</section>
+<hr class="docutils" />
+<section id="sx5e-as-of-17-02-2017-tenor-1w">
+<h5><strong>SX5E as of 17/02/2017 - Tenor = 1W</strong><a class="headerlink" href="#sx5e-as-of-17-02-2017-tenor-1w" title="Link to this heading">#</a></h5>
+<hr class="docutils" />
+<p><img alt="Figure 1: Max MC Error with No Intra-Day Points" src="../../_images/15.png" /></p>
+</section>
+<section id="sx5e-as-of-17-02-2017-maturity-jun-2017-and-2019">
+<h5><strong>SX5E as of 17/02/2017 - Maturity = Jun 2017 and 2019</strong><a class="headerlink" href="#sx5e-as-of-17-02-2017-maturity-jun-2017-and-2019" title="Link to this heading">#</a></h5>
+<hr class="docutils" />
+<p><img alt="Figure 1: Max MC Error with No Intra-Day Points" src="../../_images/16.png" /></p>
+<hr class="docutils" />
+<p>The data for this test can be found here:<br />
+<code class="docutils literal notranslate"><span class="pre">\\qa\QAMembers\Ayman\ASV\param_sensitivity</span></code></p>
+<p>We will be happy to re-run these tests at the request of model validation.</p>
+<hr class="docutils" />
+<p>The below test demonstrates the impact of using two different <strong>Ctrl</strong> parameters on call/put wings. The test is done for <strong>SPX</strong> volatility surface as of <strong>Jan 31, 2020</strong>, for maturity <strong>Dec 18, 2020</strong>.</p>
+<p>In the below setup, <strong>Ctrl_P = Ctrl = 0.8</strong>, while <strong>Ctrl_C</strong> is set to <strong>4</strong>. As expected, on the put wing, volatilities match between the two surfaces, while on the call wing, volatilities for the surface with <strong>Ctrl_C = 4</strong> are pushed down:</p>
+</section>
+<hr class="docutils" />
+<section id="spx-as-of-01-31-2020-maturity-dec-2020">
+<h5>SPX as of 01/31/2020 - Maturity Dec 2020<a class="headerlink" href="#spx-as-of-01-31-2020-maturity-dec-2020" title="Link to this heading">#</a></h5>
+</section>
+<section id="ctrl-0-8">
+<h5><strong>Ctrl = 0.8</strong><a class="headerlink" href="#ctrl-0-8" title="Link to this heading">#</a></h5>
+<ul class="simple">
+<li><p><strong>Ctrl_C = 4, Ctrl_P = 0.8</strong></p></li>
+</ul>
+<hr class="docutils" />
+<p><img alt="Figure 1: Max MC Error with No Intra-Day Points" src="../../_images/17.png" /></p>
+<ul class="simple">
+<li><p><strong>Ctrl_C = 0.8, Ctr_P = 4</strong></p></li>
+</ul>
+<hr class="docutils" />
+<p><img alt="Figure 1: Max MC Error with No Intra-Day Points" src="../../_images/18.png" /></p>
+<p>To test the impact for the put wing, in the below setup <strong>Ctrl_C = Ctrl = 0.8</strong>, while <strong>Ctrl_P</strong> is set to <strong>4</strong>. As expected, on the call wing, volatilities match between the two surfaces, while on the put wing, volatilities for the surface with <strong>Ctrl_P = 4</strong> are pushed down.</p>
+</section>
+</section>
+</section>
+<hr class="docutils" />
+<section id="boundary-cases">
+<h3>8.6 Boundary Cases<a class="headerlink" href="#boundary-cases" title="Link to this heading">#</a></h3>
+<p>The boundary cases for an implied volatility parameterisation are periods of high stress in the markets. ATM volatility tends to rise, and put and call wings show erratic behavior, as market participants continually re-evaluate their view on tail risk. In the following tests, we compared Monte Carlo prices to analytic prices on European OTM options for a grid of strikes ranging from <strong>20% to 500%</strong> of spot, and for a set of different tenors (<strong>1W, 1M, 3M, 1Y</strong>).</p>
+<p>The boundary cases considered are:</p>
+<ul class="simple">
+<li><p><strong>Low Vol, High Skew</strong></p></li>
+<li><p><strong>High Vol, Skew, Smile, and Put</strong></p></li>
+<li><p><strong>High Skew, Low Vol, Smile, Put, and Call</strong></p></li>
+</ul>
+<p>As shown by the presented results, we find that ASV performs well in terms of Monte Carlo convergence (with <strong>80,000 paths</strong>) for all of these cases. Below, we report the relative error between Monte Carlo and analytic valuations of OTM European options.</p>
+<hr class="docutils" />
+<section id="low-vol-high-skew">
+<h4>8.6.1 Low Vol, High Skew<a class="headerlink" href="#low-vol-high-skew" title="Link to this heading">#</a></h4>
+<p><strong>ASV Parameters:</strong></p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Tenor</p></th>
+<th class="head"><p>ATM Vol</p></th>
+<th class="head"><p>Skew</p></th>
+<th class="head"><p>Smile</p></th>
+<th class="head"><p>Put Wing</p></th>
+<th class="head"><p>Call Wing</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>1W</p></td>
+<td><p>4.49674</p></td>
+<td><p>21.6715</p></td>
+<td><p>0.08808</p></td>
+<td><p>-0.0036</p></td>
+<td><p>0.00763</p></td>
+</tr>
+<tr class="row-odd"><td><p>1M</p></td>
+<td><p>9.92477</p></td>
+<td><p>21.8115</p></td>
+<td><p>0.12645</p></td>
+<td><p>0.02850</p></td>
+<td><p>0.05174</p></td>
+</tr>
+<tr class="row-even"><td><p>3M</p></td>
+<td><p>11.6572</p></td>
+<td><p>28.4562</p></td>
+<td><p>0.22415</p></td>
+<td><p>0.01230</p></td>
+<td><p>0.01626</p></td>
+</tr>
+<tr class="row-odd"><td><p>1Y</p></td>
+<td><p>14.6909</p></td>
+<td><p>29.9125</p></td>
+<td><p>0.30813</p></td>
+<td><p>-0.0124</p></td>
+<td><p>0.05001</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><strong>Implied Vols:</strong></p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Tenor</p></th>
+<th class="head"><p>60%</p></th>
+<th class="head"><p>100%</p></th>
+<th class="head"><p>150%</p></th>
+<th class="head"><p>300%</p></th>
+<th class="head"><p>500%</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>1W</p></td>
+<td><p>70%</p></td>
+<td><p>90%</p></td>
+<td><p>95%</p></td>
+<td><p>75%</p></td>
+<td><p>90%</p></td>
+</tr>
+<tr class="row-odd"><td><p>1M</p></td>
+<td><p>47%</p></td>
+<td><p>100%</p></td>
+<td><p>300%</p></td>
+<td><p>50%</p></td>
+<td><p>75%</p></td>
+</tr>
+<tr class="row-even"><td><p>3M</p></td>
+<td><p>25%</p></td>
+<td><p>125%</p></td>
+<td><p>16%</p></td>
+<td><p>27%</p></td>
+<td><p>25%</p></td>
+</tr>
+<tr class="row-odd"><td><p>1Y</p></td>
+<td><p>20%</p></td>
+<td><p>145%</p></td>
+<td><p>135%</p></td>
+<td><p>195%</p></td>
+<td><p>195%</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><strong>Monte Carlo Convergence:</strong></p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Tenor</p></th>
+<th class="head"><p>60%</p></th>
+<th class="head"><p>100%</p></th>
+<th class="head"><p>150%</p></th>
+<th class="head"><p>300%</p></th>
+<th class="head"><p>500%</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>1W</p></td>
+<td><p>0.00%</p></td>
+<td><p>0.00%</p></td>
+<td><p>0.00%</p></td>
+<td><p>0.00%</p></td>
+<td><p>0.00%</p></td>
+</tr>
+<tr class="row-odd"><td><p>1M</p></td>
+<td><p>0.00%</p></td>
+<td><p>0.00%</p></td>
+<td><p>0.00%</p></td>
+<td><p>0.00%</p></td>
+<td><p>0.00%</p></td>
+</tr>
+<tr class="row-even"><td><p>3M</p></td>
+<td><p>0.00%</p></td>
+<td><p>0.00%</p></td>
+<td><p>0.00%</p></td>
+<td><p>0.00%</p></td>
+<td><p>0.00%</p></td>
+</tr>
+<tr class="row-odd"><td><p>1Y</p></td>
+<td><p>0.00%</p></td>
+<td><p>0.00%</p></td>
+<td><p>0.00%</p></td>
+<td><p>0.00%</p></td>
+<td><p>0.00%</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<hr class="docutils" />
+<section id="high-vol-skew-smile-and-put">
+<h4>8.6.2 High Vol, Skew, Smile, and Put<a class="headerlink" href="#high-vol-skew-smile-and-put" title="Link to this heading">#</a></h4>
+<p><strong>ASV Parameters:</strong></p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Tenor</p></th>
+<th class="head"><p>ATM Vol</p></th>
+<th class="head"><p>Skew</p></th>
+<th class="head"><p>Smile</p></th>
+<th class="head"><p>Put Wing</p></th>
+<th class="head"><p>Call Wing</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>1W</p></td>
+<td><p>36.6195</p></td>
+<td><p>17</p></td>
+<td><p>0</p></td>
+<td><p>12.7809</p></td>
+<td><p>-</p></td>
+</tr>
+<tr class="row-odd"><td><p>1M</p></td>
+<td><p>40.5634</p></td>
+<td><p>28.815</p></td>
+<td><p>17</p></td>
+<td><p>0</p></td>
+<td><p>12.6174</p></td>
+</tr>
+<tr class="row-even"><td><p>3M</p></td>
+<td><p>38.4763</p></td>
+<td><p>31.4552</p></td>
+<td><p>14.3046</p></td>
+<td><p>0</p></td>
+<td><p>12.9163</p></td>
+</tr>
+<tr class="row-odd"><td><p>1Y</p></td>
+<td><p>39.6842</p></td>
+<td><p>39.9123</p></td>
+<td><p>0.07151</p></td>
+<td><p>0</p></td>
+<td><p>12.9501</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><strong>Implied Vols:</strong></p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Tenor</p></th>
+<th class="head"><p>60%</p></th>
+<th class="head"><p>100%</p></th>
+<th class="head"><p>150%</p></th>
+<th class="head"><p>300%</p></th>
+<th class="head"><p>500%</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>1W</p></td>
+<td><p>26.115</p></td>
+<td><p>10.953</p></td>
+<td><p>42.54</p></td>
+<td><p>45.96</p></td>
+<td><p>70.76</p></td>
+</tr>
+<tr class="row-odd"><td><p>1M</p></td>
+<td><p>18.965</p></td>
+<td><p>50.96</p></td>
+<td><p>41.78</p></td>
+<td><p>35.96</p></td>
+<td><p>67.95</p></td>
+</tr>
+<tr class="row-even"><td><p>3M</p></td>
+<td><p>122.96</p></td>
+<td><p>68.04</p></td>
+<td><p>39.84</p></td>
+<td><p>27.94</p></td>
+<td><p>36.86</p></td>
+</tr>
+<tr class="row-odd"><td><p>1Y</p></td>
+<td><p>85.94</p></td>
+<td><p>62.56</p></td>
+<td><p>36.95</p></td>
+<td><p>24.96</p></td>
+<td><p>23.96</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><strong>Monte Carlo Convergence:</strong></p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Tenor</p></th>
+<th class="head"><p>60%</p></th>
+<th class="head"><p>100%</p></th>
+<th class="head"><p>150%</p></th>
+<th class="head"><p>300%</p></th>
+<th class="head"><p>500%</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>1W</p></td>
+<td><p>0.00%</p></td>
+<td><p>-0.01%</p></td>
+<td><p>0.00%</p></td>
+<td><p>0.00%</p></td>
+<td><p>0.00%</p></td>
+</tr>
+<tr class="row-odd"><td><p>1M</p></td>
+<td><p>0.00%</p></td>
+<td><p>-0.02%</p></td>
+<td><p>0.00%</p></td>
+<td><p>0.00%</p></td>
+<td><p>0.00%</p></td>
+</tr>
+<tr class="row-even"><td><p>3M</p></td>
+<td><p>0.00%</p></td>
+<td><p>0.00%</p></td>
+<td><p>0.00%</p></td>
+<td><p>0.00%</p></td>
+<td><p>0.00%</p></td>
+</tr>
+<tr class="row-odd"><td><p>1Y</p></td>
+<td><p>0.00%</p></td>
+<td><p>0.00%</p></td>
+<td><p>0.00%</p></td>
+<td><p>0.00%</p></td>
+<td><p>0.00%</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<hr class="docutils" />
+<section id="high-skew-low-vol-smile-put-and-call">
+<h4>8.6.3 High Skew, Low Vol, Smile, Put, and Call<a class="headerlink" href="#high-skew-low-vol-smile-put-and-call" title="Link to this heading">#</a></h4>
+<p><strong>ASV Parameters:</strong></p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Tenor</p></th>
+<th class="head"><p>ATM Vol</p></th>
+<th class="head"><p>Skew</p></th>
+<th class="head"><p>Smile</p></th>
+<th class="head"><p>Put Wing</p></th>
+<th class="head"><p>Call Wing</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>1M</p></td>
+<td><p>4.6674</p></td>
+<td><p>21.6716</p></td>
+<td><p>0.07146</p></td>
+<td><p>0</p></td>
+<td><p>0</p></td>
+</tr>
+<tr class="row-odd"><td><p>1M</p></td>
+<td><p>3.6977</p></td>
+<td><p>21.816</p></td>
+<td><p>0.1</p></td>
+<td><p>0</p></td>
+<td><p>0</p></td>
+</tr>
+<tr class="row-even"><td><p>1M</p></td>
+<td><p>11.675</p></td>
+<td><p>25.652</p></td>
+<td><p>0.1</p></td>
+<td><p>0</p></td>
+<td><p>0</p></td>
+</tr>
+<tr class="row-odd"><td><p>1Y</p></td>
+<td><p>14.893</p></td>
+<td><p>28.912</p></td>
+<td><p>0.1</p></td>
+<td><p>0</p></td>
+<td><p>0</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><strong>Implied Vols:</strong></p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Tenor</p></th>
+<th class="head"><p>60%</p></th>
+<th class="head"><p>100%</p></th>
+<th class="head"><p>150%</p></th>
+<th class="head"><p>300%</p></th>
+<th class="head"><p>500%</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>1M</p></td>
+<td><p>75%</p></td>
+<td><p>44%</p></td>
+<td><p>10%</p></td>
+<td><p>21%</p></td>
+<td><p>34%</p></td>
+</tr>
+<tr class="row-odd"><td><p>1M</p></td>
+<td><p>60%</p></td>
+<td><p>30%</p></td>
+<td><p>10%</p></td>
+<td><p>16%</p></td>
+<td><p>28%</p></td>
+</tr>
+<tr class="row-even"><td><p>1M</p></td>
+<td><p>40%</p></td>
+<td><p>20%</p></td>
+<td><p>12%</p></td>
+<td><p>11%</p></td>
+<td><p>18%</p></td>
+</tr>
+<tr class="row-odd"><td><p>1Y</p></td>
+<td><p>41%</p></td>
+<td><p>26%</p></td>
+<td><p>14%</p></td>
+<td><p>9%</p></td>
+<td><p>12%</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><strong>Monte Carlo Convergence:</strong></p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Tenor</p></th>
+<th class="head"><p>60%</p></th>
+<th class="head"><p>100%</p></th>
+<th class="head"><p>150%</p></th>
+<th class="head"><p>300%</p></th>
+<th class="head"><p>500%</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>1M</p></td>
+<td><p>0.00%</p></td>
+<td><p>0.00%</p></td>
+<td><p>0.00%</p></td>
+<td><p>0.00%</p></td>
+<td><p>0.00%</p></td>
+</tr>
+<tr class="row-odd"><td><p>1M</p></td>
+<td><p>0.00%</p></td>
+<td><p>0.00%</p></td>
+<td><p>0.00%</p></td>
+<td><p>0.00%</p></td>
+<td><p>0.00%</p></td>
+</tr>
+<tr class="row-even"><td><p>1M</p></td>
+<td><p>0.00%</p></td>
+<td><p>0.00%</p></td>
+<td><p>0.00%</p></td>
+<td><p>0.00%</p></td>
+<td><p>0.00%</p></td>
+</tr>
+<tr class="row-odd"><td><p>1Y</p></td>
+<td><p>0.00%</p></td>
+<td><p>0.00%</p></td>
+<td><p>-0.01%</p></td>
+<td><p>0.00%</p></td>
+<td><p>0.00%</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+</section>
+</section>
+<hr class="docutils" />
+<section id="negative-smile">
+<h2>8.6.4 Negative Smile<a class="headerlink" href="#negative-smile" title="Link to this heading">#</a></h2>
+<p>We denote the case (a) of 4.1.3 as “Original asv vol”, and case (b) and (c) as “Vol after adjustment”</p>
+<section id="impact-of-negative-smile-adjustment">
+<h3>8.6.4.1. Impact of negative smile adjustment<a class="headerlink" href="#impact-of-negative-smile-adjustment" title="Link to this heading">#</a></h3>
+<p>In this subsection we show the difference of the asv vol formula with and without adjustment in section 4.1.3.</p>
+<section id="asv-parameters-and-implied-volatilities">
+<h4>ASV Parameters and Implied Volatilities<a class="headerlink" href="#asv-parameters-and-implied-volatilities" title="Link to this heading">#</a></h4>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>ASV Parameters</p></th>
+<th class="head"><p></p></th>
+<th class="head"><p></p></th>
+<th class="head"><p></p></th>
+<th class="head"><p></p></th>
+<th class="head"><p>Implied Vols</p></th>
+<th class="head"><p></p></th>
+<th class="head"><p></p></th>
+<th class="head"><p></p></th>
+<th class="head"><p></p></th>
+<th class="head"><p></p></th>
+<th class="head"><p></p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p></p></td>
+<td><p>AtmVol</p></td>
+<td><p>Skew</p></td>
+<td><p>Smile</p></td>
+<td><p>WC</p></td>
+<td><p>WP</p></td>
+<td><p></p></td>
+<td><p>20%</p></td>
+<td><p>50%</p></td>
+<td><p>100%</p></td>
+<td><p>150%</p></td>
+<td><p>300%</p></td>
+</tr>
+<tr class="row-odd"><td><p>1w</p></td>
+<td><p>8.49674</p></td>
+<td><p>21.6715</p></td>
+<td><p>0.07146</p></td>
+<td><p>0</p></td>
+<td><p>0</p></td>
+<td><p>1w</p></td>
+<td><p>76%</p></td>
+<td><p>44%</p></td>
+<td><p>10%</p></td>
+<td><p>21%</p></td>
+<td><p>34%</p></td>
+</tr>
+<tr class="row-even"><td><p>1m</p></td>
+<td><p>9.28677</p></td>
+<td><p>21.815</p></td>
+<td><p>0.1</p></td>
+<td><p>0</p></td>
+<td><p>0</p></td>
+<td><p>1m</p></td>
+<td><p>56%</p></td>
+<td><p>33%</p></td>
+<td><p>10%</p></td>
+<td><p>16%</p></td>
+<td><p>26%</p></td>
+</tr>
+<tr class="row-odd"><td><p>3m</p></td>
+<td><p>11.5574</p></td>
+<td><p>26.4552</p></td>
+<td><p>0.1</p></td>
+<td><p>0</p></td>
+<td><p>0</p></td>
+<td><p>3m</p></td>
+<td><p>49%</p></td>
+<td><p>30%</p></td>
+<td><p>12%</p></td>
+<td><p>11%</p></td>
+<td><p>18%</p></td>
+</tr>
+<tr class="row-even"><td><p>1y</p></td>
+<td><p>14.8939</p></td>
+<td><p>28.9123</p></td>
+<td><p>0.1</p></td>
+<td><p>0</p></td>
+<td><p>0</p></td>
+<td><p>1y</p></td>
+<td><p>41%</p></td>
+<td><p>26%</p></td>
+<td><p>14%</p></td>
+<td><p>9%</p></td>
+<td><p>12%</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="monte-carlo-convergence">
+<h4>Monte Carlo Convergence<a class="headerlink" href="#monte-carlo-convergence" title="Link to this heading">#</a></h4>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p></p></th>
+<th class="head"><p>20%</p></th>
+<th class="head"><p>50%</p></th>
+<th class="head"><p>100%</p></th>
+<th class="head"><p>150%</p></th>
+<th class="head"><p>300%</p></th>
+<th class="head"><p>500%</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>1w</p></td>
+<td><p>0.00%</p></td>
+<td><p>0.00%</p></td>
+<td><p>0.00%</p></td>
+<td><p>0.00%</p></td>
+<td><p>0.00%</p></td>
+<td><p>0.00%</p></td>
+</tr>
+<tr class="row-odd"><td><p>1m</p></td>
+<td><p>0.00%</p></td>
+<td><p>0.00%</p></td>
+<td><p>0.00%</p></td>
+<td><p>0.00%</p></td>
+<td><p>0.00%</p></td>
+<td><p>0.00%</p></td>
+</tr>
+<tr class="row-even"><td><p>3m</p></td>
+<td><p>0.00%</p></td>
+<td><p>0.00%</p></td>
+<td><p>0.00%</p></td>
+<td><p>0.00%</p></td>
+<td><p>0.00%</p></td>
+<td><p>0.00%</p></td>
+</tr>
+<tr class="row-odd"><td><p>1y</p></td>
+<td><p>0.00%</p></td>
+<td><p>0.00%</p></td>
+<td><p>-0.01%</p></td>
+<td><p>0.00%</p></td>
+<td><p>0.00%</p></td>
+<td><p>0.00%</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<ul class="simple">
+<li><p><strong>Negative Smile and positive Call and Put</strong></p></li>
+</ul>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Maturity</p></th>
+<th class="head"><p>AnchorStrike</p></th>
+<th class="head"><p>AnchorVol</p></th>
+<th class="head"><p>Skew</p></th>
+<th class="head"><p>Smile</p></th>
+<th class="head"><p>Call</p></th>
+<th class="head"><p>Put</p></th>
+<th class="head"><p>Ctrl</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>2Y</p></td>
+<td><p>200</p></td>
+<td><p>40</p></td>
+<td><p>40</p></td>
+<td><p>-2</p></td>
+<td><p>0.01</p></td>
+<td><p>0.01</p></td>
+<td><p>0.5</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><img alt="Figure 1: Comparison of ASV vol with negative Smile" src="../../_images/19.png" /></p>
+<p>The above figure shows that the asv original vol formula has a jump around strike = 295. After adjustment, the vol is continuous and positive.</p>
+<ul class="simple">
+<li><p><strong>Negative Smile, Call and Put</strong></p></li>
+</ul>
+<p><strong>Case (i):</strong></p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Maturity</p></th>
+<th class="head"><p>AnchorStrike</p></th>
+<th class="head"><p>AnchorVol</p></th>
+<th class="head"><p>Skew</p></th>
+<th class="head"><p>Smile</p></th>
+<th class="head"><p>Call</p></th>
+<th class="head"><p>Put</p></th>
+<th class="head"><p>Ctrl</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>2Y</p></td>
+<td><p>200</p></td>
+<td><p>40</p></td>
+<td><p>-10</p></td>
+<td><p>-0.5</p></td>
+<td><p>-0.01</p></td>
+<td><p>-0.01</p></td>
+<td><p>0.5</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><img alt="Figure 2: Comparison of ASV vol with negative Smile, Call and Put" src="../../_images/20.png" /></p>
+<p>The above figure shows that the original asv vol formula has a jump around strike=65. After adjustment, the vol is continuous and positive.</p>
+<p><strong>Case (ii):</strong></p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Maturity</p></th>
+<th class="head"><p>AnchorStrike</p></th>
+<th class="head"><p>AnchorVol</p></th>
+<th class="head"><p>Skew</p></th>
+<th class="head"><p>Smile</p></th>
+<th class="head"><p>Call</p></th>
+<th class="head"><p>Put</p></th>
+<th class="head"><p>Ctrl</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>2Y</p></td>
+<td><p>200</p></td>
+<td><p>40</p></td>
+<td><p>50</p></td>
+<td><p>-0.5</p></td>
+<td><p>-0.01</p></td>
+<td><p>-0.01</p></td>
+<td><p>0.5</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><img alt="Figure 3: Comparison of ASV vol with negative Smile, Call and Put (Case ii)" src="../../_images/21.png" /></p>
+<p>The above figure shows that the original asv vol formula has a jump around strike=300. After adjustment, the vol is continuous and positive.</p>
+<ul class="simple">
+<li><p><strong>Case (ii): negative smile and wing:</strong></p></li>
+</ul>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Maturity</p></th>
+<th class="head"><p>AnchorStrike</p></th>
+<th class="head"><p>AnchorVol</p></th>
+<th class="head"><p>Skew</p></th>
+<th class="head"><p>Smile</p></th>
+<th class="head"><p>Call</p></th>
+<th class="head"><p>Put</p></th>
+<th class="head"><p>Ctrl</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>0.5Y</p></td>
+<td><p>3000</p></td>
+<td><p>21</p></td>
+<td><p>14</p></td>
+<td><p>-0.025</p></td>
+<td><p>-0.06</p></td>
+<td><p>-0.02</p></td>
+<td><p>0.5</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Strike</p></th>
+<th class="head"><p>σ</p></th>
+<th class="head"><p>σ’</p></th>
+<th class="head"><p>k</p></th>
+<th class="head"><p>λ</p></th>
+<th class="head"><p>σ(λ)</p></th>
+<th class="head"><p>σ(λ) - σ</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>100</p></td>
+<td><p>29.63%</p></td>
+<td><p>44.69%</p></td>
+<td><p>-2.65</p></td>
+<td><p>2.28</p></td>
+<td><p>29.63%</p></td>
+<td><p>0.0000</p></td>
+</tr>
+<tr class="row-odd"><td><p>3000</p></td>
+<td><p>21.00%</p></td>
+<td><p>21.00%</p></td>
+<td><p>0.00</p></td>
+<td><p>1.00</p></td>
+<td><p>21.00%</p></td>
+<td><p>0.0000</p></td>
+</tr>
+<tr class="row-even"><td><p>4500</p></td>
+<td><p>1.47%</p></td>
+<td><p>10.41%</p></td>
+<td><p>0.57</p></td>
+<td><p>49.95</p></td>
+<td><p>1.47%</p></td>
+<td><p>0.0000</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Maturity</p></th>
+<th class="head"><p>AnchorStrike</p></th>
+<th class="head"><p>AnchorVol</p></th>
+<th class="head"><p>Skew</p></th>
+<th class="head"><p>Smile</p></th>
+<th class="head"><p>Call</p></th>
+<th class="head"><p>Put</p></th>
+<th class="head"><p>Ctrl</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>2Y</p></td>
+<td><p>3000</p></td>
+<td><p>35</p></td>
+<td><p>20</p></td>
+<td><p>-5</p></td>
+<td><p>-0.05</p></td>
+<td><p>-0.05</p></td>
+<td><p>0.5</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Strike</p></th>
+<th class="head"><p>σ</p></th>
+<th class="head"><p>σ’</p></th>
+<th class="head"><p>k</p></th>
+<th class="head"><p>λ</p></th>
+<th class="head"><p>σ(λ)</p></th>
+<th class="head"><p>σ(λ) - σ</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>100</p></td>
+<td><p>39.45%</p></td>
+<td><p>55.47%</p></td>
+<td><p>-1.32</p></td>
+<td><p>1.98</p></td>
+<td><p>39.45%</p></td>
+<td><p>0.0000</p></td>
+</tr>
+<tr class="row-odd"><td><p>3000</p></td>
+<td><p>35.00%</p></td>
+<td><p>35.00%</p></td>
+<td><p>0.00</p></td>
+<td><p>1.00</p></td>
+<td><p>35.00%</p></td>
+<td><p>0.0000</p></td>
+</tr>
+<tr class="row-even"><td><p>4500</p></td>
+<td><p>22.85%</p></td>
+<td><p>28.79%</p></td>
+<td><p>0.28</p></td>
+<td><p>1.59</p></td>
+<td><p>22.85%</p></td>
+<td><p>0.0000</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>In the above tables, σ is output from the adjusted ASV formula, and σ(λ) is calculated from the two-step process in section 4.1.4.3. They are identical with both maturities in half year and 2 years.</p>
+</section>
+</section>
+</section>
+<section id="comparison-to-other-models">
+<h2>8.7 Comparison to Other Models<a class="headerlink" href="#comparison-to-other-models" title="Link to this heading">#</a></h2>
+<p>In this section we compare ASV to our legacy parameterizations.</p>
+<p>ASV fits better the market consensus on the wings. When compared to Taylor, ASV gives higher implied volatility on the wings and for front maturities which are close to expiry. This agrees with the market consensus, as seen through variance swap prices and end-of-month Totem data:</p>
+<ul class="simple">
+<li><p>ASV provides a better fit to market quotes which are close to expiry. For example, the graph below shows one day fitting for the November 2011 maturity of STOXX50E index one day before expiry</p></li>
+</ul>
+<p><img alt="Figure 1: Max MC Error with No Intra-Day Points" src="../../_images/22.png" /></p>
+<section id="one-year-fitting-dec12-maturity-of-stoxx50e-index-about-a-year-before-expiry">
+<h3>One-Year Fitting: Dec12 Maturity of STOXX50E Index About a Year Before Expiry<a class="headerlink" href="#one-year-fitting-dec12-maturity-of-stoxx50e-index-about-a-year-before-expiry" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><strong>Taylor</strong> underestimates volatility on the wings, resulting in variance swaps being too cheap, whereas <strong>ASV</strong> variance levels are consistent with traded levels. For example, the table below shows variance levels as of the <strong>18th of November 2011</strong>:</p></li>
+</ul>
+<p><img alt="Figure 1: Max MC Error with No Intra-Day Points" src="../../_images/23.png" /></p>
+<section id="asv-additional-comparison-and-testing-results">
+<h4>ASV Additional Comparison and Testing Results<a class="headerlink" href="#asv-additional-comparison-and-testing-results" title="Link to this heading">#</a></h4>
+<section id="asv-vs-taylor-model-comparison">
+<h5>ASV vs TAYLOR Model Comparison<a class="headerlink" href="#asv-vs-taylor-model-comparison" title="Link to this heading">#</a></h5>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Date</p></th>
+<th class="head"><p>ASV</p></th>
+<th class="head"><p>TAYLOR</p></th>
+<th class="head"><p>Diff</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>01-Dec-11</p></td>
+<td><p>38.97%</p></td>
+<td><p>37.82%</p></td>
+<td><p>-1.15%</p></td>
+</tr>
+<tr class="row-odd"><td><p>01-Jan-12</p></td>
+<td><p>40.07%</p></td>
+<td><p>38.96%</p></td>
+<td><p>-1.12%</p></td>
+</tr>
+<tr class="row-even"><td><p>01-Mar-12</p></td>
+<td><p>41.46%</p></td>
+<td><p>39.97%</p></td>
+<td><p>-1.49%</p></td>
+</tr>
+<tr class="row-odd"><td><p>01-Sep-12</p></td>
+<td><p>40.59%</p></td>
+<td><p>38.66%</p></td>
+<td><p>-1.93%</p></td>
+</tr>
+<tr class="row-even"><td><p>01-Dec-12</p></td>
+<td><p>40.08%</p></td>
+<td><p>37.93%</p></td>
+<td><p>-2.15%</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Also, ASV produces smooth curves, which provide smooth local vol grids and arbitrage-free implied vol. In the example below the spike is created by the UCutoff parameter in Taylor.</p>
+<p><img alt="Figure 1: Comparison of ASV and Taylor Density" src="../../_images/24.png" /></p>
+</section>
+</section>
+</section>
+</section>
+<section id="other-outcome-analysis-testing">
+<h2>8.8 Other Outcome Analysis / Testing<a class="headerlink" href="#other-outcome-analysis-testing" title="Link to this heading">#</a></h2>
+<p>The implied volatility fitter framework documentation describes some more back-testing that has been carried out on the SPX index, a large cap name IBM and a small cap name LCF. For this study please refer to [1].</p>
+<p>ASV parameterisation has been tested for regressions as we have migrated from QA to Aleph and when we have changed the solving formula. All tests showed that no regression took place.</p>
+</section>
+<section id="general-limitations">
+<h2>9. General Limitations<a class="headerlink" href="#general-limitations" title="Link to this heading">#</a></h2>
+<p>Limitations are discussed in detail in section <strong>4.2</strong> “Assumptions, Limitations, and Outliers”. Key limitations include:</p>
+<ul class="simple">
+<li><p><strong>Parsimonious Parameterization</strong>: While reducing the risk of overfitting, the small number of parameters makes the ASV surface less flexible for fitting irregular market quotes.</p></li>
+<li><p><strong>Arbitrage in Strike</strong>: ASV does not inherently guarantee the absence of arbitrage across strikes; butterfly arbitrage is controlled externally within the volatility fitting framework.</p></li>
+<li><p><strong>Existence of a Solution</strong>: A solution for volatility by strike may not exist if both Put/Call Wing and Smile parameters are negative. In such cases, ASV defaults to a hard-coded value of 1%.</p></li>
+<li><p><strong>Continuity Across Strikes</strong>: Non-smoothness can occur when the volatility hits the lower bound of 1%, potentially causing numerical issues in pricing models.</p></li>
+<li><p><strong>Higher Wings</strong>: ASV often produces higher implied volatilities on the wings and for front maturities close to expiry, posing challenges for Monte Carlo simulations.</p></li>
+</ul>
+<p>For a comprehensive overview of these limitations, refer to section <strong>4.2</strong>.</p>
+</section>
+<hr class="docutils" />
+<section id="model-monitoring-kpis">
+<h2>10. Model Monitoring – KPIs<a class="headerlink" href="#model-monitoring-kpis" title="Link to this heading">#</a></h2>
+<p>Ongoing monitoring of the ASV model will be conducted by the <strong>MCO (Model Control Office)</strong> to ensure its continued effectiveness and adherence to market conditions.</p>
+<section id="monitoring-tests-and-key-performance-indicators-kpi">
+<h3>10.1 Monitoring Tests and Key Performance Indicators (KPI)<a class="headerlink" href="#monitoring-tests-and-key-performance-indicators-kpi" title="Link to this heading">#</a></h3>
+<p>The following tests and KPIs will be used to monitor the performance of the ASV model:</p>
+<ul class="simple">
+<li><p><strong>Fit Quality</strong>: Regular evaluation of how well the ASV surface fits observed market data, including implied volatilities and option prices.</p></li>
+<li><p><strong>Arbitrage Checks</strong>: Continuous verification of no-arbitrage conditions, particularly butterfly arbitrage, ensuring the surface remains consistent with market expectations.</p></li>
+<li><p><strong>Stress Testing</strong>: Periodic back-testing under historical periods of market stress to assess the robustness of the model.</p></li>
+<li><p><strong>Parameter Stability</strong>: Monitoring the stability of ASV parameters over time to ensure they remain intuitive and predictable.</p></li>
+<li><p><strong>Local Volatility Smoothness</strong>: Validation of the smoothness of the local volatility surface derived from the implied volatility surface.</p></li>
+</ul>
+</section>
+<section id="performance-exceptions">
+<h3>10.2 Performance Exceptions<a class="headerlink" href="#performance-exceptions" title="Link to this heading">#</a></h3>
+<p>Performance exceptions may arise in the following scenarios:</p>
+<ul class="simple">
+<li><p><strong>Calibration Failures</strong>: Instances where the ASV model fails to converge or produce a valid solution for certain maturities or strikes.</p></li>
+<li><p><strong>Arbitrage Violations</strong>: Cases where the constructed volatility surface exhibits arbitrage opportunities despite external controls.</p></li>
+<li><p><strong>Numerical Instabilities</strong>: Situations where high wing volatilities or other factors lead to convergence issues in pricing models like Monte Carlo simulations.</p></li>
+<li><p><strong>Market Discontinuities</strong>: Events where sudden market shifts cause the ASV surface to deviate significantly from observed market data.</p></li>
+</ul>
+</section>
+<section id="exception-mitigation-plan">
+<h3>10.3 Exception Mitigation Plan<a class="headerlink" href="#exception-mitigation-plan" title="Link to this heading">#</a></h3>
+<p>To address performance exceptions, the following mitigation strategies will be employed:</p>
+<ul class="simple">
+<li><p><strong>Parameter Adjustments</strong>: Fine-tuning of control parameters (<code class="docutils literal notranslate"><span class="pre">Ctrl_C</span></code> and <code class="docutils literal notranslate"><span class="pre">Ctrl_P</span></code>) to improve fit quality and reduce numerical instabilities.</p></li>
+<li><p><strong>Enhanced Calibration Algorithms</strong>: Implementation of more robust calibration techniques to handle edge cases and ensure convergence.</p></li>
+<li><p><strong>Increased Discretization</strong>: Refinement of time discretization in pricing models to mitigate numerical challenges caused by high wing volatilities.</p></li>
+<li><p><strong>Back-Testing and Stress Testing</strong>: Regular updates to back-testing datasets to reflect recent market conditions and identify potential vulnerabilities.</p></li>
+<li><p><strong>Manual Intervention</strong>: In cases where automated adjustments are insufficient, manual intervention by the MCO may be required to ensure the integrity of the volatility surface.</p></li>
+</ul>
+<p>By implementing these monitoring tests, KPIs, and exception mitigation strategies, the MCO ensures that the ASV model remains reliable and effective across varying market conditions.</p>
+</section>
+</section>
+<section id="references">
+<h2>11. References<a class="headerlink" href="#references" title="Link to this heading">#</a></h2>
+<ol class="arabic simple">
+<li><p><strong>Implied Volatility Fitter.</strong> Y. Nersisyan, Feb 2017. [Link to paper]</p></li>
+<li><p><strong>Equity European Option Pricer.</strong> Vladimir Shmarov and D. Sahakyan, Feb 2017. [Link to paper]</p></li>
+<li><p><strong>Accelerating the Calibration of Stochastic Volatility Models.</strong> F. Kilin, 2011.</p></li>
+<li><p><strong>Managing Smile Risk.</strong> P. Hagan, D. Kumar, A. Lesniewski, and D. Woodward, 2002.</p></li>
+<li><p><strong>Implied Volatility Functions: Empirical Tests.</strong> B. Dumas, J. Fleming, and R.E. Whaley, 1998.</p></li>
+<li><p><strong>Quasi-Explicit Calibration of Gatheral SVI Model.</strong> P. DeMarco, 2009.</p></li>
+<li><p><strong>Arbitrage-Free Implied Volatility Surfaces.</strong> M. Roper, 2010.</p></li>
+<li><p><strong>Equity Taylor Parameterised Volatility Surfaces.</strong> J. Aube, O. Torne, F. Violet, 2008. [Link to paper]</p></li>
+</ol>
+</section>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          
+          
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2023, XSIGMA Developers
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">Analytical Sigma Volatility (ASV)</a><ul>
+<li><a class="reference internal" href="#table-of-contents">Table of Contents</a></li>
+<li><a class="reference internal" href="#executive-summary">1. Executive Summary</a><ul>
+<li><a class="reference internal" href="#asv-parameters">ASV Parameters</a></li>
+<li><a class="reference internal" href="#advantages-of-asv">Advantages of ASV</a></li>
+<li><a class="reference internal" href="#limitations-of-asv">Limitations of ASV</a></li>
+<li><a class="reference internal" href="#testing-and-validation">Testing and Validation</a></li>
+<li><a class="reference internal" href="#implications-and-recommendations">Implications and Recommendations</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#scope">2. Scope</a><ul>
+<li><a class="reference internal" href="#model-purpose-and-intended-usage">2.1 Model Purpose and Intended Usage</a></li>
+<li><a class="reference internal" href="#conceptual-soundness">2.2 Conceptual Soundness</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#product-payoff-portfolio">3. Product / Payoff / Portfolio</a><ul>
+<li><a class="reference internal" href="#description">3.1 Description</a></li>
+<li><a class="reference internal" href="#inputs">3.2 Inputs</a></li>
+<li><a class="reference internal" href="#outputs">3.3 Outputs</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#model-methodology">4. Model / Methodology</a><ul>
+<li><a class="reference internal" href="#id1">4.1 Description</a><ul>
+<li><a class="reference internal" href="#overview">4.1.1 Overview</a></li>
+<li><a class="reference internal" href="#term-structure-parameters">4.1.2 Term Structure Parameters</a><ul>
+<li><a class="reference internal" href="#smooth-ts-with-double-exponential">4.1.2.1 Smooth TS with Double Exponential</a></li>
+<li><a class="reference internal" href="#smooth-ts-with-single-exponential">4.1.2.2 Smooth TS with Single Exponential</a></li>
+<li><a class="reference internal" href="#non-smooth-ts">4.1.2.3 Non-Smooth TS</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#parameterisation">4.1.3 Parameterisation</a><ul>
+<li><a class="reference internal" href="#a-for-text-smile-geq-0">a) For <span class="math notranslate nohighlight">\( \text{smile} \geq 0 \)</span>:</a></li>
+<li><a class="reference internal" href="#b-for-text-smile-0-and-1-k-leq-f-text-put-1-k-leq-f-text-call-geq-0">b) For <span class="math notranslate nohighlight">\( \text{smile} &lt; 0 \)</span> and <span class="math notranslate nohighlight">\( 1_{K \leq F} \text{Put} + 1_{K \leq F} \text{Call} \geq 0 \)</span>:</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#adjustment-for-negative-wings">4.1.4 Adjustment for Negative Wings</a><ul>
+<li><a class="reference internal" href="#adjustment-for-negative-smile">4.1.4.3 Adjustment for Negative Smile</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#term-structure-motivation">4.1.4.4. Term structure motivation</a></li>
+<li><a class="reference internal" href="#solving-the-variance-equation-for-positive-wings">4.1.5 Solving the variance equation for positive wings</a></li>
+<li><a class="reference internal" href="#existence-of-a-solution">4.1.5.1. Existence of a solution</a></li>
+<li><a class="reference internal" href="#solution">4.1.5.2. Solution</a><ul>
+<li><a class="reference internal" href="#implemented-solution">4.1.5.2.1. Implemented solution</a></li>
+<li><a class="reference internal" href="#alternative-expression-for-the-solution">4.1.5.2.2. Alternative expression for the solution</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#continuity">4.1.5.3. Continuity</a></li>
+<li><a class="reference internal" href="#bounded-volatility-values">4.1.5.4. Bounded volatility values</a></li>
+<li><a class="reference internal" href="#solving-the-variance-equation-for-positive-smile-and-negative-wing">4.1.6 Solving the variance equation for positive smile and negative wing</a></li>
+<li><a class="reference internal" href="#solving-the-variance-equation-for-negative-smile-and-positive-wing">4.1.7 Solving the variance equation for negative smile and positive wing</a></li>
+<li><a class="reference internal" href="#solving-the-variance-equation-for-negative-smile-and-negative-wing">4.1.8 Solving the variance equation for negative smile and negative wing</a></li>
+<li><a class="reference internal" href="#model-design-development">4.1.9 Model design &amp; development</a></li>
+<li><a class="reference internal" href="#regulatory-compliance">4.1.10 Regulatory compliance</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#assumptions-limitations-and-outliers">4.2 Assumptions, Limitations and Outliers</a><ul>
+<li><a class="reference internal" href="#model-parameters-variables">4.3 Model Parameters / Variables</a></li>
+<li><a class="reference internal" href="#model-outputs">4.4 Model Outputs</a></li>
+<li><a class="reference internal" href="#risk-factor">4.6 Risk Factor</a></li>
+<li><a class="reference internal" href="#feeder-models">4.7 Feeder Models</a></li>
+<li><a class="reference internal" href="#justification-against-alternative-approaches">4.8 Justification Against Alternative Approaches</a></li>
+<li><a class="reference internal" href="#conditions-of-use">4.9 Conditions of Use</a><ul>
+<li><a class="reference internal" href="#stressed-market-conditions">4.9.1 Stressed Market Conditions</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#implementation-numerical-schema-description">5. Implementation / Numerical Schema Description</a><ul>
+<li><a class="reference internal" href="#id2">5.1 Description</a><ul>
+<li><a class="reference internal" href="#function-in-asv-qas">Function in <code class="docutils literal notranslate"><span class="pre">asv.qas</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#id3">5.2 Inputs</a></li>
+<li><a class="reference internal" href="#quality-control">5.3 Quality Control</a></li>
+<li><a class="reference internal" href="#limitations">5.4 Limitations</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#calibration">6. Calibration</a><ul>
+<li><a class="reference internal" href="#id4">6.1 Description</a></li>
+<li><a class="reference internal" href="#id5">6.2 Inputs</a></li>
+<li><a class="reference internal" href="#id6">6.3 Justification Against Alternative Approaches</a></li>
+<li><a class="reference internal" href="#id7">6.4 Quality Control</a></li>
+<li><a class="reference internal" href="#limitations-and-risk-assessment">6.5 Limitations and Risk Assessment</a><ul>
+<li><a class="reference internal" href="#id8">6.5.1 Stressed Market Conditions</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#risk">7. Risk</a><ul>
+<li><a class="reference internal" href="#id9">7.1 Description</a></li>
+<li><a class="reference internal" href="#id10">7.2 Inputs</a></li>
+<li><a class="reference internal" href="#id11">7.3 Limitations and Risk Assessment</a><ul>
+<li><a class="reference internal" href="#risk-mitigation-strategies">Risk Mitigation Strategies:</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#test-and-outcome-analyses-performed-on-model">8. Test and Outcome Analyses Performed on Model</a><ul>
+<li><a class="reference internal" href="#back-testing">8.1 Back-testing</a><ul>
+<li><a class="reference internal" href="#parameters-time-series">8.1.1 Parameters Time Series</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#asv-parameters-by-tenor">ASV Parameters by Tenor</a><ul>
+<li><a class="reference internal" href="#stoxx50e-january-2009-to-may-2012">STOXX50E - January 2009 to May 2012</a></li>
+<li><a class="reference internal" href="#gdaxi-january-2009-to-march-2012">GDAXI - January 2009 to March 2012</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#monte-carlo-convergence-analysis">8.1.2 Monte Carlo Convergence Analysis</a></li>
+<li><a class="reference internal" href="#comparison-of-asv-and-taylor-models-with-varying-intraday-steps">Comparison of ASV and Taylor Models with Varying Intraday Steps</a></li>
+<li><a class="reference internal" href="#scenario-and-stress-testing">8.2 Scenario and Stress-testing</a><ul>
+<li><a class="reference internal" href="#id12">8.2.1 Scenario and Stress-testing</a></li>
+<li><a class="reference internal" href="#ccar-stress-testing">8.2.2 CCAR Stress-testing</a></li>
+<li><a class="reference internal" href="#statistical-testing">8.3 Statistical Testing</a></li>
+<li><a class="reference internal" href="#impact-of-assumptions-and-limitations">8.4 Impact of Assumptions and Limitations</a></li>
+<li><a class="reference internal" href="#accuracy-convergence-stability-and-sensitivity">8.5 Accuracy, Convergence, Stability, and Sensitivity</a><ul>
+<li><a class="reference internal" href="#accuracy-and-convergence">8.5.1 Accuracy and Convergence</a></li>
+<li><a class="reference internal" href="#stability">8.5.2 Stability</a></li>
+<li><a class="reference internal" href="#sensitivity">8.5.3 Sensitivity</a></li>
+<li><a class="reference internal" href="#bump-by-3-stdev">Bump by 3 Stdev</a><ul>
+<li><a class="reference internal" href="#bump-by-7-stdev">Bump by 7 Stdev</a></li>
+<li><a class="reference internal" href="#bumping-the-skew-parameter-by-3-stdev">Bumping the Skew Parameter by 3 Stdev</a></li>
+<li><a class="reference internal" href="#bumping-the-smile-parameter-by-3-stdev">Bumping the Smile Parameter by 3 Stdev</a></li>
+<li><a class="reference internal" href="#bumping-the-call-parameter-by-3-stdev">Bumping the Call Parameter by 3 Stdev</a></li>
+<li><a class="reference internal" href="#id13">Bump by 3 Stdev</a></li>
+<li><a class="reference internal" href="#bump-by-20-stdev">Bump by 20 Stdev</a></li>
+<li><a class="reference internal" href="#bumping-the-put-parameter-by-3-stdev">Bumping the Put Parameter by 3 Stdev</a></li>
+<li><a class="reference internal" href="#bump-by-10-stdev">Bump by 10 Stdev</a><ul>
+<li><a class="reference internal" href="#bump-by-2-stdev">Bump by 2 Stdev</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#sx5e-as-of-17-02-2017-tenor-1w"><strong>SX5E as of 17/02/2017 - Tenor = 1W</strong></a></li>
+<li><a class="reference internal" href="#sx5e-as-of-17-02-2017-maturity-jun-2017-and-2019"><strong>SX5E as of 17/02/2017 - Maturity = Jun 2017 and 2019</strong></a></li>
+<li><a class="reference internal" href="#spx-as-of-01-31-2020-maturity-dec-2020">SPX as of 01/31/2020 - Maturity Dec 2020</a></li>
+<li><a class="reference internal" href="#ctrl-0-8"><strong>Ctrl = 0.8</strong></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#boundary-cases">8.6 Boundary Cases</a><ul>
+<li><a class="reference internal" href="#low-vol-high-skew">8.6.1 Low Vol, High Skew</a></li>
+<li><a class="reference internal" href="#high-vol-skew-smile-and-put">8.6.2 High Vol, Skew, Smile, and Put</a></li>
+<li><a class="reference internal" href="#high-skew-low-vol-smile-put-and-call">8.6.3 High Skew, Low Vol, Smile, Put, and Call</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#negative-smile">8.6.4 Negative Smile</a><ul>
+<li><a class="reference internal" href="#impact-of-negative-smile-adjustment">8.6.4.1. Impact of negative smile adjustment</a><ul>
+<li><a class="reference internal" href="#asv-parameters-and-implied-volatilities">ASV Parameters and Implied Volatilities</a></li>
+<li><a class="reference internal" href="#monte-carlo-convergence">Monte Carlo Convergence</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#comparison-to-other-models">8.7 Comparison to Other Models</a><ul>
+<li><a class="reference internal" href="#one-year-fitting-dec12-maturity-of-stoxx50e-index-about-a-year-before-expiry">One-Year Fitting: Dec12 Maturity of STOXX50E Index About a Year Before Expiry</a><ul>
+<li><a class="reference internal" href="#asv-additional-comparison-and-testing-results">ASV Additional Comparison and Testing Results</a><ul>
+<li><a class="reference internal" href="#asv-vs-taylor-model-comparison">ASV vs TAYLOR Model Comparison</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#other-outcome-analysis-testing">8.8 Other Outcome Analysis / Testing</a></li>
+<li><a class="reference internal" href="#general-limitations">9. General Limitations</a></li>
+<li><a class="reference internal" href="#model-monitoring-kpis">10. Model Monitoring – KPIs</a><ul>
+<li><a class="reference internal" href="#monitoring-tests-and-key-performance-indicators-kpi">10.1 Monitoring Tests and Key Performance Indicators (KPI)</a></li>
+<li><a class="reference internal" href="#performance-exceptions">10.2 Performance Exceptions</a></li>
+<li><a class="reference internal" href="#exception-mitigation-plan">10.3 Exception Mitigation Plan</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#references">11. References</a></li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div><script src="../../_static/documentation_options.js?v=5929fcd5"></script>
+    <script src="../../_static/doctools.js?v=888ff710"></script>
+    <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/scripts/furo.js?v=32e29ea5"></script>
+    <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../../_static/copybutton.js?v=60a0e41e"></script>
+    <script src="../../_static/design-tabs.js?v=36754332"></script>
+    <script>window.MathJax = {"options": {"processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+    <script defer="defer" src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
+    </body>
+</html>

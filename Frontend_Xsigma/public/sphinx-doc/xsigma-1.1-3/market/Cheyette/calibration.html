@@ -1,0 +1,1275 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="../../">
+  <head><meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="author" title="About these documents" href="../../about.html" /><link rel="index" title="Index" href="../../genindex.html" /><link rel="search" title="Search" href="../../search.html" /><link rel="next" title="6. Risk Analysis" href="risk_analysis.html" /><link rel="prev" title="4. Implementation / Numerical Schema Description" href="implementation.html" />
+
+    <link rel="shortcut icon" href="../../_static/xsigma_favicon.png"/><!-- Generated with Sphinx 7.2.6 and Furo 2023.09.10 -->
+        <title>5. Calibration - PRETORIAN Documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=a746c00c" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?v=135e06be" />
+    <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../../_static/togglebutton.css?v=13237357" />
+    <link rel="stylesheet" type="text/css" href="../../_static/custom.css?v=8c702e86" />
+    <link rel="stylesheet" type="text/css" href="../../_static/design-style.1e8bd061cd6da7fc9cf755528e8ffc24.min.css?v=0a3b3ea7" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo-extensions.css?v=36a5483c" />
+    <link rel="stylesheet" type="text/css" href="../../_static/custom.css?v=8c702e86" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f8f8f8;
+  --color-code-foreground: black;
+  --color-brand-primary: #0066cc;
+  --color-brand-content: #0066cc;
+  --color-admonition-background: #f8f9fa;
+  --color-sidebar-background: #f8f9fa;
+  --color-sidebar-background-border: #e9ecef;
+  --font-stack: system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif;
+  --font-stack--monospace: SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, Courier New, monospace;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  --color-brand-primary: #4da6ff;
+  --color-brand-content: #4da6ff;
+  --color-admonition-background: #1e1e1e;
+  --color-sidebar-background: #1e1e1e;
+  --color-sidebar-background-border: #404040;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  --color-brand-primary: #4da6ff;
+  --color-brand-content: #4da6ff;
+  --color-admonition-background: #1e1e1e;
+  --color-sidebar-background: #1e1e1e;
+  --color-sidebar-background-border: #404040;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-half" viewBox="0 0 24 24">
+    <title>Auto light/dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-shadow">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M13 12h5" />
+      <path d="M13 15h4" />
+      <path d="M13 18h1" />
+      <path d="M13 9h4" />
+      <path d="M13 6h1" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc">
+<label class="overlay sidebar-overlay" for="__navigation">
+  <div class="visually-hidden">Hide navigation sidebar</div>
+</label>
+<label class="overlay toc-overlay" for="__toc">
+  <div class="visually-hidden">Hide table of contents sidebar</div>
+</label>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <div class="visually-hidden">Toggle site navigation sidebar</div>
+        <i class="icon"><svg><use href="#svg-menu"></use></svg></i>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../../index.html"><div class="brand">PRETORIAN Documentation</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle">
+          <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+          <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <div class="visually-hidden">Toggle table of contents sidebar</div>
+        <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="../../index.html">
+  
+  <div class="sidebar-logo-container">
+    <img class="sidebar-logo" src="../../_static/Logo.ico" alt="Logo"/>
+  </div>
+  <div class="sidebar-logo-container">
+    <img class="sidebar-logo only-light" src="../../_static/../../Logo.ico" alt="Light Logo"/>
+    <img class="sidebar-logo only-dark" src="../../_static/../../Logo.ico" alt="Dark Logo"/>
+  </div>
+  
+  <span class="sidebar-brand-text">PRETORIAN Documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="../../search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../about.html">About</a></li>
+<li class="toctree-l1 current has-children"><a class="reference internal" href="../index.html">1. Market</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><div class="visually-hidden">Toggle navigation of 1. Market</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="current">
+<li class="toctree-l2 has-children"><a class="reference internal" href="../ASV/index.html">1.1. Analytical Sigma Volatility (ASV)</a><input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><div class="visually-hidden">Toggle navigation of 1.1. Analytical Sigma Volatility (ASV)</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/executive_summary.html">1. Executive Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/scope.html">2. Scope</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/product_and_portfolio.html">3. Product and Portfolio</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/model_methodology.html">4. Model Methodology</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/implementation.html">5. Implementation and Numerical Schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/calibration.html">6. Calibration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/risk_analysis.html">7. Risk Analysis</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/testing_and_validation.html">8. Testing and Validation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/general_limitations.html">9. General Limitations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/model_monitoring.html">10. Model Monitoring and KPIs</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/user_guide.html">11. User Guide</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/references.html">12. References</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/README.html">13. Analytical Sigma Volatility (ASV) Documentation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/executive_summary.html">1. Executive Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/scope.html">2. Scope</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/product_and_portfolio.html">3. Product and Portfolio</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/model_methodology.html">4. Model Methodology</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/implementation.html">5. Implementation and Numerical Schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/calibration.html">6. Calibration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/risk_analysis.html">7. Risk Analysis</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/testing_and_validation.html">8. Testing and Validation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/general_limitations.html">9. General Limitations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/model_monitoring.html">10. Model Monitoring and KPIs</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/user_guide.html">11. User Guide</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/references.html">12. References</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/README.html">13. Analytical Sigma Volatility (ASV) Documentation</a></li>
+</ul>
+</li>
+<li class="toctree-l2 current has-children"><a class="reference internal" href="index.html">Cheyette Local Vol Model</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" role="switch" type="checkbox"/><label for="toctree-checkbox-3"><div class="visually-hidden">Toggle navigation of Cheyette Local Vol Model</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="executive_summary.html">1. Executive Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="scope.html">2. Scope</a></li>
+<li class="toctree-l3"><a class="reference internal" href="products_and_payoffs.html">1.2.1.3. Products and Payoffs</a></li>
+<li class="toctree-l3"><a class="reference internal" href="model_methodology.html">3. Model Methodology</a></li>
+<li class="toctree-l3"><a class="reference internal" href="implementation.html">4. Implementation / Numerical Schema Description</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">5. Calibration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="risk_analysis.html">6. Risk Analysis</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_and_validation.html">7. Testing and Validation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="assumptions_and_limitations.html">1.2.1.9. Assumptions and Limitations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="monitoring_and_kpis.html">8. Monitoring and KPIs</a></li>
+<li class="toctree-l3"><a class="reference internal" href="appendices.html">1.2.1.11. Appendices</a></li>
+<li class="toctree-l3"><a class="reference internal" href="README.html">1.2.1.12. Cheyette Local Vol Model Documentation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="executive_summary.html">1. Executive Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="scope.html">2. Scope</a></li>
+<li class="toctree-l3"><a class="reference internal" href="model_methodology.html">3. Model Methodology</a></li>
+<li class="toctree-l3"><a class="reference internal" href="implementation.html">4. Implementation / Numerical Schema Description</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">5. Calibration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="risk_analysis.html">6. Risk Analysis</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_and_validation.html">7. Testing and Validation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="monitoring_and_kpis.html">8. Monitoring and KPIs</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../Curve%20Construction/index.html">1.3. Curve Construction and Risk Framework (New Curve Framework)</a><input class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" role="switch" type="checkbox"/><label for="toctree-checkbox-4"><div class="visually-hidden">Toggle navigation of 1.3. Curve Construction and Risk Framework (New Curve Framework)</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/executive_summary.html">1. Executive Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/scope.html">2. Scope</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/product_and_portfolio.html">3. Product and Portfolio</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/model_methodology.html">4. Model Methodology</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/implementation.html">5. Implementation / Numerical Schema Description</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/calibration.html">6. Calibration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/risk_analysis.html">7. Risk Analysis</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/testing_and_validation.html">8. Testing and Validation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/general_limitations.html">9. General Limitations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/model_monitoring.html">10. Model Monitoring</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/development_feedback.html">11. Development Feedback</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/references.html">12. References</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/README.html">1.3.1.13. Curve Construction and Risk Framework Documentation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/executive_summary.html">1. Executive Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/scope.html">2. Scope</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/product_and_portfolio.html">3. Product and Portfolio</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/model_methodology.html">4. Model Methodology</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/implementation.html">5. Implementation / Numerical Schema Description</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/calibration.html">6. Calibration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/risk_analysis.html">7. Risk Analysis</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/testing_and_validation.html">8. Testing and Validation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/general_limitations.html">9. General Limitations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/model_monitoring.html">10. Model Monitoring</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/development_feedback.html">11. Development Feedback</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/references.html">12. References</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../DBOPT-CorrelationSkew/index.html">1.1. DBOPT Correlation Skew Guides</a><input class="toctree-checkbox" id="toctree-checkbox-5" name="toctree-checkbox-5" role="switch" type="checkbox"/><label for="toctree-checkbox-5"><div class="visually-hidden">Toggle navigation of 1.1. DBOPT Correlation Skew Guides</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../DBOPT-CorrelationSkew/DBOPT-CorrelationSkew.html">1.1.1. Deutsche Bank Risk Model Validation Document</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../DBOPT/index.html">1.2. RateDeterministic Inflation Deterministic Guides</a><input class="toctree-checkbox" id="toctree-checkbox-6" name="toctree-checkbox-6" role="switch" type="checkbox"/><label for="toctree-checkbox-6"><div class="visually-hidden">Toggle navigation of 1.2. RateDeterministic Inflation Deterministic Guides</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../DBOPT/RateDeterministic_InflationDeterministic.html">1.2.1. Interest Rate Volatility Model GSABR</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../DBOPT/RateDeterministic_InflationDeterministic.html#independent-validation-testing">1.2.2. 4 Independent Validation Testing</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../DBSMC/index.html">1.3. DBSMC Rate terministic FX Market Guides</a><input class="toctree-checkbox" id="toctree-checkbox-7" name="toctree-checkbox-7" role="switch" type="checkbox"/><label for="toctree-checkbox-7"><div class="visually-hidden">Toggle navigation of 1.3. DBSMC Rate terministic FX Market Guides</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../DBSMC/DBSMC-RateDeterministic_FXMarket.html">1.3.1. FX Market Model Validation Document</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../DBSMC/DBSMC-RateDeterministic_FXMarket.html#model-uncertainty-identification-measurement-and-management">1.3.2. 5 Model Uncertainty Identification, Measurement, and Management</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../DBSMC/DBSMC-RateDeterministic_FXMarket.html#control-assessment">1.3.3. 6 Control Assessment</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../DBSMC/DBSMC-RateDeterministic_FXMarket.html#conclusion">1.3.4. 7 Conclusion</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../DBSMC/DBSMC-RateDeterministic_FXMarket.html#document-change-history">1.3.5. 8 Document Change History</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../DBSMC/DBSMC-RateDeterministic_FXMarket.html#a-fx-sabr3formulapd-interpolation-and-extrapolation-retired">1.3.6. A FX SABR3FORMULAPD interpolation and extrapolation (retired)</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../DBX-ShortRate%20and%20FX%20Skew%20Stochastic%20Volatility%20models/index.html">1.4. DBX-Short Rate and FX Skew StochVol Guides</a><input class="toctree-checkbox" id="toctree-checkbox-8" name="toctree-checkbox-8" role="switch" type="checkbox"/><label for="toctree-checkbox-8"><div class="visually-hidden">Toggle navigation of 1.4. DBX-Short Rate and FX Skew StochVol Guides</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../DBX-ShortRate%20and%20FX%20Skew%20Stochastic%20Volatility%20models/DBX-ShortRate_FXSkewStochVol.html">1.4.1. DBX-ShortRate_FXSkewStochVol Document</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../Fx/index.html">1.5. fx_volatility_surface Guides</a><input class="toctree-checkbox" id="toctree-checkbox-9" name="toctree-checkbox-9" role="switch" type="checkbox"/><label for="toctree-checkbox-9"><div class="visually-hidden">Toggle navigation of 1.5. fx_volatility_surface Guides</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../Fx/fx_volatility_surface.html">1.5.1. FX Analytic Volatility Surfaces</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../Implied%20Volatility%20Filter/index.html">1.6. Implied Volatility Filter Guides</a><input class="toctree-checkbox" id="toctree-checkbox-10" name="toctree-checkbox-10" role="switch" type="checkbox"/><label for="toctree-checkbox-10"><div class="visually-hidden">Toggle navigation of 1.6. Implied Volatility Filter Guides</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../Implied%20Volatility%20Filter/Implied_Volatility_Filter.html">1.6.1. Implied Volatility Filter</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../Ir/index.html">1.7. Linear_Interest_Rate_Swaps Guides</a><input class="toctree-checkbox" id="toctree-checkbox-11" name="toctree-checkbox-11" role="switch" type="checkbox"/><label for="toctree-checkbox-11"><div class="visually-hidden">Toggle navigation of 1.7. Linear_Interest_Rate_Swaps Guides</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../Ir/Linear_Interest_Rate_Swaps.html">1.7.1. Linear Interest Rate Swaps</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../LSV/index.html">1.8. LSV Guides</a><input class="toctree-checkbox" id="toctree-checkbox-12" name="toctree-checkbox-12" role="switch" type="checkbox"/><label for="toctree-checkbox-12"><div class="visually-hidden">Toggle navigation of 1.8. LSV Guides</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../LSV/LSV.html">1.8.1. LSV</a><input class="toctree-checkbox" id="toctree-checkbox-13" name="toctree-checkbox-13" role="switch" type="checkbox"/><label for="toctree-checkbox-13"><div class="visually-hidden">Toggle navigation of 1.8.1. LSV</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../LSV/FX%20LSV%20Markov%20Switching%20%20Monte%20Carlo/FX_LSV_Markov_Switching_Monte_Carlo.html">1.8.1.1. FX LSV Markov Switching : Monte Carlo</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../LSV/FX%20LSV%20Markov%20Switching%20PDE/FX_LSV_Markov_Switching_PDE.html">1.8.1.2. FX LSV Markov Switching : PDE</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../LSV/Local%20Volatility%20PDE%20and%20MC/Local_Volatility_PDE_and_MC.html">1.8.1.3. Local Volatility: PDE and MC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../LSV/LSV%20Markov%20Switching%20%20Monte%20Carlo/LSV_Markov_Switching_Monte_Carlo.html">1.8.1.4. LSV Markov Switching : Monte Carlo</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../LSV/LSV%20Markov%20Switching%20%20PDE/LSV_Markov_Switching_PDE.html">1.8.1.5. LSV Markov Switching : PDE</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../Local_Volatility_PDE_MC/index.html">1.9. Local Volatility PDE MC Guides</a><input class="toctree-checkbox" id="toctree-checkbox-14" name="toctree-checkbox-14" role="switch" type="checkbox"/><label for="toctree-checkbox-14"><div class="visually-hidden">Toggle navigation of 1.9. Local Volatility PDE MC Guides</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../Local_Volatility_PDE_MC/Local_Volatility_PDE_MC.html">1.9.1. Local Volatility: PDE and MC</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../Model%20Rate%20Deterministic_InflationDeterministic/index.html">1.10. Model Rate Deterministic Inflation Deterministic Guides</a><input class="toctree-checkbox" id="toctree-checkbox-15" name="toctree-checkbox-15" role="switch" type="checkbox"/><label for="toctree-checkbox-15"><div class="visually-hidden">Toggle navigation of 1.10. Model Rate Deterministic Inflation Deterministic Guides</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../Model%20Rate%20Deterministic_InflationDeterministic/RateDeterministic_InflationDeterministic.html">1.10.1. Model Rate Deterministic Document (DBOPT/DBX)</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../Model%20RateDeterministic/index.html">1.11. Rate Deterministic Guides</a><input class="toctree-checkbox" id="toctree-checkbox-16" name="toctree-checkbox-16" role="switch" type="checkbox"/><label for="toctree-checkbox-16"><div class="visually-hidden">Toggle navigation of 1.11. Rate Deterministic Guides</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../Model%20RateDeterministic/RateDeterministic.html">1.11.1. The model RateDeterministic</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../Model%20Short%20Rate%20Normal/index.html">1.12. Short Rate Normal Guides</a><input class="toctree-checkbox" id="toctree-checkbox-17" name="toctree-checkbox-17" role="switch" type="checkbox"/><label for="toctree-checkbox-17"><div class="visually-hidden">Toggle navigation of 1.12. Short Rate Normal Guides</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../Model%20Short%20Rate%20Normal/Short_Rate_Normal.html">1.12.1. Short Rate Normal Model Validation Document</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../SABR/index.html">1.16. Interest Rate Volatility Model GSABR</a><input class="toctree-checkbox" id="toctree-checkbox-18" name="toctree-checkbox-18" role="switch" type="checkbox"/><label for="toctree-checkbox-18"><div class="visually-hidden">Toggle navigation of 1.16. Interest Rate Volatility Model GSABR</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/executive_summary.html">1. Executive Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/scope.html">2. Scope and Use</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/product_and_portfolio.html">3. Product and Portfolio</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/model_methodology.html">4. Model Methodology</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/implementation.html">5. Implementation / Numerical Schema Description</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/calibration.html">6. Calibration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/risk_analysis.html">7. Risk Analysis</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/testing_and_validation.html">8. Testing and Validation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/general_limitations.html">9. General Limitations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/model_monitoring.html">10. Model Monitoring</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/market_data_integration.html">11. Market Data Integration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/performance_benchmarking.html">12. Performance Benchmarking</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/troubleshooting_guide.html">13. Troubleshooting Guide</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/development_feedback.html">14. Development Feedback</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/references.html">15. References</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/executive_summary.html">1. Executive Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/scope.html">2. Scope and Use</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/product_and_portfolio.html">3. Product and Portfolio</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/model_methodology.html">4. Model Methodology</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/implementation.html">5. Implementation / Numerical Schema Description</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/calibration.html">6. Calibration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/risk_analysis.html">7. Risk Analysis</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/testing_and_validation.html">8. Testing and Validation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/general_limitations.html">9. General Limitations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/model_monitoring.html">10. Model Monitoring</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/market_data_integration.html">11. Market Data Integration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/performance_benchmarking.html">12. Performance Benchmarking</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/troubleshooting_guide.html">13. Troubleshooting Guide</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/development_feedback.html">14. Development Feedback</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/references.html">15. References</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../getting_started/index.html">Getting Started</a><input class="toctree-checkbox" id="toctree-checkbox-19" name="toctree-checkbox-19" role="switch" type="checkbox"/><label for="toctree-checkbox-19"><div class="visually-hidden">Toggle navigation of Getting Started</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../learning.html">Learning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../supported_data_formats.html">Supported Data Formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../supported_hardware.html">Supported Hardware</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../modules/index.html">Modules</a><input class="toctree-checkbox" id="toctree-checkbox-20" name="toctree-checkbox-20" role="switch" type="checkbox"/><label for="toctree-checkbox-20"><div class="visually-hidden">Toggle navigation of Modules</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../modules/xsigma-modules/Wrapping/PythonCore/README.html">Python Wrapper Core Classes</a></li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../build_instructions/index.html">Building</a><input class="toctree-checkbox" id="toctree-checkbox-21" name="toctree-checkbox-21" role="switch" type="checkbox"/><label for="toctree-checkbox-21"><div class="visually-hidden">Toggle navigation of Building</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../build_instructions/build_settings.html">Build Settings</a></li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../api/index.html">API</a><input class="toctree-checkbox" id="toctree-checkbox-22" name="toctree-checkbox-22" role="switch" type="checkbox"/><label for="toctree-checkbox-22"><div class="visually-hidden">Toggle navigation of API</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../api/cpp.html">1.1. C++</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../api/python.html">1.2. Python</a><input class="toctree-checkbox" id="toctree-checkbox-23" name="toctree-checkbox-23" role="switch" type="checkbox"/><label for="toctree-checkbox-23"><div class="visually-hidden">Toggle navigation of 1.2. Python</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules</span></code></a><input class="toctree-checkbox" id="toctree-checkbox-24" name="toctree-checkbox-24" role="switch" type="checkbox"/><label for="toctree-checkbox-24"><div class="visually-hidden">Toggle navigation of xsigmamodules</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l4 has-children"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.common.html">1.2.1.1.1.1. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.common</span></code></a><input class="toctree-checkbox" id="toctree-checkbox-25" name="toctree-checkbox-25" role="switch" type="checkbox"/><label for="toctree-checkbox-25"><div class="visually-hidden">Toggle navigation of 1.2.1.1.1.1. xsigmamodules.common</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.common.helper.html">1.2.1.1.1.1.1.1. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.common.helper</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.common.instrument.html">1.2.1.1.1.1.1.2. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.common.instrument</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l4 has-children"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.market.html">1.2.1.1.1.2. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.market</span></code></a><input class="toctree-checkbox" id="toctree-checkbox-26" name="toctree-checkbox-26" role="switch" type="checkbox"/><label for="toctree-checkbox-26"><div class="visually-hidden">Toggle navigation of 1.2.1.1.1.2. xsigmamodules.market</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.market.market_data.html">1.2.1.1.1.2.1.1. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.market.market_data</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.market.object_factory.html">1.2.1.1.1.2.1.2. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.market.object_factory</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l4 has-children"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.simulation.html">1.2.1.1.1.3. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.simulation</span></code></a><input class="toctree-checkbox" id="toctree-checkbox-27" name="toctree-checkbox-27" role="switch" type="checkbox"/><label for="toctree-checkbox-27"><div class="visually-hidden">Toggle navigation of 1.2.1.1.1.3. xsigmamodules.simulation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.simulation.simulation.html">1.2.1.1.1.3.1.1. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.simulation.simulation</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l4 has-children"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.test.html">1.2.1.1.1.4. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.test</span></code></a><input class="toctree-checkbox" id="toctree-checkbox-28" name="toctree-checkbox-28" role="switch" type="checkbox"/><label for="toctree-checkbox-28"><div class="visually-hidden">Toggle navigation of 1.2.1.1.1.4. xsigmamodules.test</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.test.BlackBox.html">1.2.1.1.1.4.1.1. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.test.BlackBox</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.test.Testing.html">1.2.1.1.1.4.1.2. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.test.Testing</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l4 has-children"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.util.html">1.2.1.1.1.5. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.util</span></code></a><input class="toctree-checkbox" id="toctree-checkbox-29" name="toctree-checkbox-29" role="switch" type="checkbox"/><label for="toctree-checkbox-29"><div class="visually-hidden">Toggle navigation of 1.2.1.1.1.5. xsigmamodules.util</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.util.misc.html">1.2.1.1.1.5.1.1. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.util.misc</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.util.numpy_support.html">1.2.1.1.1.5.1.2. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.util.numpy_support</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.util.object_converter.html">1.2.1.1.1.5.1.3. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.util.object_converter</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.util.xsigmaConstants.html">1.2.1.1.1.5.1.4. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.util.xsigmaConstants</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.util.xsigmaMethodParser.html">1.2.1.1.1.5.1.5. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.util.xsigmaMethodParser</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l4 has-children"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.xlwing.html">1.2.1.1.1.6. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.xlwing</span></code></a><input class="toctree-checkbox" id="toctree-checkbox-30" name="toctree-checkbox-30" role="switch" type="checkbox"/><label for="toctree-checkbox-30"><div class="visually-hidden">Toggle navigation of 1.2.1.1.1.6. xsigmamodules.xlwing</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.xlwing.hartman_watson_template.html">1.2.1.1.1.6.1.1. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.xlwing.hartman_watson_template</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.xlwing.sabr_template.html">1.2.1.1.1.6.1.2. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.xlwing.sabr_template</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l4"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.generate_pyi.html">1.2.1.1.2.1. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.generate_pyi</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../api/cmake/cmake-modules.html">1.3. CMake</a><input class="toctree-checkbox" id="toctree-checkbox-31" name="toctree-checkbox-31" role="switch" type="checkbox"/><label for="toctree-checkbox-31"><div class="visually-hidden">Toggle navigation of 1.3. CMake</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../api/cmake/ModuleSystem.html">1.3.1. Module System</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/cmake/xsigmaModule.html">1.3.2. xsigmaModule</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/cmake/xsigmaModuleTesting.html">1.3.3. xsigmaModuleTesting</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/cmake/xsigmaModuleWrapPython.html">1.3.4. xsigmaModuleWrapPython</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/cmake/xsigmaModuleWrapJava.html">1.3.5. xsigmaModuleWrapJava</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/cmake/xsigmaModuleJSON.html">1.3.6. xsigmaModuleJSON</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/cmake/xsigmaModuleGraphviz.html">1.3.7. xsigmaModuleGraphviz</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../advanced/index.html">Advanced Topics</a><input class="toctree-checkbox" id="toctree-checkbox-32" name="toctree-checkbox-32" role="switch" type="checkbox"/><label for="toctree-checkbox-32"><div class="visually-hidden">Toggle navigation of Advanced Topics</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../advanced/available_python_wheels.html">Additional Python Wheels</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../advanced/spdx_and_sbom.html">SPDX &amp; SBOM</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../advanced/build_python_wheels.html">Building Python Wheels</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../advanced/build_wasm_emscripten.html">Building using emscripten for WebAssembly</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../advanced/build_for_mobile.html">Cross-compiling for Mobile devices</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../advanced/build_documentation.html">Building documentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../advanced/marshalling_hints.html">Marshalling Hints</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../advanced/object_manager.html">Object manager</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../advanced/object_serialization.html">Auto serialization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../advanced/PythonWrappers.html">Python Wrappers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../advanced/runtime_settings.html">Runtime settings</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../advanced/WrappingTools.html">Wrapping Tools</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../advanced/migration_guides/index.html">Migration Guides</a><input class="toctree-checkbox" id="toctree-checkbox-33" name="toctree-checkbox-33" role="switch" type="checkbox"/><label for="toctree-checkbox-33"><div class="visually-hidden">Toggle navigation of Migration Guides</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../advanced/migration_guides/ModuleMigration.html">Module Migration from XSIGMA 8.2 to 9+</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../design_documents/index.html">Design Documents</a><input class="toctree-checkbox" id="toctree-checkbox-34" name="toctree-checkbox-34" role="switch" type="checkbox"/><label for="toctree-checkbox-34"><div class="visually-hidden">Toggle navigation of Design Documents</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../design_documents/XSIGMAFileFormats.html">XSIGMA File Formats</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../design_documents/smptools.html">Parallel Processing with XSIGMA’s SMP Framework</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../design_documents/data_assemply.html">Data Assembly</a></li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../developers_guide/index.html">Developer’s Guide</a><input class="toctree-checkbox" id="toctree-checkbox-35" name="toctree-checkbox-35" role="switch" type="checkbox"/><label for="toctree-checkbox-35"><div class="visually-hidden">Toggle navigation of Developer’s Guide</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../developers_guide/git/develop.html">Develop</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../developers_guide/testing.html">Regression Testing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../developers_guide/git/test.html">Adding Tests</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../developers_guide/git/dashboard.html">Dashboard Scripts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../developers_guide/git/thirdparty.html">Imported Third Party Projects</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../developers_guide/git/thirdparty-projects.html">Imported Third Party Projects</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../developers_guide/git/deprecation.html">Deprecation Process</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../developers_guide/release_process.html">Release Process</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../developers_guide/coding_conventions.html">Coding Conventions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../developers_guide/about_this_documentation.html">About this documentation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../resources.html">Resources</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../release_details/index.html">Release Details</a><input class="toctree-checkbox" id="toctree-checkbox-36" name="toctree-checkbox-36" role="switch" type="checkbox"/><label for="toctree-checkbox-36"><div class="visually-hidden">Toggle navigation of Release Details</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="simple">
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../getting_started/index.html">Getting Started</a><input class="toctree-checkbox" id="toctree-checkbox-37" name="toctree-checkbox-37" role="switch" type="checkbox"/><label for="toctree-checkbox-37"><div class="visually-hidden">Toggle navigation of Getting Started</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="simple">
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Market Models</span></p>
+<ul class="current">
+<li class="toctree-l1 current has-children"><a class="reference internal" href="../index.html">1. Market Models Overview</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-38" name="toctree-checkbox-38" role="switch" type="checkbox"/><label for="toctree-checkbox-38"><div class="visually-hidden">Toggle navigation of 1. Market Models Overview</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="current">
+<li class="toctree-l2 has-children"><a class="reference internal" href="../ASV/index.html">1.1. Analytical Sigma Volatility (ASV)</a><input class="toctree-checkbox" id="toctree-checkbox-39" name="toctree-checkbox-39" role="switch" type="checkbox"/><label for="toctree-checkbox-39"><div class="visually-hidden">Toggle navigation of 1.1. Analytical Sigma Volatility (ASV)</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/executive_summary.html">1. Executive Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/scope.html">2. Scope</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/product_and_portfolio.html">3. Product and Portfolio</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/model_methodology.html">4. Model Methodology</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/implementation.html">5. Implementation and Numerical Schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/calibration.html">6. Calibration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/risk_analysis.html">7. Risk Analysis</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/testing_and_validation.html">8. Testing and Validation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/general_limitations.html">9. General Limitations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/model_monitoring.html">10. Model Monitoring and KPIs</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/user_guide.html">11. User Guide</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/references.html">12. References</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/README.html">13. Analytical Sigma Volatility (ASV) Documentation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/executive_summary.html">1. Executive Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/scope.html">2. Scope</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/product_and_portfolio.html">3. Product and Portfolio</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/model_methodology.html">4. Model Methodology</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/implementation.html">5. Implementation and Numerical Schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/calibration.html">6. Calibration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/risk_analysis.html">7. Risk Analysis</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/testing_and_validation.html">8. Testing and Validation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/general_limitations.html">9. General Limitations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/model_monitoring.html">10. Model Monitoring and KPIs</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/user_guide.html">11. User Guide</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/references.html">12. References</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/README.html">13. Analytical Sigma Volatility (ASV) Documentation</a></li>
+</ul>
+</li>
+<li class="toctree-l2 current has-children"><a class="reference internal" href="index.html">Cheyette Local Vol Model</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-40" name="toctree-checkbox-40" role="switch" type="checkbox"/><label for="toctree-checkbox-40"><div class="visually-hidden">Toggle navigation of Cheyette Local Vol Model</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="executive_summary.html">1. Executive Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="scope.html">2. Scope</a></li>
+<li class="toctree-l3"><a class="reference internal" href="products_and_payoffs.html">1.2.1.3. Products and Payoffs</a></li>
+<li class="toctree-l3"><a class="reference internal" href="model_methodology.html">3. Model Methodology</a></li>
+<li class="toctree-l3"><a class="reference internal" href="implementation.html">4. Implementation / Numerical Schema Description</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">5. Calibration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="risk_analysis.html">6. Risk Analysis</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_and_validation.html">7. Testing and Validation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="assumptions_and_limitations.html">1.2.1.9. Assumptions and Limitations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="monitoring_and_kpis.html">8. Monitoring and KPIs</a></li>
+<li class="toctree-l3"><a class="reference internal" href="appendices.html">1.2.1.11. Appendices</a></li>
+<li class="toctree-l3"><a class="reference internal" href="README.html">1.2.1.12. Cheyette Local Vol Model Documentation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="executive_summary.html">1. Executive Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="scope.html">2. Scope</a></li>
+<li class="toctree-l3"><a class="reference internal" href="model_methodology.html">3. Model Methodology</a></li>
+<li class="toctree-l3"><a class="reference internal" href="implementation.html">4. Implementation / Numerical Schema Description</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">5. Calibration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="risk_analysis.html">6. Risk Analysis</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_and_validation.html">7. Testing and Validation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="monitoring_and_kpis.html">8. Monitoring and KPIs</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../Curve%20Construction/index.html">1.3. Curve Construction and Risk Framework (New Curve Framework)</a><input class="toctree-checkbox" id="toctree-checkbox-41" name="toctree-checkbox-41" role="switch" type="checkbox"/><label for="toctree-checkbox-41"><div class="visually-hidden">Toggle navigation of 1.3. Curve Construction and Risk Framework (New Curve Framework)</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/executive_summary.html">1. Executive Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/scope.html">2. Scope</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/product_and_portfolio.html">3. Product and Portfolio</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/model_methodology.html">4. Model Methodology</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/implementation.html">5. Implementation / Numerical Schema Description</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/calibration.html">6. Calibration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/risk_analysis.html">7. Risk Analysis</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/testing_and_validation.html">8. Testing and Validation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/general_limitations.html">9. General Limitations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/model_monitoring.html">10. Model Monitoring</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/development_feedback.html">11. Development Feedback</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/references.html">12. References</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/README.html">1.3.1.13. Curve Construction and Risk Framework Documentation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/executive_summary.html">1. Executive Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/scope.html">2. Scope</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/product_and_portfolio.html">3. Product and Portfolio</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/model_methodology.html">4. Model Methodology</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/implementation.html">5. Implementation / Numerical Schema Description</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/calibration.html">6. Calibration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/risk_analysis.html">7. Risk Analysis</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/testing_and_validation.html">8. Testing and Validation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/general_limitations.html">9. General Limitations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/model_monitoring.html">10. Model Monitoring</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/development_feedback.html">11. Development Feedback</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/references.html">12. References</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../DBOPT-CorrelationSkew/index.html">1.1. DBOPT Correlation Skew Guides</a><input class="toctree-checkbox" id="toctree-checkbox-42" name="toctree-checkbox-42" role="switch" type="checkbox"/><label for="toctree-checkbox-42"><div class="visually-hidden">Toggle navigation of 1.1. DBOPT Correlation Skew Guides</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../DBOPT-CorrelationSkew/DBOPT-CorrelationSkew.html">1.1.1. Deutsche Bank Risk Model Validation Document</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../DBOPT/index.html">1.2. RateDeterministic Inflation Deterministic Guides</a><input class="toctree-checkbox" id="toctree-checkbox-43" name="toctree-checkbox-43" role="switch" type="checkbox"/><label for="toctree-checkbox-43"><div class="visually-hidden">Toggle navigation of 1.2. RateDeterministic Inflation Deterministic Guides</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../DBOPT/RateDeterministic_InflationDeterministic.html">1.2.1. Interest Rate Volatility Model GSABR</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../DBOPT/RateDeterministic_InflationDeterministic.html#independent-validation-testing">1.2.2. 4 Independent Validation Testing</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../DBSMC/index.html">1.3. DBSMC Rate terministic FX Market Guides</a><input class="toctree-checkbox" id="toctree-checkbox-44" name="toctree-checkbox-44" role="switch" type="checkbox"/><label for="toctree-checkbox-44"><div class="visually-hidden">Toggle navigation of 1.3. DBSMC Rate terministic FX Market Guides</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../DBSMC/DBSMC-RateDeterministic_FXMarket.html">1.3.1. FX Market Model Validation Document</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../DBSMC/DBSMC-RateDeterministic_FXMarket.html#model-uncertainty-identification-measurement-and-management">1.3.2. 5 Model Uncertainty Identification, Measurement, and Management</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../DBSMC/DBSMC-RateDeterministic_FXMarket.html#control-assessment">1.3.3. 6 Control Assessment</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../DBSMC/DBSMC-RateDeterministic_FXMarket.html#conclusion">1.3.4. 7 Conclusion</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../DBSMC/DBSMC-RateDeterministic_FXMarket.html#document-change-history">1.3.5. 8 Document Change History</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../DBSMC/DBSMC-RateDeterministic_FXMarket.html#a-fx-sabr3formulapd-interpolation-and-extrapolation-retired">1.3.6. A FX SABR3FORMULAPD interpolation and extrapolation (retired)</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../DBX-ShortRate%20and%20FX%20Skew%20Stochastic%20Volatility%20models/index.html">1.4. DBX-Short Rate and FX Skew StochVol Guides</a><input class="toctree-checkbox" id="toctree-checkbox-45" name="toctree-checkbox-45" role="switch" type="checkbox"/><label for="toctree-checkbox-45"><div class="visually-hidden">Toggle navigation of 1.4. DBX-Short Rate and FX Skew StochVol Guides</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../DBX-ShortRate%20and%20FX%20Skew%20Stochastic%20Volatility%20models/DBX-ShortRate_FXSkewStochVol.html">1.4.1. DBX-ShortRate_FXSkewStochVol Document</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../Fx/index.html">1.5. fx_volatility_surface Guides</a><input class="toctree-checkbox" id="toctree-checkbox-46" name="toctree-checkbox-46" role="switch" type="checkbox"/><label for="toctree-checkbox-46"><div class="visually-hidden">Toggle navigation of 1.5. fx_volatility_surface Guides</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../Fx/fx_volatility_surface.html">1.5.1. FX Analytic Volatility Surfaces</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../Implied%20Volatility%20Filter/index.html">1.6. Implied Volatility Filter Guides</a><input class="toctree-checkbox" id="toctree-checkbox-47" name="toctree-checkbox-47" role="switch" type="checkbox"/><label for="toctree-checkbox-47"><div class="visually-hidden">Toggle navigation of 1.6. Implied Volatility Filter Guides</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../Implied%20Volatility%20Filter/Implied_Volatility_Filter.html">1.6.1. Implied Volatility Filter</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../Ir/index.html">1.7. Linear_Interest_Rate_Swaps Guides</a><input class="toctree-checkbox" id="toctree-checkbox-48" name="toctree-checkbox-48" role="switch" type="checkbox"/><label for="toctree-checkbox-48"><div class="visually-hidden">Toggle navigation of 1.7. Linear_Interest_Rate_Swaps Guides</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../Ir/Linear_Interest_Rate_Swaps.html">1.7.1. Linear Interest Rate Swaps</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../LSV/index.html">1.8. LSV Guides</a><input class="toctree-checkbox" id="toctree-checkbox-49" name="toctree-checkbox-49" role="switch" type="checkbox"/><label for="toctree-checkbox-49"><div class="visually-hidden">Toggle navigation of 1.8. LSV Guides</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../LSV/LSV.html">1.8.1. LSV</a><input class="toctree-checkbox" id="toctree-checkbox-50" name="toctree-checkbox-50" role="switch" type="checkbox"/><label for="toctree-checkbox-50"><div class="visually-hidden">Toggle navigation of 1.8.1. LSV</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../LSV/FX%20LSV%20Markov%20Switching%20%20Monte%20Carlo/FX_LSV_Markov_Switching_Monte_Carlo.html">1.8.1.1. FX LSV Markov Switching : Monte Carlo</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../LSV/FX%20LSV%20Markov%20Switching%20PDE/FX_LSV_Markov_Switching_PDE.html">1.8.1.2. FX LSV Markov Switching : PDE</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../LSV/Local%20Volatility%20PDE%20and%20MC/Local_Volatility_PDE_and_MC.html">1.8.1.3. Local Volatility: PDE and MC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../LSV/LSV%20Markov%20Switching%20%20Monte%20Carlo/LSV_Markov_Switching_Monte_Carlo.html">1.8.1.4. LSV Markov Switching : Monte Carlo</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../LSV/LSV%20Markov%20Switching%20%20PDE/LSV_Markov_Switching_PDE.html">1.8.1.5. LSV Markov Switching : PDE</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../Local_Volatility_PDE_MC/index.html">1.9. Local Volatility PDE MC Guides</a><input class="toctree-checkbox" id="toctree-checkbox-51" name="toctree-checkbox-51" role="switch" type="checkbox"/><label for="toctree-checkbox-51"><div class="visually-hidden">Toggle navigation of 1.9. Local Volatility PDE MC Guides</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../Local_Volatility_PDE_MC/Local_Volatility_PDE_MC.html">1.9.1. Local Volatility: PDE and MC</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../Model%20Rate%20Deterministic_InflationDeterministic/index.html">1.10. Model Rate Deterministic Inflation Deterministic Guides</a><input class="toctree-checkbox" id="toctree-checkbox-52" name="toctree-checkbox-52" role="switch" type="checkbox"/><label for="toctree-checkbox-52"><div class="visually-hidden">Toggle navigation of 1.10. Model Rate Deterministic Inflation Deterministic Guides</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../Model%20Rate%20Deterministic_InflationDeterministic/RateDeterministic_InflationDeterministic.html">1.10.1. Model Rate Deterministic Document (DBOPT/DBX)</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../Model%20RateDeterministic/index.html">1.11. Rate Deterministic Guides</a><input class="toctree-checkbox" id="toctree-checkbox-53" name="toctree-checkbox-53" role="switch" type="checkbox"/><label for="toctree-checkbox-53"><div class="visually-hidden">Toggle navigation of 1.11. Rate Deterministic Guides</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../Model%20RateDeterministic/RateDeterministic.html">1.11.1. The model RateDeterministic</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../Model%20Short%20Rate%20Normal/index.html">1.12. Short Rate Normal Guides</a><input class="toctree-checkbox" id="toctree-checkbox-54" name="toctree-checkbox-54" role="switch" type="checkbox"/><label for="toctree-checkbox-54"><div class="visually-hidden">Toggle navigation of 1.12. Short Rate Normal Guides</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../Model%20Short%20Rate%20Normal/Short_Rate_Normal.html">1.12.1. Short Rate Normal Model Validation Document</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../SABR/index.html">1.16. Interest Rate Volatility Model GSABR</a><input class="toctree-checkbox" id="toctree-checkbox-55" name="toctree-checkbox-55" role="switch" type="checkbox"/><label for="toctree-checkbox-55"><div class="visually-hidden">Toggle navigation of 1.16. Interest Rate Volatility Model GSABR</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/executive_summary.html">1. Executive Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/scope.html">2. Scope and Use</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/product_and_portfolio.html">3. Product and Portfolio</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/model_methodology.html">4. Model Methodology</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/implementation.html">5. Implementation / Numerical Schema Description</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/calibration.html">6. Calibration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/risk_analysis.html">7. Risk Analysis</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/testing_and_validation.html">8. Testing and Validation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/general_limitations.html">9. General Limitations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/model_monitoring.html">10. Model Monitoring</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/market_data_integration.html">11. Market Data Integration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/performance_benchmarking.html">12. Performance Benchmarking</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/troubleshooting_guide.html">13. Troubleshooting Guide</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/development_feedback.html">14. Development Feedback</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/references.html">15. References</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/executive_summary.html">1. Executive Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/scope.html">2. Scope and Use</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/product_and_portfolio.html">3. Product and Portfolio</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/model_methodology.html">4. Model Methodology</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/implementation.html">5. Implementation / Numerical Schema Description</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/calibration.html">6. Calibration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/risk_analysis.html">7. Risk Analysis</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/testing_and_validation.html">8. Testing and Validation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/general_limitations.html">9. General Limitations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/model_monitoring.html">10. Model Monitoring</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/market_data_integration.html">11. Market Data Integration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/performance_benchmarking.html">12. Performance Benchmarking</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/troubleshooting_guide.html">13. Troubleshooting Guide</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/development_feedback.html">14. Development Feedback</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/references.html">15. References</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../SABR/index.html">1.16. SABR/GSABR Models</a><input class="toctree-checkbox" id="toctree-checkbox-56" name="toctree-checkbox-56" role="switch" type="checkbox"/><label for="toctree-checkbox-56"><div class="visually-hidden">Toggle navigation of 1.16. SABR/GSABR Models</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/executive_summary.html">1. Executive Summary</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/scope.html">2. Scope and Use</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/product_and_portfolio.html">3. Product and Portfolio</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/model_methodology.html">4. Model Methodology</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/implementation.html">5. Implementation / Numerical Schema Description</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/calibration.html">6. Calibration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/risk_analysis.html">7. Risk Analysis</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/testing_and_validation.html">8. Testing and Validation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/general_limitations.html">9. General Limitations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/model_monitoring.html">10. Model Monitoring</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/market_data_integration.html">11. Market Data Integration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/performance_benchmarking.html">12. Performance Benchmarking</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/troubleshooting_guide.html">13. Troubleshooting Guide</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/development_feedback.html">14. Development Feedback</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/references.html">15. References</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/executive_summary.html">1. Executive Summary</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/scope.html">2. Scope and Use</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/product_and_portfolio.html">3. Product and Portfolio</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/model_methodology.html">4. Model Methodology</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/implementation.html">5. Implementation / Numerical Schema Description</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/calibration.html">6. Calibration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/risk_analysis.html">7. Risk Analysis</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/testing_and_validation.html">8. Testing and Validation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/general_limitations.html">9. General Limitations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/model_monitoring.html">10. Model Monitoring</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/market_data_integration.html">11. Market Data Integration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/performance_benchmarking.html">12. Performance Benchmarking</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/troubleshooting_guide.html">13. Troubleshooting Guide</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/development_feedback.html">14. Development Feedback</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/references.html">15. References</a></li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../ASV/index.html">1.1. Analytical Sigma Volatility</a><input class="toctree-checkbox" id="toctree-checkbox-57" name="toctree-checkbox-57" role="switch" type="checkbox"/><label for="toctree-checkbox-57"><div class="visually-hidden">Toggle navigation of 1.1. Analytical Sigma Volatility</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/executive_summary.html">1. Executive Summary</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/scope.html">2. Scope</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/product_and_portfolio.html">3. Product and Portfolio</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/model_methodology.html">4. Model Methodology</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/implementation.html">5. Implementation and Numerical Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/calibration.html">6. Calibration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/risk_analysis.html">7. Risk Analysis</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/testing_and_validation.html">8. Testing and Validation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/general_limitations.html">9. General Limitations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/model_monitoring.html">10. Model Monitoring and KPIs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/user_guide.html">11. User Guide</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/references.html">12. References</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/README.html">13. Analytical Sigma Volatility (ASV) Documentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/executive_summary.html">1. Executive Summary</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/scope.html">2. Scope</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/product_and_portfolio.html">3. Product and Portfolio</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/model_methodology.html">4. Model Methodology</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/implementation.html">5. Implementation and Numerical Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/calibration.html">6. Calibration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/risk_analysis.html">7. Risk Analysis</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/testing_and_validation.html">8. Testing and Validation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/general_limitations.html">9. General Limitations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/model_monitoring.html">10. Model Monitoring and KPIs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/user_guide.html">11. User Guide</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/references.html">12. References</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/README.html">13. Analytical Sigma Volatility (ASV) Documentation</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current has-children"><a class="reference internal" href="index.html">Cheyette Interest Rate Model</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-58" name="toctree-checkbox-58" role="switch" type="checkbox"/><label for="toctree-checkbox-58"><div class="visually-hidden">Toggle navigation of Cheyette Interest Rate Model</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="executive_summary.html">1. Executive Summary</a></li>
+<li class="toctree-l2"><a class="reference internal" href="scope.html">2. Scope</a></li>
+<li class="toctree-l2"><a class="reference internal" href="products_and_payoffs.html">1.2.1.3. Products and Payoffs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="model_methodology.html">3. Model Methodology</a></li>
+<li class="toctree-l2"><a class="reference internal" href="implementation.html">4. Implementation / Numerical Schema Description</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">5. Calibration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="risk_analysis.html">6. Risk Analysis</a></li>
+<li class="toctree-l2"><a class="reference internal" href="testing_and_validation.html">7. Testing and Validation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="assumptions_and_limitations.html">1.2.1.9. Assumptions and Limitations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="monitoring_and_kpis.html">8. Monitoring and KPIs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="appendices.html">1.2.1.11. Appendices</a></li>
+<li class="toctree-l2"><a class="reference internal" href="README.html">1.2.1.12. Cheyette Local Vol Model Documentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="executive_summary.html">1. Executive Summary</a></li>
+<li class="toctree-l2"><a class="reference internal" href="scope.html">2. Scope</a></li>
+<li class="toctree-l2"><a class="reference internal" href="model_methodology.html">3. Model Methodology</a></li>
+<li class="toctree-l2"><a class="reference internal" href="implementation.html">4. Implementation / Numerical Schema Description</a></li>
+<li class="toctree-l2 current current-page"><a class="current reference internal" href="#">5. Calibration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="risk_analysis.html">6. Risk Analysis</a></li>
+<li class="toctree-l2"><a class="reference internal" href="testing_and_validation.html">7. Testing and Validation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="monitoring_and_kpis.html">8. Monitoring and KPIs</a></li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../Curve%20Construction/index.html">1.3. Curve Construction Framework</a><input class="toctree-checkbox" id="toctree-checkbox-59" name="toctree-checkbox-59" role="switch" type="checkbox"/><label for="toctree-checkbox-59"><div class="visually-hidden">Toggle navigation of 1.3. Curve Construction Framework</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../Curve%20Construction/executive_summary.html">1. Executive Summary</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Curve%20Construction/scope.html">2. Scope</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Curve%20Construction/product_and_portfolio.html">3. Product and Portfolio</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Curve%20Construction/model_methodology.html">4. Model Methodology</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Curve%20Construction/implementation.html">5. Implementation / Numerical Schema Description</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Curve%20Construction/calibration.html">6. Calibration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Curve%20Construction/risk_analysis.html">7. Risk Analysis</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Curve%20Construction/testing_and_validation.html">8. Testing and Validation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Curve%20Construction/general_limitations.html">9. General Limitations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Curve%20Construction/model_monitoring.html">10. Model Monitoring</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Curve%20Construction/development_feedback.html">11. Development Feedback</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Curve%20Construction/references.html">12. References</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Curve%20Construction/README.html">1.3.1.13. Curve Construction and Risk Framework Documentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Curve%20Construction/executive_summary.html">1. Executive Summary</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Curve%20Construction/scope.html">2. Scope</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Curve%20Construction/product_and_portfolio.html">3. Product and Portfolio</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Curve%20Construction/model_methodology.html">4. Model Methodology</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Curve%20Construction/implementation.html">5. Implementation / Numerical Schema Description</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Curve%20Construction/calibration.html">6. Calibration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Curve%20Construction/risk_analysis.html">7. Risk Analysis</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Curve%20Construction/testing_and_validation.html">8. Testing and Validation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Curve%20Construction/general_limitations.html">9. General Limitations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Curve%20Construction/model_monitoring.html">10. Model Monitoring</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Curve%20Construction/development_feedback.html">11. Development Feedback</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Curve%20Construction/references.html">12. References</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../api/index.html">API Documentation</a><input class="toctree-checkbox" id="toctree-checkbox-60" name="toctree-checkbox-60" role="switch" type="checkbox"/><label for="toctree-checkbox-60"><div class="visually-hidden">Toggle navigation of API Documentation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../api/cpp.html">1.1. C++</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../api/python.html">1.2. Python</a><input class="toctree-checkbox" id="toctree-checkbox-61" name="toctree-checkbox-61" role="switch" type="checkbox"/><label for="toctree-checkbox-61"><div class="visually-hidden">Toggle navigation of 1.2. Python</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules</span></code></a><input class="toctree-checkbox" id="toctree-checkbox-62" name="toctree-checkbox-62" role="switch" type="checkbox"/><label for="toctree-checkbox-62"><div class="visually-hidden">Toggle navigation of xsigmamodules</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l4 has-children"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.common.html">1.2.1.1.1.1. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.common</span></code></a><input class="toctree-checkbox" id="toctree-checkbox-63" name="toctree-checkbox-63" role="switch" type="checkbox"/><label for="toctree-checkbox-63"><div class="visually-hidden">Toggle navigation of 1.2.1.1.1.1. xsigmamodules.common</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.common.helper.html">1.2.1.1.1.1.1.1. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.common.helper</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.common.instrument.html">1.2.1.1.1.1.1.2. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.common.instrument</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l4 has-children"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.market.html">1.2.1.1.1.2. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.market</span></code></a><input class="toctree-checkbox" id="toctree-checkbox-64" name="toctree-checkbox-64" role="switch" type="checkbox"/><label for="toctree-checkbox-64"><div class="visually-hidden">Toggle navigation of 1.2.1.1.1.2. xsigmamodules.market</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.market.market_data.html">1.2.1.1.1.2.1.1. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.market.market_data</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.market.object_factory.html">1.2.1.1.1.2.1.2. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.market.object_factory</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l4 has-children"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.simulation.html">1.2.1.1.1.3. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.simulation</span></code></a><input class="toctree-checkbox" id="toctree-checkbox-65" name="toctree-checkbox-65" role="switch" type="checkbox"/><label for="toctree-checkbox-65"><div class="visually-hidden">Toggle navigation of 1.2.1.1.1.3. xsigmamodules.simulation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.simulation.simulation.html">1.2.1.1.1.3.1.1. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.simulation.simulation</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l4 has-children"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.test.html">1.2.1.1.1.4. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.test</span></code></a><input class="toctree-checkbox" id="toctree-checkbox-66" name="toctree-checkbox-66" role="switch" type="checkbox"/><label for="toctree-checkbox-66"><div class="visually-hidden">Toggle navigation of 1.2.1.1.1.4. xsigmamodules.test</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.test.BlackBox.html">1.2.1.1.1.4.1.1. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.test.BlackBox</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.test.Testing.html">1.2.1.1.1.4.1.2. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.test.Testing</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l4 has-children"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.util.html">1.2.1.1.1.5. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.util</span></code></a><input class="toctree-checkbox" id="toctree-checkbox-67" name="toctree-checkbox-67" role="switch" type="checkbox"/><label for="toctree-checkbox-67"><div class="visually-hidden">Toggle navigation of 1.2.1.1.1.5. xsigmamodules.util</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.util.misc.html">1.2.1.1.1.5.1.1. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.util.misc</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.util.numpy_support.html">1.2.1.1.1.5.1.2. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.util.numpy_support</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.util.object_converter.html">1.2.1.1.1.5.1.3. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.util.object_converter</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.util.xsigmaConstants.html">1.2.1.1.1.5.1.4. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.util.xsigmaConstants</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.util.xsigmaMethodParser.html">1.2.1.1.1.5.1.5. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.util.xsigmaMethodParser</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l4 has-children"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.xlwing.html">1.2.1.1.1.6. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.xlwing</span></code></a><input class="toctree-checkbox" id="toctree-checkbox-68" name="toctree-checkbox-68" role="switch" type="checkbox"/><label for="toctree-checkbox-68"><div class="visually-hidden">Toggle navigation of 1.2.1.1.1.6. xsigmamodules.xlwing</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.xlwing.hartman_watson_template.html">1.2.1.1.1.6.1.1. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.xlwing.hartman_watson_template</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.xlwing.sabr_template.html">1.2.1.1.1.6.1.2. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.xlwing.sabr_template</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l4"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.generate_pyi.html">1.2.1.1.2.1. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.generate_pyi</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../api/cmake/cmake-modules.html">1.3. CMake</a><input class="toctree-checkbox" id="toctree-checkbox-69" name="toctree-checkbox-69" role="switch" type="checkbox"/><label for="toctree-checkbox-69"><div class="visually-hidden">Toggle navigation of 1.3. CMake</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../api/cmake/ModuleSystem.html">1.3.1. Module System</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/cmake/xsigmaModule.html">1.3.2. xsigmaModule</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/cmake/xsigmaModuleTesting.html">1.3.3. xsigmaModuleTesting</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/cmake/xsigmaModuleWrapPython.html">1.3.4. xsigmaModuleWrapPython</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/cmake/xsigmaModuleWrapJava.html">1.3.5. xsigmaModuleWrapJava</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/cmake/xsigmaModuleJSON.html">1.3.6. xsigmaModuleJSON</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/cmake/xsigmaModuleGraphviz.html">1.3.7. xsigmaModuleGraphviz</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle">
+              <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+              <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <div class="visually-hidden">Toggle table of contents sidebar</div>
+            <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+          </label>
+        </div>
+        <article role="main">
+          <section class="tex2jax_ignore mathjax_ignore" id="calibration">
+<h1><span class="section-number">5. </span>Calibration<a class="headerlink" href="#calibration" title="Link to this heading">#</a></h1>
+<section id="description">
+<h2><span class="section-number">5.1. </span>Description<a class="headerlink" href="#description" title="Link to this heading">#</a></h2>
+<p>The CLV model uses analytical approximations for swaption volatility and skew to achieve efficient calibration. There are 2 different calibration types:</p>
+<ul class="simple">
+<li><p>Co-terminal</p></li>
+<li><p>V-fit</p></li>
+</ul>
+</section>
+<section id="swaption-volatility-skew-approximation">
+<h2><span class="section-number">5.2. </span>Swaption Volatility/Skew Approximation<a class="headerlink" href="#swaption-volatility-skew-approximation" title="Link to this heading">#</a></h2>
+<section id="approximation-step-1-swap-rate-time-dependent-dynamics">
+<h3><span class="section-number">5.2.1. </span>Approximation Step 1: Swap Rate Time Dependent Dynamics<a class="headerlink" href="#approximation-step-1-swap-rate-time-dependent-dynamics" title="Link to this heading">#</a></h3>
+<p>In the first approximation step, we assume swap rate is time dependent shifted lognormal diffusion:</p>
+<div class="math-wrapper docutils container">
+<div class="math notranslate nohighlight">
+\[ds(t) = \sigma_s(t)\left(1 + b_s(t)\left(\frac{s(t)-s_0}{s_0}\right)\right)dw^A(t)\]</div>
+</div>
+<p>As shown previously, zero bond has analytical reconstruction formula and is a function of <span class="math notranslate nohighlight">\(r_1(t)\)</span> and <span class="math notranslate nohighlight">\(\Phi(t)\)</span>, therefore we can also represent swap rate as an explicit function:</p>
+<div class="math-wrapper docutils container">
+<div class="math notranslate nohighlight">
+\[s(t) = s(t,r_1(t),\Phi(t))\]</div>
+</div>
+<p>Since <span class="math notranslate nohighlight">\(s(t)\)</span> is martingale under annuity measure and only <span class="math notranslate nohighlight">\(dr_1(t)\)</span> has stochastic term, applying Itô’s lemma:</p>
+<div class="math-wrapper docutils container">
+<div class="math notranslate nohighlight">
+\[ds(t) = s_{r_1}(t)\sigma_r(t,r_1(t))dw^A(t)\]</div>
+</div>
+<p>The RHS is an explicit function of <span class="math notranslate nohighlight">\(r_1(t)\)</span> and <span class="math notranslate nohighlight">\(\Phi(t)\)</span>. Considering short rate vol is usually less than 1% and <span class="math notranslate nohighlight">\(\Phi(t)\)</span> is of second order of short rate, the variation of <span class="math notranslate nohighlight">\(\Phi(t)\)</span> is less significant, so we will freeze it at its expectation under annuity measure, i.e., <span class="math notranslate nohighlight">\(\Phi'(t) = E^A[\Phi(t)]\)</span>.</p>
+<p>Once freezing <span class="math notranslate nohighlight">\(\Phi(t)\)</span>, the RHS is now an explicit function of <span class="math notranslate nohighlight">\(r_1(t)\)</span>, hence an implicit function of <span class="math notranslate nohighlight">\(s(t)\)</span>. To derive <span class="math notranslate nohighlight">\(\sigma_s(t)\)</span> and <span class="math notranslate nohighlight">\(b_s(t)\)</span>, we use 1st order Taylor expansion to RHS around initial swap rate <span class="math notranslate nohighlight">\(s_0\)</span>, with <span class="math notranslate nohighlight">\(|_0\)</span> indicating evaluation at <span class="math notranslate nohighlight">\(s(t) = s_0\)</span>:</p>
+<div class="math-wrapper docutils container">
+<div class="math notranslate nohighlight">
+\[s_{r_1}(t)\sigma_r(t,r_1(t))dw^A(t) = \left[s_{r_1}(t)\sigma_r(t)|_{s_0} + (s(t) - s_0)\left.\frac{\partial (s_{r_1}(t)\sigma_r(t))}{\partial s(t)}\right|_{s_0}\right]dw^A(t)\]</div>
+</div>
+<p>After comparing with the assumed shifted lognormal diffusion in the beginning, we then get below:</p>
+<div class="math-wrapper docutils container">
+<div class="math notranslate nohighlight">
+\[\sigma_s(t) = s_{r_1}(t)\sigma_r(t)|_0\]</div>
+</div>
+<div class="math-wrapper docutils container">
+<div class="math notranslate nohighlight">
+\[b_s(t) = s_0\left.\frac{s_{r_1r_1}(t)}{s_{r_1}^2(t)}\right|_0 + \frac{s_0}{s_{r_1}(t)}\left.\frac{b_r(t)}{1 + b_r(t)r_1(t)}\right|_0\]</div>
+</div>
+<p>Notice that via zero bond reconstruction, swap rate <span class="math notranslate nohighlight">\(s(t)\)</span> can be expressed as an explicit function of <span class="math notranslate nohighlight">\(r_1(t)\)</span>. Therefore its derivative to <span class="math notranslate nohighlight">\(r_1(t)\)</span> in above formula can be computed analytically.</p>
+</section>
+<section id="approximation-step-2-averaging-volatility-and-skew">
+<h3><span class="section-number">5.2.2. </span>Approximation Step 2: Averaging Volatility and Skew<a class="headerlink" href="#approximation-step-2-averaging-volatility-and-skew" title="Link to this heading">#</a></h3>
+<p>In the second approximation step, we will use the swap rate volatility and skew derived above, reduce the time dependency and derive the flat volatility and skew of the process.</p>
+<div class="math-wrapper docutils container">
+<div class="math notranslate nohighlight">
+\[\sigma_T = \sqrt{\frac{1}{T}\int_0^T \sigma_s^2(t)dt}\]</div>
+</div>
+<div class="math-wrapper docutils container">
+<div class="math notranslate nohighlight">
+\[b_T = \int_0^T b_s(t)w_s(t)dt, \text{ where weight function } w_s(t) = \frac{\sigma_s^2(t)\int_0^t\sigma_s^2(s)ds}{\int_0^T(\sigma_s^2(t)\int_0^t\sigma_s^2(s)ds)dt}\]</div>
+</div>
+<p>Both values are computed by numerical integration across the model curve nodes and assuming the model curve is piecewise constant. Further details can be referred in below document - “Time to Smile” [15].</p>
+<p>With the blended vol and skew, we can calculate the model swaption/caplet prices V(0) using the shifted lognormal pricing formula:</p>
+<div class="math-wrapper docutils container">
+<div class="math notranslate nohighlight">
+\[V(0) = A(0)[S'N(d_+) - K'N(d_-)]\]</div>
+</div>
+<p>where A(0) = annuity of the caplet/swaption</p>
+<div class="math-wrapper docutils container">
+<div class="math notranslate nohighlight">
+\[S' = \frac{S_0}{b_T}, K' = K + (1-b_T)\frac{S_0}{b_T}\]</div>
+</div>
+<div class="math-wrapper docutils container">
+<div class="math notranslate nohighlight">
+\[d_\pm = \frac{\ln(\frac{S'}{K'}) \pm \frac{1}{2}\Sigma^2T}{\Sigma\sqrt{T}} \text{ where } \Sigma = \frac{\sigma_T b_T}{S_0}\]</div>
+</div>
+</section>
+</section>
+<section id="calibration-implementation-in-our-project">
+<h2><span class="section-number">5.3. </span>Calibration Implementation in Our Project<a class="headerlink" href="#calibration-implementation-in-our-project" title="Link to this heading">#</a></h2>
+<p>The Cheyette calibration process is implemented through several key classes that work together to fit model parameters to market swaption volatilities.</p>
+<p><strong>Main Calibration Class</strong>:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="k">namespace</span><span class="w"> </span><span class="nn">xsigma</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">class</span><span class="w"> </span><span class="nc">calibration_ir_cheyette</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">public</span><span class="o">:</span>
+<span class="w">        </span><span class="c1">// Constructor</span>
+<span class="w">        </span><span class="n">ANALYTICS_API</span><span class="w"> </span><span class="n">calibration_ir_cheyette</span><span class="p">(</span>
+<span class="w">            </span><span class="k">const</span><span class="w"> </span><span class="n">datetime</span><span class="o">&amp;</span><span class="w"> </span><span class="n">valuation_date</span><span class="p">,</span>
+<span class="w">            </span><span class="k">const</span><span class="w"> </span><span class="n">ptr_const</span><span class="o">&lt;</span><span class="n">discount_curve</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">curve</span><span class="p">,</span>
+<span class="w">            </span><span class="k">const</span><span class="w"> </span><span class="n">ptr_const</span><span class="o">&lt;</span><span class="n">calibration_ir_targets_configuration</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">targets_config</span><span class="p">,</span>
+<span class="w">            </span><span class="k">const</span><span class="w"> </span><span class="n">ptr_const</span><span class="o">&lt;</span><span class="n">day_count_convention</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">convention</span>
+<span class="w">        </span><span class="p">);</span>
+
+<span class="w">        </span><span class="n">ANALYTICS_API</span><span class="w"> </span><span class="o">~</span><span class="n">calibration_ir_cheyette</span><span class="p">();</span>
+
+<span class="w">        </span><span class="c1">// Main calibration method implementing the optimization process</span>
+<span class="w">        </span><span class="n">ANALYTICS_API</span><span class="w"> </span><span class="n">ptr_const</span><span class="o">&lt;</span><span class="n">parameter_cheyette</span><span class="o">&gt;</span><span class="w"> </span><span class="n">calibrate</span><span class="p">(</span>
+<span class="w">            </span><span class="k">const</span><span class="w"> </span><span class="n">ptr_const</span><span class="o">&lt;</span><span class="n">ir_volatility_data</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">volatility_surface</span><span class="p">,</span>
+<span class="w">            </span><span class="k">const</span><span class="w"> </span><span class="n">ptr_const</span><span class="o">&lt;</span><span class="n">calibration_cheyette_settings</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">settings</span><span class="p">,</span>
+<span class="w">            </span><span class="k">const</span><span class="w"> </span><span class="n">ptr_const</span><span class="o">&lt;</span><span class="n">parameter_markovian_hjm</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">parameter_hjm</span>
+<span class="w">        </span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+
+<span class="w">        </span><span class="c1">// Access to swaption instruments used in calibration</span>
+<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">ptr_const</span><span class="o">&lt;</span><span class="n">calibration_ir_cheyette_swaption</span><span class="o">&gt;&gt;&amp;</span><span class="w"> </span><span class="n">swaptions</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+
+<span class="w">    </span><span class="k">private</span><span class="o">:</span>
+<span class="w">        </span><span class="c1">// Parameter mapping functions for optimization</span>
+<span class="w">        </span><span class="k">static</span><span class="w"> </span><span class="kt">size_t</span><span class="w"> </span><span class="n">number_of_parameter</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">ptr_mutable</span><span class="o">&lt;</span><span class="n">parameter_cheyette</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">parameter</span><span class="p">);</span>
+
+<span class="w">        </span><span class="k">static</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">map_from_R</span><span class="p">(</span>
+<span class="w">            </span><span class="k">const</span><span class="w"> </span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">x</span><span class="p">,</span>
+<span class="w">            </span><span class="n">parameter_cheyette</span><span class="o">&amp;</span><span class="w"> </span><span class="n">parameter</span><span class="p">,</span>
+<span class="w">            </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">decay_bounds</span><span class="p">,</span>
+<span class="w">            </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">volatility_bounds</span><span class="p">,</span>
+<span class="w">            </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">skew_bounds</span>
+<span class="w">        </span><span class="p">);</span>
+
+<span class="w">        </span><span class="k">static</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">map_to_R</span><span class="p">(</span>
+<span class="w">            </span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">x</span><span class="p">,</span>
+<span class="w">            </span><span class="k">const</span><span class="w"> </span><span class="n">parameter_cheyette</span><span class="o">&amp;</span><span class="w"> </span><span class="n">parameter</span><span class="p">,</span>
+<span class="w">            </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">decay_bounds</span><span class="p">,</span>
+<span class="w">            </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">volatility_bounds</span><span class="p">,</span>
+<span class="w">            </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">skew_bounds</span>
+<span class="w">        </span><span class="p">);</span>
+
+<span class="w">        </span><span class="n">datetime</span><span class="w"> </span><span class="n">valuation_date_</span><span class="p">;</span>
+<span class="w">        </span><span class="n">ptr_const</span><span class="o">&lt;</span><span class="n">discount_curve</span><span class="o">&gt;</span><span class="w"> </span><span class="n">curve_</span><span class="p">;</span>
+<span class="w">        </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">ptr_const</span><span class="o">&lt;</span><span class="n">calibration_ir_cheyette_swaption</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="n">swaptions_</span><span class="p">;</span>
+<span class="w">    </span><span class="p">};</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p><em>The main calibration class orchestrates the parameter fitting process by setting up an optimization problem that minimizes the difference between market and model swaption volatilities. The parameter mapping functions handle the transformation between the constrained optimization space and the model parameter space.</em></p>
+<p><strong>Swaption Calibration Helper Class</strong>:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="k">namespace</span><span class="w"> </span><span class="nn">xsigma</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">class</span><span class="w"> </span><span class="nc">calibration_ir_cheyette_swaption</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">public</span><span class="o">:</span>
+<span class="w">        </span><span class="c1">// Constructor for swaption calibration instrument</span>
+<span class="w">        </span><span class="n">ANALYTICS_API</span><span class="w"> </span><span class="n">calibration_ir_cheyette_swaption</span><span class="p">(</span>
+<span class="w">            </span><span class="kt">bool</span><span class="w"> </span><span class="n">is_call</span><span class="p">,</span>
+<span class="w">            </span><span class="k">const</span><span class="w"> </span><span class="n">ptr_const</span><span class="o">&lt;</span><span class="n">discount_curve</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">curve</span><span class="p">,</span>
+<span class="w">            </span><span class="k">const</span><span class="w"> </span><span class="n">datetime</span><span class="o">&amp;</span><span class="w"> </span><span class="n">expiry</span><span class="p">,</span>
+<span class="w">            </span><span class="k">const</span><span class="w"> </span><span class="n">datetime</span><span class="o">&amp;</span><span class="w"> </span><span class="n">maturity</span><span class="p">,</span>
+<span class="w">            </span><span class="k">const</span><span class="w"> </span><span class="n">tenor</span><span class="o">&amp;</span><span class="w"> </span><span class="n">frequency</span><span class="p">,</span>
+<span class="w">            </span><span class="k">const</span><span class="w"> </span><span class="n">ptr_const</span><span class="o">&lt;</span><span class="n">day_count_convention</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">convention</span><span class="p">,</span>
+<span class="w">            </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">strikes</span><span class="p">,</span>
+<span class="w">            </span><span class="kt">bool</span><span class="w"> </span><span class="n">is_ratios</span>
+<span class="w">        </span><span class="p">);</span>
+
+<span class="w">        </span><span class="n">ANALYTICS_API</span><span class="w"> </span><span class="o">~</span><span class="n">calibration_ir_cheyette_swaption</span><span class="p">();</span>
+
+<span class="w">        </span><span class="c1">// Calculate model values for given Cheyette model</span>
+<span class="w">        </span><span class="n">ANALYTICS_API</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="n">values</span><span class="p">(</span>
+<span class="w">            </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">outputs</span><span class="p">,</span>
+<span class="w">            </span><span class="k">const</span><span class="w"> </span><span class="n">ptr_const</span><span class="o">&lt;</span><span class="n">model_cheyette</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">model</span><span class="p">,</span>
+<span class="w">            </span><span class="kt">double</span><span class="w"> </span><span class="n">tau</span>
+<span class="w">        </span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+
+<span class="w">        </span><span class="c1">// Individual swaption pricing using analytical approximation</span>
+<span class="w">        </span><span class="n">ANALYTICS_API</span><span class="w"> </span><span class="kt">double</span><span class="w"> </span><span class="n">value</span><span class="p">(</span>
+<span class="w">            </span><span class="kt">double</span><span class="o">&amp;</span><span class="w"> </span><span class="n">root</span><span class="p">,</span>
+<span class="w">            </span><span class="k">const</span><span class="w"> </span><span class="kt">double</span><span class="w"> </span><span class="n">z_tau</span><span class="p">,</span>
+<span class="w">            </span><span class="k">const</span><span class="w"> </span><span class="kt">double</span><span class="w"> </span><span class="n">strike</span><span class="p">,</span>
+<span class="w">            </span><span class="k">const</span><span class="w"> </span><span class="n">matrix</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">integral_decays</span><span class="p">,</span>
+<span class="w">            </span><span class="kt">bool</span><span class="w"> </span><span class="n">call_option</span><span class="p">,</span>
+<span class="w">            </span><span class="kt">size_t</span><span class="w"> </span><span class="n">max_iteration</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">20</span><span class="p">,</span>
+<span class="w">            </span><span class="kt">double</span><span class="w"> </span><span class="n">tolerance</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">1e-10</span>
+<span class="w">        </span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+
+<span class="w">    </span><span class="k">private</span><span class="o">:</span>
+<span class="w">        </span><span class="kt">bool</span><span class="w"> </span><span class="n">is_call_</span><span class="p">;</span>
+<span class="w">        </span><span class="n">ptr_const</span><span class="o">&lt;</span><span class="n">discount_curve</span><span class="o">&gt;</span><span class="w"> </span><span class="n">curve_</span><span class="p">;</span>
+<span class="w">        </span><span class="n">datetime</span><span class="w"> </span><span class="n">expiry_</span><span class="p">;</span>
+<span class="w">        </span><span class="n">datetime</span><span class="w"> </span><span class="n">maturity_</span><span class="p">;</span>
+<span class="w">        </span><span class="n">tenor</span><span class="w"> </span><span class="n">frequency_</span><span class="p">;</span>
+<span class="w">        </span><span class="n">ptr_const</span><span class="o">&lt;</span><span class="n">day_count_convention</span><span class="o">&gt;</span><span class="w"> </span><span class="n">convention_</span><span class="p">;</span>
+<span class="w">        </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;</span><span class="w"> </span><span class="n">strikes_</span><span class="p">;</span>
+<span class="w">        </span><span class="kt">bool</span><span class="w"> </span><span class="n">is_ratios_</span><span class="p">;</span>
+
+<span class="w">        </span><span class="c1">// Internal calculation components</span>
+<span class="w">        </span><span class="n">ptr_const</span><span class="o">&lt;</span><span class="n">calibration_ir_swap</span><span class="o">&gt;</span><span class="w"> </span><span class="n">swap_</span><span class="p">;</span>
+<span class="w">        </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;</span><span class="w"> </span><span class="n">fixed_leg_weights_</span><span class="p">;</span>
+<span class="w">        </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;</span><span class="w"> </span><span class="n">float_leg_weights_</span><span class="p">;</span>
+<span class="w">    </span><span class="p">};</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p><em>The swaption helper class implements the analytical approximation formulas described above. It calculates model swaption values using the time-dependent swap rate dynamics and the shifted lognormal pricing formula, enabling efficient calibration without requiring Monte Carlo simulation.</em></p>
+</section>
+<section id="calibration-types">
+<h2><span class="section-number">5.4. </span>Calibration Types<a class="headerlink" href="#calibration-types" title="Link to this heading">#</a></h2>
+<section id="co-terminal-calibration">
+<h3><span class="section-number">5.4.1. </span>Co-terminal Calibration<a class="headerlink" href="#co-terminal-calibration" title="Link to this heading">#</a></h3>
+<p>In co-terminal calibration, the model is calibrated to a set of co-terminal swaptions (swaptions with the same maturity but different expiries). This calibration type is particularly useful when:</p>
+<ul class="simple">
+<li><p>The portfolio has exposure to a specific maturity point</p></li>
+<li><p>Market data is most liquid for co-terminal structures</p></li>
+<li><p>Simplified calibration is preferred</p></li>
+</ul>
+<p><strong>Key Features:</strong></p>
+<ul class="simple">
+<li><p>Mean reversion <span class="math notranslate nohighlight">\(\lambda(t)\)</span> is provided as market input</p></li>
+<li><p>Short rate volatility <span class="math notranslate nohighlight">\(\sigma(t)\)</span> is always calibrated</p></li>
+<li><p>Short rate skew <span class="math notranslate nohighlight">\(b_r(t)\)</span> calibration is optional (user input)</p></li>
+</ul>
+</section>
+<section id="v-fit-calibration">
+<h3><span class="section-number">5.4.2. </span>V-fit Calibration<a class="headerlink" href="#v-fit-calibration" title="Link to this heading">#</a></h3>
+<p>V-fit calibration is a more comprehensive approach that calibrates to a broader set of market instruments across different expiries and tenors. This method:</p>
+<ul class="simple">
+<li><p>Provides better coverage of the volatility surface</p></li>
+<li><p>Captures forward volatility dynamics more accurately</p></li>
+<li><p>Is suitable for portfolios with diverse maturity exposures</p></li>
+</ul>
+<p><strong>Key Features:</strong></p>
+<ul class="simple">
+<li><p>Mean reversion <span class="math notranslate nohighlight">\(\lambda(t)\)</span> (or <span class="math notranslate nohighlight">\(b(t)\)</span> in Formulation 2) is calibrated</p></li>
+<li><p>Short rate volatility <span class="math notranslate nohighlight">\(\sigma(t)\)</span> is always calibrated</p></li>
+<li><p>Short rate skew <span class="math notranslate nohighlight">\(b_r(t)\)</span> calibration is optional (user input)</p></li>
+</ul>
+</section>
+</section>
+<section id="model-parameters-and-variables">
+<h2><span class="section-number">5.5. </span>Model Parameters and Variables<a class="headerlink" href="#model-parameters-and-variables" title="Link to this heading">#</a></h2>
+<p>There are 3 model curves in CLV model, all are assumed to be piecewise constant.</p>
+<section id="formulation-1">
+<h3><span class="section-number">5.5.1. </span>Formulation 1<a class="headerlink" href="#formulation-1" title="Link to this heading">#</a></h3>
+<ol class="arabic simple">
+<li><p><strong>Short rate volatility <span class="math notranslate nohighlight">\(\sigma(t)\)</span></strong> controls overall volatility level; <span class="math notranslate nohighlight">\(\sigma(t)\)</span> is always calibrated.</p></li>
+<li><p><strong>Short rate mean reversion <span class="math notranslate nohighlight">\(\lambda(t)\)</span></strong>, which controls how volatility is distributed over time, is calibrated depending on calibration type.</p>
+<ul class="simple">
+<li><p>For Co-terminal calibration, <span class="math notranslate nohighlight">\(\lambda(t)\)</span> is market input.</p></li>
+<li><p>For V-fit calibration, <span class="math notranslate nohighlight">\(\lambda(t)\)</span> is calibrated.</p></li>
+</ul>
+</li>
+<li><p><strong>Short rate skew <span class="math notranslate nohighlight">\(b_r(t)\)</span></strong>, which controls the slope of swaption vol; whether <span class="math notranslate nohighlight">\(b_r(t)\)</span> is calibrated is user input.</p></li>
+</ol>
+</section>
+<section id="formulation-2">
+<h3><span class="section-number">5.5.2. </span>Formulation 2<a class="headerlink" href="#formulation-2" title="Link to this heading">#</a></h3>
+<ol class="arabic simple">
+<li><p><strong>Short rate volatility <span class="math notranslate nohighlight">\(\sigma(t)\)</span></strong> controls overall volatility level; <span class="math notranslate nohighlight">\(\sigma(t)\)</span> is always calibrated.</p></li>
+<li><p><strong>Integrated mean reversion curve <span class="math notranslate nohighlight">\(b(t)\)</span></strong>, which controls how volatility is distributed over time, <span class="math notranslate nohighlight">\(b(t)\)</span> will be calibrated for specific kinds of calibration types</p>
+<ul class="simple">
+<li><p>For Co-terminal calibration, <span class="math notranslate nohighlight">\(\lambda(t)\)</span> is market input, and <span class="math notranslate nohighlight">\(b(t)\)</span> is internally integrated from <span class="math notranslate nohighlight">\(\lambda(t)\)</span></p></li>
+<li><p>for V-fit calibration, <span class="math notranslate nohighlight">\(b(t)\)</span> is calibrated.</p></li>
+</ul>
+</li>
+<li><p><strong>Short rate skew <span class="math notranslate nohighlight">\(b_r(t)\)</span></strong>, which controls the slope of swaption vol; whether <span class="math notranslate nohighlight">\(b_r(t)\)</span> is calibrated is user input (for more on this refer to Section 6).</p></li>
+</ol>
+<p>In addition, the initial forward curve <span class="math notranslate nohighlight">\(f(0;t)\)</span> is inferred from the input yield curve which is a feeder model.</p>
+</section>
+<section id="formulation-comparison">
+<h3><span class="section-number">5.5.3. </span>Formulation Comparison<a class="headerlink" href="#formulation-comparison" title="Link to this heading">#</a></h3>
+<p>The key difference between two formulations boils down to whether <span class="math notranslate nohighlight">\(\lambda(t)\)</span> or <span class="math notranslate nohighlight">\(b(t)\)</span> is piecewise constant, because piecewise <span class="math notranslate nohighlight">\(\lambda(t)\)</span> implies non-piecewise constant <span class="math notranslate nohighlight">\(b(t)\)</span>, and vice versa. The primary advantage of piecewise constant <span class="math notranslate nohighlight">\(b(t)\)</span> is that it improves interpolation of calibration instruments which are not part of calibration set, thanks to the fact that the zero bond reconstruction formula is more explicitly dependent on <span class="math notranslate nohighlight">\(b(t)\)</span>.</p>
+<p>For example, if we calibrate 10y10y and 12y10y European swaption and price 11y10y swaption from the calibrated model, we will get smoother volatility of 11y swaption compared with 10y and 12y with this improved interpolation. The model will ultimately give us smoother PV/risk of exotic trades. As a result, it reduces artificial oscillations in risk backtests due to interpolation and helps to produce smoother risks.</p>
+</section>
+</section>
+<section id="feeder-models">
+<h2><span class="section-number">5.6. </span>Feeder Models<a class="headerlink" href="#feeder-models" title="Link to this heading">#</a></h2>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Name</p></th>
+<th class="head"><p>GMD ID</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>New curve framework</p></td>
+<td><p>GMD1746</p></td>
+<td><p>Used for initial yield curve construction in calibration, pricing and risk calculation.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Black-Scholes pricer</p></td>
+<td><p>GMD4104</p></td>
+<td><p>Used for pricing European instruments with respective black and/or normal volatility in calibration, pricing and risk calculation.</p></td>
+</tr>
+<tr class="row-even"><td><p>Vanilla pricing model</p></td>
+<td><p>GMD4105</p></td>
+<td><p>Used for underlying adjustment in pricing.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="justification-against-alternative-approaches">
+<h2><span class="section-number">5.7. </span>Justification Against Alternative Approaches<a class="headerlink" href="#justification-against-alternative-approaches" title="Link to this heading">#</a></h2>
+<p>Compared with IRV model, CLV can price options with more exotics options such as Bermudan options, while IRV is only able to price vanilla instruments.</p>
+<p>Compared with LMM model, CLV can be priced with PDE which is faster and more accurate, while LMM has to resort to Monte Carlo.</p>
+<p>More specification about above models can be referred to below documents:</p>
+<ul class="simple">
+<li><p>IRV Model Framework [5]</p></li>
+<li><p>LMM Model [10]</p></li>
+</ul>
+</section>
+<section id="conditions-of-use">
+<h2><span class="section-number">5.8. </span>Conditions of Use<a class="headerlink" href="#conditions-of-use" title="Link to this heading">#</a></h2>
+<p>As mentioned above, CLV model is one factor short rate model, it will be primarily used with payoffs with single rate such as Bermudan swaption.</p>
+<p>We don’t recommend using it for payoffs related to correlation such as spread options.</p>
+<p>We don’t recommend using it under very high volatility conditions. High volatility makes the rate process very diffusive and affects the numerical stability and accuracy. The high volatility limitation exists for HJM family of models, including LMM and Hull White. We also don’t recommend using Cheyette under very high skew conditions.</p>
+</section>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          <a class="next-page" href="risk_analysis.html">
+              <div class="page-info">
+                <div class="context">
+                  <span>Next</span>
+                </div>
+                <div class="title"><span class="section-number">6. </span>Risk Analysis</div>
+              </div>
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+            </a>
+          <a class="prev-page" href="implementation.html">
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+              <div class="page-info">
+                <div class="context">
+                  <span>Previous</span>
+                </div>
+                
+                <div class="title"><span class="section-number">4. </span>Implementation / Numerical Schema Description</div>
+                
+              </div>
+            </a>
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2023-2025, PRETORIAN Development Team
+            </div>
+            Made with 
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            <div class="icons">
+              <a class="muted-link " href="https://github.com/pretorian-project" aria-label="GitHub">
+                <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 16 16">
+                    <path fill-rule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"></path>
+                </svg>
+            </a>
+              
+            </div>
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">5. Calibration</a><ul>
+<li><a class="reference internal" href="#description">5.1. Description</a></li>
+<li><a class="reference internal" href="#swaption-volatility-skew-approximation">5.2. Swaption Volatility/Skew Approximation</a><ul>
+<li><a class="reference internal" href="#approximation-step-1-swap-rate-time-dependent-dynamics">5.2.1. Approximation Step 1: Swap Rate Time Dependent Dynamics</a></li>
+<li><a class="reference internal" href="#approximation-step-2-averaging-volatility-and-skew">5.2.2. Approximation Step 2: Averaging Volatility and Skew</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#calibration-implementation-in-our-project">5.3. Calibration Implementation in Our Project</a></li>
+<li><a class="reference internal" href="#calibration-types">5.4. Calibration Types</a><ul>
+<li><a class="reference internal" href="#co-terminal-calibration">5.4.1. Co-terminal Calibration</a></li>
+<li><a class="reference internal" href="#v-fit-calibration">5.4.2. V-fit Calibration</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#model-parameters-and-variables">5.5. Model Parameters and Variables</a><ul>
+<li><a class="reference internal" href="#formulation-1">5.5.1. Formulation 1</a></li>
+<li><a class="reference internal" href="#formulation-2">5.5.2. Formulation 2</a></li>
+<li><a class="reference internal" href="#formulation-comparison">5.5.3. Formulation Comparison</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#feeder-models">5.6. Feeder Models</a></li>
+<li><a class="reference internal" href="#justification-against-alternative-approaches">5.7. Justification Against Alternative Approaches</a></li>
+<li><a class="reference internal" href="#conditions-of-use">5.8. Conditions of Use</a></li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div><script src="../../_static/documentation_options.js?v=454d727b"></script>
+    <script src="../../_static/doctools.js?v=888ff710"></script>
+    <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/scripts/furo.js?v=32e29ea5"></script>
+    <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../../_static/copybutton.js?v=ab308175"></script>
+    <script src="../../_static/custom.js?v=92eda4d4"></script>
+    <script>let toggleHintShow = 'Click to show';</script>
+    <script>let toggleHintHide = 'Click to hide';</script>
+    <script>let toggleOpenOnPrint = 'true';</script>
+    <script src="../../_static/togglebutton.js?v=4a39c7ea"></script>
+    <script src="../../_static/design-tabs.js?v=36754332"></script>
+    <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script>
+    <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script>
+    <script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "displayMath": [["$$", "$$"], ["\\[", "\\]"]], "processEscapes": true, "processEnvironments": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+    <script defer="defer" src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="../../_static/custom.js?v=92eda4d4"></script>
+    </body>
+</html>

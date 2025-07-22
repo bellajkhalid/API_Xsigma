@@ -1,0 +1,287 @@
+# Product / Payoff / Portfolio
+
+## Description du Produit
+
+### Complete Mathematical Framework
+
+The Implied Volatility Filter is a complete mathematical framework for constructing arbitrage-free volatility surfaces from market option data. The model implements the ASV (Anchored Stochastic Volatility) parameterization, which uses five key parameters to capture volatility smile/skew across strikes while ensuring smoothness and consistency across maturities.
+
+### Key ASV Parameters
+
+The **five ASV parameters** are:
+1. **Anchor Vol** : Reference volatility level
+2. **Skew** : Asymmetry parameter (linear slope)
+3. **Smile** : Smile parameter (quadratic curvature)
+4. **Call Wing** : Controls OTM calls behavior
+5. **Put Wing** : Controls OTM puts behavior
+
+```cpp
+// Our project implementation of ASV parameters
+namespace xsigma {
+    class volatility_model_extended_svi {
+    public:
+        // Constructor with complete ASV parameters
+        volatility_model_extended_svi(
+            double anchor_strike,  // Reference strike (forward)
+            double ctrl_put,       // Put wing control
+            double ctrl_call,      // Call wing control
+            double atm,           // ATM volatility (Anchor Vol)
+            double skew,          // Skew parameter
+            double smile,         // Smile parameter
+            double put,           // Put wing parameter
+            double call           // Call wing parameter
+        ) : anchor_strike_(anchor_strike), ctrl_put_(ctrl_put), 
+            ctrl_call_(ctrl_call), atm_(atm), skew_(skew), 
+            smile_(smile), put_(put), call_(call) {}
+        
+        // ASV implied volatility calculation
+        double implied_volatility(
+            double forward,
+            double strike,
+            double expiry,
+            implied_volatility_enum type) const override {
+            
+            // Complete ASV formula implementation
+            return implied_volatility_helper(
+                strike, forward, 1.0/expiry, 
+                strike > forward ? ctrl_call_ : ctrl_put_,
+                atm_, skew_, smile_, 
+                strike > forward ? call_ : put_);
+        }
+        
+    private:
+        double anchor_strike_, ctrl_put_, ctrl_call_;
+        double atm_, skew_, smile_, put_, call_;
+    };
+}
+```
+*This C++ implementation in Our project shows the complete ASV parameter structure with implied volatility calculation.*
+
+### Advantages Over Traditional Methods
+
+Unlike traditional interpolation methods, this filter:
+
+- **Detects and removes** arbitrage opportunities (calendar and butterfly)
+- **Handles sparse or noisy data** through intelligent filtering mechanisms
+- **Provides smooth evolution** of parameters across term structure
+- **Ensures control** of wing behavior for extreme strikes
+- **Accommodates** European and American option quotes in a unified framework
+
+### Outputs and Integration
+
+The outputs are designed to be consumed by:
+- **Various pricing engines**
+- **Risk systems**
+- **Model calibration frameworks**
+
+## Markets and Regions
+
+### American Markets
+
+The Implied Volatility Filter has been designed and extensively tested on:
+
+**US Markets:**
+- **Individual equity options** (American exercise style)
+- **Index options** (including SPX, European exercise style)
+- **ETF options** (varied exercise styles)
+
+**Specific characteristics:**
+- Different settlement conventions
+- Exercise style variations
+- Trading hours considerations
+
+### European Markets
+
+**European Markets:**
+- **Individual equity options** (varying by country, predominantly European exercise)
+- **Index options** (including EURO STOXX, DAX, European exercise)
+- **Dividend considerations** specific to European markets
+
+### Asian Markets
+
+**Asian Markets:**
+- **Individual equity options** (varying by country, mix of American and European exercise)
+- **Index options** (predominantly European exercise)
+- **Different trading hours** considerations
+
+```cpp
+// Our project implementation for multi-market handling
+namespace xsigma {
+    enum class ExerciseStyle {
+        EUROPEAN,
+        AMERICAN,
+        BERMUDAN
+    };
+    
+    enum class MarketRegion {
+        US_MARKETS,
+        EUROPEAN_MARKETS,
+        ASIAN_MARKETS
+    };
+    
+    class MarketSpecificPricer {
+    public:
+        double priceOption(
+            const OptionContract& contract,
+            const ASVSurface& surface,
+            MarketRegion region) const {
+            
+            // Adaptation according to region and exercise style
+            switch (region) {
+                case MarketRegion::US_MARKETS:
+                    return priceUSOption(contract, surface);
+                case MarketRegion::EUROPEAN_MARKETS:
+                    return priceEuropeanOption(contract, surface);
+                case MarketRegion::ASIAN_MARKETS:
+                    return priceAsianOption(contract, surface);
+            }
+        }
+        
+    private:
+        double priceUSOption(const OptionContract& contract, const ASVSurface& surface) const {
+            // US-specific handling (American exercise, settlement T+1)
+            if (contract.exercise_style == ExerciseStyle::AMERICAN) {
+                return american_option_pricer_.price(contract, surface);
+            }
+            return european_option_pricer_.price(contract, surface);
+        }
+        
+        AmericanOptionPricer american_option_pricer_;
+        EuropeanOptionPricer european_option_pricer_;
+    };
+}
+```
+*This C++ implementation in Our project handles pricing specificities according to different market regions.*
+
+### Exchange-Specific Characteristics
+
+The model takes into account exchange-specific characteristics:
+- **Different settlement conventions**
+- **Exercise style variations**
+- **Market-specific volatility pattern** characteristics
+- **Regional liquidity** considerations
+
+## Target Users
+
+### Trading Desks
+
+**Equity Derivatives Traders:**
+- Accurate real-time volatility surfaces
+- Market anomaly identification for volatility arbitrage
+- Forward curve implications analysis
+
+**Exotic Products Desks:**
+- Surface usage for model calibration
+- Complex product pricing
+
+### Risk Management
+
+**Market Risk Teams:**
+- Portfolio sensitivity calculations
+- Stress testing and scenario analysis
+- Volatility-based limit setting
+- Regulatory risk measure calculations
+
+### Quantitative Teams
+
+**Model Validation Teams:**
+- Pricing accuracy verification
+- New volatility model development
+
+**Quantitative Developers:**
+- Pricing library implementation
+- Calibrated input provision to systems
+
+### Client Functions
+
+**Structuring Teams:**
+- Volatility-linked product design
+- Surface-based option price quoting
+- Mark-to-market valuation services
+
+## Applications
+
+### Direct Pricing Applications
+
+**Pricing and Market Making:**
+- **Vanilla option pricing** and market making
+- **Portfolio revaluation** and mark-to-market
+- **Greeks calculations** for hedging
+- **Volatility skew/smile chart** generation
+
+```cpp
+// Our project implementation for direct pricing
+namespace xsigma {
+    class DirectPricingEngine {
+    public:
+        struct PricingResult {
+            double price;
+            double delta;
+            double gamma;
+            double vega;
+            double theta;
+        };
+        
+        PricingResult priceVanillaOption(
+            const OptionContract& contract,
+            const ASVSurface& surface) const {
+            
+            // ASV volatility retrieval
+            double vol = surface.implied_volatility(
+                contract.forward, contract.strike, contract.expiry);
+            
+            PricingResult result;
+            
+            // Pricing Black-Scholes
+            result.price = black_scholes::price(
+                contract.forward, contract.strike, contract.expiry, 
+                vol, contract.numeraire, contract.is_call ? 1.0 : -1.0);
+            
+            // Calcul des Greeks
+            result.delta = black_scholes::delta(
+                contract.forward, contract.strike, contract.expiry, vol, contract.is_call ? 1.0 : -1.0);
+            result.gamma = black_scholes::gamma(
+                contract.forward, contract.strike, contract.expiry, vol);
+            result.vega = black_scholes::vega(
+                contract.forward, contract.strike, contract.expiry, vol);
+            result.theta = black_scholes::theta(
+                contract.forward, contract.strike, contract.expiry, vol, contract.numeraire, contract.is_call ? 1.0 : -1.0);
+            
+            return result;
+        }
+    };
+}
+```
+*This C++ implementation in Our project provides a complete pricing engine with Greeks calculation for vanilla options.*
+
+### Model Calibration
+
+**Advanced Volatility Models:**
+- **Local volatility model calibration** for path-dependent options
+- **Stochastic volatility model calibration** (Heston, SABR, etc.)
+- **Hybrid models** combining equity and interest rate factors
+- **Jump-diffusion models** requiring consistent volatility inputs
+
+### Risk Management Applications
+
+**Risk Calculations:**
+- **VaR calculations** using parameterized surfaces
+- **Scenario analysis** with controlled parameter shifts
+- **Stress testing** for extreme market movements
+- **Sensitivity analysis** across multiple dimensions
+
+### Structured Products
+
+**Complex Product Pricing:**
+- **Barrier option pricing** requiring smooth local volatility
+- **Cliquet and forward-starting option** pricing
+- **Lookback and Asian option** pricing
+- **Volatility-linked note** valuation
+
+### Additional Applications
+
+**Analysis and Trading:**
+- **Relative value analysis** between similar underlyings
+- **Volatility trading strategy** development
+- **Implicit correlation extraction** index vs. components
+- **Forward volatility extraction** for volatility swap pricing

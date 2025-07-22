@@ -1,0 +1,222 @@
+# Scope
+
+## Model Overview
+
+The ASV volatility fitter model is designed to provide robust and efficient calibration of implied volatility surfaces across multiple asset classes and markets. Its primary application is in pricing and risk management of derivative products.
+
+## Model Objective and Intended Usage
+
+### Primary Purpose
+
+The objective of the implied volatility fitter model is to:
+
+- **Calculate implied volatility** from option quotes
+- **Fit ASV parameters** that minimize the difference between implied volatility and parameterized implied volatility
+- **Control arbitrages** calendar and butterfly
+
+### Market Coverage
+
+The scope includes **European and American options** covering major options exchanges:
+- **NYSE** (New York Stock Exchange)
+- **NASDAQ**
+- **Eurex** (European Exchange)
+- **Asian exchanges**
+
+### Volatility Surface Applications
+
+The resulting fitted volatility surface is used for pricing and risk management of various financial instruments:
+
+#### Simple Products (Direct Usage)
+- **Vanilla options** (standard calls/puts)
+- **Option strategies** (spreads, straddles, strangles)
+
+#### Complex Products (Input for Advanced Models)
+- **Exotic options** (lookbacks, cliquets, barriers)
+- **Structured products** (autocallables, reverse convertibles)
+- **Hybrid products** (equity-interest rate derivatives)
+
+```cpp
+// Our project implementation for option pricing with ASV surface
+namespace xsigma {
+    class ASVPricingEngine {
+    public:
+        // Pricing direct pour options vanilles
+        double priceVanillaOption(
+            double forward,
+            double strike,
+            double expiry,
+            double numeraire,
+            bool is_call) const {
+            
+            // ASV volatility retrieval
+            double vol = asv_surface_->implied_volatility(forward, strike, expiry);
+
+            // Black-Scholes pricing with ASV volatility
+            return black_scholes::price(forward, strike, expiry, vol, numeraire, is_call ? 1.0 : -1.0);
+        }
+        
+        // Calibration for advanced models (Local Vol, LSV, etc.)
+        void calibrateAdvancedModel(
+            const std::vector<ExoticOption>& exotic_options,
+            AdvancedVolatilityModel& model) const {
+            
+            // Utilisation de la surface ASV comme input de calibration
+            for (const auto& option : exotic_options) {
+                double market_vol = asv_surface_->implied_volatility(
+                    option.forward, option.strike, option.expiry);
+                model.addCalibrationTarget(option, market_vol);
+            }
+            
+            model.calibrate();
+        }
+        
+    private:
+        ptr_const<volatility_data_asv> asv_surface_;
+    };
+}
+```
+*This C++ implementation in Our project shows the use of ASV surface for direct pricing and advanced model calibration.*
+
+## Conceptual Soundness
+
+### Volatility Surface Fitting Approaches
+
+The model employs a robust and computationally efficient approach for volatility surface fitting, validated by extensive backtests and stress tests. There are two main approaches used by financial institutions:
+
+#### 1. Volatility Space Minimization (Chosen Approach)
+- **Process** : Quote inversion first, then parameter fitting
+- **Advantages** : Comparatively faster
+- **Method** : Minimizes the difference between quote implied volatilities and parameterized curve implied volatilities
+
+#### 2. Price Space Minimization
+- **Process** : Minimizes the difference between option quotes and implied option prices from the parameterized curve
+- **Disadvantages** : More time-consuming (multiple option pricings for each parameter change)
+
+### Inversion and Fitting Methodology
+
+```cpp
+// Our project implementation of volatility inversion with Brent
+namespace xsigma {
+    class VolatilityInverter {
+    public:
+        double invertQuote(
+            double option_price,
+            double forward,
+            double strike,
+            double expiry,
+            double numeraire,
+            bool is_call) const {
+            
+            // Fonction objectif pour l'algorithme de Brent
+            auto objective = [&](double vol) -> double {
+                double theoretical_price = black_scholes::price(
+                    forward, strike, expiry, vol, numeraire, is_call ? 1.0 : -1.0);
+                return theoretical_price - option_price;
+            };
+            
+            // Recherche de racine avec algorithme de Brent
+            return brent_solver_.solve(objective, vol_min_, vol_max_, tolerance_);
+        }
+        
+    private:
+        BrentSolver brent_solver_;
+        double vol_min_ = 0.001;  // 0.1% minimum
+        double vol_max_ = 5.0;    // 500% maximum
+        double tolerance_ = 1e-8;
+    };
+}
+```
+*This C++ implementation in Our project uses the Brent algorithm for robust volatility inversion with bounds handling.*
+
+### Cost Function and Weighting
+
+The volatility fitter:
+- **Inverts** European/American option quotes
+- **Fits** a parameterized curve to corresponding implied volatilities
+- **Uses** Brent algorithm for inversion
+- **Employs** NAG E04UFA routine for parameterized ASV curve fitting
+
+#### Vega-Weighted Cost Function
+
+The cost function is defined as a **weighted sum of volatility mismatch squares** where:
+- **Each weight** is a function of the option's Vega at the corresponding strike
+- **Increased importance** for points with higher Vegas
+- **Result** : fitted volatility surface produces option prices close to the quotes used
+
+```cpp
+// Our project implementation of Vega-weighted cost function
+namespace xsigma {
+    class ASVCostFunction {
+    public:
+        double calculateCost(
+            const ASVParameters& params,
+            const std::vector<MarketQuote>& quotes) const {
+            
+            double total_cost = 0.0;
+            double total_weight = 0.0;
+            
+            for (const auto& quote : quotes) {
+                // Theoretical ASV volatility calculation
+                double theoretical_vol = asv_model_.implied_volatility(
+                    quote.forward, quote.strike, quote.expiry, params);
+
+                // Vega calculation for weighting
+                double vega = black_scholes::vega(
+                    quote.forward, quote.strike, quote.expiry, quote.market_vol);
+
+                // Normalized Vega-based weight
+                double weight = std::pow(vega / quote.forward, vega_power_);
+
+                // Cost contribution
+                double vol_diff = theoretical_vol - quote.market_vol;
+                total_cost += weight * vol_diff * vol_diff;
+                total_weight += weight;
+            }
+            
+            return total_cost / total_weight;  // Normalized cost
+        }
+        
+    private:
+        ASVModel asv_model_;
+        double vega_power_ = 2.0;  // Vega weighting power
+    };
+}
+```
+*This C++ implementation in Our project shows the Vega-weighted cost function calculation for ASV optimization.*
+
+### Algorithms and Numerical Methods
+
+#### Brent Algorithm
+- **Combination** of methods: bisection, secant, inverse quadratic interpolation
+- **Advantages** : Robust and fast
+- **Popularity** : Widely used and proven
+
+#### NAG E04UFA Routine (SQP)
+- **Method** : Sequential Quadratic Programming
+- **Advantages** :
+  - Faster than traditional methods
+  - Does not require Hessian matrix calculation
+  - Nonlinear optimization with constraints
+
+### Multi-Step Fitting Procedure
+
+#### Main Steps
+1. **Local fitting** : Fits each maturity separately (butterfly and calendar constraints)
+2. **Term structure fitting** : Fits TS curves for each parameter
+3. **Global fitting** : Fits TS curves with global cost and various constraints
+4. **Extrapolation** : Defines implicit TS parameter values for additional dates
+
+#### Procedure Objectives
+- **Quality initial fitting** during local fitting
+- **Parameter smoothing** across maturities to reduce variance
+- **Wing parameter handling** sensitive to data quality and noise
+- **Extrapolation** for extended maturities
+- **Arbitrage constraints** for arbitrage-free surface
+
+### Post-Fitting Quality Control
+
+Verifications include:
+- **Local volatility quality**
+- **Fitted vs implied volatility**
+- **Volatility movements**
+- **Volatility grid checks**

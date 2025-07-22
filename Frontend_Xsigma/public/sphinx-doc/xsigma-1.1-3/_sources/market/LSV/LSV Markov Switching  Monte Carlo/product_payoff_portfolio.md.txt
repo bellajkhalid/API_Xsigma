@@ -1,0 +1,489 @@
+# Product / Payoff / Portfolio
+
+## Overview
+
+Ce document se concentre sur le **pricing et la performance** du LSV MS Monte Carlo, plutôt que sur l'analyse détaillée de produits spécifiques. Les **options vanilles européennes cash-settled** sont choisies pour évaluer la précision, la convergence et la stabilité du LSV MS MC. Nous comparons le pricer LSV MS MC aux pricers **Analytique** et **LSV MS PDE**.
+
+```cpp
+// Implémentation Our project pour la gestion des produits et payoffs LSV MS Monte Carlo
+namespace xsigma {
+    // Classe pour la gestion des produits supportés par LSV MS Monte Carlo
+    class LSVMSProductManager {
+    public:
+        // Énumération des types de produits supportés
+        enum class ProductType {
+            CASH_SETTLED_VANILLA,         // Options vanilles cash-settled
+            EUROPEAN_CALL,                // Calls européens
+            EUROPEAN_PUT,                 // Puts européens
+            PATH_DEPENDENT_EXOTICS,       // Exotiques path-dependent
+            BARRIER_OPTIONS,              // Options à barrière
+            TOUCH_OPTIONS,                // Options touch
+            PTA_TRADES                    // Trades PTA (Padla)
+        };
+        
+        // Structure pour une option vanille cash-settled
+        struct CashSettledVanillaOption {
+            // Paramètres de base
+            double strike;                        // Strike (format CCY1CCY2)
+            double notional;                      // Notionnel en devise étrangère
+            std::string option_type;              // "CALL" ou "PUT"
+            std::string expiry_date;              // Date d'expiry
+            std::string pay_date;                 // Date de règlement
+            std::string fx_asset;                 // Asset FX (format FORDOM)
+            
+            // Paramètres Monte Carlo
+            std::string numeraire_currency;      // Devise numéraire
+            
+            // Métadonnées
+            std::string trade_id;                 // ID du trade
+            std::string counterparty;             // Contrepartie
+            std::string book;                     // Book de trading
+        };
+        
+        // Structure pour les paramètres Padla
+        struct PadlaScriptParameters {
+            std::string script_name;              // Nom du script
+            std::string script_path;              // Chemin du script
+            std::map<std::string, std::string> static_inputs; // Inputs statiques
+            bool life_cycling_enabled;           // Life cycling activé
+            bool cash_reporting_enabled;         // Cash reporting activé
+            bool trading_events_enabled;         // Trading events activés
+        };
+        
+        // Calcul du payoff d'une option vanille européenne
+        double calculate_vanilla_payoff(
+            double spot_at_expiry,
+            double strike,
+            const std::string& option_type,
+            double notional) const {
+            
+            double intrinsic_value = 0.0;
+            
+            if (option_type == "CALL") {
+                intrinsic_value = std::max(spot_at_expiry - strike, 0.0);
+            } else if (option_type == "PUT") {
+                intrinsic_value = std::max(strike - spot_at_expiry, 0.0);
+            } else {
+                XSIGMA_THROW("Type d'option non supporté: " + option_type);
+            }
+            
+            return notional * intrinsic_value;
+        }
+        
+        // Formule mathématique du payoff
+        // P = N[c(S_T - K)]^+
+        // où:
+        // - S_T: niveau spot FX à l'expiry (format FORDOM)
+        // - K: strike dans la même unité que l'asset FX
+        // - N: montant notionnel en devise étrangère
+        // - c: indicateur call/put (+1 pour call, -1 pour put)
+        
+        // Validation des paramètres d'une option vanille
+        bool validate_vanilla_option(const CashSettledVanillaOption& option) const {
+            std::vector<std::string> errors;
+            
+            // Validation du strike
+            if (option.strike <= 0.0) {
+                errors.push_back("Strike doit être positif");
+            }
+            
+            // Validation du notionnel (peut être négatif pour position short)
+            if (option.notional == 0.0) {
+                errors.push_back("Notionnel ne peut pas être zéro");
+            }
+            
+            // Validation du type d'option
+            if (option.option_type != "CALL" && option.option_type != "PUT") {
+                errors.push_back("Type d'option doit être CALL ou PUT");
+            }
+            
+            // Validation de l'asset FX (format FORDOM)
+            if (option.fx_asset.length() != 6) {
+                errors.push_back("Asset FX doit être au format CCY1CCY2 (6 caractères)");
+            }
+            
+            // Validation des dates
+            if (option.expiry_date.empty() || option.pay_date.empty()) {
+                errors.push_back("Dates d'expiry et de paiement requises");
+            }
+            
+            if (!errors.empty()) {
+                for (const auto& error : errors) {
+                    XSIGMA_LOG_ERROR("Validation error: " + error);
+                }
+                return false;
+            }
+            
+            return true;
+        }
+        
+        // Configuration du script Padla pour option cash-settled
+        PadlaScriptParameters configure_padla_script(
+            const CashSettledVanillaOption& option) const {
+            
+            PadlaScriptParameters params;
+            
+            // Configuration de base
+            params.script_name = "CashSettledVanillaOption";
+            params.script_path = "Y:\\SGP\\mkts\\apps\\qadelivery\\PDN\\Fxp\\Config\\UDIPadla\\Library\\CashSettledVanillaOption.xml";
+            
+            // Inputs statiques pour Monte Carlo
+            params.static_inputs["NumeraireCurrency"] = option.numeraire_currency;
+            
+            // Note: Pour les options cash-settled vanilles, le script Padla
+            // force toujours la devise domestique comme numéraire
+            // indépendamment de l'input utilisateur pour NumeraireCurrency
+            
+            // Fonctionnalités activées
+            params.life_cycling_enabled = true;
+            params.cash_reporting_enabled = true;
+            params.trading_events_enabled = true;
+            
+            return params;
+        }
+        
+        // Analyse des risques pour options vanilles européennes
+        struct RiskAnalysis {
+            std::string risk_concentration;       // Concentration des risques
+            std::string vega_profile;            // Profil Vega
+            bool path_dependency;                // Dépendance de chemin
+            std::string ir_volatility_exposure;  // Exposition volatilité IR
+            std::vector<std::string> key_risks;  // Risques clés
+        };
+        
+        RiskAnalysis analyze_vanilla_option_risks(
+            const CashSettledVanillaOption& option) const {
+            
+            RiskAnalysis analysis;
+            
+            analysis.risk_concentration = 
+                "Le risque des vanilles européennes se concentre fortement à l'expiry du trade";
+            
+            analysis.vega_profile = 
+                "Si nous décomposons le profil de risque Vega par buckets de tenor, "
+                "les entrées avec tenor autour des expiries de trade représentent "
+                "presque la totalité de la valeur de risque";
+            
+            analysis.path_dependency = false;
+            
+            analysis.ir_volatility_exposure = 
+                "En théorie, les vanilles européennes avec règlement différé sont exposées "
+                "à la volatilité des taux d'intérêt. En pratique, l'exposition à la volatilité "
+                "des taux d'intérêt n'importe que lorsque le délai est significatif "
+                "(quelques années par exemple)";
+            
+            analysis.key_risks = {
+                "Risque de change (delta FX)",
+                "Risque de volatilité (vega) concentré à l'expiry",
+                "Risque de taux d'intérêt (pour règlement différé significatif)",
+                "Risque de corrélation (pour produits multi-asset)",
+                "Risque de modèle (calibration LSV MS)"
+            };
+            
+            return analysis;
+        }
+        
+        // Comparaison entre différents pricers
+        struct PricerComparison {
+            std::string pricer_name;              // Nom du pricer
+            std::string schema_type;              // Type de schéma
+            std::string settlement_currency;     // Devise de règlement
+            std::vector<std::string> advantages; // Avantages
+            std::vector<std::string> limitations; // Limitations
+        };
+        
+        std::vector<PricerComparison> compare_pricers() const {
+            std::vector<PricerComparison> comparisons;
+            
+            // Pricer Analytique
+            PricerComparison analytic;
+            analytic.pricer_name = "Analytic Pricer";
+            analytic.schema_type = "CTR Schema";
+            analytic.settlement_currency = "Domestic ou Foreign (configurable)";
+            analytic.advantages = {
+                "Vitesse de calcul maximale",
+                "Précision analytique exacte",
+                "Pas d'erreur Monte Carlo",
+                "Implémentation simple"
+            };
+            analytic.limitations = {
+                "Limité aux produits vanilles",
+                "Pas de path dependency",
+                "Modèle Black-Scholes uniquement"
+            };
+            comparisons.push_back(analytic);
+            
+            // Pricer LSV MS PDE
+            PricerComparison pde;
+            pde.pricer_name = "LSV MS PDE Pricer";
+            pde.schema_type = "CTR Schema";
+            pde.settlement_currency = "Domestic ou Foreign (configurable)";
+            pde.advantages = {
+                "Précision élevée",
+                "Vitesse rapide",
+                "Support modèle LSV MS complet",
+                "Pas d'erreur Monte Carlo"
+            };
+            pde.limitations = {
+                "Payoffs restreints",
+                "Difficultés avec produits hautement path-dependent",
+                "Complexité d'implémentation PDE"
+            };
+            comparisons.push_back(pde);
+            
+            // Pricer LSV MS Monte Carlo
+            PricerComparison mc;
+            mc.pricer_name = "LSV MS Monte Carlo Pricer";
+            mc.schema_type = "Padla Script";
+            mc.settlement_currency = "Domestic (forcé par script)";
+            mc.advantages = {
+                "Flexibilité maximale pour payoffs complexes",
+                "Support produits path-dependent",
+                "Intégration Padla complète",
+                "Life cycling et cash reporting"
+            };
+            mc.limitations = {
+                "Erreur Monte Carlo",
+                "Temps de calcul plus élevé",
+                "Complexité de configuration Padla"
+            };
+            comparisons.push_back(mc);
+            
+            return comparisons;
+        }
+        
+        // Fonctionnalités Padla supportées
+        struct PadlaFeatures {
+            bool life_cycling;                    // Life cycling complet
+            bool cash_reporting;                  // Reporting des cash flows
+            bool trading_events;                  // Événements de trading
+            bool historical_fixings;              // Fixings historiques
+            bool exercise_decisions;              // Décisions d'exercice
+            std::string algorithm_support;        // Support algorithmes
+        };
+        
+        PadlaFeatures get_padla_features() const {
+            PadlaFeatures features;
+            
+            features.life_cycling = true;
+            features.cash_reporting = true;
+            features.trading_events = true;
+            features.historical_fixings = true;
+            features.exercise_decisions = true;
+            
+            features.algorithm_support = 
+                "Monte Carlo pour trades non-callable, "
+                "Algorithme Longstaff-Schwartz pour trades callable path-dependent";
+            
+            return features;
+        }
+        
+        // Validation des inputs Padla
+        bool validate_padla_inputs(const CashSettledVanillaOption& option) const {
+            // Validation spécifique aux contraintes Padla
+            
+            // Vérification format FORDOM pour FXAsset
+            if (option.fx_asset.length() != 6) {
+                XSIGMA_LOG_ERROR("FXAsset doit être au format CCY1CCY2 (FORDOM)");
+                return false;
+            }
+            
+            // Vérification cohérence des vecteurs de dates
+            // Pour une option simple, les vecteurs doivent être de taille 1
+            // Exception levée si les tailles ne correspondent pas
+            
+            // Validation du notionnel (négatif autorisé pour position short)
+            if (option.notional == 0.0) {
+                XSIGMA_LOG_ERROR("Notionnel ne peut pas être zéro");
+                return false;
+            }
+            
+            return true;
+        }
+    };
+    
+    // Classe pour la gestion des outputs et fonctionnalités
+    class LSVMSOutputManager {
+    public:
+        // Structure pour les outputs de pricing
+        struct PricingOutputs {
+            double present_value;                 // Valeur présente
+            double delta;                        // Delta FX
+            double gamma;                        // Gamma FX
+            double vega;                         // Vega
+            double theta;                        // Theta
+            double rho;                          // Rho
+            std::map<std::string, double> additional_greeks; // Greeks additionnels
+        };
+        
+        // Structure pour les cash flows
+        struct CashFlow {
+            std::string date;                     // Date du cash flow
+            double amount;                        // Montant
+            std::string currency;                 // Devise
+            std::string type;                     // Type (premium, settlement, etc.)
+            bool is_contingent;                   // Contingent ou certain
+        };
+        
+        // Génération des cash flows attendus
+        std::vector<CashFlow> generate_expected_cash_flows(
+            const LSVMSProductManager::CashSettledVanillaOption& option) const {
+            
+            std::vector<CashFlow> cash_flows;
+            
+            // Cash flow de règlement à l'expiry (contingent)
+            CashFlow settlement_flow;
+            settlement_flow.date = option.pay_date;
+            settlement_flow.amount = 0.0; // Sera déterminé à l'expiry
+            settlement_flow.currency = extract_domestic_currency(option.fx_asset);
+            settlement_flow.type = "SETTLEMENT";
+            settlement_flow.is_contingent = true;
+            
+            cash_flows.push_back(settlement_flow);
+            
+            return cash_flows;
+        }
+        
+        // Life cycling complet
+        PricingOutputs perform_life_cycling(
+            const LSVMSProductManager::CashSettledVanillaOption& option,
+            const std::string& valuation_date,
+            const std::map<std::string, double>& fixings) const {
+            
+            PricingOutputs outputs;
+            
+            // Le trade peut être valorisé à ou après les dates de fixing
+            // et la date d'expiry en fournissant les fixings appropriés
+            // ou les décisions d'exercice
+            
+            // Implémentation du life cycling selon la date de valorisation
+            // et les fixings disponibles
+            
+            return outputs;
+        }
+        
+    private:
+        std::string extract_domestic_currency(const std::string& fx_asset) const {
+            // Extraction de la devise domestique du format FORDOM
+            if (fx_asset.length() == 6) {
+                return fx_asset.substr(3, 3); // DOM (derniers 3 caractères)
+            }
+            return "USD"; // Fallback
+        }
+    };
+}
+```
+*Cette implémentation C++ dans Our project fournit une gestion complète des produits et payoffs pour le modèle LSV MS Monte Carlo avec support Padla et fonctionnalités de life cycling.*
+
+## Description
+
+Une **option vanille européenne cash-settled** a un payout, à une date de paiement spécifiée $T_p$, donné par :
+
+$$P = N[c(S_T - K)]^+$$
+
+où :
+- $S_T$ est le niveau spot FX réglé par le marché (noté FORDOM) au temps d'expiry $T$ (antérieur à $T_p$)
+- $K$ est le niveau de strike de l'option dans la même unité que l'asset FX
+- $N$ est le montant notionnel en devise étrangère
+- $c$ est l'indicateur call/put (une valeur de +1 indique un call et -1 indique un put)
+
+### Différences de Schémas
+
+**CTR Schema vs Padla Script** :
+- **Analytic et LSV MS PDE** : Consomment le schéma CTR
+- **LSV MS MC** : Utilise le script Padla
+
+**Devise de Règlement** :
+- **CTR Schema** (version 3.1+) : Permet de choisir la devise de règlement comme devise domestique ou étrangère
+- **Padla Script** : La devise domestique (définie selon l'asset FX sous-jacent d'entrée) est la devise de règlement par défaut
+
+## Relationship to Other Approved Models/Payoffs
+
+**Non applicable.**
+
+## Inputs
+
+Tous les trades testés sont représentés en **scripts Padla** et pricés sur le moteur **Monte Carlo**.
+
+### Padla Scripting Language
+
+**Padla** est un langage de script pour représenter les trades exotiques. Il supporte différents algorithmes :
+- **Monte Carlo** : Pour les trades non-callable
+- **Algorithme Longstaff-Schwartz** : Pour les trades callable path-dependent
+
+### Fonctionnalités Padla
+
+✅ **Trade Management** : Support du pricing d'un trade à tout moment pendant sa durée de vie
+✅ **Données Historiques** : Utilisation de données historiques jusqu'à la date de valorisation
+✅ **Données Simulées** : Données simulées pour les dates futures
+✅ **Intégration Modèle** : LSV MS utilisé pour simuler les spots FX futurs
+✅ **Traduction Term Sheet** : Traduction facile du term sheet en série de statements correspondant aux cash flows
+
+### Script Path
+
+**Script Padla pour option vanille cash-settled** :
+```
+Y:\SGP\mkts\apps\qadelivery\PDN\Fxp\Config\UDIPadla\Library\CashSettledVanillaOption.xml
+```
+
+### Table 3.1 - Input du Script Padla pour Cash Settled Option
+
+| Name | Type (Example) | Comment |
+|------|----------------|---------|
+| **Strike** | Double (1.0892) | Strike coté comme CCY1CCY2 (même format FORDOM que FXAsset) |
+| **Notional** | Double (1,000,000) | Montant notionnel en Currency1 (FOR CCY). Valeur négative autorisée pour position short |
+| **OptionType** | String (CALL) | Spécifie si le trade est un CALL ou PUT sur CCY1 |
+| **ExpiryDate** | Date Vector (29-Apr-2016)² | Date d'expiry de l'option |
+| **PayDate** | Date Vector (02-May-2027)² | Date de règlement |
+| **FXAsset** | String (EURUSD) | Asset FX coté comme CCY1CCY2 au format FORDOM |
+
+### Table 3.2 - Bloc d'Input Statique Additionnel pour Moteur Monte Carlo
+
+| Static Input Name | Type (Example) | Description |
+|-------------------|----------------|-------------|
+| **NumeraireCurrency** | String (USD) | Devise choisie comme mesure numéraire, i.e. tous les actifs simulés sont valorisés en termes de devise numéraire |
+
+**⚠️ Note Importante** : Pour les options cash-settled vanilles, le script Padla force toujours la devise domestique comme numéraire indépendamment de l'input utilisateur pour NumeraireCurrency.
+
+## Outputs
+
+Il n'y a **pas d'outputs spécifiques au payoff** pour les types de trades impliqués. Cependant, pour tous les trades scriptés sur Padla, le framework Padla supporte les fonctionnalités :
+
+### Fonctionnalités Supportées
+
+✅ **Life Cycling** : Complet disponible pour valoriser le trade à ou après les dates de fixing et la date d'expiry
+✅ **Cash Reporting** : Disponible dans le cadre de la fonctionnalité de life cycle
+✅ **Trading Events** : Support des événements de trading
+
+### Références Documentation
+
+- **Life Cycling** : Voir [14] pour plus d'informations
+- **Cash Reporting** : Voir [15][16] pour Padla si cash flows attendus, cash flows potentiels contingents aux fixings, ou décision d'exercice sont nécessaires
+
+## Payoff Analysis
+
+### Concentration des Risques
+
+Le **risque des vanilles européennes** se concentre fortement à l'**expiry du trade** :
+- Si nous décomposons le profil de risque **Vega** par buckets de tenor
+- Les entrées avec tenor autour des expiries de trade représentent **presque la totalité** de la valeur de risque
+- **Aucune caractéristique de path-dependency** attachée
+
+### Exposition aux Taux d'Intérêt
+
+**En théorie** : Les vanilles européennes avec règlement différé (réglées après la date de règlement spot standard du marché) sont exposées à la **volatilité des taux d'intérêt**.
+
+**En pratique** : L'exposition à la volatilité des taux d'intérêt n'importe que lorsque le délai est **significatif** (quelques années par exemple).
+
+## Portfolio Description and Trends
+
+**Non applicable** pour les modèles de valorisation.
+
+---
+
+**Notes** :
+² Pour une option simple, l'input doit être un vecteur de taille un. Un vecteur d'input avec une taille supérieure à un implique que le trade consiste en plusieurs options avec un strike commun sur une série de dates. Une exception sera levée lorsque la taille de tous les vecteurs ne correspond pas.
+
+³ Le pricer Padla multi-asset ajoutera automatiquement toutes les paires de devises additionnelles liées à NumeraireCurrency au moteur de simulation.
+
+Le framework de gestion des produits LSV MS Monte Carlo dans Our project offre une flexibilité complète pour le pricing d'options vanilles et exotiques avec support Padla intégré, life cycling et cash reporting pour une gestion complète du cycle de vie des trades.

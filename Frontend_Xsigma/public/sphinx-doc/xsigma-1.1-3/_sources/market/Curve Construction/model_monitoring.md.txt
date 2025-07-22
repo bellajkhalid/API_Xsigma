@@ -1,0 +1,560 @@
+# Model Monitoring
+
+    // Calibration quality metrics structure
+    struct calibration_quality_metrics {
+        double rmse;                        // Root mean square error
+        double max_absolute_error;          // Maximum absolute error
+        double instrument_coverage_percent; // Percentage within tolerance
+        size_t convergence_iterations;      // Number of iterations to converge
+        bool converged;                     // Convergence flag
+        double objective_value;             // Final objective function value
+
+        // Timing metrics
+        std::chrono::milliseconds calibration_time;
+        std::chrono::milliseconds optimization_time;
+        std::chrono::milliseconds total_time;
+
+        // Parameter stability metrics
+        double parameter_change_percent;
+        double curve_shift_magnitude;
+    };
+
+    // Curve quality metrics structure
+    struct curve_quality_metrics {
+        double forward_rate_volatility;     // Smoothness measure
+        double curvature_metric;            // Second derivative measure
+        double arbitrage_violations;        // Number of arbitrage violations
+
+        // Interpolation quality
+        double interpolation_error;
+        double extrapolation_stability;
+
+        // Economic reasonableness
+        bool negative_rates_present;
+        bool excessive_steepness;
+        double term_structure_consistency;
+    };
+
+    // Implementation of calibration quality calculation
+    calibration_quality_metrics curve_construction_monitor::calculate_calibration_quality(
+        const curve_calibration& calibrator) const {
+
+        calibration_quality_metrics metrics;
+
+        // Get calibration instruments and their prices
+        auto instruments = calibrator.get_calibration_instruments();
+        auto market_prices = calibrator.get_market_prices();
+        auto model_prices = calibrator.get_model_prices();
+
+        // Calculate RMSE
+        double sum_squared_errors = 0.0;
+        double max_error = 0.0;
+        size_t instruments_within_tolerance = 0;
+        const double tolerance = 0.01; // 1%
+
+        for (size_t i = 0; i < instruments.size(); ++i) {
+            double relative_error = std::abs(model_prices[i] - market_prices[i]) / market_prices[i];
+            sum_squared_errors += relative_error * relative_error;
+            max_error = std::max(max_error, relative_error);
+
+            if (relative_error < tolerance) {
+                instruments_within_tolerance++;
+            }
+        }
+
+        metrics.rmse = std::sqrt(sum_squared_errors / instruments.size());
+        metrics.max_absolute_error = max_error;
+        metrics.instrument_coverage_percent =
+            (double(instruments_within_tolerance) / instruments.size()) * 100.0;
+
+        // Get convergence information
+        metrics.convergence_iterations = calibrator.get_last_iteration_count();
+        metrics.converged = calibrator.get_last_convergence_flag();
+        metrics.objective_value = calibrator.get_last_objective_value();
+
+        return metrics;
+    }
+
+    // Implementation of curve quality calculation
+    curve_quality_metrics curve_construction_monitor::calculate_curve_quality(
+        const ptr_const<discount_curve>& curve) const {
+
+        curve_quality_metrics metrics;
+
+        // Generate test dates for quality assessment
+        std::vector<datetime> test_dates;
+        for (int i = 1; i <= 120; ++i) { // Monthly points for 10 years
+            test_dates.push_back(valuation_date_.add_months(i));
+        }
+
+        // Calculate forward rates
+        std::vector<double> forward_rates;
+        for (size_t i = 0; i < test_dates.size() - 1; ++i) {
+            double df1 = curve->df(valuation_date_, test_dates[i]);
+            double df2 = curve->df(valuation_date_, test_dates[i + 1]);
+            double time_diff = valuation_date_.time_fraction(test_dates[i], test_dates[i + 1]);
+            double forward_rate = std::log(df1 / df2) / time_diff;
+            forward_rates.push_back(forward_rate);
+        }
+
+        // Calculate forward rate volatility (smoothness measure)
+        double sum_squared_changes = 0.0;
+        for (size_t i = 1; i < forward_rates.size(); ++i) {
+            double change = forward_rates[i] - forward_rates[i - 1];
+            sum_squared_changes += change * change;
+        }
+        metrics.forward_rate_volatility = std::sqrt(sum_squared_changes / (forward_rates.size() - 1));
+
+        // Calculate curvature metric (second derivative)
+        double sum_curvature = 0.0;
+        for (size_t i = 1; i < forward_rates.size() - 1; ++i) {
+            double second_derivative = forward_rates[i + 1] - 2 * forward_rates[i] + forward_rates[i - 1];
+            sum_curvature += std::abs(second_derivative);
+        }
+        metrics.curvature_metric = sum_curvature / (forward_rates.size() - 2);
+
+        // Check for negative rates
+        metrics.negative_rates_present = std::any_of(forward_rates.begin(), forward_rates.end(),
+                                                   [](double rate) { return rate < 0.0; });
+
+        // Check for excessive steepness
+        double max_rate_change = 0.0;
+        for (size_t i = 1; i < forward_rates.size(); ++i) {
+            max_rate_change = std::max(max_rate_change,
+                                     std::abs(forward_rates[i] - forward_rates[i - 1]));
+        }
+        metrics.excessive_steepness = max_rate_change > 0.005; // 50bp threshold
+
+        return metrics;
+    }
+}
+```
+
+## Overview
+
+Continuous monitoring of the New Curve Framework (NCF) from Our project is essential to ensure ongoing accuracy, reliability, and performance in production environments. The monitoring framework provides real-time oversight, quality assurance, and early warning systems to maintain optimal model performance across all market conditions.
+
+## Key Performance Indicators (KPIs)
+
+### Calibration Quality Metrics
+
+**Repricing Accuracy Metrics:**
+
+| Metric | Target | Warning | Critical | Description |
+|--------|--------|---------|----------|-------------|
+| **RMSE** | <0.5bp | >1.0bp | >2.0bp | Overall calibration accuracy across all instruments |
+| **Max Absolute Error** | <1.0bp | >2.0bp | >5.0bp | Worst-case instrument repricing error |
+| **Instrument Coverage** | >99.5% | <99.0% | <98.0% | Percentage of instruments within tolerance |
+
+**Mathematical Definitions:**
+- **RMSE**: $\sqrt{\frac{1}{N}\sum_{i=1}^{N} \left(\frac{P_i^{\text{market}} - P_i^{\text{model}}}{P_i^{\text{market}}}\right)^2}$
+- **Max Error**: $\max_i \left|\frac{P_i^{\text{market}} - P_i^{\text{model}}}{P_i^{\text{market}}}\right|$
+- **Coverage**: $\frac{\text{Instruments within tolerance}}{N} \times 100\%$
+
+**Optimization Performance**:
+- **Convergence Rate**: Percentage of successful optimizations
+  - Target: >99.8% convergence rate
+  - Warning threshold: <99.5% convergence rate
+  - Critical threshold: <99.0% convergence rate
+
+- **Iteration Count**: Average number of optimization iterations
+  - Target: <50 iterations
+  - Warning threshold: >100 iterations
+  - Critical threshold: >200 iterations
+
+## Monitoring Infrastructure Implementation in Our Project
+
+The monitoring framework described above is implemented through a comprehensive system that tracks all aspects of curve construction performance and quality.
+
+```cpp
+namespace xsigma {
+    // Main monitoring class for curve construction performance tracking
+    class curve_construction_monitor {
+    public:
+        // Constructor initializes monitoring with configuration and thresholds
+        curve_construction_monitor(
+            const ptr_const<curve_calibration_config>& config,
+            const datetime& valuation_date,
+            const monitoring_thresholds& thresholds
+        ) : config_(config), valuation_date_(valuation_date), thresholds_(thresholds) {}
+
+        // Core KPI calculation methods
+        calibration_quality_metrics calculate_calibration_quality(
+            const curve_calibration& calibrator) const;
+
+        curve_quality_metrics calculate_curve_quality(
+            const ptr_const<discount_curve>& curve) const;
+
+        performance_metrics calculate_performance_metrics(
+            const calibration_timing_data& timing_data) const;
+
+        // Automated monitoring and alerting
+        void run_daily_monitoring() const;
+        void check_calibration_thresholds(const calibration_quality_metrics& metrics) const;
+        void generate_monitoring_report() const;
+
+    private:
+        ptr_const<curve_calibration_config> config_;
+        datetime valuation_date_;
+        monitoring_thresholds thresholds_;
+
+        // Helper functions for quality assessment
+        void send_alert(alert_level level, const std::string& message) const;
+        bool is_within_threshold(double value, double threshold) const;
+        double calculate_curve_smoothness(const ptr_const<discount_curve>& curve) const;
+    };
+
+    // Calibration quality metrics structure
+    struct calibration_quality_metrics {
+        double rmse;                        // Root mean square error
+        double max_absolute_error;          // Maximum absolute error
+        double instrument_coverage_percent; // Percentage within tolerance
+        size_t convergence_iterations;      // Number of iterations to converge
+        bool converged;                     // Convergence success flag
+        double objective_value;             // Final optimization objective value
+
+        // Timing performance
+        std::chrono::milliseconds calibration_time;
+        std::chrono::milliseconds optimization_time;
+        std::chrono::milliseconds total_time;
+
+        // Parameter stability tracking
+        double parameter_change_percent;    // Daily parameter change
+        double curve_shift_magnitude;       // Overall curve movement
+    };
+}
+```
+
+*Cette infrastructure de monitoring implémente le framework de surveillance décrit ci-dessus. La classe `curve_construction_monitor` centralise tous les calculs de KPI et fournit des mécanismes d'alerte automatisés. Les structures de métriques capturent les indicateurs clés incluant la qualité de calibration, la précision de repricing, et la stabilité des courbes. Le système surveille en continu les seuils définis et génère des alertes appropriées selon les niveaux de criticité.*
+
+- **Convergence Time**: Time to optimization convergence
+  - Target: <30 seconds
+  - Warning threshold: >60 seconds
+  - Critical threshold: >120 seconds
+
+### Curve Quality Metrics
+
+**Smoothness Indicators**:
+- **Forward Rate Volatility**: Measure of forward rate smoothness
+  - Target: Forward rate changes <10bp between adjacent nodes
+  - Warning threshold: Changes >25bp
+  - Critical threshold: Changes >50bp
+
+- **Curvature Metrics**: Second derivative measures of curve smoothness
+  - Target: Smooth curvature without oscillations
+  - Warning threshold: Significant oscillations detected
+  - Critical threshold: Severe oscillations affecting pricing
+
+**Economic Reasonableness**:
+- **Forward Rate Levels**: Validation of forward rate economic reasonableness
+  - Target: Forward rates within historical ranges
+  - Warning threshold: Rates outside 2 standard deviations
+  - Critical threshold: Rates outside 3 standard deviations
+
+- **Curve Shape Validation**: Assessment of overall curve shape
+  - Target: Economically sensible term structure
+  - Warning threshold: Unusual curve shapes
+  - Critical threshold: Economically implausible shapes
+
+### Performance Metrics
+
+**Computational Performance**:
+- **Construction Time**: Time to build complete curve set
+  - Target: <5 minutes for full curve set
+  - Warning threshold: >10 minutes
+  - Critical threshold: >15 minutes
+
+- **Memory Usage**: Peak memory consumption during construction
+  - Target: <4GB memory usage
+  - Warning threshold: >8GB memory usage
+  - Critical threshold: >12GB memory usage
+
+- **CPU Utilization**: Processor usage during curve construction
+  - Target: <80% average CPU utilization
+  - Warning threshold: >90% CPU utilization
+  - Critical threshold: >95% CPU utilization
+
+**System Reliability**:
+- **Success Rate**: Percentage of successful curve builds
+  - Target: >99.9% success rate
+  - Warning threshold: <99.5% success rate
+  - Critical threshold: <99.0% success rate
+
+- **Error Rate**: Frequency of system errors or failures
+  - Target: <0.1% error rate
+  - Warning threshold: >0.5% error rate
+  - Critical threshold: >1.0% error rate
+
+## Real-Time Monitoring
+
+### Automated Monitoring Systems
+
+**Continuous Quality Checks**:
+- Real-time repricing accuracy validation
+- Automatic curve shape analysis
+- Performance metric tracking
+- Error detection and classification
+
+**Alert Generation**:
+- Immediate alerts for critical threshold breaches
+- Warning notifications for concerning trends
+- Escalation procedures for persistent issues
+- Automated notification distribution
+
+**Dashboard Systems**:
+- Real-time KPI visualization
+- Historical trend analysis
+- Comparative performance metrics
+- Drill-down capability for detailed analysis
+
+### Market Condition Monitoring
+
+**Volatility Assessment**:
+- Market volatility level monitoring
+- Volatility impact on curve construction
+- Adaptive threshold adjustment based on market conditions
+- Stress condition identification
+
+**Data Quality Monitoring**:
+- Market data completeness tracking
+- Data source reliability assessment
+- Outlier detection and flagging
+- Data consistency validation
+
+**Liquidity Monitoring**:
+- Market liquidity assessment
+- Bid-ask spread monitoring
+- Trading volume analysis
+- Liquidity impact on curve quality
+
+## Daily Monitoring Procedures
+
+### Automated Daily Reports
+
+**Calibration Quality Report**:
+- Summary of daily calibration performance
+- Instrument-level repricing analysis
+- Trend analysis compared to historical performance
+- Identification of problematic instruments or curves
+
+**Performance Summary Report**:
+- Daily performance metrics compilation
+- System reliability statistics
+- Resource utilization analysis
+- Comparative analysis with previous periods
+
+**Exception Report**:
+- Summary of all alerts and exceptions
+- Root cause analysis for significant issues
+- Resolution status and follow-up actions
+- Trend analysis of exception patterns
+
+### Manual Review Procedures
+
+**Daily Quality Review**:
+- Expert review of curve shapes and levels
+- Validation against market expectations
+- Cross-validation with alternative sources
+- Identification of potential issues requiring investigation
+
+**Performance Analysis**:
+- Review of system performance metrics
+- Identification of performance degradation trends
+- Analysis of resource utilization patterns
+- Optimization opportunity identification
+
+## Weekly and Monthly Monitoring
+
+### Comprehensive Performance Review
+
+**Weekly Analysis**:
+- Detailed trend analysis of all KPIs
+- Performance comparison with previous weeks
+- Identification of systematic issues or improvements
+- Assessment of market condition impacts
+
+**Monthly Deep Dive**:
+- Comprehensive model performance assessment
+- Statistical analysis of calibration accuracy
+- Performance benchmarking against alternatives
+- Model enhancement opportunity identification
+
+### Validation and Backtesting
+
+**Historical Validation**:
+- Backtesting of curve construction accuracy
+- Historical performance trend analysis
+- Validation against alternative methodologies
+- Assessment of model stability over time
+
+**Cross-Validation**:
+- Comparison with external curve sources
+- Validation against consensus market data
+- Assessment of relative performance
+- Identification of systematic biases
+
+## Alert and Escalation Framework
+
+### Alert Levels and Response
+
+**Level 1 - Information Alerts**:
+- **Trigger**: KPIs approach warning thresholds
+- **Response**: Automated logging and monitoring
+- **Timeline**: Review within 4 hours
+- **Action**: Trend monitoring and analysis
+
+**Level 2 - Warning Alerts**:
+- **Trigger**: KPIs exceed warning thresholds
+- **Response**: Immediate investigation by operations team
+- **Timeline**: Initial response within 1 hour
+- **Action**: Root cause analysis and corrective measures
+
+**Level 3 - Critical Alerts**:
+- **Trigger**: KPIs exceed critical thresholds
+- **Response**: Immediate escalation to senior management
+- **Timeline**: Immediate response required
+- **Action**: Emergency procedures and potential system intervention
+
+### Escalation Procedures
+
+**Operations Team Response**:
+- Level 1: Monitor and document trends
+- Level 2: Investigate and implement corrective actions
+- Level 3: Escalate to management and implement emergency procedures
+
+**Management Escalation**:
+- **Risk Management**: Notified for Level 2 and above
+- **Senior Management**: Notified for Level 3 alerts
+- **Regulatory Notification**: Required for sustained critical issues
+
+## Market Regime Monitoring
+
+### Market Condition Classification
+
+**Normal Market Conditions**:
+- Standard volatility levels
+- Adequate market liquidity
+- Consistent data quality
+- Stable curve construction performance
+
+**Stressed Market Conditions**:
+- Elevated volatility levels
+- Reduced market liquidity
+- Potential data quality issues
+- Enhanced monitoring requirements
+
+**Crisis Market Conditions**:
+- Extreme volatility levels
+- Severely impaired liquidity
+- Significant data quality challenges
+- Emergency monitoring procedures
+
+### Adaptive Monitoring
+
+**Dynamic Threshold Adjustment**:
+- Automatic adjustment of alert thresholds based on market conditions
+- Volatility-adjusted performance expectations
+- Liquidity-adjusted quality metrics
+- Market regime-specific validation procedures
+
+**Enhanced Monitoring Procedures**:
+- Increased monitoring frequency during stressed conditions
+- Additional validation checks during market stress
+- Enhanced reporting and communication procedures
+- Proactive risk management measures
+
+## Reporting and Communication
+
+### Stakeholder Communication
+
+**Daily Communications**:
+- Operations team briefings
+- Trading desk notifications
+- Risk management updates
+- Technology team alerts
+
+**Weekly Reports**:
+- Management summary reports
+- Performance trend analysis
+- Issue resolution status
+- Upcoming maintenance or changes
+
+**Monthly Reports**:
+- Comprehensive performance review
+- Model validation results
+- Enhancement recommendations
+- Regulatory compliance status
+
+### Regulatory Reporting
+
+**Model Performance Reports**:
+- Regular model performance metrics
+- Validation results and analysis
+- Issue identification and resolution
+- Compliance with regulatory requirements
+
+**Exception Reporting**:
+- Significant model issues or failures
+- Remediation actions and timelines
+- Impact assessment and mitigation
+- Regulatory notification procedures
+
+## Continuous Improvement
+
+### Performance Optimization
+
+**Trend Analysis**:
+- Long-term performance trend identification
+- Systematic issue pattern recognition
+- Optimization opportunity assessment
+- Enhancement priority determination
+
+**Benchmarking**:
+- Performance comparison with industry standards
+- Best practice identification and adoption
+- Technology advancement evaluation
+- Methodology improvement opportunities
+
+### Monitoring System Enhancement
+
+**Automation Improvement**:
+- Enhanced automated monitoring capabilities
+- Improved alert accuracy and relevance
+- Reduced false positive rates
+- Streamlined response procedures
+
+**Reporting Enhancement**:
+- Improved visualization and dashboards
+- Enhanced analytical capabilities
+- Better trend identification tools
+- More effective communication methods
+
+## Technology and Infrastructure Monitoring
+
+### System Health Monitoring
+
+**Infrastructure Monitoring**:
+- Server performance and availability
+- Database performance and integrity
+- Network connectivity and performance
+- Storage capacity and performance
+
+**Application Monitoring**:
+- Application performance metrics
+- Memory and CPU usage patterns
+- Error rates and exception handling
+- User experience and response times
+
+### Capacity Planning
+
+**Resource Utilization Tracking**:
+- Historical resource usage analysis
+- Growth trend projection
+- Capacity requirement forecasting
+- Infrastructure scaling planning
+
+**Performance Optimization**:
+- Bottleneck identification and resolution
+- Algorithm optimization opportunities
+- Hardware upgrade requirements
+- Software enhancement priorities

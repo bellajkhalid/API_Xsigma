@@ -1,0 +1,446 @@
+# Wing Time Models
+
+## 📊 **Wing Temporal Models Overview**
+
+### **Role of Wing Models**
+Wing temporal models determine how wing volatility quotes (Risk Reversal and Strangle) are interpolated in time. Unlike ATM models that can use sophisticated approaches like mean-reverting, wings generally use more direct interpolation methods.
+
+### **Standard Wing Quotes**
+Standard wing quotes include:
+- **Risk Reversal (RR)**: Difference between call and put volatilities
+- **Strangle (ST)**: Average of call and put volatilities minus ATM
+- **Standard Deltas**: 25-delta and 10-delta (for 5-point models)
+
+---
+
+## 🔧 **Wing Interpolation Types**
+
+### **Direct Interpolation**
+- **Method**: Linear or cubic interpolation of RR/ST quotes
+- **Usage**: Standard short and long term surfaces
+- **Advantage**: Simplicity and stability
+
+### **Constant Moneyness Interpolation**
+- **Method**: Preservation of moneyness during interpolation
+- **Usage**: Sophisticated surfaces
+- **Advantage**: Economic consistency
+
+### **Implementation in Our Project**
+
+#### **🔧 Wing Temporal Models Framework**
+```cpp
+// Wing temporal models framework in Our project
+class fx_wing_time_model_framework {
+public:
+    enum class wing_interpolation_type {
+        LINEAR_RR_ST,           // Linear RR/ST interpolation
+        CUBIC_RR_ST,            // Cubic RR/ST interpolation
+        CONSTANT_MONEYNESS,     // Constant moneyness interpolation
+        VARIANCE_WEIGHTED       // Variance-weighted interpolation
+    };
+    
+    struct wing_quote {
+        double risk_reversal;   // RR = vol_call - vol_put
+        double strangle;        // ST = 0.5*(vol_call + vol_put) - vol_atm
+        double delta_level;     // 0.25 or 0.10
+        double time_to_expiry;
+    };
+    
+    struct wing_calibration_inputs {
+        std::vector<double> tenor_grid;
+        std::vector<wing_quote> rr_25d_quotes;
+        std::vector<wing_quote> st_25d_quotes;
+        std::vector<wing_quote> rr_10d_quotes; // For 5-point models
+        std::vector<wing_quote> st_10d_quotes; // For 5-point models
+        std::vector<double> atm_volatilities;
+        wing_interpolation_type interpolation_method;
+    };
+    
+    class wing_time_model_base {
+    protected:
+        wing_interpolation_type type_;
+        wing_calibration_inputs inputs_;
+        
+    public:
+        wing_time_model_base(wing_interpolation_type type) : type_(type) {}
+        
+        virtual void calibrate(const wing_calibration_inputs& inputs) = 0;
+        virtual wing_quote get_wing_quotes_25d(double time_to_expiry) const = 0;
+        virtual wing_quote get_wing_quotes_10d(double time_to_expiry) const = 0;
+        
+        wing_interpolation_type get_type() const { return type_; }
+    };
+    
+    class linear_rr_st_interpolator : public wing_time_model_base {
+    private:
+        std::vector<double> rr_25d_curve_;
+        std::vector<double> st_25d_curve_;
+        std::vector<double> rr_10d_curve_;
+        std::vector<double> st_10d_curve_;
+        std::vector<double> time_grid_;
+        
+    public:
+        linear_rr_st_interpolator() 
+            : wing_time_model_base(wing_interpolation_type::LINEAR_RR_ST) {}
+        
+        void calibrate(const wing_calibration_inputs& inputs) override {
+            inputs_ = inputs;
+            time_grid_ = inputs.tenor_grid;
+            
+            // Extract RR/ST curves
+            extract_rr_st_curves(inputs);
+        }
+        
+        wing_quote get_wing_quotes_25d(double time_to_expiry) const override {
+            wing_quote quote;
+            quote.delta_level = 0.25;
+            quote.time_to_expiry = time_to_expiry;
+            quote.risk_reversal = interpolate_curve(rr_25d_curve_, time_to_expiry);
+            quote.strangle = interpolate_curve(st_25d_curve_, time_to_expiry);
+            
+            return quote;
+        }
+        
+        wing_quote get_wing_quotes_10d(double time_to_expiry) const override {
+            wing_quote quote;
+            quote.delta_level = 0.10;
+            quote.time_to_expiry = time_to_expiry;
+            quote.risk_reversal = interpolate_curve(rr_10d_curve_, time_to_expiry);
+            quote.strangle = interpolate_curve(st_10d_curve_, time_to_expiry);
+            
+            return quote;
+        }
+        
+    private:
+        void extract_rr_st_curves(const wing_calibration_inputs& inputs) {
+            // Extract RR/ST curves for each tenor
+            rr_25d_curve_.clear();
+            st_25d_curve_.clear();
+            rr_10d_curve_.clear();
+            st_10d_curve_.clear();
+            
+            for (size_t i = 0; i < inputs.tenor_grid.size(); ++i) {
+                // 25-delta quotes
+                if (i < inputs.rr_25d_quotes.size()) {
+                    rr_25d_curve_.push_back(inputs.rr_25d_quotes[i].risk_reversal);
+                    st_25d_curve_.push_back(inputs.st_25d_quotes[i].strangle);
+                }
+                
+                // 10-delta quotes (si disponibles)
+                if (i < inputs.rr_10d_quotes.size()) {
+                    rr_10d_curve_.push_back(inputs.rr_10d_quotes[i].risk_reversal);
+                    st_10d_curve_.push_back(inputs.st_10d_quotes[i].strangle);
+                }
+            }
+        }
+        
+        double interpolate_curve(const std::vector<double>& curve, 
+                               double time_to_expiry) const {
+            if (curve.empty()) return 0.0;
+            
+            // Simple linear interpolation
+            if (time_to_expiry <= time_grid_.front()) {
+                return curve.front();
+            }
+            if (time_to_expiry >= time_grid_.back()) {
+                return curve.back();
+            }
+            
+            // Search for interval
+            auto it = std::lower_bound(time_grid_.begin(), time_grid_.end(), time_to_expiry);
+            size_t idx = std::distance(time_grid_.begin(), it);
+            
+            if (idx == 0) idx = 1;
+            
+            double t1 = time_grid_[idx - 1];
+            double t2 = time_grid_[idx];
+            double v1 = curve[idx - 1];
+            double v2 = curve[idx];
+            
+            // Linear interpolation
+            double weight = (time_to_expiry - t1) / (t2 - t1);
+            return v1 + weight * (v2 - v1);
+        }
+    };
+    
+    class constant_moneyness_interpolator : public wing_time_model_base {
+    private:
+        struct moneyness_point {
+            double moneyness;      // ln(K/F)
+            double volatility;
+            double time_to_expiry;
+        };
+        
+        std::vector<std::vector<moneyness_point>> moneyness_grid_;
+        
+    public:
+        constant_moneyness_interpolator() 
+            : wing_time_model_base(wing_interpolation_type::CONSTANT_MONEYNESS) {}
+        
+        void calibrate(const wing_calibration_inputs& inputs) override {
+            inputs_ = inputs;
+            
+            // Build moneyness grid
+            build_moneyness_grid(inputs);
+        }
+        
+        wing_quote get_wing_quotes_25d(double time_to_expiry) const override {
+            return interpolate_wing_quotes_at_delta(0.25, time_to_expiry);
+        }
+        
+        wing_quote get_wing_quotes_10d(double time_to_expiry) const override {
+            return interpolate_wing_quotes_at_delta(0.10, time_to_expiry);
+        }
+        
+    private:
+        void build_moneyness_grid(const wing_calibration_inputs& inputs) {
+            moneyness_grid_.clear();
+            moneyness_grid_.resize(inputs.tenor_grid.size());
+            
+            for (size_t i = 0; i < inputs.tenor_grid.size(); ++i) {
+                double time = inputs.tenor_grid[i];
+                double atm_vol = inputs.atm_volatilities[i];
+                
+                // Build moneyness points for this tenor
+                std::vector<moneyness_point> tenor_points;
+                
+                // Points 25-delta
+                if (i < inputs.rr_25d_quotes.size()) {
+                    auto points_25d = create_moneyness_points_from_rr_st(
+                        inputs.rr_25d_quotes[i], inputs.st_25d_quotes[i], 
+                        atm_vol, time, 0.25);
+                    tenor_points.insert(tenor_points.end(), points_25d.begin(), points_25d.end());
+                }
+                
+                // Points 10-delta
+                if (i < inputs.rr_10d_quotes.size()) {
+                    auto points_10d = create_moneyness_points_from_rr_st(
+                        inputs.rr_10d_quotes[i], inputs.st_10d_quotes[i], 
+                        atm_vol, time, 0.10);
+                    tenor_points.insert(tenor_points.end(), points_10d.begin(), points_10d.end());
+                }
+                
+                moneyness_grid_[i] = tenor_points;
+            }
+        }
+        
+        std::vector<moneyness_point> create_moneyness_points_from_rr_st(
+            const wing_quote& rr_quote,
+            const wing_quote& st_quote,
+            double atm_vol,
+            double time,
+            double delta_level) const {
+            
+            std::vector<moneyness_point> points;
+            
+            // Convert RR/ST to call/put volatilities
+            double vol_call = atm_vol + st_quote.strangle + 0.5 * rr_quote.risk_reversal;
+            double vol_put = atm_vol + st_quote.strangle - 0.5 * rr_quote.risk_reversal;
+
+            // Calculate corresponding strikes
+            double strike_call = calculate_strike_from_delta(delta_level, true, time, atm_vol);
+            double strike_put = calculate_strike_from_delta(-delta_level, false, time, atm_vol);
+
+            // Calculate moneyness
+            double forward = calculate_forward_rate(time);
+            double moneyness_call = std::log(strike_call / forward);
+            double moneyness_put = std::log(strike_put / forward);
+
+            // Create points
+            points.push_back({moneyness_call, vol_call, time});
+            points.push_back({moneyness_put, vol_put, time});
+            
+            return points;
+        }
+        
+        wing_quote interpolate_wing_quotes_at_delta(double delta_level,
+                                                  double time_to_expiry) const {
+            // Constant moneyness interpolation
+            wing_quote result;
+            result.delta_level = delta_level;
+            result.time_to_expiry = time_to_expiry;
+            
+            // Calculate target moneyness
+            double forward = calculate_forward_rate(time_to_expiry);
+            double strike_call = calculate_strike_from_delta(delta_level, true, time_to_expiry, 0.15);
+            double strike_put = calculate_strike_from_delta(-delta_level, false, time_to_expiry, 0.15);
+
+            double target_moneyness_call = std::log(strike_call / forward);
+            double target_moneyness_put = std::log(strike_put / forward);
+
+            // Interpolate volatilities at constant moneyness
+            double vol_call = interpolate_volatility_at_moneyness(target_moneyness_call, time_to_expiry);
+            double vol_put = interpolate_volatility_at_moneyness(target_moneyness_put, time_to_expiry);
+
+            // Convert to RR/ST
+            double atm_vol = interpolate_atm_volatility(time_to_expiry);
+            result.risk_reversal = vol_call - vol_put;
+            result.strangle = 0.5 * (vol_call + vol_put) - atm_vol;
+            
+            return result;
+        }
+        
+        double interpolate_volatility_at_moneyness(double target_moneyness,
+                                                 double time_to_expiry) const {
+            // 2D interpolation: time and moneyness
+
+            // 1. Temporal interpolation for each moneyness point
+            // 2. Moneyness interpolation for target time
+
+            // Simplified implementation - in practice would use bicubic interpolation
+            return 0.15; // Placeholder
+        }
+    };
+};
+```
+*This C++ implementation in Our project shows different wing temporal interpolation approaches, including direct RR/ST interpolation and constant moneyness interpolation.*
+
+---
+
+## 📈 **Standard RR/ST Interpolation**
+
+### **Direct Method**
+The most common approach consists of directly interpolating Risk Reversal and Strangle quotes in time:
+
+#### **🔍 Advantages**
+- **Simplicity**: Direct and fast implementation
+- **Stability**: No complex conversion
+- **Transparency**: Direct correspondence with market quotes
+
+#### **🔍 Limitations**
+- **Economic consistency**: May create moneyness inconsistencies
+- **Arbitrage**: Risk of calendar arbitrage in certain cases
+
+### **Interpolation Types**
+- **Linear**: Simple linear interpolation between tenors
+- **Cubic**: Cubic interpolation for more smoothing
+- **Spline**: Natural splines for derivative continuity
+
+---
+
+## 🎯 **Constant Moneyness Interpolation**
+
+### **Principle**
+Constant moneyness interpolation preserves the economic relationship between strike and forward during temporal interpolation.
+
+#### **🔍 Advantages**
+- **Economic consistency**: Preservation of moneyness relationships
+- **Arbitrage-free**: Reduction of calendar arbitrage risk
+- **Flexibility**: Adaptation to forward changes
+
+#### **🔍 Complexity**
+- **Calculations**: More complex than direct interpolation
+- **Calibration**: Requires conversion between spaces
+- **Performance**: Slower than direct methods
+
+### **Conversion Process**
+1. **RR/ST → Volatilities conversion**: Calculate call/put volatilities
+2. **Strike calculation**: Determine corresponding strikes
+3. **Moneyness calculation**: ln(K/F) for each point
+4. **2D interpolation**: Time and moneyness
+5. **Reconversion**: Return to RR/ST quotes
+
+---
+
+## 🔧 **Distant Wings Management**
+
+### **Problem Statement**
+Distant wings (10-delta and beyond) present particular challenges:
+
+#### **🔍 Reduced Liquidity**
+- **Less frequent quotes**: Fewer calibration points
+- **Wider spreads**: Price uncertainty
+- **Quote volatility**: More noise in data
+
+#### **🔍 Extrapolation**
+- **Beyond tenors**: Extrapolation required
+- **Asymptotic behavior**: Limit management
+- **Arbitrage constraints**: Preservation of arbitrage-free conditions
+
+### **Solutions Techniques**
+
+#### **🔧 Regularization**
+```cpp
+// Regularization techniques for distant wings in Our project
+class wing_regularization_framework {
+public:
+    struct regularization_parameters {
+        double smoothness_weight;
+        double boundary_constraint_weight;
+        double arbitrage_penalty_weight;
+        std::vector<double> reference_levels;
+    };
+    
+    class wing_regularizer {
+    public:
+        std::vector<double> regularize_wing_curve(
+            const std::vector<double>& raw_wing_quotes,
+            const std::vector<double>& time_grid,
+            const regularization_parameters& params) {
+            
+            // Optimization with regularization constraints
+            auto objective = [&](const std::vector<double>& smoothed_quotes) {
+                double total_cost = 0.0;
+
+                // Data fidelity term
+                for (size_t i = 0; i < raw_wing_quotes.size(); ++i) {
+                    double data_term = (smoothed_quotes[i] - raw_wing_quotes[i]);
+                    total_cost += data_term * data_term;
+                }
+                
+                // Smoothing term
+                double smoothness_term = calculate_smoothness_penalty(smoothed_quotes, time_grid);
+                total_cost += params.smoothness_weight * smoothness_term;
+
+                // Boundary constraints
+                double boundary_term = calculate_boundary_penalty(smoothed_quotes, params.reference_levels);
+                total_cost += params.boundary_constraint_weight * boundary_term;
+
+                // Arbitrage penalty
+                double arbitrage_term = calculate_arbitrage_penalty(smoothed_quotes, time_grid);
+                total_cost += params.arbitrage_penalty_weight * arbitrage_term;
+                
+                return total_cost;
+            };
+            
+            // Optimisation contrainte
+            return optimize_with_constraints(objective, raw_wing_quotes);
+        }
+        
+    private:
+        double calculate_smoothness_penalty(const std::vector<double>& quotes,
+                                          const std::vector<double>& time_grid) {
+            double penalty = 0.0;
+
+            // Penalty on second derivatives
+            for (size_t i = 1; i < quotes.size() - 1; ++i) {
+                double dt1 = time_grid[i] - time_grid[i-1];
+                double dt2 = time_grid[i+1] - time_grid[i];
+
+                double d2_dt2 = (quotes[i+1] - quotes[i])/dt2 - (quotes[i] - quotes[i-1])/dt1;
+                penalty += d2_dt2 * d2_dt2;
+            }
+            
+            return penalty;
+        }
+    };
+};
+```
+
+---
+
+## 📊 **Validation and Controls**
+
+### **Consistency Tests**
+- **Calendar arbitrage**: Verification of arbitrage-free conditions
+- **Monotonicity**: Control of curve monotonicity
+- **Bounds**: Validation of volatility bounds
+
+### **Quality Metrics**
+- **Calibration error**: Deviation from market quotes
+- **Smoothing**: Measure of curve regularity
+- **Stability**: Sensitivity to input perturbations
+
+---
+
+*This section details wing temporal interpolation approaches, integrating Our project best practices with economic consistency and numerical stability considerations for Risk Reversal and Strangle quote management.*

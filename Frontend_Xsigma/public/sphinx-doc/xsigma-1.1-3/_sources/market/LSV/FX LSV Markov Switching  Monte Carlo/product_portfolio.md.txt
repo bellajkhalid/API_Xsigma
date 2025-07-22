@@ -1,0 +1,314 @@
+# Product and Portfolio
+
+## Overview
+
+Cette section décrit les produits FX supportés par le modèle **FX LSV Markov Switching Monte Carlo** et les capacités de gestion de portfolio multi-devises.
+
+## FX Product Specifications
+
+### Vanilla FX Options
+
+#### European FX Options
+- **Call Options** : Droit d'acheter la devise étrangère
+- **Put Options** : Droit de vendre la devise étrangère
+- **Settlement** : Physique ou cash selon convention
+- **Expiry Conventions** : NY cut, Tokyo cut, London cut
+
+#### Digital FX Options
+- **One-Touch** : Paiement si niveau atteint
+- **No-Touch** : Paiement si niveau non atteint
+- **Double One-Touch** : Deux niveaux de déclenchement
+- **Range Digitals** : Paiement dans une fourchette
+
+### Exotic FX Options
+
+#### Barrier Options
+- **Knock-Out** : Option éteinte si barrière touchée
+- **Knock-In** : Option activée si barrière touchée
+- **Double Barriers** : Barrières supérieure et inférieure
+- **Partial Barriers** : Monitoring sur période limitée
+
+#### Asian Options
+- **Average Rate** : Strike basé sur moyenne des taux
+- **Average Strike** : Strike = moyenne, payoff vs spot final
+- **Arithmetic Average** : Moyenne arithmétique des observations
+- **Geometric Average** : Moyenne géométrique (plus stable)
+
+#### Lookback Options
+- **Fixed Strike** : Payoff basé sur extremum de période
+- **Floating Strike** : Strike = extremum, payoff vs spot final
+- **Partial Lookback** : Période d'observation limitée
+
+### Multi-Currency Products
+
+#### Quanto Options
+- **Quanto Mechanism** : Élimination du risque de change
+- **Quanto Currency** : Devise de référence pour paiement
+- **Quanto Correlation** : Corrélation spot FX - sous-jacent
+- **Multi-Quanto** : Plusieurs devises de référence
+
+#### Currency Baskets
+- **Basket Definition** : Pondération des devises
+- **Rebalancing** : Fréquence de rééquilibrage
+- **Basket Options** : Options sur performance du panier
+- **Rainbow Options** : Payoffs multi-devises complexes
+
+## Portfolio Management Capabilities
+
+### Multi-Currency Portfolio Structure
+
+#### Currency Exposure Management
+```cpp
+// Structure pour gestion d'exposition multi-devises
+struct MultiCurrencyPortfolio {
+    std::map<std::string, double> currency_exposures;    // Expositions par devise
+    std::map<std::string, double> hedge_ratios;          // Ratios de couverture
+    std::vector<FXPosition> fx_positions;                // Positions FX
+    std::vector<FXHedge> hedge_instruments;              // Instruments de couverture
+    
+    // Métriques de risque portfolio
+    double total_var;                                     // VaR total
+    double diversification_benefit;                       // Bénéfice de diversification
+    std::map<std::string, double> component_var;         // VaR par composant
+    
+    // Corrélations inter-devises
+    std::map<std::pair<std::string, std::string>, double> fx_correlations;
+};
+```
+
+#### Portfolio Greeks Aggregation
+- **Net Delta** : Exposition directionnelle totale
+- **Net Gamma** : Convexité totale du portfolio
+- **Net Vega** : Sensibilité totale à la volatilité
+- **Cross Greeks** : Sensibilités croisées entre devises
+
+### Risk Aggregation Framework
+
+#### Currency Risk Decomposition
+- **Spot Risk** : Risque de mouvement des taux de change
+- **Volatility Risk** : Risque de changement de volatilité
+- **Interest Rate Risk** : Risque de mouvement des taux
+- **Correlation Risk** : Risque de changement de corrélations
+
+#### Portfolio Optimization
+- **Hedge Optimization** : Minimisation du coût de couverture
+- **Risk Budgeting** : Allocation optimale du risque
+- **Diversification Analysis** : Analyse des bénéfices de diversification
+- **Stress Testing** : Tests de résistance du portfolio
+
+## Product Implementation Details
+
+### FX Option Payoff Structures
+
+#### Standard Payoffs
+```cpp
+// Payoffs d'options FX standards
+double calculate_fx_call_payoff(double spot_fx, double strike, double notional) {
+    return notional * std::max(spot_fx - strike, 0.0);
+}
+
+double calculate_fx_put_payoff(double spot_fx, double strike, double notional) {
+    return notional * std::max(strike - spot_fx, 0.0);
+}
+
+double calculate_digital_payoff(double spot_fx, double barrier, 
+                               double payout, bool is_one_touch) {
+    bool barrier_hit = (spot_fx >= barrier); // Simplifié
+    return is_one_touch ? (barrier_hit ? payout : 0.0) : 
+                         (barrier_hit ? 0.0 : payout);
+}
+```
+
+#### Complex Payoffs
+```cpp
+// Payoffs complexes pour exotiques FX
+double calculate_barrier_option_payoff(
+    const std::vector<double>& fx_path,
+    double strike, double barrier, 
+    const std::string& barrier_type) {
+    
+    bool barrier_breached = false;
+    for (double fx_rate : fx_path) {
+        if (barrier_type == "UP_AND_OUT" && fx_rate >= barrier) {
+            barrier_breached = true;
+            break;
+        } else if (barrier_type == "DOWN_AND_OUT" && fx_rate <= barrier) {
+            barrier_breached = true;
+            break;
+        }
+    }
+    
+    if (barrier_breached && barrier_type.find("OUT") != std::string::npos) {
+        return 0.0; // Option knocked out
+    }
+    
+    double final_fx = fx_path.back();
+    return std::max(final_fx - strike, 0.0);
+}
+
+double calculate_asian_option_payoff(
+    const std::vector<double>& fx_path,
+    double strike, const std::string& average_type) {
+    
+    double average_fx = 0.0;
+    
+    if (average_type == "ARITHMETIC") {
+        average_fx = std::accumulate(fx_path.begin(), fx_path.end(), 0.0) / fx_path.size();
+    } else if (average_type == "GEOMETRIC") {
+        double log_sum = 0.0;
+        for (double fx_rate : fx_path) {
+            log_sum += std::log(fx_rate);
+        }
+        average_fx = std::exp(log_sum / fx_path.size());
+    }
+    
+    return std::max(average_fx - strike, 0.0);
+}
+```
+
+### Multi-Currency Handling
+
+#### Currency Conversion Framework
+```cpp
+// Framework de conversion multi-devises
+class MultiCurrencyConverter {
+public:
+    // Conversion entre devises
+    double convert(double amount, const std::string& from_currency,
+                  const std::string& to_currency, double fx_rate) const {
+        if (from_currency == to_currency) return amount;
+        
+        // Convention de cotation FX
+        if (is_direct_quote(from_currency, to_currency)) {
+            return amount * fx_rate;
+        } else {
+            return amount / fx_rate;
+        }
+    }
+    
+    // Calcul de taux croisés
+    double calculate_cross_rate(const std::string& base_currency,
+                               const std::string& quote_currency,
+                               const std::map<std::string, double>& usd_rates) const {
+        
+        double base_usd = usd_rates.at(base_currency);
+        double quote_usd = usd_rates.at(quote_currency);
+        
+        return quote_usd / base_usd;
+    }
+    
+private:
+    bool is_direct_quote(const std::string& base, const std::string& quote) const {
+        // Logique de convention de cotation
+        return true; // Simplifié
+    }
+};
+```
+
+#### Quanto Mechanism Implementation
+```cpp
+// Implémentation du mécanisme quanto
+class QuantoAdjustment {
+public:
+    // Ajustement quanto pour options
+    double calculate_quanto_adjustment(
+        double correlation_fx_underlying,
+        double fx_volatility,
+        double underlying_volatility,
+        double time_to_expiry) const {
+        
+        // Ajustement de drift quanto
+        double quanto_drift = correlation_fx_underlying * fx_volatility * 
+                             underlying_volatility * time_to_expiry;
+        
+        return std::exp(-quanto_drift);
+    }
+    
+    // Pricing d'option quanto
+    double price_quanto_option(
+        double underlying_price,
+        double strike,
+        double fx_rate,
+        const std::string& quanto_currency,
+        const QuantoParameters& quanto_params) const {
+        
+        // Application de l'ajustement quanto
+        double adjusted_underlying = underlying_price * 
+            calculate_quanto_adjustment(
+                quanto_params.correlation,
+                quanto_params.fx_volatility,
+                quanto_params.underlying_volatility,
+                quanto_params.time_to_expiry
+            );
+        
+        // Pricing avec sous-jacent ajusté
+        double option_value = price_standard_option(adjusted_underlying, strike);
+        
+        // Conversion dans la devise quanto
+        return convert_to_quanto_currency(option_value, fx_rate, quanto_currency);
+    }
+    
+private:
+    struct QuantoParameters {
+        double correlation;
+        double fx_volatility;
+        double underlying_volatility;
+        double time_to_expiry;
+    };
+    
+    double price_standard_option(double spot, double strike) const {
+        return std::max(spot - strike, 0.0); // Simplifié
+    }
+    
+    double convert_to_quanto_currency(double value, double fx_rate, 
+                                     const std::string& currency) const {
+        return value; // Simplifié
+    }
+};
+```
+
+## Portfolio Analytics
+
+### Risk Metrics Calculation
+
+#### Value-at-Risk (VaR)
+- **Parametric VaR** : Basé sur volatilités et corrélations
+- **Historical VaR** : Basé sur données historiques
+- **Monte Carlo VaR** : Simulation de scénarios futurs
+- **Component VaR** : Contribution de chaque position
+
+#### Expected Shortfall (ES)
+- **Conditional VaR** : Perte moyenne au-delà du VaR
+- **Coherent Risk Measure** : Propriétés mathématiques supérieures
+- **Tail Risk** : Focus sur pertes extrêmes
+- **Regulatory Capital** : Calcul de capital réglementaire
+
+### Performance Attribution
+
+#### P&L Decomposition
+- **Spot P&L** : Impact des mouvements de taux de change
+- **Volatility P&L** : Impact des changements de volatilité
+- **Time Decay P&L** : Impact du passage du temps
+- **Interest Rate P&L** : Impact des mouvements de taux
+
+#### Risk-Adjusted Returns
+- **Sharpe Ratio** : Rendement ajusté du risque
+- **Information Ratio** : Rendement actif vs tracking error
+- **Maximum Drawdown** : Perte maximale sur période
+- **Calmar Ratio** : Rendement annuel / drawdown maximum
+
+## Integration Capabilities
+
+### Trading System Integration
+- **Order Management** : Interface avec systèmes de trading
+- **Position Management** : Suivi des positions en temps réel
+- **Risk Limits** : Monitoring automatique des limites
+- **Reporting** : Génération de rapports automatisés
+
+### Market Data Integration
+- **Real-Time Feeds** : Taux de change et volatilités
+- **Historical Data** : Bases de données historiques
+- **Cross-Validation** : Vérification de cohérence des données
+- **Quality Control** : Détection d'anomalies automatique
+
+Le framework de produits et portfolio FX LSV Markov Switching Monte Carlo dans Our project offre une solution complète pour la gestion de produits FX complexes et de portfolios multi-devises avec des capacités avancées de risk management et d'analytics.

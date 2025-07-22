@@ -1,0 +1,600 @@
+# Calibration Methodology
+
+## 🎯 **Vue d'Ensemble de la Calibration**
+
+### **Objectif de la Calibration**
+La calibration du modèle **DBX-ShortRate_FXSkewStochVol** vise à ajuster simultanément tous les paramètres du modèle pour reproduire fidèlement les prix de marché observés, tout en maintenant la cohérence économique et la stabilité numérique.
+
+### **Composants de Calibration**
+- **PIV AutoFit** : Calibration automatique de la volatilité locale FX
+- **DLVIR Correction** : Correction pour taux stochastiques
+- **Hull-White Calibration** : Ajustement des paramètres de taux
+- **Correlation Calibration** : Estimation des corrélations entre facteurs
+
+---
+
+## 🔧 **PIV AutoFit Methodology**
+
+### **Pillar Implied Volatility AutoFit**
+
+#### **Principe de PIV AutoFit**
+La méthode PIV AutoFit calibre automatiquement la surface de volatilité locale FX en utilisant les volatilités implicites des options vanilles comme piliers de calibration.
+
+#### **Algorithme PIV AutoFit**
+```cpp
+// Implémentation complète PIV AutoFit dans Our project
+class piv_autofit_engine {
+private:
+    struct piv_market_data {
+        std::vector<fx_option_quote> vanilla_options;
+        std::vector<double> pillar_strikes;
+        std::vector<double> pillar_expiries;
+        double fx_spot;
+        yield_curve domestic_curve;
+        yield_curve foreign_curve;
+    };
+    
+    struct piv_calibration_config {
+        double tolerance = 1e-6;
+        int max_iterations = 100;
+        std::string optimization_method = "LEVENBERG_MARQUARDT";
+        bool enable_regularization = true;
+        double regularization_weight = 0.01;
+    };
+    
+    piv_market_data market_data_;
+    piv_calibration_config config_;
+    
+public:
+    piv_autofit_engine(const piv_market_data& market_data, 
+                       const piv_calibration_config& config)
+        : market_data_(market_data), config_(config) {
+        validate_market_data();
+    }
+    
+    std::shared_ptr<fx_local_volatility_surface> calibrate_local_volatility_surface() {
+        
+        // Étape 1 : Construction de la grille de calibration
+        auto calibration_grid = construct_calibration_grid();
+        
+        // Étape 2 : Initialisation des paramètres
+        vector<double> initial_params = initialize_surface_parameters(calibration_grid);
+        
+        // Étape 3 : Optimisation
+        auto optimization_result = optimize_surface_parameters(initial_params, calibration_grid);
+        
+        // Étape 4 : Construction de la surface finale
+        auto calibrated_surface = construct_local_volatility_surface(
+            optimization_result.optimal_parameters, calibration_grid);
+        
+        // Étape 5 : Validation de la calibration
+        validate_calibration_quality(calibrated_surface);
+        
+        return calibrated_surface;
+    }
+    
+private:
+    calibration_grid construct_calibration_grid() const {
+        calibration_grid grid;
+        
+        // Extraction des strikes et expiries uniques
+        std::set<double> unique_strikes, unique_expiries;
+        
+        for (const auto& quote : market_data_.vanilla_options) {
+            unique_strikes.insert(quote.strike);
+            unique_expiries.insert(quote.expiry);
+        }
+        
+        grid.strikes = std::vector<double>(unique_strikes.begin(), unique_strikes.end());
+        grid.expiries = std::vector<double>(unique_expiries.begin(), unique_expiries.end());
+        
+        // Extension de la grille pour extrapolation
+        extend_grid_for_extrapolation(grid);
+        
+        return grid;
+    }
+    
+    vector<double> initialize_surface_parameters(const calibration_grid& grid) const {
+        // Initialisation intelligente basée sur les volatilités de marché
+        
+        vector<double> initial_params;
+        initial_params.reserve(grid.strikes.size() * grid.expiries.size());
+        
+        for (double expiry : grid.expiries) {
+            for (double strike : grid.strikes) {
+                
+                // Interpolation des volatilités de marché pour initialisation
+                double initial_vol = interpolate_market_volatility(strike, expiry);
+                
+                // Conversion en paramètre de surface locale
+                double local_vol_param = convert_to_local_vol_parameter(initial_vol, strike, expiry);
+                
+                initial_params.push_back(local_vol_param);
+            }
+        }
+        
+        return initial_params;
+    }
+    
+    optimization_result optimize_surface_parameters(const vector<double>& initial_params,
+                                                   const calibration_grid& grid) const {
+        
+        // Configuration de l'optimiseur
+        levenberg_marquardt_optimizer optimizer;
+        optimizer.set_tolerance(config_.tolerance);
+        optimizer.set_max_iterations(config_.max_iterations);
+        
+        // Fonction objectif pour calibration PIV
+        auto objective_function = [&](const vector<double>& params) -> double {
+            
+            // Construction de la surface temporaire
+            auto temp_surface = construct_local_volatility_surface(params, grid);
+            
+            double total_error = 0.0;
+            
+            // Calcul de l'erreur sur les options vanilles
+            for (const auto& quote : market_data_.vanilla_options) {
+                
+                // Prix modèle avec surface temporaire
+                double model_price = calculate_model_option_price(quote, temp_surface);
+                
+                // Erreur pondérée
+                double weight = calculate_calibration_weight(quote);
+                double error = weight * std::pow(model_price - quote.market_price, 2);
+                
+                total_error += error;
+            }
+            
+            // Terme de régularisation pour lissage
+            if (config_.enable_regularization) {
+                double regularization_term = calculate_regularization_penalty(params, grid);
+                total_error += config_.regularization_weight * regularization_term;
+            }
+            
+            return total_error;
+        };
+        
+        // Optimisation
+        return optimizer.minimize(objective_function, initial_params);
+    }
+    
+    double calculate_model_option_price(const fx_option_quote& quote,
+                                       std::shared_ptr<fx_local_volatility_surface> surface) const {
+        
+        // Configuration du modèle temporaire pour pricing
+        dbx_model_parameters temp_params;
+        temp_params.fx_local_vol_surface = surface;
+        temp_params.domestic_hw = get_default_hull_white_params("DOMESTIC");
+        temp_params.foreign_hw = get_default_hull_white_params("FOREIGN");
+        temp_params.fx_sv_params = get_default_sv_params();
+        temp_params.correlation_matrix = get_default_correlation_matrix();
+        
+        // Modèle temporaire
+        dbx_shortrate_fx_skew_stochvol_model temp_model(temp_params);
+        
+        // Option vanille
+        fx_vanilla_option option(quote.strike, quote.expiry, quote.is_call, 1.0);
+        
+        // Pricing Monte Carlo
+        return temp_model.price_derivative(option, market_data_);
+    }
+    
+    double calculate_regularization_penalty(const vector<double>& params,
+                                          const calibration_grid& grid) const {
+        
+        // Pénalité de lissage pour éviter les oscillations
+        double penalty = 0.0;
+        
+        // Pénalité sur les dérivées secondes (courbure)
+        for (size_t i = 1; i < grid.strikes.size() - 1; ++i) {
+            for (size_t j = 0; j < grid.expiries.size(); ++j) {
+                
+                size_t idx_minus = (j * grid.strikes.size()) + (i - 1);
+                size_t idx_center = (j * grid.strikes.size()) + i;
+                size_t idx_plus = (j * grid.strikes.size()) + (i + 1);
+                
+                double second_derivative = params[idx_plus] - 2.0 * params[idx_center] + params[idx_minus];
+                penalty += second_derivative * second_derivative;
+            }
+        }
+        
+        // Pénalité similaire sur les expiries
+        for (size_t i = 0; i < grid.strikes.size(); ++i) {
+            for (size_t j = 1; j < grid.expiries.size() - 1; ++j) {
+                
+                size_t idx_minus = ((j - 1) * grid.strikes.size()) + i;
+                size_t idx_center = (j * grid.strikes.size()) + i;
+                size_t idx_plus = ((j + 1) * grid.strikes.size()) + i;
+                
+                double second_derivative = params[idx_plus] - 2.0 * params[idx_center] + params[idx_minus];
+                penalty += second_derivative * second_derivative;
+            }
+        }
+        
+        return penalty;
+    }
+};
+```
+*Cette implémentation C++ dans Our project montre l'algorithme PIV AutoFit complet avec optimisation, régularisation et validation de calibration.*
+
+### **Validation de Calibration PIV**
+
+#### **Métriques de Qualité**
+```cpp
+// Validation de qualité de calibration dans Our project
+class piv_calibration_validator {
+public:
+    struct calibration_quality_metrics {
+        double max_absolute_error;
+        double mean_absolute_error;
+        double root_mean_square_error;
+        double max_relative_error;
+        std::vector<double> individual_errors;
+        bool calibration_successful;
+    };
+    
+    calibration_quality_metrics validate_calibration(
+        std::shared_ptr<fx_local_volatility_surface> calibrated_surface,
+        const std::vector<fx_option_quote>& market_quotes) const {
+        
+        calibration_quality_metrics metrics;
+        
+        std::vector<double> absolute_errors;
+        std::vector<double> relative_errors;
+        
+        for (const auto& quote : market_quotes) {
+            
+            // Prix modèle avec surface calibrée
+            double model_price = calculate_model_price(quote, calibrated_surface);
+            
+            // Erreurs
+            double absolute_error = std::abs(model_price - quote.market_price);
+            double relative_error = absolute_error / quote.market_price;
+            
+            absolute_errors.push_back(absolute_error);
+            relative_errors.push_back(relative_error);
+        }
+        
+        // Calcul des métriques
+        metrics.max_absolute_error = *std::max_element(absolute_errors.begin(), absolute_errors.end());
+        metrics.mean_absolute_error = std::accumulate(absolute_errors.begin(), absolute_errors.end(), 0.0) / absolute_errors.size();
+        
+        double sum_squared_errors = 0.0;
+        for (double error : absolute_errors) {
+            sum_squared_errors += error * error;
+        }
+        metrics.root_mean_square_error = std::sqrt(sum_squared_errors / absolute_errors.size());
+        
+        metrics.max_relative_error = *std::max_element(relative_errors.begin(), relative_errors.end());
+        metrics.individual_errors = absolute_errors;
+        
+        // Critères de succès
+        metrics.calibration_successful = 
+            (metrics.max_absolute_error < 1e-4) &&  // 1bp max
+            (metrics.mean_absolute_error < 5e-5) && // 0.5bp moyenne
+            (metrics.max_relative_error < 0.01);    // 1% relatif max
+        
+        return metrics;
+    }
+};
+```
+
+---
+
+## 🔄 **DLVIR Correction**
+
+### **Dupire Local Volatility Interest Rate Correction**
+
+#### **Principe de DLVIR**
+La correction DLVIR ajuste la volatilité locale FX pour tenir compte de l'impact des taux d'intérêt stochastiques sur la dynamique FX.
+
+#### **Implémentation DLVIR dans Our project**
+```cpp
+// Implémentation complète DLVIR dans Our project
+class dlvir_correction_engine {
+private:
+    struct dlvir_parameters {
+        double domestic_ir_volatility;
+        double foreign_ir_volatility;
+        double fx_domestic_ir_correlation;
+        double fx_foreign_ir_correlation;
+        double domestic_foreign_ir_correlation;
+    };
+    
+    dlvir_parameters params_;
+    
+public:
+    dlvir_correction_engine(const dlvir_parameters& params) : params_(params) {
+        validate_dlvir_parameters();
+    }
+    
+    std::shared_ptr<fx_local_volatility_surface> apply_dlvir_correction(
+        std::shared_ptr<fx_local_volatility_surface> base_surface,
+        const hull_white_parameters& domestic_hw,
+        const hull_white_parameters& foreign_hw) const {
+        
+        auto corrected_surface = std::make_shared<fx_local_volatility_surface_dlvir>();
+        
+        // Application de la correction sur toute la grille
+        auto time_grid = base_surface->get_time_grid();
+        auto strike_grid = base_surface->get_strike_grid();
+        
+        for (double time : time_grid) {
+            for (double strike : strike_grid) {
+                
+                double base_local_vol = base_surface->get_volatility(time, strike);
+                
+                // Calcul du facteur de correction DLVIR
+                double correction_factor = calculate_dlvir_correction_factor(
+                    time, strike, domestic_hw, foreign_hw);
+                
+                double corrected_local_vol = base_local_vol * correction_factor;
+                
+                corrected_surface->set_volatility(time, strike, corrected_local_vol);
+            }
+        }
+        
+        return corrected_surface;
+    }
+    
+private:
+    double calculate_dlvir_correction_factor(double time, double strike,
+                                           const hull_white_parameters& domestic_hw,
+                                           const hull_white_parameters& foreign_hw) const {
+        
+        // Facteur de correction analytique approximatif
+        
+        // Paramètres Hull-White
+        double a_d = domestic_hw.mean_reversion_speeds[0];
+        double a_f = foreign_hw.mean_reversion_speeds[0];
+        double sigma_d = domestic_hw.volatilities[0];
+        double sigma_f = foreign_hw.volatilities[0];
+        
+        // Corrélations
+        double rho_S_rd = params_.fx_domestic_ir_correlation;
+        double rho_S_rf = params_.fx_foreign_ir_correlation;
+        double rho_rd_rf = params_.domestic_foreign_ir_correlation;
+        
+        // Fonctions B(t,T) Hull-White
+        double B_d = (1.0 - std::exp(-a_d * time)) / a_d;
+        double B_f = (1.0 - std::exp(-a_f * time)) / a_f;
+        
+        // Terme de correction principal
+        double correction_term = rho_S_rd * sigma_d * B_d - rho_S_rf * sigma_f * B_f;
+        
+        // Moneyness effect
+        double moneyness = std::log(strike); // Assuming forward = 1 for simplicity
+        
+        // Facteur de correction final
+        double correction_factor = 1.0 + correction_term * moneyness * std::sqrt(time);
+        
+        // Bornes pour stabilité numérique
+        return std::max(std::min(correction_factor, 2.0), 0.5);
+    }
+    
+    void validate_dlvir_parameters() const {
+        XSIGMA_CHECK(params_.domestic_ir_volatility > 0, "Domestic IR volatility must be positive");
+        XSIGMA_CHECK(params_.foreign_ir_volatility > 0, "Foreign IR volatility must be positive");
+        XSIGMA_CHECK(std::abs(params_.fx_domestic_ir_correlation) <= 1.0, "Correlation must be in [-1,1]");
+        XSIGMA_CHECK(std::abs(params_.fx_foreign_ir_correlation) <= 1.0, "Correlation must be in [-1,1]");
+        XSIGMA_CHECK(std::abs(params_.domestic_foreign_ir_correlation) <= 1.0, "Correlation must be in [-1,1]");
+    }
+};
+```
+
+---
+
+## 📈 **Hull-White Calibration**
+
+### **Calibration des Paramètres Hull-White**
+
+#### **Méthode de Calibration**
+```cpp
+// Calibration Hull-White automatique dans Our project
+class hull_white_auto_calibrator {
+private:
+    struct hw_market_data {
+        std::vector<double> swap_rates;
+        std::vector<double> swap_maturities;
+        matrix<double> swaption_volatilities;
+        std::vector<double> swaption_expiries;
+        std::vector<double> swaption_tenors;
+    };
+    
+    hw_market_data market_data_;
+    
+public:
+    hull_white_parameters calibrate_hull_white_model(const hw_market_data& market_data) {
+        
+        market_data_ = market_data;
+        
+        hull_white_parameters calibrated_params;
+        
+        // Étape 1 : Calibration de la vitesse de retour à la moyenne
+        calibrated_params.mean_reversion_speeds = calibrate_mean_reversion_speeds();
+        
+        // Étape 2 : Calibration de la volatilité
+        calibrated_params.volatilities = calibrate_volatilities(calibrated_params.mean_reversion_speeds);
+        
+        // Étape 3 : Construction de la fonction theta
+        calibrated_params.theta_function = construct_theta_function(
+            market_data_.swap_rates, market_data_.swap_maturities, 
+            calibrated_params.mean_reversion_speeds[0]);
+        
+        // Validation de la calibration
+        validate_hull_white_calibration(calibrated_params);
+        
+        return calibrated_params;
+    }
+    
+private:
+    std::vector<double> calibrate_mean_reversion_speeds() const {
+        // Optimisation pour trouver la vitesse de retour à la moyenne
+        
+        auto objective_function = [&](double mean_reversion) -> double {
+            
+            double total_error = 0.0;
+            
+            // Calcul de l'erreur sur les swaptions
+            for (size_t i = 0; i < market_data_.swaption_expiries.size(); ++i) {
+                for (size_t j = 0; j < market_data_.swaption_tenors.size(); ++j) {
+                    
+                    double expiry = market_data_.swaption_expiries[i];
+                    double tenor = market_data_.swaption_tenors[j];
+                    double market_vol = market_data_.swaption_volatilities(i, j);
+                    
+                    // Volatilité modèle Hull-White
+                    double model_vol = calculate_hull_white_swaption_volatility(
+                        expiry, tenor, mean_reversion, 1.0); // volatilité temporaire
+                    
+                    double error = std::pow(model_vol - market_vol, 2);
+                    total_error += error;
+                }
+            }
+            
+            return total_error;
+        };
+        
+        // Optimisation unidimensionnelle
+        golden_section_optimizer optimizer;
+        double optimal_mean_reversion = optimizer.minimize(objective_function, 0.01, 0.5);
+        
+        return {optimal_mean_reversion};
+    }
+    
+    std::vector<double> calibrate_volatilities(const std::vector<double>& mean_reversion_speeds) const {
+        // Calibration de la volatilité pour reproduire les volatilités de swaptions
+        
+        double mean_reversion = mean_reversion_speeds[0];
+        
+        auto objective_function = [&](double volatility) -> double {
+            
+            double total_error = 0.0;
+            
+            for (size_t i = 0; i < market_data_.swaption_expiries.size(); ++i) {
+                for (size_t j = 0; j < market_data_.swaption_tenors.size(); ++j) {
+                    
+                    double expiry = market_data_.swaption_expiries[i];
+                    double tenor = market_data_.swaption_tenors[j];
+                    double market_vol = market_data_.swaption_volatilities(i, j);
+                    
+                    double model_vol = calculate_hull_white_swaption_volatility(
+                        expiry, tenor, mean_reversion, volatility);
+                    
+                    double error = std::pow(model_vol - market_vol, 2);
+                    total_error += error;
+                }
+            }
+            
+            return total_error;
+        };
+        
+        golden_section_optimizer optimizer;
+        double optimal_volatility = optimizer.minimize(objective_function, 0.001, 0.1);
+        
+        return {optimal_volatility};
+    }
+    
+    double calculate_hull_white_swaption_volatility(double expiry, double tenor,
+                                                   double mean_reversion, double volatility) const {
+        
+        // Formule analytique de volatilité de swaption Hull-White
+        
+        // Calcul des facteurs B pour les obligations
+        std::vector<double> B_factors;
+        for (double t = expiry; t <= expiry + tenor; t += 0.25) { // Quarterly payments
+            double B = (1.0 - std::exp(-mean_reversion * (t - expiry))) / mean_reversion;
+            B_factors.push_back(B);
+        }
+        
+        // Variance de la swaption
+        double variance = 0.0;
+        for (size_t i = 0; i < B_factors.size(); ++i) {
+            for (size_t j = 0; j < B_factors.size(); ++j) {
+                double covariance = calculate_hull_white_covariance(
+                    expiry, mean_reversion, volatility);
+                variance += B_factors[i] * B_factors[j] * covariance;
+            }
+        }
+        
+        return std::sqrt(variance / expiry);
+    }
+};
+```
+
+---
+
+## 🔗 **Correlation Calibration**
+
+### **Estimation des Corrélations**
+
+#### **Méthode d'Estimation**
+```cpp
+// Calibration des corrélations dans Our project
+class correlation_calibrator {
+public:
+    matrix<double> calibrate_correlation_matrix(
+        const std::vector<time_series>& historical_data,
+        const correlation_calibration_config& config) const {
+        
+        // Extraction des séries temporelles
+        auto fx_returns = extract_fx_returns(historical_data);
+        auto domestic_ir_changes = extract_ir_changes(historical_data, "DOMESTIC");
+        auto foreign_ir_changes = extract_ir_changes(historical_data, "FOREIGN");
+        auto fx_vol_changes = extract_volatility_changes(historical_data);
+        
+        // Calcul de la matrice de corrélation empirique
+        matrix<double> correlation_matrix(4, 4);
+        
+        // Corrélations FX-IR
+        correlation_matrix(0, 2) = calculate_correlation(domestic_ir_changes, fx_returns);
+        correlation_matrix(1, 2) = calculate_correlation(foreign_ir_changes, fx_returns);
+        
+        // Corrélations IR-IR
+        correlation_matrix(0, 1) = calculate_correlation(domestic_ir_changes, foreign_ir_changes);
+        
+        // Corrélations avec volatilité stochastique
+        correlation_matrix(2, 3) = calculate_correlation(fx_returns, fx_vol_changes);
+        correlation_matrix(0, 3) = calculate_correlation(domestic_ir_changes, fx_vol_changes);
+        correlation_matrix(1, 3) = calculate_correlation(foreign_ir_changes, fx_vol_changes);
+        
+        // Symétrie
+        for (size_t i = 0; i < 4; ++i) {
+            for (size_t j = 0; j < 4; ++j) {
+                if (i != j) {
+                    correlation_matrix(j, i) = correlation_matrix(i, j);
+                }
+            }
+        }
+        
+        // Diagonale
+        for (size_t i = 0; i < 4; ++i) {
+            correlation_matrix(i, i) = 1.0;
+        }
+        
+        // Validation et ajustement pour semi-définie positive
+        return ensure_positive_semidefinite(correlation_matrix);
+    }
+    
+private:
+    matrix<double> ensure_positive_semidefinite(const matrix<double>& correlation_matrix) const {
+        // Décomposition en valeurs propres
+        auto eigen_decomposition = compute_eigendecomposition(correlation_matrix);
+        
+        // Correction des valeurs propres négatives
+        for (double& eigenvalue : eigen_decomposition.eigenvalues) {
+            eigenvalue = std::max(eigenvalue, 1e-8);
+        }
+        
+        // Reconstruction de la matrice
+        auto corrected_matrix = reconstruct_matrix(eigen_decomposition);
+        
+        // Normalisation pour avoir des 1 sur la diagonale
+        return normalize_correlation_matrix(corrected_matrix);
+    }
+};
+```
+
+---
+
+*Cette section fournit une méthodologie complète de calibration pour le modèle DBX-ShortRate_FXSkewStochVol, intégrant les implémentations C++ de Our project avec les techniques avancées de PIV AutoFit, correction DLVIR, calibration Hull-White et estimation de corrélations.*

@@ -1,0 +1,1940 @@
+# The model DBOPT-CorrelationSkew
+
+## 1 Executive Summary
+
+The Global Model Risk Assessment is:
+
+Global Model Risk Assessment
+
+| | Rating | Justification |
+| --- | --- | --- |
+| Complexity | HIGH | The model has more than one asset with skew. |
+| Uncertainty | LOW | The model has no live trades. |
+| Reliance | HIGH | Pricing models have high reliance |
+
+*Table 2: Model risk assessment for DBOPT-RateDeterministic_FXMarket_AssetMarket_CorrelationSkew*
+
+| | Rating | Justification |
+| --- | --- | --- |
+| Complexity | HIGH | The model has more than one asset with skew. |
+| Uncertainty | LOW | The model has no live trades. |
+| Reliance | HIGH | Pricing models have high reliance |
+
+*Table 3: Model risk assessment for DBOPT-RateDeterministic_EquityBlackScholes_AssetMarket_CorrelationSkew*
+
+| | Rating | Justification |
+| --- | --- | --- |
+| Complexity | HIGH | The model has more than one asset with skew. |
+| Uncertainty | LOW | The model has no live trades. |
+| Reliance | HIGH | Pricing models have high reliance |
+
+*Table 4: Model risk assessment for DBOPT-RatesMarketAFSABR_FXMarket_EquityBlackScholes_CorrelationSkew*
+
+The uncertainty rating has been determined based on consideration of model inputs, relevant model limitations, the risk factor representation required for the products being modelled, the nature of the numerical implementation and calibration approaches employed. The complexity rating has been determined based on consideration of the number and nature of risk factors modelled including their interdependencies, the calibration approach employed, the mathematical specification of the model and where relevant, the environment of which the model is part. The reliance of all pricing models is high as the model outputs define the relevant officially reported metrics rather than merely informing them. Reduction of reliance on pricing model outputs is similarly inappropriate.
+
+### 1.1 Summary of main validation results
+
+The model DBOPT-CorrelationSkew is a pricing models used for the following purposes: Generate asset and liability fair value measurements reported in official books and records and/or generate risk sensitivities (i.e., for End of Day risk management purpose and/or feeding Risk and Capital calculation) and re-price positions under stress scenarios as a servicer model, in the context of regulatory stress tests (e.g. CCAR, in the context of Internal Risk in the Banking Book (IRRRBB, Delta EVE calculation) or in the context of full revaluation ("Full Reeval") of Stress Valuation (Risk-HistSim, SVAR). The model is developed and maintained by DBAanalytics, and is provided via dlls for use in Microsoft Excel, Python, Perl, and is made available in Kannon and Risk Engine (amend as required).
+
+The DBOPT model is an analytic and single horizon Monte Carlo model implementation that can be used for pricing derivatives on one or two underlyings that set at the same date. The model uses an AFSABR model for IR vol and PIV vol for FX, EQ and Asset.
+
+The models represent variations using two underlyings out of IR/EQ/FX/Asset where each underlying marginals are directly derived from market volatilities. The joint distribution of the 2 underlyings is modeled by a correlation skew copula.
+
+The purpose of the CorrelationSkew model is to price accurately 2D payoffs such as dual digitals and capture the correlation evidenced by dual digitals at different strikes. Simple copula models such as Gaussian or Gumbel produce no correlation skew or a correlation skew that is not rich enough to match the market prices of dual digitals at different strikes. A richer parametric correlation model is necessary to capture the correlation skew evidenced by dual digitals at various strikes. The corr skew model in this document gives more flexibility for a rich corr skew surface. One non parametric variations is tested in this document: TermSkew(TS).
+
+The model is appropriate for 2D payoff with underlyings setting at the same date such as dual digitals and contingent options.
+For path dependent correlation products such as callable dual digitals, the dynamic DBX correlation skew model should be used instead. Model configurations is:
+
+* TERMSKEW (TS): a copula approach using MC simulations
+
+The following PM pairs have been approved (note that the PM pairs identified as preferred in PRDS are denoted by "*" below):
+
+The model DBOPT-RateDeterministic_FXMarket_AssetMarket_CorrelationSkew with configurations
+
+DBOPT-RatesMarketDeterministic_FXMarket_AssetMarket_CorrelationSkew[TermSkew]
+
+is recommended for use with the following products:
+
+HybMultiDigital                            HybContingentOptMultiAssetBasket
+
+The model DBOPT-RateDeterministic_EquityBlackScholes_AssetMarket_CorrelationSkew with configurations
+
+DBOPT-RatesMarketDeterministic_Equity[BSANALYTIC]_AssetMarket_CorrelationSkew[TermSkew]
+
+is recommended for use with the following products:
+
+HybMultiDigital                            HybContingentOptMultiAssetBasket
+
+The model DBOPT-RatesMarketAFSABR_FXMarket_EquityBlackScholes_CorrelationSkew with configurations
+
+DBOPT-RatesMarketAFSABR_FXMarket[AUTO]_Equity[BSANALYTIC]_CorrelationSkew[TERMSKEW]
+
+is recommended for use with the following products:
+
+HybMultiDigital                            HybContingentOptMultiAssetBasket
+
+For the following usage(s):
+
+* End of day valuation and risk management.
+* As a servicer model employed in valuation subject to CCAR stress testing scenarios and HistSim Var.
+* For the calculation of Delta EVE under Interest Rate Risk in the Banking Book.
+
+The table below summarizes the valuation assessment per usage.
+
+| Usage | Recommended for Use (RFU) |
+| --- | --- |
+| EOD | YES |
+| HistSim | YES |
+| CCAR | YES |
+| IRRRBB | YES |
+
+*Table 5: Validation Assessment*
+
+The review undertaken did not reveal any flaws in the theory or the relevant implementations.
+
+Products labelled with "*" indicate that the approved model is primary.
+
+The model assumptions are detailed in the model description section 2.3.
+
+### 1.2 Limitations and Validation Findings Overview
+
+#### Model Limitations
+
+For the
+
+* DBOPT-RateDeterministic_FXMarket_AssetMarket_CorrelationSkew
+* DBOPT-RateDeterministic_EquityBlackScholes_AssetMarket_CorrelationSkew
+* DBOPT-RatesMarketAFSABR_FXMarket_EquityBlackScholes_CorrelationSkew
+
+models, the following model limitations have been identified, see Section 5.1.1:
+
+* Numerical[Monte-Carlo Error](DBOPT-CorrelationSkew[TS]): When DBOPT model is used with CorrelationSkew - TERMSKEW, Monte-Carlo simulations have an error associated with them that is function of the number of simulations used. ID-2865
+
+#### Validation Findings
+
+There are currently no validation findings.
+
+### 1.3 Control Overview
+
+The table below lists the conditions for use that have been raised to address model weaknesses identified in the course of validation. These are classified as Model Rule and should be monitored though the automated Model Parameter Monitoring process. All conditions for use are logged in MARS. Model parameters approved values and appropriate ranges are detailed in the section 6 and the parameter classification and accurate functioning of model rules is confirmed in section 5.
+
+#### 1.3.1 DBOPT-RateDeterministic_EquityBlackScholes_AssetMarket_CorrelationSkew
+
+##### 1.3.1.1 CURVE
+
+| Parameter | Condition For Use ID | Approved Range | DefaultValue | Description |
+| --- | --- | --- | --- | --- |
+| CURVE:: AveragingConvexity | [17778] | (VOL) | | Possible values are VOL (default) or FUNDINGVOL. VOL: when calculating WAVG rates with DBOPT model (typically 1B WAVG OIS), convexity is calculated with all inputted vols (DBOPTVOL and FUNDINGVOL). FUNDINGVOL when calculating WAVG rates with DBOPT model (typically 1B WAVG OIS), convexity is calculated with FUNDINGVOL. FUNDINGVOL is preferred value as this will make CURVE bootstrap and pricing more consistent. |
+
+*Table 6: CURVE object parameters used in the DBOPT-RateDeterministic_EquityBlackScholes_AssetMarket_CorrelationSkew model*
+
+##### 1.3.1.2 FUNDINGVOL
+
+| Parameter | Condition For Use ID | Approved Range | DefaultValue | Description |
+| --- | --- | --- | --- | --- |
+| FUNDING:: Type | [17775] | (SPOTFX) | | A FUNDING object of Type SPOTFX provides Spot FX rates for FUNDINGCURVE. FreqTimeVec, FrontLatticeFreq and DecayTime are used for the DS4 MonteCarlo to add background simulation time vector. Values can be "UNSET" (default) or numbers. When numbers are set, the convention of the background time vector generation is consistent with that of the DBX model. FrontLatticeFreq = UNSET means FrontLatticeFreq = FreqTimeVec, DecayTime = UNSET or 0, the background time vector is generated only with FreqTimeVec. When FreqTimeVec is set to UNSET and FrontLatticeFreq and DecayTime are set, a background time vector of FrontLatticeFreq is added until DecayTime. This is only the convention of FUNDINGVOL. |
+| FUNDINGVOL:: DecayTime | [17774] | FUNDINGVOL:: DecayTime unset | | FreqTimeVec, FrontLatticeFreq and DecayTime are used for the DS4 MonteCarlo to add background simulation time vector. Values can be "UNSET" (default) or numbers. When numbers are set, the convention of the background time vector generation is consistent with that of the DBX model. FrontLatticeFreq = UNSET means FrontLatticeFreq = FreqTimeVec, DecayTime = UNSET or 0, the background time vector is generated only with FreqTimeVec. When FreqTimeVec is set to UNSET and FrontLatticeFreq and DecayTime are set, a background time vector of FrontLatticeFreq is added until DecayTime. This is only the convention of FUNDINGVOL. |
+| FUNDINGVOL:: FreqTimeVec | [17777] | FUNDINGVOL:: FreqTimeVec unset | | FreqTimeVec, FrontLatticeFreq and DecayTime are used for the DS4 MonteCarlo to add background simulation time vector. Values can be "UNSET" (default) or numbers. When numbers are set, the convention of the background time vector generation is consistent with that of the DBX model. FrontLatticeFreq = UNSET means FrontLatticeFreq = FreqTimeVec, DecayTime = UNSET or 0, the background time vector is generated only with FreqTimeVec. When FreqTimeVec is set to UNSET and FrontLatticeFreq and DecayTime are set, a background time vector of FrontLatticeFreq is added until DecayTime. This is only the convention of FUNDINGVOL. |
+| FUNDINGVOL:: FrontLatticeFreq | [17773] | FUNDINGVOL:: FrontLatticeFreq unset | | FreqTimeVec, FrontLatticeFreq and DecayTime are used for the DS4 MonteCarlo to add background simulation time vector. Values can be "UNSET" (default) or numbers. When numbers are set, the convention of the background time vector generation is consistent with that of the DBX model. FrontLatticeFreq = UNSET means FrontLatticeFreq = FreqTimeVec, DecayTime = UNSET or 0, the background time vector is generated only with FreqTimeVec. When FreqTimeVec is set to UNSET and FrontLatticeFreq and DecayTime are set, a background time vector of FrontLatticeFreq is added until DecayTime. This is only the convention of FUNDINGVOL. |
+| FUNDINGVOL:: PolyOrder | [17802] | (1200, 1200-0.25) | | The flags PolyOrder and StateMaxFraction are used when pricing cash settled swaptions with collateral options by using DBOPTVOL with AnnuityMappingModel = SHORTRATE. When deriving the annuity mapping function, we need to get the conditional expectation of funding ADF w.r.t the LIBOR short rate. Currently we use the DS4 Monte Carlo with the PolyOrder and StateMaxFraction to get the conditional expectation. Defaults are PolyOrder ... 1200, StateMaxFraction ... 0.25 |
+| FUNDINGVOL:: ReinvestSpreadCalcMethod | [17776] | (EXACT) | | Describes how to handle Reinvest-Spread and Spread of PLAINZERO SECURITY when computing DS4 convexity with DBOPT model and CZeroCouponConvexity = YES. Possible values are EXACT (default) : throw an error when PLAINZERO SECURITY has non zero ReinvestSpread or Spread as we cannot calculate convexity analytically. APPROX : when PLAINZERO SECURITY has non zero Reinvest-Spread and/or Spread, calculate convexity by approximation as if these spread yield were coming from LIBOR compounding. As long as these spread are not too huge (like 10%), the approximation is accurate enough to capture convexity. The flags PolyOrder and StateMaxFraction are used when pricing cash settled swaptions with collateral options by using DBOPTVOL with AnnuityMappingModel = SHORTRATE. When deriving the annuity mapping function, we need to get the conditional expectation of funding ADP w.r.t the LIBOR short rate. Currently we use the DS4 Monte Carlo with the PolyOrder and StateMaxFraction to get the conditional expectation. Defaults are PolyOrder ... 1200, StateMaxFraction ... 0.25 |
+| FUNDINGVOL:: StateMaxFraction | [17779] | (0.25) | | The flags PolyOrder and StateMaxFraction are used when pricing cash settled swaptions with collateral options by using DBOPTVOL with AnnuityMappingModel = SHORTRATE. When deriving the annuity mapping function, we need to get the conditional expectation of funding ADP w.r.t the LIBOR short rate. Currently we use the DS4 Monte Carlo with the PolyOrder and StateMaxFraction to get the conditional expectation. Defaults are PolyOrder ... 1200, StateMaxFraction ... 0.25 |
+
+*Table 10: FUNDINGVOL object parameters used in the DBOPT-RateDeterministic_FXMarket_AssetMarket_CorrelationSkew model*
+
+#### 1.3.2.3 CORRELATION
+
+| Parameter | Condition For Use ID | Approved Range | DefaultValue | Description |
+| --- | --- | --- | --- | --- |
+| VOL:: DIFFUSE FULLDRIVER | [17828] | (NO) | | DiffuseFullDriver can take value Yes or No (default). When it is set to Yes all the underlying in the driver is diffused. If it is set to no just the underlying needed for the security pricing are diffused and the driver is reduced accordingly. No changes are done on the driver weights as the driver performance is always normalized by the forward driver performance. |
+| VOL:: SkewConvexityType | [17968] | (STANDARD) | | Allows the user to set a non-standard definition of SKEW and SMILE. Currently, this is available when SkewType is equal to SABR3FORMULAPD. It can be STANDARD (the default value) or SABR3. The default (and only allowed value) for all other slice configurations is STANDARD. |
+| VOL:: TermSkewSmoothing | [842, 12089] | if (VOL:: CorrelationInterpolationSpace == TERMSKEW) then (VOL:: TermSkewSmoothing == YES); if (VOL:: CorrelationInterpolationSpace == TERMSKEW) then (VOL:: TermSkewSmoothing == YES) | | This can be set to YES or NO and defaults to NO. This affects how we pick up the correlation for the first iteration of the algorithm defining the TERMSKEW copula. NO can lead to instabilities in case of steep correlation skew. DBAanalytics research paper 9430 gives an exact definition of this parameter. |
+
+*Table 11: CORRELATION object parameters used in the DBOPT-RateDeterministic_FXMarket_AssetMarket_CorrelationSkew model*
+
+#### 1.3.3 DBOPT-RatesMarketAFSABR_FXMarket_EquityBlackScholes_CorrelationSkew
+
+##### 1.3.3.1 CURVE
+
+| Parameter | Condition For Use ID | Approved Range | DefaultValue | Description |
+| --- | --- | --- | --- | --- |
+| CURVE:: AveragingConvexity | [17778] | VOL | | Possible values are VOL (default) or FUNDINGVOL. VOL: when calculating WAVG rates with DBOPT model (typically 1B WAVG OIS), convexity is calculated with all inputted vols (DBOPTVOL and FUNDINGVOL). FUNDINGVOL when calculating WAVG rates with DBOPT model (typically 1B WAVG OIS), convexity is calculated with FUNDINGVOL. FUNDINGVOL is preferred value as this will make CURVE bootstrap and pricing more consistent. |
+
+*Table 12: CURVE object parameters used in the DBOPT-RatesMarketAFSABR_FXMarket_EquityBlackScholes_CorrelationSkew*
+
+##### 1.3.3.2 FUNDINGVOL
+
+| Parameter | Condition For Use ID | Approved Range | DefaultValue | Description |
+| --- | --- | --- | --- | --- |
+| FUNDING:: Type | [17775] | (SPOTFX) | | A FUNDING object of Type SPOTFX provides Spot FX rates for FUNDINGCURVE. FreqTimeVec, FrontLatticeFreq and DecayTime are used for the DS4 MonteCarlo to add background simulation time vector. Values can be "UNSET" (default) or numbers. When numbers are set, the convention of the background time vector generation is consistent with that of the DBX model. FrontLatticeFreq = UNSET means FrontLatticeFreq = FreqTimeVec, DecayTime = UNSET or 0, the background time vector is generated only with FreqTimeVec. When FreqTimeVec is set to UNSET and FrontLatticeFreq and DecayTime are set, a background time vector of FrontLatticeFreq is added until DecayTime. This is only the convention of FUNDINGVOL. |
+| FUNDINGVOL:: DecayTime | [17774] | FUNDINGVOL:: DecayTime unset | | FreqTimeVec, FrontLatticeFreq and DecayTime are used for the DS4 MonteCarlo to add background simulation time vector. Values can be "UNSET" (default) or numbers. When numbers are set, the convention of the background time vector generation is consistent with that of the DBX model. FrontLatticeFreq = UNSET means FrontLatticeFreq = FreqTimeVec, DecayTime = UNSET or 0, the background time vector is generated only with FreqTimeVec. When FreqTimeVec is set to UNSET and FrontLatticeFreq and DecayTime are set, a background time vector of FrontLatticeFreq is added until DecayTime. This is only the convention of FUNDINGVOL. |
+| FUNDINGVOL:: FreqTimeVec | [17777] | FUNDINGVOL:: FreqTimeVec unset | | FreqTimeVec, FrontLatticeFreq and DecayTime are used for the DS4 MonteCarlo to add background simulation time vector. Values can be "UNSET" (default) or numbers. When numbers are set, the convention of the background time vector generation is consistent with that of the DBX model. FrontLatticeFreq = UNSET means FrontLatticeFreq = FreqTimeVec, DecayTime = UNSET or 0, the background time vector is generated only with FreqTimeVec. When FreqTimeVec is set to UNSET and FrontLatticeFreq and DecayTime are set, a background time vector of FrontLatticeFreq is added until DecayTime. This is only the convention of FUNDINGVOL. |
+| FUNDINGVOL:: FrontLatticeFreq | [17773] | FUNDINGVOL:: FrontLatticeFreq unset | | FreqTimeVec, FrontLatticeFreq and DecayTime are used for the DS4 MonteCarlo to add background simulation time vector. Values can be "UNSET" (default) or numbers. When numbers are set, the convention of the background time vector generation is consistent with that of the DBX model. FrontLatticeFreq = UNSET means FrontLatticeFreq = FreqTimeVec, DecayTime = UNSET or 0, the background time vector is generated only with FreqTimeVec. When FreqTimeVec is set to UNSET and FrontLatticeFreq and DecayTime are set, a background time vector of FrontLatticeFreq is added until DecayTime. This is only the convention of FUNDINGVOL. |
+
+*Table 13: FUNDINGVOL object parameters used in the DBOPT-RatesMarketAFSABR_FXMarket_EquityBlackScholes_CorrelationSkew*
+
+##### 1.3.3.3 CORRELATION
+
+## 2 Introduction to Model and Validation
+
+### 2.1 Validation Scope
+
+The scope of the validation is detailed in section 1.1.
+
+Products with similar features from a valuation perspective are grouped together and tested as a single consistent group wherein testing results for a representative product are deemed applicable and able to confer equivalent inference to the whole product group. The product grouping logic is presented in section 2.2.
+
+### 2.2 Product Description
+
+Below is the list of product definitions for the models:
+
+* DBOPT-RateDeterministic_FXMarket_AssetMarket_CorrelationSkew
+* DBOPT-RateDeterministic_EquityBlackScholes_AssetMarket_CorrelationSkew
+* DBOPT-RatesMarketAFSABR_FXMarket_EquityBlackScholes_CorrelationSkew
+
+| Product Name (Long Product Name) | Product Description |
+| --- | --- |
+| HybMultiDigital | In the 2D scope of this document, this product pays a fixed coupon if 2 digital conditions are met at expiry. |
+| HybContingentOptMultiAssetBasket | In the 2D scope of this document, this product pays a European option payoff on the condition that a digital is breached by another underlying at expiry. In particular, the HybContingentOptMultiAssetBasket product can correspond to a contingent swaption. In this case, the payoff is a physically or cash settled swaption that can only be exercised if another asset (FX, Equity or IR) is above and/or below given barriers. The SECURITY used to represent this payoff is ASWAPTION. The usual ASWAPTION flags are used to define the underlying swaption. The extra condition to exercise the payoff are defined with a trigger subtable in the ASWAPTION security. The contingent swaption pricing pricer is activated when trigger.type = SPOT. The swaption has to be a vanilla one-bullet and have only one exercise date. |
+
+#### 2.2.1 Contingent Swaption
+
+We call a contingent swaption a swaption that can only be exercised if some range condition is met on another underlying. The payoff of a payer contingent swaption has the general form:
+
+$$V_T = A_{T,\tau} (S_T - K)_+ \cdot 1_{\{X_T \in C\}}$$
+
+The swaption can either be:
+* cash-settled
+  * in which case the annuity in the above formula is the cash-settled annuity function
+  * OptionType = Cash/Put (Call/Straddle)
+* physically-settled
+  * in which case the annuity is the PV01 of the underlying swap
+  * OptionType = OIS/Put (Call/Straddle)
+
+The index condition can be an EQUITY, a CMS, a LIBOR, an FXRATE or an ASSET.
+This kind of contingent swaption is priced in DBOPT within the SIMCOPULA framework and the swaption has to be bullet and have only one exercise date.
+In order for the swaption to be bullet, the Notional needs to be constant:
+
+* no Cashflows subtable with non-constant notionals
+* StrikeType shouldn't be set to COMPOUNDNOTIONAL
+
+##### 2.2.1.1 Physically-settled Swaptions
+
+For a physically-settled payer swaption, if the swap rate between time $T$ and $T + \tau$ as seen at time $T$ is denoted $S(T, T, T+\tau)$, the value can be denoted
+
+$$A(0, T, T + \tau) \cdot E^{Q_A}[\max(S(T, T, T + \tau) - K, 0)]$$
+
+where $A(0, T, T + \tau)$ is the annuity of the swap as seen at time 0.
+The implied volatility used to price such swaptions can be directly read off from the input VOL (perhaps after performing volatility conversions).
+
+##### 2.2.1.2 Single rate payoffs priced via replication
+
+Suppose we want to price a function of the swap rate $S(T, T + \tau)$ as seen at time $T$, paid at $T_P$. The valuation in the $T_P$ forward and annuity measures can be written
+
+$$E^{Q_{T_P}}[f(S)] = \frac{A(0, T, T + \tau)}{P(0, T_P)} \cdot E^{Q_A}\left[f(S)\frac{P(T, T_P)}{A(T, T, T + \tau)}\right]$$
+
+* Annuity mapping assumption
+
+The expectation (1) cannot be computed without further assumptions because $\frac{P(T, T_P)}{A(T, T, T + \tau)}$ is not a function of the swap rate $S_T$.
+And in the annuity measure $Q_A$ only the swap rate distribution is known from the physically-settled swaption prices.
+We define the function
+
+$$G_{T_P}(S) = E^{Q_A}\left[\frac{P(T, T_P)}{A(T, T, T + \tau)}|S_T = S\right]$$
+
+so that the general pricing formula can be written (this is just a formal projection of $\frac{P(T, T_P)}{A(T, T, T + \tau)}$ onto $S_T$ so this is still an exact formula) as
+
+$$E^{Q_A}[G_{T_P}(S)f(S)]$$
+
+This shows that any payoff that is a function of a single swap rate (this will typically be a single rate CMS payoff or a cash-settled swaption) can be priced using (2) provided the annuity mapping function $G_{T_P}$ is known.
+The function $G_{T_P}$ is called the Annuity Mapping Function.
+The label AnnuityMappingModel in DBOPTVOL decides which of the different annuity mapping function is used:
+
+* AnnuityMappingModel= Default: is a method historically used by the industry where the cash DV01 is calculated with the swap rate observed now. Though this is market practice for floating swaption prices, it is not strictly correct (i.e. it ignores convexity from curve dynamics)
+* AnnuityMappingModel=SHORTRATE: calculates the annuity mapping function with the Hull White model. More precisely, the implied flat LIBOR short rate vol is auto-calibrated from the ATM physical swaption vol from the DBOPTVOL and a flat mean reversion through the MEANREV subtable of the DBOPTVOL (mandatory input).
+
+##### 2.2.1.3 Cash-settled Swaptions
+
+The value of a cash-settled payer swaption is
+
+$$E^{Q_{T_P}}[A_{CS}(S_T)(S_T - K)_+]$$
+
+where $A_{CS}(S)$ is the cash-settled annuity function which depends on the tenor $T$ of the swap and the frequency of the fixed leg $\tau$:
+
+$$A_{CS}(S) = \frac{1}{n}\sum_{i=1}^n\frac{1}{(1+S\tau)^i}$$
+
+This is an example of (1) with $f(S) = A_{CS}(S)(S - K)_+$.
+For cash-settled receiver swaptions the payoff is $f(S) = A_{CS}(S)(K - S)_+$.
+
+#### 2.2.2 Product Grouping Tables
+
+The table below describes the salient features of all products approved for the models:
+
+* DBOPT-RateDeterministic_FXMarket_AssetMarket_CorrelationSkew
+* DBOPT-RateDeterministic_EquityBlackScholes_AssetMarket_CorrelationSkew
+* DBOPT-RatesMarketAFSABR_FXMarket_EquityBlackScholes_CorrelationSkew
+
+Products that are tested are marked in bold font.
+
+| | Underlying | Coupon Structure | Underlying SpecType | Option | Barrier | Path-Dependent | Basket-Function | QuantoComposer |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| HybMultiDigital | Commodity/Equity/FX-Industrials | DigiCpn | | European | | | | |
+| HybContingentOptMultiAssetBasket | Commodity/Equity/FX-Industrials | EuroCpn | | European | | | | |
+
+*Figure 1: The product grouping table for all 6 models*
+
+#### 2.2.3 Portfolio Composition and PV of Trades
+
+The following models do not have any live trades as on 28-02-2022.
+
+* DBOPT-RateDeterministic_FXMarket_AssetMarket_CorrelationSkew
+* DBOPT-RateDeterministic_EquityBlackScholes_AssetMarket_CorrelationSkew
+* DBOPT-RatesMarketAFSABR_FXMarket_EquityBlackScholes_CorrelationSkew
+
+### 2.3 Model Description
+
+#### 2.3.1 Model Parameters and Market Inputs
+
+In this section, we give an overview of the market inputs and the main model parameters.
+The model parameters are more detailed in section 4.6.2.
+
+##### 2.3.1.1 Model parameters
+
+* DBOPT:
+  * NumberSims: NumberSims controls the number of Monte-Carlo simulations in SIMCOPULA pricer, i.e. when CopulaMethod=SIMCOPULA. The default value is 2000.
+  * Seed: Seed is an integer for the random number generator. Cycling this value over different integers gives an idea of the seed variance associated with a given product.
+  * NumberSeedVarianceRuns: When NumberSeedVarianceRuns is greater than one, the total number of Monte-Carlo simulations is NumberSeedVarianceRuns × NumberSims.
+  * CopulaMethod: CopulaMethod must be set to SIMCOPULA for this model.
+* Correlation:
+  * TermSkewMaxIter: TermSkewMaxIter specifies the number of iterations that are used to produce the pairwise underlying values obtained through the correlation skew model.
+  * TermSkewSmoothing: TermSkewSmoothing must be set to YES to improve stability in presence of a steep correlation skew.
+  * InterpType: InterpType defines the method used for interpolation in time between two CorrelationSkewTargets matrices. It defaults to LINEAR.
+  * CorrelationInterpolationSpace: The correlation skew model with CorrelationInterpolationSpace = TERMSKEW can be used for DBOPT SIMCOPULA (CopulaMethod = SIMCOPULA) model.
+  * QuantoCorrelationInterpolationSpace: QuantoCorrelationInterpolationSpace is only relevant when pricing a trade with quanto and CorrelationInterpolationSpace |= TIME. For now, only QuantoCorrelationInterpolationSpace = TIME is allowed. This is to emphasize that the quanto adjustment is not computed from the correlation skew parameters.
+
+##### 2.3.1.2 Market inputs
+
+* Domestic (and foreign) interest rates curves and volatilities
+* FX spot and volatility
+* Equity spot, repo forward curve and a schedule of discrete dividends and continuous dividends and volatility
+* Correlation values
+
+#### 2.3.2 DBOPT
+
+The DBOPT model is an analytic and single horizon Monte Carlo model implementation that can be used for pricing derivatives on one or two underlyings that set at the same date.
+
+#### 2.3.3 Model Inputs - Calibration
+
+An example calibration instrument is dual digitals. In this case, model inputs are Gaussian implied correlations for dual digitals. Let's consider an example where the calibration instruments are 4 dual digitals. This translates into the following Gaussian implied correlations:
+
+| | 0.60% | 1.20% |
+| --- | --- | --- |
+| 3000 | 9.53% | 23.58% |
+| 3600 | 12.43% | 61.30% |
+
+*Figure 2: Example of inputs: Gaussian implied correlations for dual digitals*
+
+The DBOPT model TERMSKEW can then be calibrated to match the four dual digitals above. This translates into a correlation skew grid:
+
+| | 0.60% | 1.20% |
+| --- | --- | --- |
+| 3000 | 6.63% | 20.00% |
+| 3600 | -5.92% | 84.81% |
+
+*Figure 3: Correlation skew grid - TS*
+
+If we plot the correlation skew for a grid of dual digitals, we obtain the following interpolations:
+
+| | 0.20% | 0.40% | 0.60% | 0.80% | 1.00% | 1.20% | 1.40% | 1.60% |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 2600 | 7.51% | 7.81% | 9.31% | 13.16% | 18.03% | 21.71% | 22.44% | 21.83% |
+| 2800 | 7.51% | 7.86% | 9.52% | 13.78% | 18.18% | 22.13% | 22.81% | 22.04% |
+| 3000 | 7.24% | 7.64% | 9.53% | 14.28% | 19.31% | 23.58% | 24.34% | 23.39% |
+| 3200 | 6.07% | 6.90% | 10.19% | 18.16% | 27.20% | 34.07% | 35.46% | 34.34% |
+| 3400 | 5.08% | 6.14% | 11.15% | 23.32% | 37.18% | 47.93% | 50.40% | 49.48% |
+| 3600 | 4.23% | 5.90% | 12.43% | 28.01% | 46.41% | 61.30% | 66.74% | 67.33% |
+| 3800 | 2.28% | 3.88% | 10.22% | 25.14% | 42.88% | 59.46% | 69.26% | 73.13% |
+| 4000 | 0.48% | 1.66% | 8.00% | 22.46% | 35.82% | 51.35% | 63.54% | 70.71% |
+
+*Figure 4: Correlation skew grid - TS - interpolations*
+
+#### 2.3.4 Factor based correlation skew copula (TermSkew)
+
+##### 2.3.4.1 Introduction
+The aim of this copula is to produce a correlation skew that is intuitive and can easily be calibrated to dual calls/puts or dual digitals. A requirement from the business is to have a sticky strike correlation skew. This correlation skew copula is constructed using a Monte Carlo numerical technique.
+
+##### 2.3.4.2 2d copula
+Model parameters of this model are a 2d grid of pairwise correlations like quantities that are a function of the two underlying levels $(L_1, L_2)$. Interpolation is linear on a grid of input values. The following pairwise Cholesky decomposition from independent normal deviates $Z_1$ and $Z_2$ is applied, where $\rho_k = \rho(ATM_1, ATM_2)$:
+
+$X_1^{(1)} = \sqrt{\frac{1 + \rho_k}{2}}Z_1 + \sqrt{\frac{1 - \rho_k}{2}}Z_2$
+
+$X_2^{(1)} = \sqrt{\frac{1 + \rho_k}{2}}Z_1 - \sqrt{\frac{1 - \rho_k}{2}}Z_2$
+
+In this first iteration, $X_1^{(1)}$ and $X_2^{(1)}$ are gaussian hence can easily be mapped into uniform deviates $U_1^{(1)}$ and $U_2^{(1)}$. By construction these uniform deviates $U_1^{(1)}$ and $U_2^{(1)}$ follow a gaussian copula of parameter $\rho_{jk}$. The underlying marginals are then applied
+
+$A_i^{(1)} = F_i^{-1}(U_i^{(1)})$
+
+Cumulative distribution functions $F_i(x)$ of each underlying under the payment measure are assumed to be known and inversible. Pairwise $\rho_k = \rho(A_1^{(1)}, A_2^{(1)})$ is then defined and the same mapping as above is applied to obtain $X^{(2)}$, $U^{(2)}$ and $A^{(2)}$:
+
+$X_1^{(2)} = \sqrt{\frac{1 + \rho_k}{2}}Z_1 + \sqrt{\frac{1 - \rho_k}{2}}Z_2$
+
+$X_2^{(2)} = \sqrt{\frac{1 + \rho_k}{2}}Z_1 - \sqrt{\frac{1 - \rho_k}{2}}Z_2$
+
+From this second iteration, $X_1^{(2)}$ and $X_2^{(2)}$ are not gaussian. To map them into uniform deviates, a simple numerical approach is to take the ranks of simulated $X_1^{(2)}$ and $X_2^{(2)}$ when sorting them in ascending order.
+
+$U_i^{(2)} = \frac{rank_i X_i^{(2)} - 0.5}{N_{sims}}$
+
+$A_i^{(2)} = F_i^{-1}(U_i^{(2)})$
+
+By construction $A_1^{(2)}$ and $A_2^{(2)}$ are pairwise underlying values that follow a valid copula model.
+$Z_1$ and $Z_2$ are kept the same for all iterations. TermSkewMaxIter specifies the number of iterations. Even with TermSkewMaxIter=1, the model defines a valid correlation skew copula.
+
+##### 2.3.4.3 Implementation
+CorrelationInterpolationSpace=TERMSKEW and CopulaMethod=SIMCOPULA, hence corresponding to MC simulations for a single horizon date. When not specified, TS uses TermSkewMaxIter=3 and 50K simulations.
+
+##### 2.3.4.4 Comments
+
+* The model was defined iteratively because of the desired definition of correlation as a function of underlying levels ("stickiness strikeness"). If correlation ρ(S1, S2) can be defined as a function of orthogonal factors $Z_F$ and $Z_S$, then ρ(S1, S2) can be defined and no further iteration is required.
+* The model was defined in MC to keep intuitive notations, but a 2D integration grid could be used. As will be shown in this document, using SIMCOPULA instead of 2D integration only has a limited impact on stability as only a single simulation date is considered unlike typical MC engines like DBX.
+
+#### 2.3.5 Rates:AFSABR
+
+AFSABR for IR with autocalibration to CMS skew.
+
+#### 2.3.6 FX, EQ and Asset:PIV
+
+PIV with DSLV.
+
+### 2.4 Feeder and Servicer Models
+
+The model DBOPT-CorrelationSkew has no direct servicer or feeder models.
+
+### 2.5 Model Change Description
+
+DBAanalytics model developers log model changes in release notes, which are available through a dedicated website. In the release notes, model developers identify the scope of the changes made for the Product-Model combination if it is related to and how it can be identified through the library interface. Pricing model changes are categorized into major, minor, technical and non-model error. The proposed change category is reviewed and agreed by MoRM on the DBAanalytics website.
+The changes not relating to pricing models or risk codes are currently not subject to validation. MoRM review the classification to ensure no pricing model related changes are misclassified. MoRM will only validate major and minor classified model changes.
+
+#### 2.5.1 Bug fix: SIMCOPULA when pricing a Quanto Rangeswap: R_500_46
+
+##### 2.5.1.1 Model Change Description
+Previously, the marginals of the underlying were not adjusted when needed and thus didn't take into account quanto adjustment.
+
+Now the quanto adjustment of marginals is computed and stored separately given to the CORR object. To avoid ambiguity by having both skew and non-skew correlation correlation, a new flag QuantoCorrelationInterpolationSpace (default is same value as CorrelationInterpolationSpace) has been introduced and pricing with TIME has been enabled.
+
+Setting it to TIME means that the quanto adjustment of the marginals uses a flat correlation (Gaussian/Copula) and takes the correlation found in the CorrelationMatrix matrix of the CORR object. The correlation skew (TermSkew for instance) is only used to build the copula. This means there is a small inconsistency when there is also correlation skew for the same level of correlation of the correlation skew. If QuantoCorrelationInterpolationSpace is not set to TIME and there is correlation skew, then the pricing will throw an error.
+
+##### 2.5.1.2 Quanto Rangeswap with Correlation Skew: Pricing Process
+We describe here the pricing process of a Quanto Rangeswap with Correlation Skew.
+
+###### 2.5.1.2.1 Quanto pricing
+A Quanto product is one where a rate $R$ denoted in one currency $d$ is paid in another currency $f$. Suppose the payoff in question is denoted $f(R)$ paying at time $T_P$. We denote by $X(t)$ the FX rate $f/d$ at time $t$. The value (denominated in $f$) of our payoff can be written
+
+$V_0^f = DF^f(0, T_P) \cdot E^{Q_f}[f(R)]$
+
+Let's consider the case of a domestic asset paid in the $f$ currency. The payoff at time $T$ is $S^d(T) \cdot 1_f$. Converted to the domestic currency, the payoff in the domestic currency writes
+
+$V_0^d = DF^d(0, T) \cdot E^{Q_d}[S^d(T) \cdot X(T)]$
+
+The choice in DBA is to proceed in the payment measure $Q_f$, so the payoff computed is
+
+$V_0^f = DF^f(0, T) \cdot E^{Q_f}[S^d(T)]$
+
+So the idea is to compute the quanto marginal: the distribution of $S$ under the payment measure $Q_f$.
+
+###### 2.5.1.2.2 Generating the quanto marginal
+Note that a standard Gaussian copula is always used to generate the quanto marginal. The flat correlations input are used at this stage. $Q_f$.
+The aim is to know $E^{Q_f}[S^d(T)]$ which is equivalent to knowing $E^{Q_f}[S^d(T) \cdot X(T)]$ so the idea is to know the marginal distributions of $S^d$ and $X^d$ under the domestic measure $Q_f$. This is straightforward:
+
+* Option prices on $S^d$ paid in $d$ give the $S$ marginal in the domestic measure: $F_S^d(x_1)$
+* Similarly, the FX vol surface gives the $X$ marginal in the domestic measure: $F_X^d(x_2)$
+* Then, the standard Gaussian copula (flat correlations input) is used to compute the joint distribution: $F^d(x_1, x_2) = C(F_S^d(x_1), F_X^d(x_2))$
+* Then, pricing puts/digital puts on the quantoed underlying $E^{Q_f}[X(T)_{S^d(T) < K}]$ using $F^d(x_1, x_2)$ gives the quanto marginal: $F_S^f$: the distribution of $S^d$ under the payment measure $Q_f$
+
+All the steps described above use 1D/2D integration.
+
+###### 2.5.1.2.3 Pricing the quanto payoff
+
+* As described above, the pricing is done in the payment measure where the $F_S^f$ is now available.
+* Obtaining the distribution of $X$ in the payment measure $F_X^f$ is also straightforward.
+* At this step, when pricing the payoff, any correlation skew input will be used.
+
+The three ingredients above give the joint distribution under the payment measure $F^f(x_1, x_2) = C(F_S^f(x_1), F_X^f(x_2))$. The pricing of payoff on the quantoed underlying is now straightforward.
+The payoff computation uses SIMCOPULA so Monte Carlo methods.
+
+###### 2.5.1.2.4 Quanto payoff example: a quanto single digital
+We consider the quanto single digital paying at time $T$:
+
+$1_{S^d(T) \geq L_S} \cdot 1_{S(T) \leq L_X}$
+
+This amount in paid in the foreign currency $f$.
+Let's consider the following trade:
+
+* domestic currency $d$ is EUR, payment currency $f$
+* Maturity is 1Y, Notional = 10k, $L_S$ = 3600 and $L_X$ = 1.22
+* FX rate $X$ is equal to one unit of domestic currency $d$ in payment currency $f$
+* $S$ is a domestic equity underlying EUR STOXX.
+
+The price in the domestic currency writes
+
+$V_0 = \frac{1}{X_0} \cdot DF^f(0, T) \cdot E^{Q_f}[1_{S^d(T) \geq L_S}]$
+
+So what is needed here is the distribution of $S$ under the payment forward measure $Q_f$. The distribution of $X$ under $Q_f$ is already available, it is the value in $f$ of one unit of $d$.
+Similarly to the description above, $F_S^d(x_1)$, $F_X^d(x_2)$ and the standard Gaussian copula give the quanto marginal $F_S^f(x_1)$.
+Then $F_S^f(x_1)$, $F_X^f(x_2)$ and the correlation skew give the price $V_0$.
+
+#### 2.5.1.3 Convergence Test
+
+In this section we test the convergence of the Monte Carlo pricer for the quanto digital. We check the convergence of the quanto digital price. We compute the error caused by seed variance ($Error = \frac{Std(NumberOfRealizations)}{Average}$). Tests pass if ratio declines rapidly when NumberSims increases.
+
+![Figure 5: Price Convergence](./Fig/5.png)
+
+Test passes as the Error decreases when NumberSims increases.
+
+#### 2.5.1.4 Equity Spot Stress Test
+
+##### 2.5.1.4.1 Price Stability
+As the Equity spot increases, the KO probability decreases, and the price should increase.
+
+![Figure 6: Stability - Price - EQ Spot relative shift](./Fig/6.png)
+
+Test passes as the price increases when increasing the Equity spot.
+
+##### 2.5.1.4.2 Equity Delta Stability
+The Equity Delta should change smoothly when shifting the Equity spot and its behaviour should be in line with the behaviour of the price when shifting the Equity Spot.
+
+![Figure 7: Stability - Equity Delta - EQ Spot relative shift](./Fig/7.png)
+
+Test passes as, when shifting the Equity Spot, the Equity Delta varies smoothly and its behaviour is in line with the price behaviour:
+* The trade being initially OTM, a negative shift of the Equity spot, gives a zero price, accordingly the Equity Delta is equal to zero
+* when increasing the spot, the trade gets ITM, the price increases, the Equity delta is positive accordingly
+* for higher spot values, the price increase flattens, the Equity delta decreases accordingly
+
+#### 2.5.1.5 FX Spot Stress Test
+
+##### 2.5.1.5.1 Price Stability
+As the FX spot increases, the KO probability decreases, and the price should increase. For higher FX spot values, there's no impact of the KO barrier anymore but given that the price writes
+$$V_0^d = \frac{1}{X_0} \cdot DF^f(0, T) \cdot E^{Q_f}[1_{S(T) \geq L_S} \cdot 1_{S(T) \leq L_X}]$$
+increasing the FX spot should decrease the price.
+
+![Figure 8: Stability - Price - FX Spot relative shift](./Fig/8.png)
+
+Test passes as the price increases when increasing the FX spot and decreases for higher FX spot values.
+
+##### 2.5.1.5.2 FX Delta Stability
+The FX Delta should change smoothly when shifting the Equity spot and its behaviour should be in line with the price behaviour when shifting the Equity spot.
+
+![Figure 9: Stability - FX Delta - FX Spot relative shift](./Fig/9.png)
+
+Test passes as, when shifting the FX spot, the FX Delta varies smoothly and its behaviour is in line with the price behaviour:
+* The trade being initially OTM, a negative shift of the FX spot, gives a zero price, accordingly the FX Delta is equal to zero
+* when increasing the spot, the trade gets ITM, the price increases, the FX delta is positive accordingly
+* for higher spot values, the price decreases, the FX delta gets negative accordingly
+
+#### 2.5.1.6 FX PIV - ATM Vol Stress Test
+
+##### 2.5.1.6.1 Expected Price Behaviour when shifting FX ATM Vol
+The trade we're considering is a quanto dual single digital where the price writes:
+$$V_0^d = \frac{1}{X_0} \cdot DF^f(0, T) \cdot E^{Q_f}[1_{S(T) \geq L_S} \cdot 1_{S(T) \geq L_X}]$$
+
+In order to understand the expected price behaviour when shifting FX ATM Vol, we start by considering 2 simpler trades:
+* Quanto single digital on Equity: the payoff writes $1_{S(T) \geq L_S}$ paid in $f$.
+* Single digital on FX: the payoff writes $1_{X(T) \geq L_X}$ paid in $f$.
+
+So that we have the following 3 trades with the following prices:
+* Quanto single digital on Equity:
+$$V_0^{d,EQ} = \frac{1}{X_0} \cdot DF^f(0, T) \cdot E^{Q_f}[1_{S(T) \geq L_S}]$$
+* Single digital on FX:
+$$V_0^{d,FX} = \frac{1}{X_0} \cdot DF^f(0, T) \cdot E^{Q_f}[1_{X(T) \geq L_X}]$$
+* Quanto dual single digital on Equity and FX:
+$$V_0^d = \frac{1}{X_0} \cdot DF^f(0, T) \cdot E^{Q_f}[1_{S(T) \geq L_S} \cdot 1_{S(T) \geq L_X}]$$
+
+In order to describe the prices behaviours w.r.t the FX ATM Vol, we consider the following Black & Scholes setting:
+The Equity dynamics under the domestic risk-neutral measure $Q^d$ write
+$$\frac{dS_t}{S_t} = r^d dt + \sigma dW_t^d$$
+The FX dynamics of $X_t$, the value of one unit of $d$ in $f$, under the foreign risk-neutral measure $Q^f$, write
+$$\frac{dX_t}{X_t} = (r^f - r^d)dt + \sigma_X dW_t^f$$
+with flat correlation $d < W^d, W^f >_t = \rho dt$
+
+* Quanto single digital on Equity: Expected Price Behaviour when shifting FX ATM Vol
+$$V_0^{d,EQ} = \frac{1}{X_0} \cdot DF^f(0, T) \cdot E^{Q_f}[1_{S(T) \geq L_S}] = \frac{1}{X_0} \cdot DF^f(0, T) \cdot \frac{1}{X(T)} \cdot 1_{S(T) \geq L_S}$$
+
+Back from forward measures $Q_T$ to risk-neutral measures $Q$ we can write
+$$E^{Q_f}[1_{S(T) \geq L_S}] = E^{Q_f}[\frac{B^f(0)}{B^f(T)} \cdot \frac{B^f(T)}{B^f(0)} \cdot \frac{X_0}{X(T)} \cdot 1_{S(T) \geq L_S}]$$
+
+which gives the Radon-Nikodym derivative
+$$\frac{dQ^f}{dQ^d} = \frac{B^f(T)}{B^f(0)} \cdot \frac{X_0}{X(T)}$$
+
+which gives the Numeraire corresponding to the foreign measure $Q^f$ as $N^f(t) = \frac{B^f(t)}{X(t)}$,
+which gives the $Q^f$-brownian motion $W^{f,d}$ as
+$$dW_t^{f,d} = dW_t^d - d < N^f, W^d >_t = dW_t^d + \rho \sigma_X dt$$
+
+which gives the Equity dynamics under the foreign measure $Q^f$ as
+$$\frac{dS_t}{S_t} = (r^d - \rho \sigma_X \sigma)dt + \sigma dW_t^{f,d}$$
+
+We can now write the probability under the foreign measure
+$$E^{Q_f}[1_{S(T) \geq L_S}] = N(\frac{1}{\sigma \sqrt{T}}(ln(\frac{S_0}{L_S}) + (r^d - \rho \sigma_X \sigma - \frac{1}{2}\sigma^2)T))$$
+
+As we're interested in the behaviour w.r.t $\sigma_X$ - everything else kept constant - we rewrite the probability as follows
+$$E^{Q_f}[1_{S(T) \geq L_S}] = N(f(\sigma_X))$$
+
+where 
+$$f(\sigma_X) = \frac{1}{\sigma \sqrt{T}}(ln(\frac{S_0}{L_S}) + (r^d - \frac{1}{2}\sigma^2)T) - \rho \sigma_X \sqrt{T}$$
+
+In order to study $f(\sigma_X)$ we neglect the rates impact considering zero rates, it then rewrites
+$$f(\sigma_X) = \frac{1}{\sigma \sqrt{T}}(ln(\frac{S_0}{L_S}) - \frac{1}{2}\sigma^2T) - \rho \sigma_X \sqrt{T}$$
+
+$f$'s derivative w.r.t $\sigma_X$ writes
+$$f'(\sigma_X) = -\rho \sqrt{T}$$
+
+$f'(\sigma_X)$ has minus the sign of correlation. In the trade used for testing, we're considering a negative correlation $\rho = -0.1$, thus in this case, $f'(\sigma_X) = \rho \sqrt{T} > 0$.
+
+$f$'s limits w.r.t $\sigma_X$ write
+$$lim_{\sigma_X→+∞}f(\sigma_X) = +∞$$
+$$lim_{\sigma_X→-∞}f(\sigma_X) = f(0) < 0$$
+
+because the trade is initially OTM: $ln(\frac{S_0}{L_S}) < 0$ Thus $N(f(\sigma_X))$ should increase from $N(f(0)) < \frac{1}{2}$ to 1.
+
+Back to the digital price, it writes
+$$V_0^{d,EQ} = \frac{1}{X_0} \cdot E^{Q_f}[1_{S(T) \geq L_S}]$$
+
+In order to consider a price that looks like a probability, we choose the nominal equal to $X_0$ in order to compensate for the multiplication by $\frac{1}{X_0}$. Thus the price of the Quanto single digital on Equity, in this case of zero rates and $X_0$ Notional, writes
+$$V_0^{d,EQ} = N(f(\sigma_X))$$
+
+and should increase from $N(f(0)) < \frac{1}{2}$ to 1.
+
+* Single digital on FX: Expected Price Behaviour when shifting FX ATM Vol
+$$V_0^{d,FX} = \frac{1}{X_0} \cdot DF^f(0, T) \cdot E^{Q_f}[1_{X(T) \geq L_X}]$$
+
+This price is straightforward as the dynamics of $X$ are already under the $Q^f$-measure.
+$$E^{Q_f}[1_{X(T) \geq L_X}] = N(f_X(\sigma_X))$$
+
+where
+$$f_X(\sigma_X) = (ln(\frac{X_0}{L_X}) + (r^f - r^d)T)\frac{1}{\sigma_X \sqrt{T}} - \frac{1}{2}\sigma_X \sqrt{T}$$
+
+Neglecting interest rates, it rewrites
+$$f_X(\sigma_X) = ln(\frac{X_0}{L_X})\frac{1}{\sigma_X \sqrt{T}} - \frac{1}{2}\sqrt{T}$$
+
+so that
+$$f'_X(\sigma_X) = -ln(\frac{X_0}{L_X})\frac{1}{\sigma_X^2 \sqrt{T}} - \frac{1}{2}\sqrt{T}$$
+
+and the limits write
+$$lim_{\sigma_X→+∞}f_X(\sigma_X) = -∞$$
+$$lim_{\sigma_X→-∞}f_X(\sigma_X) = -∞$$
+
+because the trade is initially OTM: $ln(\frac{X_0}{L_X}) < 0$.
+Thus $N(f_X(\sigma_X))$ will increase from 0 to a value that is lower than $\frac{1}{2}$, $f_X(\sigma_X)$ being negative in this case. Then $N(f_X(\sigma_X))$ will decrease from that value to 0.
+
+Back to the digital price, considering again zero rates and $X_0$ Notional, it writes
+$$V_0^{d,FX} = N(f_X(\sigma_X))$$
+
+* Quanto dual single digital on Equity and FX: Again considering zero rates and $X_0$ Notional, the price writes
+$$V_0^d = E^{Q_f}[1_{S(T) \geq L_S} \cdot 1_{X(T) \geq L_X}]$$
+
+In order to plot the corresponding figure, we multiply the $X_0$ Notional by 10,000 so that the 3 trades we're considering have the following prices:
+* Quanto single digital on Equity:
+$$V_0^{d,EQ} = 10,000 \cdot N(f(\sigma_X))$$
+and should increase from under 5k to 10k.
+* Single digital on FX:
+$$V_0^{d,FX} = 10,000 \cdot N(f_X(\sigma_X))$$
+and should increase from 0 to under 5k and then decrease back to 0.
+* Quanto dual single digital on Equity and FX:
+$$V_0^d = 10,000 \cdot E^{Q_f}[1_{S(T) \geq L_S} \cdot 1_{S(T) \geq L_X}]$$
+and should increase from 0 to under 5k and then decrease back to 0, being always below the 2 other digitals prices.
+
+![Figure 10: Stability - Digits Price - FX ATM Vol absolute shift](./Fig/10.png)
+
+Figure 10 shows the prices of all digitals behaving as expected.
+Then we consider the expected behaviour of the FX Vega when shifting the FX ATM Vol:
+* Quanto single digital on Equity: The FX Vega should be positive.
+* Single digital on FX and Quanto dual single digital on Equity and FX: The FX Vega should be positive when the price is increasing and negative when the price is decreasing. It should be higher for lower volatilities because in that region, the initially OTM trade gets more chances to be ITM.
+
+![Figure 11: Stability - Digits Price - FX ATM Vol absolute shift](./Fig/11.png)
+
+Figure 11 shows the FX Vegas of all digitals behaving as expected.
+
+##### 2.5.1.6.2 Price Stability
+As explained above, the price should increase from 0 to under 5k and then decrease back to 0, when increasing the FX ATM Vol.
+
+![Figure 12: Stability - Price - FX ATM Vol absolute shift](./Fig/12.png)
+
+Test passes as the price behaves as expected when increasing the FX ATM Vol.
+
+##### 2.5.1.6.3 FX Vega Stability
+The FX Vega should change smoothly when shifting the FX ATM Vol and its behaviour should be in line with the price behaviour when shifting the FX ATM Vol. As explained above, the FX Vega should be positive when the price is increasing and negative when the price is decreasing. It should be higher for lower volatilities because in that region, the initially OTM trade gets more chances to be ITM.
+
+![Figure 13: Stability - FX Vega - FX ATM Vol absolute shift](./Fig/13.png)
+
+Test passes as the FX Vega behaves as expected when increasing the FX ATM Vol.
+
+#### 2.5.1.7 Equity PIV - ATM Vol Stress Test
+
+##### 2.5.1.7.1 Expected Price Behaviour when shifting Equity ATM Vol
+Any change in the Equity ATM Vol should only be explained by the Equity digital within the dual digital.
+Back to the Equity digital's price, in the zero rates and $X_0$ Notional, it writes
+$$V_0^{d,EQ} = N(f(\sigma))$$
+
+with
+$$f(\sigma) = ln(\frac{S_0}{L_S})\frac{1}{\sigma\sqrt{T}} - \frac{1}{2}\sigma\sqrt{T} - \rho\sigma_X\sqrt{T}$$
+
+with the derivative w.r.t $\sigma$
+$$f'(\sigma) = -ln(\frac{S_0}{L_S})\frac{1}{\sigma^2\sqrt{T}} - \frac{1}{2}\sqrt{T}$$
+
+and the limits w.r.t $\sigma$
+$$lim_{\sigma→+∞}f(\sigma) = -∞$$
+$$lim_{\sigma→-∞}f(\sigma) = -∞$$
+
+because the trade is initially OTM: $ln(\frac{S_0}{L_S}) < 0$.
+Thus the Equity Digital price should increase from 0 to a value under $\frac{1}{2}$ and then decrease back to 0, when increasing the Equity ATM Vol $\sigma$.
+Similarly, the dual digital price should increase from 0 to a value under 5k and then decrease back to 0, when increasing the Equity ATM Vol.
+According to the price behaviour the Equity Vega should be positive when the price is increasing and negative when the price is decreasing. It should be higher for lower volatilities, as in that region, the initially OTM trade gets more chances to be ITM.
+
+##### 2.5.1.7.2 Price Stability
+As explained above, price should increase from 0 to a value under 5k and then decrease back to 0, when increasing the Equity ATM Vol.
+
+![Figure 14: Stability - Price - Equity ATM Vol absolute shift](./Fig/14.png)
+
+Test passes as the price behaves as expected when increasing the Equity Equity ATM Vol.
+
+##### 2.5.1.7.3 Equity Vega Stability
+The Equity Vega should change smoothly when shifting the Equity Equity ATM Vol and its behaviour should be in line with the price behaviour when shifting the Equity ATM Vol. As explained above, the Equity Vega should be positive when the price is increasing and negative when the price is decreasing. It should be higher for lower volatilities, as in that region, the initially OTM trade gets more chances to be ITM.
+
+![Figure 15: Stability - Equity Vega - EQ ATM Vol absolute shift](./Fig/15.png)
+
+Test passes as the Equity Vega behaves as expected when shifting the Equity Equity ATM Vol.
+
+#### 2.5.1.8 EUR Curve Stress Test
+
+##### 2.5.1.8.1 Price Stability
+Price should change smoothly when shifting the EUR curve.
+
+![Figure 16: Stability - Price - EUR yield Bump](./Fig/16.png)
+
+Test passes as the price changes smoothly when shifting the EUR curve.
+
+#### 2.5.1.9 USD Curve Stress Test
+
+##### 2.5.1.9.1 Price Stability
+Price should change smoothly when shifting the USD curve.
+
+![Figure 17: Stability - Price - USD yield Bump](./Fig/17.png)
+
+Test passes as the price changes smoothly when shifting the USD curve.
+
+#### 2.5.1.10 Correlations Stress Test
+
+##### 2.5.1.10.1 Price Stability
+The correlation here is between the Equity and the FX. We use the same values for correlations both in the flat correlations input and the correlation skew inputs.
+The price should increase when increasing the correlations.
+
+![Figure 18: Stability - Price - EQ-FX Correlation](./Fig/18.png)
+
+Test passes as the price increases when increasing the correlations.
+
+#### 2.5.1.11 Shifting Product Parameters
+
+##### 2.5.1.11.1 Equity Barrier Stress Test
+As the Equity Barrier increases, the KO probability increases, and the price should decrease.
+
+![Figure 19: Stability - Price - EQ Barrier relative shift](./Fig/19.png)
+
+Test passes as the price decreases when increasing the Equity Barrier.
+
+##### 2.5.1.11.2 FX Barrier Stress Test
+As the FX Barrier increases, the KO probability increases, and the price should decrease.
+
+![Figure 20: Stability - Price - FX Barrier relative shift](./Fig/20.png)
+
+Test passes as the price decreases when increasing the FX Barrier.
+
+#### 2.5.2 Adding InverseCDFInterpolationType = Linear: SIMCOPULA when interpolating the inverse of DBOPTVOL AFSABR CDF with SIMCOPULA: R_500_121
+
+##### 2.5.2.1 Model Change Description
+An issue is observed when the inverse of a 1D CDF with discontinuities is interpolated and this issue is related to the way the inverse CDF is interpolated when the CDF comes from an AFSABR model. The default interpolation of AFSABR CDF is natural cubic splines and this interpolation is very unstable in case of AFSABR CDF that is not continuous. To fix this issue, a new label in DBOPTVOL objects called InverseCDFInterpolationType has been introduced to define the interpolation method used for AFSABR inverse CDF in the context of SIMCOPULA pricing. The default value of this label is NATURALCUBIC (i.e. the same interpolation that was done before). The only other interpolation method allowed is LINEAR, which is believed to be much better than the natural cubic spline because:
+* it is stable
+* it is consistent with the AFSABR pricing. When pricing using AFSABR, the pdf is assumed to be piecewise constant on the AFSABR grid, i.e. the AFSABR CDF is assumed to be piecewise linear. So even if the natural cubic spline interpolation was stable, linear interpolation would be a better choice because it would correspond to the exact CDF used for analytical pricing with AFSABR.
+
+##### 2.5.2.2 InverseCDFInterpolationType: Flag description
+The new flag InverseCDFInterpolationType is for a DBOPTVOL object and is relevant when CopulaMethod is SIMCOPULA. The default is NATURALCUBIC.
+
+This flag defines the method used to interpolate the inverse CDF of a DBOPTVOL rate when pricing with SIMCOPULA. The only two supported values for now are NATURALCUBIC and LINEAR. NATURALCUBIC is natural cubic splines and corresponds to the interpolation method that was used before. LINEAR is linear interpolation and should solve stability issues.
+
+This field only impacts the interpolation of AFSABR CDF in SIMCOPULA.
+
+##### 2.5.2.3 Trade used for Testing
+We consider the following quanto single digital paying at time T:
+$$1_{CMS(T) < K}$$
+This amount in paid in the domestic currency d.
+
+* domestic currency d is EUR, CMS currency f is GBP
+* Maturity is 11Y, Notional = 1, K = 0.02
+The Stability tests below are run once with InverseCDFInterpolationType = NATURALCUBIC and once with InverseCDFInterpolationType = LINEAR to show that setting InverseCDFInterpolationType to LINEAR does indeed fix stability issues.
+
+##### 2.5.2.4 Convergence Test
+In this section we test the convergence of the Monte Carlo SIMCOPULA. The convergence is tested increasing the number of SIMCOPULA simulation paths.
+Model configuration for CorrelationSkew is TermSkew.
+The trade is the quanto digital trade described in section 2.5.2.3.
+We price it with an increasing number of SIMCOPULA simulations NumberSims from 10k to 190k.
+
+###### 2.5.2.4.1 Convergence: Price
+We check the convergence of the quanto digital price. We compute the error caused by seed variance ($Error = \frac{Std(NumberOfRealizations)}{Average}$).
+Test passes if ratio declines rapidly when NumberSims increases.
+
+![Figure 21: Price Convergence - Quanto Digital - 11Y](./Fig/21.png)
+
+Test passes, as the Error decreases when NumberSims increases. Price shows good stability from 20K sims.
+
+###### 2.5.2.4.2 Convergence: GBP IR Delta
+In this section we test the convergence of the Monte Carlo pricer for the GBP IR Delta of the Quanto Digital (MODE=FLATDELTAAVE).
+Test passes if the GBP IR Delta shows good stability when increasing NumberSims.
+
+![Figure 22: GBP IR Delta Convergence - Quanto Digital - 11Y](./Fig/22.png)
+
+Test passes, the GBP IR Delta shows good stability from 10K.
+
+###### 2.5.2.4.3 Convergence: EUR IR Delta
+In this section we test the convergence of the Monte Carlo pricer for the EUR IR Delta of the Quanto Digital (MODE=FLATDELTAAVE).
+Test passes if the EUR IR Delta shows good stability when increasing NumberSims.
+
+![Figure 23: EUR IR Delta Convergence - Quanto Digital - 11Y](./Fig/23.png)
+
+Test passes, the EUR IR Delta shows good stability from 10K.
+
+##### 2.5.2.5 Stability
+In this section we calculate the price and risks under:
+* parallel shifts of the IR curves and relative shifts of FX spot
+* absolute shifts of volatilities
+* relative shifts of the correlation parameters
+The trade is the Quanto Digital trades described in section 2.5.2.3
+Model configuration for CorrelationSkew is TermSkew.
+Tests pass if the prices and risks vary smoothly when shifting the market parameters.
+
+###### 2.5.2.5.1 Stability: Price - EUR IR Curve parallel shift
+The price should vary smoothly when bumping the EUR IR Curve.
+
+![Figure 24: Stability - Price varies smoothly with EUR IR Curve parallel shift - Quanto Digital - 11Y](./Fig/24.png)
+
+Test passes as the price varies smoothly when bumping the EUR IR Curve.
+
+###### 2.5.2.5.2 Stability: Price - GBP IR Curve parallel shift
+Given the upper barrier on the GBP cms rate, the price should decrease when bumping up the GBP IR Curve.
+
+![Figure 25: Stability - Price decreases when bumping up GBP IR Curve with parallel shift and using InverseCDFInterpolationType = LINEAR fixes issues - Quanto Digital - 11Y](./Fig/25.png)
+
+Test passes as the price behaviour w.r.t GBP curve is as expected.
+Figure 25 also shows that using InverseCDFInterpolationType = LINEAR fixes the stability issue noticed with InverseCDFInterpolationType = NATURALCUBIC.
+
+###### 2.5.2.5.3 Stability: Price - FX Spot relative shift
+The price should vary smoothly when bumping the FX Spot.
+
+![Figure 26: Stability - Price varies smoothly with FX Spot relative shift - Quanto Digital - 11Y Starting DBA version 830, the property field InverseCDFInterpolationType has been removed as only LINEAR gives stable results.](./Fig/26.png)
+
+Test passes as the price varies smoothly when bumping the FX Spot.
+
+###### 2.5.2.5.4 Stability: Price - FX Vol shift
+The price should vary smoothly when shifting the FX Vol.
+
+![Figure 27: Stability - Price varies smoothly with FX ATM Vol absolute shift - Quanto Digital - 11Y](./Fig/27.png)
+
+Test passes as the price varies smoothly when shifting the FX Vol.
+
+###### 2.5.2.5.5 Stability: Price - GBP IR ATM Vol relative shift
+The price should vary smoothly when shifting the GBP IR ATM Vol.
+
+![Figure 28: Stability - Price varies smoothly with IR Vol relative shift - Quanto Digital - 11Y](./Fig/28.png)
+
+Test passes as the price varies smoothly when shifting the GBP IR ATM Vol.
+
+###### 2.5.2.5.6 Stability: Price - Correlation relative shift
+We shift correlation skew by relative shifts between -100% and +100%. For positive shifts, we specify the new correlation as $oldCorr + (1 - oldCorr) \cdot bump$ not to breach the correlation upper bound of 1. We bump directly model parameters without any recalibration to test model smoothness. There's no guarantee that the PV should be well-behaved.
+Model configuration for CorrelationSkew is TermSkew.
+The price should vary smoothly when shifting the FX-GBP Correlation.
+
+![Figure 29: Stability - Price varies smoothly with Corr relative shift - Quanto Digital - 11Y](./Fig/29.png)
+
+Test passes as the price varies smoothly when shifting the FX-GBP Correlation.
+
+###### 2.5.2.5.7 Stability: Risks - GBP IR Delta
+In this section we test the stability of the GBP IR Delta (MODE=FLATDELTAAVE). Model configuration is TermSkew.
+Tests pass if the GBP IR Delta varies smoothly under parallel shifts of the GBP IR curve.
+
+![Figure 30: Stability - GBP IR Delta varies smoothly with GBP IR Curve bump and using InverseCDFInterpolationType = LINEAR fixes issues - Quanto Digital - 11Y. Starting DBA version 830, the property field InverseCDFInterpolationType has been removed as only LINEAR gives stable results.](./Fig/30.png)
+
+Test passes as the GBP IR Delta shows good stability.
+Figure 30 also shows that using InverseCDFInterpolationType = LINEAR fixes gives good stability where the pricing even fails with InverseCDFInterpolationType = NATURALCUBIC.
+
+###### 2.5.2.5.8 Stability: Risks - EUR IR Delta
+In this section we test the stability of the EUR IR Delta (MODE=FLATDELTAAVE). Model configuration is TermSkew.
+Tests pass if the EUR IR Delta varies smoothly under parallel shifts of the EUR IR curve.
+
+![Figure 31: Stability - EUR IR Delta varies smoothly with GBP IR Curve bump - Quanto Digital - 11Y](./Fig/31.png)
+
+Test passes as the EUR IR Delta shows good stability.
+
+###### 2.5.2.5.9 Stability: Risks - GBP IR Vega
+In this section we test the stability of the IR Vega (MODE=VEGA) to get the GBP IR Vega w.r.t the GBP IR 10Y2Y and 15Y2Y ATM Vols.
+For each bucket where the Vega is not equal to zero we look at both the price behaviour and the Vega behaviour when shifting the ATM Vol for that maturity and we check that the Vega behaviour is smooth and in line with the price behaviour.
+This mode returns the following Vega
+$$VEGA_{VOL} = PV(VOL + 1bps) - PV(VOL)$$
+
+![Figure 32: Stability - EquityVega varies in line with the price when shifting 10Y2Y Vol and using InverseCDFInterpolationType = LINEAR fixes issues - Quanto Digital - VOL. Starting DBA version 830, the property field InverseCDFInterpolationType has been removed as only LINEAR gives stable results.](./Fig/32.png)
+
+Figure 32 shows that the GBP IR Vega w.r.t the 10Y2Y ATM Vol is smooth and in line with the price behaviour when shifting 10Y2Y ATM Vol. Test passes.
+Figure 32 also shows that using InverseCDFInterpolationType = LINEAR fixes the stability issue noticed with InverseCDFInterpolationType = NATURALCUBIC.
+
+![Figure 33: Stability - EquityVega varies in line with the price when shifting 15Y2Y Vol and using InverseCDFInterpolationType = LINEAR fixes issues - Quanto Digital - VOL. Starting DBA version 830, the property field InverseCDFInterpolationType has been removed as only LINEAR gives stable results.](./Fig/33.png)
+
+Figure 33 shows that the GBP IR Vega w.r.t the 15Y2Y ATM Vol is smooth and in line with the price behaviour when shifting 15Y2Y ATM Vol. Test passes.
+Figure 33 also shows that using InverseCDFInterpolationType = LINEAR fixes the stability issue noticed with InverseCDFInterpolationType = NATURALCUBIC.
+
+###### 2.5.2.5.10 Stability: Risks - FX Vega
+The FX VOL object in this trade is a DELTAVOL object with 5 volatility values per maturity corresponding to the volatilities input to delta Put, a 25 delta Put, a Delta neutral, a 25 delta Call and a 10 delta Call.
+
+We are interested in the stability of the Vega (MODE=VEGA) to get the FX Vega w.r.t each volatility for each maturity. The Vega is non-zero for the 10Y and 15Y volatilities, so we only consider the 10Y and 15Y volatilities. As the input per maturity is 5 volatility values, we consider shifting all 5 values and looking at the Vega. The Vega we consider is the Vega per maturity: 5 volatility values per maturity. We use MODE=VEGA that gives 5 bucketed VEGA values for each of the 10 delta Put, 25 delta Put, Delta neutral, 25 delta Call and 10 delta Call and we get the sum of the 5 values. So that the displayed Vega is given as follows:
+
+$Vega = \sum Vega_i$
+
+where $VEGA_i = PV(VOL_i + 1bps) - PV(VOL_i)$, $i$ corresponds to each of the 5 volatilities: 10 delta Put, 25 delta Put, Delta neutral, 25 delta Call and 10 delta Call.
+
+We look at both the price behaviour and the Vega behaviour when shifting all 5 10Y and 15Y volatilities and we check that the Vega behaviour is smooth and in line with the price behaviour. The volatilities initially range between 9% and 18%. We consider absolute shifts ranging from -7.5% to 15%.
+
+![Figure 34: Stability - FX Vega in line with the price when shifting 10Y vols - Quanto Digital](./Fig/34.png)
+
+Test passes as the FX Vega is smooth and is in line with the Price behaviour when shifting the FX 10Y Volatilities.
+
+![Figure 35: Stability - FX Vega in line with the price when shifting 15Y vols - Quanto Digital](./Fig/35.png)
+
+Test passes as the FX Vega is smooth and is in line with the Price behaviour when shifting the FX 15Y Volatilities.
+
+##### 2.5.2.6 Product Testing
+In this section we consider the Price behaviour w.r.t the product features. Tests pass if the price behaves as expected when shifting the product features.
+
+###### 2.5.2.6.1 Product Testing: Price - EQ Barrier relative shift
+As the payoff is contingent on an Equity upper barrier, the price should increase from zero to a constant value when increasing the Equity barrier.
+
+![Figure 36: Product Testing - EQ Barrier relative shift - Quanto Digital - 11Y](./Fig/36.png)
+
+Test passes as the price behaves as expected when shifting the EQ Barrier.
+
+###### 2.5.2.6.2 Product Testing: Price - CMS Barrier relative shift
+Given the cms upper barrier, the price should increase when increasing the cms barrier.
+
+![Figure 37: Product Testing - price increases when increasing cms barrier with relative shift - Quanto Digital - 11Y](./Fig/37.png)
+
+Test passes as the price behaves as expected when shifting the cms Barrier.
+
+### 2.6 Validation Outline
+
+#### 2.6.1 Test definitions, summaries and conclusions
+
+| Product | Test | Section | Testing Files* |
+| --- | --- | --- | --- |
+| Model Changes | Convergence | §2.5.1.3 | Convergence(QuantoDualDigital).ipynb |
+| | Stress Testing | §2.5.1 | Spot(QuantoDualDigital).ipynb<br>Vol(QuantoDualDigital).ipynb<br>Corr(QuantoDualDigital).ipynb<br>Risks(QuantoDualDigital).ipynb<br>FXVega(QuantoDualDigital).ipynb |
+| | Product Testing | §2.5.1.11 | Barriers(QuantoDualDigital)v490.ipynb<br>Barriers(QuantoDualDigital)v510.ipynb |
+
+| | Test | | Section | Testing Files* |
+| --- | --- | --- | --- | --- |
+| Parameter | Monitoring | | | |
+| DBOPT | | | MODEL::NumberSims | §4.6.2.1.1 | NumberSims.py |
+| | | | MODEL::NumberSeedVarianceRuns | §4.6.2.1.2 | NumberSeedVarianceRuns.py |
+| | | | MODEL::Seed | §4.6.2.1.3 | Seed.py |
+| CORRELATION | | | VOL::InterpType | §4.6.2.2.3 | InterpType.py |
+| | | | VOL::TermSkewMaxIter | §4.6.2.2.4 | TermSkewMaxIter.py |
+
+##### 2.6.1.1 DBOPT-RateDeterministic_FXMarket_AssetMarket_CorrelationSkew
+
+| Test | Sections | Testing Files* |
+| --- | --- | --- |
+| HybMultiDigital | | |
+| EOD | | |
+| Convergence | | |
+| PV | §4.1.2 | _tests/MultiDigit/Convergence(MultiDigit).py |
+| Delta | §4.1.3 | _tests/MultiDigit/Convergence(MultiDigit)Risks.py |
+| Vega | §4.1.4 | _tests/MultiDigit/Vegas(MultiDigit)Convergence.py |
+| Stability | | |
+| Price for risk factors shifts | §4.1.6<br>§4.1.7 | _tests/MultiDigit/HybMultiDigital_base.py |
+| Correlation Stress | §4.1.7.2.1 | _tests/MultiDigit/CCAR/Corr(MultiDigit).py |
+| Stressed Market Conditions: Delta | §4.1.8 | _tests/MultiDigit/HybMultiDigital_base.py |
+| Stressed Market Conditions: Vega | §4.1.9 | _tests/MultiDigit/HybMultiDigital_base.py |
+| Taylor Expansion | §4.1.10 | _tests/Taylor_HybMultiDigital.py |
+| Product Testing | §4.1.11 | _tests/MultiDigit/ProductTesting(MultiDigit).ipynb |
+| IRRRBB | | |
+| Scenario Curves | §4.1.12 | _tests/MultiDigit/MultiDigit_IRRRBB_plot.ipynb |
+| Convergence | §4.1.13 | _tests/MultiDigit/MultiDigit_IRRRBB_convergence.ipynb |
+| Stress Test: PV - Curve Shifts | §4.1.15 | |
+| Stress Test: PV - FX Spot Shifts | §4.1.17 | |
+| Stress Test: PV - FX Vol Shifts | §4.1.19 | |
+| Stress Test: PV - Asset Forward Shifts | §4.1.16 | |
+| Stress Test: PV - Asset Vol Shifts | §4.1.18 | |
+| Stress Test: PV - Corr Shifts | §4.1.20 | _tests/MultiDigit/MultiDigit_IRRRBB_shifts.ipynb |
+| CCAR | | |
+| Convergence | | |
+| PV | §4.1.22 | _tests/MultiDigit/CCAR/Convergence(MultiDigit).py |
+| Delta | §4.1.23 | _tests/MultiDigit/CCAR/Convergence(MultiDigit)Risks.py |
+| Vega | §4.1.24 | _tests/MultiDigit/CCAR/Vegas(MultiDigit)Convergence.py |
+| Stability | | |
+| Price for risk factors shifts | §4.1.25 | _tests/MultiDigit/CCAR/HybMultiDigital_CCAR.py |
+| Correlation Stress | §4.1.27 | _tests/MultiDigit/CCAR/Corr(MultiDigit).v2.py |
+| Stressed Market Conditions: Delta | §4.1.28 | _tests/MultiDigit/CCAR/HybMultiDigital_CCAR.py |
+| Stressed Market Conditions: Vega | §4.1.30 | _tests/MultiDigit/CCAR/HybMultiDigital_CCAR.py |
+| Taylor Expansion | §4.1.31 | _tests/Taylor_HybMultiDigital.py |
+| Product Testing | | |
+
+### Product Testing
+MultiVar                                §4.1.32             _tests/MultiDigit/CCAR/ProductTesting(MultiDigit).py
+MultiVar                                §4.1.33             _tests/MultiDigit/MultiVar/multivar_v1.py
+
+(*) Testing files are available from the MRA model testing repository:
+https://mars-svn.risk.intranet.db.com/doc/ModelApproval/branches/uat/mydocs/ModelValidationReports/DBOPT-CorrelationSkew/TestEvidence/Deterministic_FX_Asset_CorrSkew.
+
+| Test | Sections | Testing Files* |
+| --- | --- | --- |
+| HybContingentOptMultiAssetBasket | | |
+| EOD | | |
+| Convergence | | |
+| PV | §4.2.2 | _tests/CtgtOpt/Convergence(CtgtOpt).py |
+| Delta | §4.2.3 | _tests/CtgtOpt/Convergence(CtgtOpt)Risks.py |
+| Vega | §4.2.4 | _tests/CtgtOpt/Vegas(CtgtOpt)Convergence.py |
+| Stability | | |
+| Price for risk factors shifts | §4.2.6<br>§4.2.7 | _tests/CtgtOpt/HybCtgtOpt_base.py |
+| Correlation Stress | §4.2.8 | _tests/CtgtOpt/CCAR/Corr(CtgtOpt).py |
+| Stressed Market Conditions: Delta | §4.2.9 | _tests/CtgtOpt/HybCtgtOpt_base.py |
+| Stressed Market Conditions: Vega | §4.2.10 | _tests/CtgtOpt/HybCtgtOpt_base.py |
+| Taylor Expansion | §4.2.11 | _tests/CtgtOpt_Taylor.py |
+| Product Testing | | |
+| Product Testing | §4.2.12 | _tests/CtgtOpt/ProductTesting(CtgtOpt).ipynb |
+| IRRRBB | | |
+| Scenario Curves | §4.2.13 | _tests/CtgtOpt/MultiDigit_IRRRB3_plot.ipynb |
+| Convergence | §4.2.14 | _tests/CtgtOpt/MultiDigit_IRRRB3_convergence.ipynb |
+| Stress Test: PV - Curve Shifts | §4.2.16 | |
+| Stress Test: PV - FX Spot Shifts | §4.2.18 | |
+| Stress Test: PV - FX Vol Shifts | §4.2.20 | |
+| Stress Test: PV - Asset Forward Shifts | §4.2.17 | |
+| Stress Test: PV - Asset Vol Shifts | §4.2.19 | |
+| Stress Test: PV - Corr Shifts | §4.2.21 | _tests/CtgtOpt/MultiDigit_IRRRB3_shifts.ipynb |
+| CCAR | | |
+| Convergence | | |
+| PV | §4.2.23 | _tests/CtgtOpt/CCAR/Convergence(CtgtOpt).py |
+| Delta | §4.2.24 | _tests/CtgtOpt/CCAR/Convergence(CtgtOpt)Risks.py |
+
+## Continued Test Evidence
+
+| | | |
+| --- | --- | --- |
+| Vega | §4.2.25 | _tests/CtgtOpt/CCAR/Vegas(CtgtOpt)Convergence.py |
+| Stability | | |
+| Price for risk factors shifts | §4.2.26<br>§4.2.27 | _tests/CtgtOpt/CCAR/HybCtgtOpt_CCAR.py |
+| Correlation Stress | §4.2.28 | _tests/CtgtOpt/CCAR/Corr(CtgtOpt)_v2.py |
+| Stressed Market Conditions: Delta | §4.2.29 | _tests/CtgtOpt/CCAR/HybCtgtOpt_CCAR.py |
+| Stressed Market Conditions: Vega | §4.2.31 | _tests/CtgtOpt/CCAR/HybCtgtOpt_CCAR.py |
+| Taylor Expansion | §4.2.32 | _tests/CtgtOpt_Taylor.py |
+| Product Testing | | |
+| Product Testing | §4.2.33 | _tests/CtgtOpt/CCAR/ProductTesting(CtgtOpt).py |
+| MultiVar | | |
+| MultiVar | §4.2.34 | _tests/CtgtOpt/MultiVar/multivar_v1.py |
+
+(*) Testing files are available from the MRA model testing repository:
+https://mars-svn.risk.intranet.db.com/doc/ModelApproval/branches/uat/mydocs/ModelValidationReports/DBOPT-CorrelationSkew/TestEvidence/Deterministic_FX_Asset_CorrSkew.
+
+### 2.6.1.2 DBOPT-RateDeterministic_EquityBlackScholes_AssetMarket_CorrelationSkew
+
+| Test | Sections | Testing Files* |
+| --- | --- | --- |
+| HybMultiDigital | | |
+| EOD | | |
+| Convergence | | |
+| PV | §4.3.2 | _tests/MultiDigit/Convergence(MultiDigit).py |
+| Delta | §4.3.3 | _tests/MultiDigit/Convergence(MultiDigit)Risks.py |
+| Vega | §4.3.4 | _tests/MultiDigit/Vegas(MultiDigit)Convergence.py |
+| Stability | | |
+| Price for risk factors shifts | §4.3.6 | _tests/MultiDigit/HybMultiDigital_base.py |
+| Correlation Stress | §4.3.7.2.1 | _tests/MultiDigit/CCAR/Corr(MultiDigit).py |
+| Stressed Market Conditions: Delta | §4.3.8 | _tests/MultiDigit/HybMultiDigital_base.py |
+| Stressed Market Conditions: Vega | §4.3.9 | _tests/MultiDigit/HybMultiDigital_base.py |
+| Taylor Expansion | §4.3.10 | _tests/Taylor_HybMultiDigital.py |
+| Product Testing | | |
+| Product Testing | §4.3.11 | _tests/MultiDigit/ProductTesting(MultiDigit).ipynb |
+| IRRRBB | | |
+| Scenario Curves | §4.3.12 | _tests/MultiDigit/MultiDigit_IRRRB3_plot.ipynb |
+
+## Additional Test Evidence for EquityBlackScholes Model
+
+| | | |
+| --- | --- | --- |
+| Convergence | §4.3.13 | _tests/MultiDigit/MultiDigit_IRRRB3_convergence.ipynb |
+| Stress Test: PV - Curve Shifts | §4.3.14 | |
+| Stress Test: PV - EQ Spot Shifts | §4.3.16 | |
+| Stress Test: PV - EQ Vol Shifts | §4.3.18 | |
+| Stress Test: PV - Asset Forward Shifts | §4.3.15 | |
+| Stress Test: PV - Asset Vol Shifts | §4.3.17 | |
+| Stress Test: PV - Corr Shifts | §4.3.19 | _tests/MultiDigit/MultiDigit_IRRRB3_shifts.ipynb |
+| CCAR | | |
+| Convergence | | |
+| PV | §4.3.21 | _tests/MultiDigit/CCAR/Convergence(MultiDigit).py |
+| Delta | §4.3.22 | _tests/MultiDigit/CCAR/Convergence(MultiDigit)Risks.py |
+| Vega | §4.3.23 | _tests/MultiDigit/CCAR/Vegas(MultiDigit)Convergence.py |
+| Stability | | |
+| Price for risk factors shifts | §4.3.24<br>§4.3.25 | _tests/MultiDigit/CCAR/HybMultiDigital_CCAR.py |
+| Correlation Stress | §4.3.26 | _tests/MultiDigit/CCAR/Corr(MultiDigit).py |
+| Stressed Market Conditions: Delta | §4.3.27 | _tests/MultiDigit/CCAR/HybMultiDigital_CCAR.py |
+| Stressed Market Conditions: Vega | §4.3.29 | _tests/MultiDigit/CCAR/HybMultiDigital_CCAR.py |
+| Taylor Expansion | §4.3.30 | _tests/Taylor_HybMultiDigital.py |
+| Product Testing | | |
+| Product Testing | §4.3.31 | _tests/MultiDigit/CCAR/ProductTesting(MultiDigit).py |
+| MultiVar | | |
+| MultiVar | §4.3.32 | _tests/MultiDigit/MultiVar/multivar_v1.py |
+
+(*) Testing files are available from the MRA model testing repository:
+https://mars-svn.risk.intranet.db.com/doc/ModelApproval/branches/uat/mydocs/ModelValidationReports/DBOPT-CorrelationSkew/TestEvidence/Deterministic_BS_Asset_CorrSkew.
+
+### HybContingentOpt
+
+| Test | Sections | Testing Files* |
+| --- | --- | --- |
+| EOD | | |
+| Convergence | | |
+| PV | §4.4.2 | _tests/CtgtOpt/Convergence(CtgtOpt).py |
+| Delta | §4.4.3 | _tests/CtgtOpt/Convergence(CtgtOpt)Risks.py |
+| Vega | §4.4.4 | _tests/CtgtOpt/Vegas(CtgtOpt)Convergence.py |
+
+## Continued Test Evidence for RatesMarketAFSABR Model
+
+| | | |
+| --- | --- | --- |
+| Price for risk factors shifts | §4.4.6<br>§4.4.7 | _tests/CtgtOpt/HybCtgtOpt_base.py |
+| Correlation Stress | §4.4.8 | _tests/CtgtOpt/CCAR/Corr(CtgtOpt).py |
+| Stressed Market Conditions: Delta | §4.4.9 | _tests/CtgtOpt/HybCtgtOpt_base.py |
+| Stressed Market Conditions: Vega | §4.4.10 | _tests/CtgtOpt/HybCtgtOpt_base.py |
+| Taylor Expansion | §4.4.11 | _tests/Taylor_HybCtgtOpt.py |
+| Product Testing | | |
+| Product Testing | §4.4.12 | _tests/CtgtOpt/ProductTesting(CtgtOpt).ipynb |
+| IRRRBB | | |
+| Scenario Curves | §4.4.13 | _tests/CtgtOpt/CtgtOpt_IRRRB3_plot.ipynb |
+| Convergence | §4.4.14 | _tests/CtgtOpt/CtgtOpt_IRRRB3_convergence.ipynb |
+| Stress Test: PV - Curve Shifts | §4.4.15 | |
+| Stress Test: PV - EQ Spot Shifts | §4.4.17 | |
+| Stress Test: PV - EQ Vol Shifts | §4.4.19 | |
+| Stress Test: PV - Asset Forward Shifts | §4.4.16 | |
+| Stress Test: PV - Asset Vol Shifts | §4.4.18 | |
+| Stress Test: PV - Corr Shifts | §4.4.20 | _tests/CtgtOpt/CtgtOpt_IRRRB3_shifts.ipynb |
+| CCAR | | |
+| Convergence | | |
+| PV | §4.4.22 | _tests/CtgtOpt/CCAR/Convergence(CtgtOpt).py |
+| Delta | §4.4.23 | _tests/CtgtOpt/CCAR/Convergence(CtgtOpt)Risks.py |
+| Vega | §4.4.24 | _tests/CtgtOpt/CCAR/Vegas(CtgtOpt)Convergence.py |
+| Stability | | |
+| Price for risk factors shifts | §4.4.25<br>§4.4.26 | _tests/CtgtOpt/CCAR/HybCtgtOpt_CCAR.py |
+| Correlation Stress | §4.4.27 | _tests/CtgtOpt/CCAR/Corr(CtgtOpt).py |
+| Stressed Market Conditions: Delta | §4.4.28 | _tests/CtgtOpt/CCAR/HybCtgtOpt_CCAR.py |
+| Stressed Market Conditions: Vega | §4.4.30 | _tests/CtgtOpt/CCAR/HybCtgtOpt_CCAR.py |
+| Taylor Expansion | §4.4.31 | _tests/Taylor_HybCtgtOpt.py |
+| Product Testing | | |
+| Product Testing | §4.4.32 | _tests/CtgtOpt/CCAR/ProductTesting(CtgtOpt).py |
+| MultiVar | | |
+| MultiVar | §4.4.33 | _tests/CtgtOpt/MultiVar/multivar_v1.py |
+
+(*) Testing files are available from the MRA model testing repository:
+https://mars-svn.risk.intranet.db.com/doc/ModelApproval/branches/uat/mydocs/ModelValidationReports/DBOPT-CorrelationSkew/TestEvidence/Deterministic_BS_Asset_CorrSkew.
+
+### 2.6.1.3 DBOPT-RatesMarketAFSABR_FXMarket_EquityBlackScholes_CorrelationSkew
+
+| Test | Sections | Testing Files* |
+| --- | --- | --- |
+| HybContingentOptMultiAssetBasket | | |
+| EOD | | |
+| Convergence | | |
+| PV | §4.5.2 | _tests/CtgtOpt/Convergence(CtgtOpt).py |
+| Delta | §4.5.3 | _tests/CtgtOpt/Convergence(CtgtOpt)Risks.py |
+| Vega | §4.5.4 | _tests/CtgtOpt/Vegas(CtgtOpt)Convergence.py |
+| Stability | | |
+| Price for risk factors shifts | §4.5.5<br>§4.5.6 | _tests/CtgtOpt/HybCtgtOpt_base.py |
+| Correlation Stress | §4.5.7 | _tests/CtgtOpt/CCAR/Corr(CtgtOpt).py |
+| Stressed Market Conditions: Delta | §4.5.8 | _tests/CtgtOpt/HybCtgtOpt_base.py |
+| Stressed Market Conditions: Vega | §4.5.9 | _tests/CtgtOpt/HybCtgtOpt_base.py |
+| Taylor Expansion | §4.5.10 | _tests/Taylor/HybCtgtOpt.py |
+| Product Testing | | |
+| Product Testing | §4.5.11 | _tests/CtgtOpt/ProductTesting(CtgtOpt).py |
+| IRRRBB | | |
+| Scenario Curves | §4.5.12 | _tests/CtgtOpt/CtgtOpt_IRRRB3_plot.ipynb |
+| Convergence | §4.5.13 | _tests/CtgtOpt/CtgtOpt_IRRRB3_convergence.ipynb |
+| Stress Test: PV - Curve Shifts | §4.5.15, §4.5.14 | |
+| Stress Test: PV - EQ Spot Shifts | §4.5.16 | |
+| Stress Test: PV - FX Spot Shifts | §4.5.17 | |
+| Stress Test: PV - USD IR Vol Shifts | §4.5.18 | |
+| Stress Test: PV - EQ Vol Shifts | §4.5.19 | |
+| Stress Test: PV - FX Vol Shifts | §4.5.20 | |
+| Stress Test: PV - Corr Shifts | §4.5.21 | _tests/CtgtOpt/CtgtOpt_IRRRB3_shifts.ipynb |
+| CCAR | | |
+| Convergence | | |
+| PV | §4.5.23 | _tests/CtgtOpt/CCAR/Convergence(CtgtOpt).py |
+| Delta | §4.5.24 | _tests/CtgtOpt/CCAR/Convergence(CtgtOpt)Risks.py |
+| Vega | §4.5.25 | _tests/CtgtOpt/CCAR/Vegas(CtgtOpt)Convergence.py |
+
+## Continued AFSABR Test Evidence
+
+| | | |
+| --- | --- | --- |
+| Price for risk factors shifts | §4.5.26<br>§4.5.27 | _tests/CtgtOpt/CCAR/HybCtgtOpt_CCAR.py |
+| Correlation Stress | §4.5.28 | _tests/CtgtOpt/CCAR/Corr(CtgtOpt).py |
+| Stressed Market Conditions: Delta | §4.5.29 | _tests/CtgtOpt/CCAR/HybCtgtOpt_CCAR.py |
+| Stressed Market Conditions: Vega | §4.5.31 | _tests/CtgtOpt/CCAR/HybCtgtOpt_CCAR.py |
+| Taylor Expansion | §4.5.32 | _tests/Taylor/HybCtgtOpt_CCAR1.py |
+| Product Testing | | |
+| Product Testing | §4.5.33 | _tests/CtgtOpt/CCAR/ProductTesting(CtgtOpt).py |
+| MultiVar | | |
+| MultiVar | §4.5.34 | _tests/CtgtOpt/MultiVar/multivar_v1.py |
+
+(*) Testing files are available from the MRA model testing repository:
+https://mars-svn.risk.intranet.db.com/doc/ModelApproval/branches/uat/mydocs/ModelValidationReports/DBOPT-CorrelationSkew/TestEvidence/AFSABR_FX_BS_CorrSkew.
+
+| Product | Test | Section | Testing Files* |
+| --- | --- | --- | --- |
+| Quanto Digital | Convergence | §2.5.2.4 | Convergence(QuantoDigital).ipynb<br>Convergence(QuantoDigital)Risks.ipynb |
+| | Stress Testing | §2.5.2.5 | Spot(QuantoDigital).ipynb<br>Vol(QuantoDigital).ipynb<br>Corr(QuantoDigital).ipynb<br>StabilityRisks(QuantoDigital).ipynb<br>Vegas(QuantoDigital).ipynb |
+| | Product Testing | §2.5.2.6 | ProductTesting(QuantoDigital).ipynb |
+
+### 2.6.1.4 Model Change
+(*) Testing files are available from the MRA model testing repository:
+https://www.db-de.com/svn/repos/mra_testing/Model/Analytic/DBOPT-CorrelationSkew.
+
+### 2.6.2 CCAR Stress Test
+The CCAR methodology is presented in the general stress testing framework as described in *Standardized Shock Primer* document [10]. This, in particular, means that there is a construction of CCAR stressed market data objects for adverse and severely adverse stress scenarios, which have been reviewed and validated in [12, 13, 15, 14, 16, 10].
+
+For the purpose of this validation, CCAR market data objects are treated as normal inputs and the main objective is to test the behaviour of a product model pair in the CCAR stressed pricing contexts including model (auto)calibration, convergence and stability of the returned PV and risk sensitivities.
+
+### 2.6.3 MultiVaR
+In the MultiVar test we check the trade PV dependence under simultaneous stress of all risk factors of the trade. The PV change from different risk factors may have positive/negative signs and, depending on the PV, a possible cancellation. To avoid a possible cancellation, we take into account the sign of the first partial derivatives of the PV for the risk factors under study. Thus, we will be able to see what are the maximal/minimal values PV have in the risk factors defined region.
+The PV of the trade can be written as follows
+
+$$PV(x_1, \ldots, x_n),$$
+
+where the arguments $(x_1, \ldots, x_n)$ represent the various risk factors. We denote by $x_i^{EOD}$ the actual (End-of-Day) values and with $x_i^{LOW} \leq x_i^{EOD} \leq x_i^{HIGH}$ the local lower and upper bounds of the risk factors.
+We define two functions of a single variable $\lambda$, defined in the interval $[0, 1]$:
+
+$$f_{UP}(\lambda) = PV(x_1^{EOD} + \lambda \cdot (x_1^{EDGE\ UP} - x_1^{EOD}), \ldots, x_n^{EOD} + \lambda \cdot (x_n^{EDGE\ UP} - x_n^{EOD}))$$
+
+$$f_{DOWN}(\lambda) = PV(x_1^{EOD} + \lambda \cdot (x_1^{EDGE\ DOWN} - x_1^{EOD}), \ldots, x_n^{EOD} + \lambda \cdot (x_n^{EDGE\ DOWN} - x_n^{EOD}))$$
+
+where
+
+$$x_i^{EDGE\ UP} = \begin{cases} 
+x_i^{LOW}, & \frac{\partial PV(x_1,...x_n)}{\partial x_i} < 0 \\ 
+x_i^{UP}, & \frac{\partial PV(x_1,...x_n)}{\partial x_i} \geq 0 
+\end{cases}$$
+
+$$x_i^{EDGE\ DOWN} = \begin{cases} 
+x_i^{LOW}, & \frac{\partial PV(x_1,...x_n)}{\partial x_i} \geq 0 \\ 
+x_i^{UP}, & \frac{\partial PV(x_1,...x_n)}{\partial x_i} < 0 
+\end{cases}$$
+
+Note that for $\lambda = 0$ the two functions match the EOD price, that is: $f_{UP}(0) = PV(x_1^{EOD}, \ldots, x_n^{EOD}) = f_{DOWN}(0)$, and for $\lambda = 1$ we have:
+
+$$f_{UP}(1) = max(PV(x))$$
+
+$$f_{DOWN}(1) = min(PV(x)),$$
+
+where $max$ and $min$ for the function $PV(x)$ are taken over the hypercube $x_i^{LOW} \leq x_i^{EOD} \leq x_i^{HIGH}$ for $i = 1, \ldots, n$. Indeed, observe that for a convenient choice of the intervals $x_i^{LOW} \leq x_i^{EOD} \leq x_i^{HIGH}$ (i.e. locally), the function $f_{UP}(\lambda)$ is increasing and the function $f_{DOWN}(\lambda)$ is decreasing for $\lambda \in [0, 1]$.
+
+### 2.6.4 Interest Rate Risk in the Banking Book (IRRRB) Testing
+
+We perform the Interest Rate Stress Tests on the
+
+* DBOPT-RateDeterministic_FXMarket_AssetMarket_CorrelationSkew,
+* DBOPT-RateDeterministic_EquityBlackScholes_AssetMarket_CorrelationSkew,
+* DBOPT-RatesMarketAFSABR_FXMarket_EquityBlackScholes_CorrelationSkew,
+
+models according to a range of ten different scenarios defined under the IRRRB framework. This framework is part of the Basel capital framework Pillar 2 (Supervisory Review Process). The goal is to observe the behaviour and accuracy of the DBAanalytics implementation for all the components of the model under those scenarios. Version 820 of DBAanalytics is used for all the functions of the components listed above and are not directly impacted by the IRRRB scenarios. The BCBS document [11] describes eight Interest Rate shock scenarios that are required to be applied to IRRRB exposures in each currency for which a bank has material positions in the Banking Book. Eight Interest Rate currency dependent shock scenarios are prescribed that reflect currency-specific absolute interest rate shocks. Two of them (Steepener and Flattener) have been extended to take their opposite shift in order to define two additional scenarios: Steepener Negative and Flattener Negative. The IRRRB Interest Rate scenarios are summarized as follows:
+
+* Parallel shock up,
+* Parallel shock down,
+* Steepener shock (short rates down and long rates up),
+* Steepener Negative shock (opposite Steepener shift),
+* Flattener shock (short rates up and long rates down),
+* Flattener Negative shock (opposite Flattener shift),
+* Short rates shock up,
+* Short rates shock down,
+* Long rates shock up,
+* Long rates shock down.
+
+Given a time bucket $k$, the Interest Rate shock for the time bucket midpoint $t_k$ for each of the ten scenarios $s$ are parameterized by elementary shocks $R_{s,c}$ for each shock type $s$ in parallel, short, long per currency $c$. For the purposes of our tests the following most extreme elementary shocks (in bps) were chosen:
+
+$$R_{s,c} = \begin{cases} 
+200 & \text{if } s = \text{parallel}, \forall c, \\ 
+250 & \text{if } s = \text{short}, \forall c, \\ 
+150 & \text{if } s = \text{long}, \forall c 
+\end{cases}$$
+
+These shocks correspond to the elementary shocks for Euro currency. The interest rate shocks $\Delta R_{s,c}(t_k)$ for each scenario are as follows:
+
+Parallel shock for currency $c$: a constant parallel shock $up$ or $down$ across all time buckets:
+
+$$\Delta R_{parallel,c}(t_k) = \pm R_{parallel,c}$$
+
+Short rate shock for currency $c$: shock $up$ or $down$ that is greatest at the shortest tenor midpoint. Long rate shock for currency $c$: shock $up$ or $down$ that is greatest at the longest tenor midpoint. Rotation shocks involve rotations to the term structure of the interest rate whereby both the long and short rates are shocked and the shift in the interest rates at each tenor midpoint is obtained by applying the following formulae to the shocks:
+
+$$\Delta R_{steepener,c}(t_k) = -0.65|\Delta R_{short,c}(t_k)|+0.9|\Delta R_{long,c}(t_k)|,$$
+$$\Delta R_{flattener,c}(t_k) = 0.8|\Delta R_{short,c}(t_k)|-0.6|\Delta R_{long,c}(t_k)|,$$
+$$\Delta R_{Steep\_Neg,c}(t_k) = -\Delta R_{steepener,c}(t_k),$$
+$$\Delta R_{Flat\_Neg,c}(t_k) = -\Delta R_{flattener,c}(t_k).$$
+
+For each component, those ten scenarios and the base case scenario are tested. For each of those eleven scenarios, we perform a parallel shift of the rate curve on the zero rates, from -15% to +14% with a 1% step. Results are plotted in the next section.
+
+### 2.6.5 Risk Factor Table
+
+#### 2.6.5.1 DBOPT-RateDeterministic_FXMarket_AssetMarket_CorrelationSkew
+
+| Product | Test Type | Context | IRCURVE SWAP | EQUITYMKTDATA SPOT | EQUITYPARAMETRICVOL VOL |
+| --- | --- | --- | --- | --- | --- |
+| HybMultiDigital | Individual and Joint | EOD | [-5%,5%] ABS | [-65%,65%] REL | [-90%,200%] REL |
+| | Individual and Joint | CCAR | [-5%,5%] ABS | [-65%,65%] REL | [-90%,200%] REL |
+| | Simultaneous | IRRRBB | [-5%,5%] ABS | [-65%,65%] REL | [-90%,200%] REL |
+| HybContingentOptMultiAssetBasket | Individual and Joint | EOD | [-5%,5%] ABS | [-65%,65%] REL | [-90%,200%] REL |
+| | Individual and Joint | CCAR | [-5%,5%] ABS | [-65%,65%] REL | [-90%,200%] REL |
+| | Simultaneous | IRRRBB | [-5%,5%] ABS | [-65%,65%] REL | [-90%,200%] REL |
+
+| Product | Test Type | Context | ASSETMKTDATA FORWARD | ASSETPARAMETRICVOL VOL |
+| --- | --- | --- | --- | --- |
+| HybMultiDigital | Individual and Joint | EOD | [-65%,65%] REL | [-90%,200%] REL |
+| | Individual and Joint | CCAR | [-65%,65%] REL | [-90%,200%] REL |
+| | Simultaneous | IRRRBB | [-65%,65%] REL | [-90%,200%] REL |
+| HybContingentOptMultiAssetBasket | Individual and Joint | EOD | [-65%,65%] REL | [-90%,200%] REL |
+| | Individual and Joint | CCAR | [-65%,65%] REL | [-90%,200%] REL |
+| | Simultaneous | IRRRBB | [-65%,65%] REL | [-90%,200%] REL |
+
+#### 2.6.5.3 DBOPT-RatesMarketAFSABR_FXMarket_EquityBlackScholes_CorrelationSkew
+
+| Product | Test Type | Context | IRCURVE SWAP | IRCURVE VOL | EQUITYPARAMETRICVOL VOL |
+| --- | --- | --- | --- | --- | --- |
+| HybContingentOptMultiAssetBasket | Individual and Joint | EOD | [-5%,5%] ABS | [-90%,200%] ABS | [-65%,65%] REL |
+| | Individual and Joint | CCAR | [-5%,5%] ABS | [-90%,200%] ABS | [-65%,65%] REL |
+| | Simultaneous | IRRRBB | [-5%,5%] ABS | [-90%,200%] ABS | [-65%,65%] REL |
+
+| Product | Test Type | Context | EQUITYMKTDATA SPOT | FXVOL VOL | FXVOL SPOT |
+| --- | --- | --- | --- | --- | --- |
+| HybContingentOptMultiAssetBasket | Individual and Joint | EOD | [-65%,65%] REL | [-5%,35%] ABS | [-65%,65%] REL |
+| | Individual and Joint | CCAR | [-65%,65%] REL | [-5%,35%] ABS | [-65%,65%] REL |
+| | Simultaneous | IRRRBB | [-65%,65%] REL | [-5%,35%] ABS | [-65%,65%] REL |
+
+### 2.7 Engagement Process
+
+The model developer documentation submitted in request ID 1. 16532, 2. 16739, 3. 16740, 4. 16532, 5. 16741 has been reviewed for sufficiency and completeness against the model approval request submission standards detailed in the Pricing Model Validation Key Operating Document [17]. The results of the initial review are detailed in Tables 38 and 39.
+
+### 2.8 List of Validation Findings
+
+*Table 39: DBOPT-RatesMarketAFSABR_FXMarket_EquityBlackScholes_CorrelationSkew Closed Findings*
+
+| Request ID | Start Date | Due Date | Request Status | Originator | Action Owner | Finding Severity |
+| --- | --- | --- | --- | --- | --- | --- | | FX SPOT | FX VOL |
+| --- | --- | --- | --- | --- | --- |
+| HybMultiDigital | Individual and Joint | EOD | [-5%,5%] ABS | [-65%,65%] REL | [-10%,50%] REL |
+| | Individual and Joint | CCAR | [-5%,5%] ABS | [-65%,65%] REL | [-10%,50%] REL |
+| | Simultaneous | IRRRBB | [-5%,5%] ABS | [-65%,65%] REL | [-10%,50%] REL |
+| HybContingentOptMultiAssetBasket | Individual and Joint | EOD | [-5%,5%] ABS | [-65%,65%] REL | [-10%,50%] REL |
+| | Individual and Joint | CCAR | [-5%,5%] ABS | [-65%,65%] REL | [-10%,50%] REL |
+| | Simultaneous | IRRRBB | [-5%,5%] ABS | [-65%,65%] REL | [-10%,50%] REL |
+
+| Product | Test Type | Context | ASSETMKTDATA FORWARD | ASSETPARAMETRICVOL VOL |
+| --- | --- | --- | --- | --- |
+| HybMultiDigital | Individual and Joint | EOD | [-65%,65%] REL | [-90%,200%] REL |
+| | Individual and Joint | CCAR | [-65%,65%] REL | [-90%,200%] REL |
+| | Simultaneous | IRRRBB | [-65%,65%] REL | [-90%,200%] REL |
+| HybContingentOptMultiAssetBasket | Individual and Joint | EOD | [-65%,65%] REL | [-90%,200%] REL |
+| | Individual and Joint | CCAR | [-65%,65%] REL | [-90%,200%] REL |
+| | Simultaneous | IRRRBB | [-65%,65%] REL | [-90%,200%] REL |
+
+## 2.9 List of Validation Observations
+
+As part of the validation of pricing models, MoRM may identify problems with the model that require an immediate implementation fix and cause further validation activities to be put on hold. Conversely, remediation actions and timelines will be discussed and monitored as part of the MCWGs. To raise a validation finding MoRM creates a validation finding request in MARS. When the finding is described, a responsible action owner is assigned for remediation of the finding. MoRM can revoke the model approval if validation findings are not closed within agreed timelines. MoRM will only raise validation findings and not observations for pricing models. Due to the nature of model usage, their complexity and risk management, the model was reviewed for DBA version 830. Subsequent changes require further validation.
+
+The Condition for Use is linked to the CorrelationSkew models:
+* When interpolating the inverse of DBOPTVOL AFSABR CDF with SIMCOPULA, InverseCDFInterpolationType should be set to LINEAR as it is more stable than NATURALCUBIC.
+
+Starting DBA version 830, the property field InverseCDFInterpolationType has been removed as only LINEAR gives stable results. As a result, the Condition for Use has been deactivated.
+
+## 3 Assessment of Approach, Conceptual Soundness and Implementation
+
+In this section, we review the methodology, conceptual soundness, and implementation of the DBOPT-CorrelationSkew model.
+
+### 3.1 Assessment of Development and Modelling Data
+
+The DBOPT model is an analytic and single horizon Monte Carlo model implementation that can be used for pricing derivatives on one or two underlyings that set at the same date. The purpose of the CorrelationSkew model is to overcome the inability of parametric products like double digitals at different strikes. Simple copula models such as Gaussian or Gumbel or richer non parametric correlation models are necessary to capture the correlation skew evidenced by dual digitals at various strikes. The correlation skew model in this document gives more flexibility for a rich correlation skew surface.
+
+### 3.2 Assessment of Methodology and Calibration
+
+#### 3.2.1 Assessment of Methodology
+
+After these consideration, the DBOPT model with the given configuration is the natural one for pricing products under consideration. The aim of this CorrelationSkew methodology is to produce a correlation skew that is intuitive and can easily be calibrated to dual calls/puts or dual digitals. A requirement from the business users is to have a sticky strike correlation skew. This correlation skew copula is constructed using a Monte Carlo numerical technique.
+
+As the modelling only allows for payoffs with 2 underlyings and one of the underlyings is interest rate related, we use RatesMarketAFSABR. When the 2 underlyings are not interest rate related, interest rates are modelled using RateDeterministic model. When there is a quanto payoff with an Equity underlying, we can use RatesMarketAFSABR.
+
+RatesMarketAFSABR uses similar parameters as the SABR model but is arbitrage-free. It can capture the volatilities implied by caps and swaptions.
+
+#### 3.2.2 Assessment of Alternative Approaches
+
+Compared to similar models, the implementation under consideration has the following strengths:
+* It allows to model a richer non-parametric correlation, needed in order to capture the correlation skew evidenced by dual digitals at various strikes, which may not be captured by parametric asymmetric copulas.
+* It can handle the correlation skew structure, so that the correlation between the underlyings depends on the market conditions (i.e., the level of the underlyings).
+
+#### 3.2.3 Assessment of Calibration
+
+* RateDeterministic: only uses the interest rate curve.
+* RatesMarketAFSABR: The marginal distributions are calibrated to European swaptions. This is the same as the calibration for single rate derivatives as priced in DBOPT-RatesMarketAFSABR.
+* EquityBlackScholes, FXMarket and AssetMarket EquityParametricVol: calibrated offline in the VOLFIT system. The VOLFIT system uses the OLS formula on prices. the PIVAUTOFIT function to calibrate the PIV parameters. The calibration engine uses a Levenberg-Marquardt (LM) method for calibrating PIV parameters. The LM method is an iterative method, that starts with an initial guess for the parameters and the parameters are then modified in subsequent iterations until a pre-defined convergence criteria is met (see for example, Press et al [24] for additional details). The objective function is to minimize the sum of squared errors between the target implied volatilities obtained from the market and the implied volatilities obtained by the model. It is possible to set different weights to the calibration instruments as part of the calibration process.
+* The error tolerance level and the maximum number of iterations are set by the model configuration parameters.
+* CorrelationSkew: CorrelationSkew requires historical observation of the underlying rates in order to correctly estimate the correlation and its parameters. The CorrelationSkew component of this model can in theory be calibrated to market prices of dual digitals or contingent options. However, those products are not liquid enough to provide accurate estimation of the correlation skew so the correlation skew itself is not calibrated and a flat correlation is usually used. Therefore, the model parameter CorrelationSkew is calculated using the expert judgment of the trading desk.
+
+### 3.3 Assessment of Model Assumptions and Limitations
+
+The model assumptions and limitations are listed in Section 2.3 and Section 5.1.1 respectively. In particular, the list of model assumptions and limitations is deemed complete and there is no relevant missing item that requires to be added to the current version of the document.
+
+#### 3.3.1 Assessment of Model Assumptions
+
+Tables below lists the model assumptions and gives a statement on their conceptual suitability.
+
+| Assumption | Conceptual Suitability |
+|------------|-------------------------|
+| Arbitrage free market. | This is a fundamental assumption for any pricing model |
+| Liquid Market | This is a reasonable assumption as the vanilla and variance swap market is liquid enough to provide quotes for different strikes and tenors. |
+| Deterministic Volatility | It reasonable to assume that equity volatility is a deterministic function of time as the model is used for products which do not have a dependence on equity volatility skew. |
+| Deterministic Dividends | For the type of products considered in this model, it is reasonable to assume that dividends are deterministic and can be proportional to spot price or can be in cash. |
+| Deterministic Interest Rates | This assumption is appropriate for the simple linear payoff products considered. |
+| No Jumps | The dynamics of the underlying equity and of the asset process are governored by diffusion processes without jumps. |
+
+*Table 36: Model assumptions and their conceptual suitability.*
+
+#### 3.3.2 Assessment of Model Limitations
+
+Table below lists the model limitations, their impact and the mitigating controls in place.
+
+| Limitation | Mitigating Control | Impact |
+|------------|-------------------|---------|
+| Numerical Approximation(Monte Carlo Error): When DBOPT model is used with CorrelationSkew - TERMSKEW, Monte Carlo simulations have an error associated with them that is a function of the number of simulations used. | This is a generic limitation related to numerical approximation error. Convergence testing is carried out ensuring that the simulations are showing that the numerical error is immaterial when recommended parameter settings are used. | The problem associated to the convergence with respect to number of simulations is merely a problem of the numerical technique rather than the model itself. |
+
+*Table 37: Model limitation, their impact and the mitigating control.*
+
+### 3.4 Expert Judgments in the Model
+
+In addition to the model specification detailed in section 2.3, the market inputs specified in section 2.3 are subject to IPV process.
+
+The CorrelationSkew requires historical observation of the underlying rates in order to correctly estimate the correlation and its parameters. The CorrelationSkew component of this model can in theory be calibrated to market prices of dual digitals or contingent options. However, those products are not liquid enough to provide accurate estimation of the correlation skew so the correlation skew itself is not calibrated and a flat correlation is usually used. Therefore, the model parameter CorrelationSkew is calculated using the expert judgment of the trading desk.
+
+### 3.5 Assessment of Model Documentation
+
+Model users are responsible for seeking model validation for all new model and model modifications prior to use, through the submission of Model Approval Requests in line with the documentation standards set out by MoRM. Documentation should be sufficient to permit independent review and to facilitate understanding and challenge of the model by others, independent from the original developers.
+
+The following steps are carried out in evaluating the Model Approval Request submissions:
+* Upon being assigned to the Model Approval Request, the Primary Approver must review the submission to confirm completeness and adequacy against the minimum standards.
+* If the Model Approval Request does not comply with submission standards or if additional information is required, the Primary Approver will reject the request and provide reasons for this as well as follow up actions required by the model owner/developer submitting the request, prior to resubmission.
+
+MoRM will not commence validation activities until the Model Approval Request is accepted.
+At any time during the validation process, MoRM have the right to request additional information they deem necessary for effective validation, even if outside the submission requirements listed in this document. MoRM may also ask for the model code to be updated during the course of the validation. Additional supporting information obtained during the validation is also recorded in MARS.
+
+The pricing model developer document requirements to check:
+
+| Section | Content | MoRM check |
+|---------|---------|------------|
+| Executive summary | Model Developer<br>Documentation info | Yes<br>Yes |
+| | Model configuration<br>Product Owner<br>Business Area, Line or Asset Class<br>Risk Management Systems | Yes<br>Yes<br>Yes<br>Yes |
+| Products description | | |
+| Product Scope | PRDS name and definition<br>NPA Reference<br>Mathematical description of the payoff | Yes<br>Yes<br>Yes |
+| Model Description | | |
+| Model Dynamics | Model assumptions<br>Model parameters<br>Model dynamics<br>Model components<br>Model implementation | Yes<br>Yes<br>Yes<br>Yes<br>Yes |
+| Model calibration | Model parameters calibration | Yes |
+| Model risk sensitivities | Modes which apply to the model<br>Model risk sensitivities | Yes<br>Yes |
+| Model weaknesses, limitations | Weakness and limitation description<br>Model Restrictions (Conditions for Use) | Yes<br>Yes |
+| Conceptual Soundness | Product scope<br>Justification for model selection | Yes<br>Yes |
+| Model controls | Analytics Library and Version<br>Compensating controls<br>Model inputs controls | Yes<br>Yes<br>Yes |
+| Implementation testing and justification of model behaviour | | Yes |
+| Model configuration testing | | Yes |
+| References | | Yes |
+
+*Table 38: Review of Model Developer Document*
+
+The pricing product model developer document requirements to check:
+
+| Section | Content | MoRM check |
+|---------|---------|------------|
+| Executive summary | Model Developer<br>Documentation info | Yes<br>Yes |
+| Products description | | |
+| Product Scope | PRDS name and definition<br>NPA Reference<br>Mathematical description of the payoff | Yes<br>Yes<br>Yes |
+
+## 4 Independent Validation Testing
+
+DBAnalytics production system reconciliation: Independent model validation testing is undertaken using DBAnalytics and no further external analytics are being run in strategic production systems. It can be assured that model output produced with a consistent version of DBAnalytics will yield equivalent results whether locally by individual users or in official production systems.
+
+The following implementation tests have been carried out by DBA:
+* Price and Greek Convergence:
+  Price, Delta, FXDelta, Vega, Gamma all show convergence to intrinsic value with change in NumberSims.
+* Sensitivity Analysis(standard and Extreme Scenarios):
+  PV, FLATDELTA and FLATVEGA as a function of parallel CURVE shifts and relative VOL shifts. PV as a function of all risk factor stress.
+* Taylor approximation:
+  Check the consistency of the Taylor approximation of the price using spot price, curve delta and gamma and vega of the product.
+* Product Specific Testing:
+  Various product specific tests.
+* Risk Factor Tests: PV and risk ladders under applicable VaR scenarios, CCAR shocks and IRRBB scenarios.
+
+## 4.1 DBOPT-RateDeterministic_FXMarket_AssetMarket_CorrelationSkew-HybMultiDigital product
+
+This model will be referred to by M4 in this section.
+
+### 4.1.1 Trade used for Testing
+
+We consider the following HybMultiDigital trade:
+* Valuation date is 11/10/2017
+* Model Configuration is DBOPT-RatesMarketDeterministic_FXMarket[AUTO]_AssetMarket_CorrelationSkew[TermSkew].
+* domestic and payment currency is USD
+* Maturity 1Y
+* Notional is 100
+
+Payoff is:
+```
+1_{EURUSD(T)>=1.25} · 1_{S(EURFUT)/S(0)>=1.3}
+```
+
+### 4.1.2 Convergence
+
+In this section we test the convergence of the Monte Carlo SIMCOPULA. The convergence is tested increasing the number of SIMCOPULA simulation paths.
+Model configuration for CorrelationSkew is TermSkew.
+The trade is the HybMultiDigital trade described in section 4.1.1. The HybMultiDigital trade has a 1Y expiry. We price it with an increasing number of SIMCOPULA simulations NumberSims = 1k, 5k, 10k, 30k, 50k, 70k, 90k, 110k.
+
+#### 4.1.2.1 Convergence: Price
+We check the convergence of the HybMultiDigital price. We compute the error caused by seed variance (Error = StandardDeviation/Mean).
+Tests pass if ratio declines rapidly when NumberSims increases.
+
+![Figure 38: Price Convergence - HybMultiDigital - M4](/img/price_convergence_m4.png)
+
+All tests pass, as the Error decreases when NumberSims increases. Prices show good stability from 60K sims.
+
+### 4.1.3 Convergence: Delta
+
+#### 4.1.3.1 Convergence: EUR IR Delta
+We check the convergence of the Monte Carlo pricer for the EUR IR Delta of the HybMultiDigital (MODE=FLATDELTAAVE).
+Test passes if the EUR IR Delta shows good stability when increasing NumberSims.
+
+![Figure 39: EUR IR Delta Convergence - HybMultiDigital](/img/eur_ir_delta_convergence_m4.png)
+
+Test passes, the EUR IR Delta shows good stability.
+
+#### 4.1.3.2 Convergence: USD IR Delta
+We check the convergence of the Monte Carlo pricer for the USD IR Delta of the HybMultiDigital (MODE=FLATDELTAAVE).
+Test passes if the USD IR Delta shows good stability when increasing NumberSims.
+
+![Figure 40: USD IR Delta Convergence - HybMultiDigital](/img/usd_ir_delta_convergence_m4.png)
+
+Test passes, the USD IR Delta shows good stability.
+
+#### 4.1.3.3 Convergence: FX Delta
+We check the convergence of the Monte Carlo pricer for the EUR/USD Delta of the HybMultiDigital (MODE=FXDELTA).
+Test passes if the EUR/USD Delta shows good stability when increasing NumberSims.
+
+![Figure 41: FX Delta Convergence - HybMultiDigital](/img/fx_delta_convergence_m4.png)
+
+Test passes, the FX Delta shows good stability.
+
+#### 4.1.3.4 Convergence: Asset Delta
+We check the convergence of the Monte Carlo pricer for the Asset Delta of the HybMultiDigital (MODE=MKTDATARISKAVE).
+Test passes if the Asset Delta shows good stability when increasing NumberSims.
+
+![Figure 42: Asset Delta Convergence - HybMultiDigital](/img/asset_delta_convergence_m4.png)
+
+Test passes, the Asset Delta shows good stability.
+
+### 4.1.4 Convergence: Vega
+
+#### 4.1.4.1 Convergence: FX Vega
+We check the convergence of the Monte Carlo pricer for the FX Vega of the HybMultiDigital (MODE=VEGA).
+Test passes if the FX Vega shows good stability when increasing NumberSims.
+
+![Figure 43: FX Vega Convergence - HybMultiDigital](/img/fx_vega_convergence_m4.png)
+
+Test passes, the FX Vega shows good stability.
+
+#### 4.1.4.2 Convergence: Asset Vega
+We check the convergence of the Monte Carlo pricer for the EQ Vega of the HybMultiDigital (MODE=VEGA).
+Test passes if the Asset Vega shows good stability when increasing NumberSims.
+
+![Figure 44: Asset Vega Convergence - HybMultiDigital](/img/asset_vega_convergence_m4.png)
+
+Test passes, the Asset Vega shows good stability.
+
+### 4.1.5 Convergence: Gamma
+
+#### 4.1.5.1 Convergence: AssetGamma
+In this section we test the convergence of the Monte Carlo pricer for the Asset Gamma of the HybMultiDigital (MODE=MKTDATAGAMMA).
+Tests pass if the EQ Gamma shows good stability when increasing NumberSims.
+
+![Figure 45: AssetGamma Convergence - M4 - HybMultiDigital](./Fig/45.png)
+
+All tests pass, the Asset Gamma shows good stability from 50K.
+
+## 4.1.5.2 Convergence: FX Gamma
+
+In this section we test the convergence of the Monte Carlo pricer for the FX Gamma of the HybMultiDigital (MODE=FXGAMMAAVE). 
+Tests pass if the FX Gamma shows good stability when increasing NumberSims.
+
+![Figure 46: FXGamma Convergence - M4 - HybMultiDigital](./Fig/46.png)
+
+All tests pass, the FX Gamma shows good stability from 100K.
+
+## 4.1.6 Stability
+
+In this section we calculate the price under:
+- parallel shifts of the USD IR curve and EUR IR curve and relative shifts of Asset Forwards curve and FX spot
+- absolute shifts of volatilities
+- relative shifts of the correlation parameters
+
+The trade is the HybMultiDigital trade described in section 4.1.1.
+Model configuration for CorrelationSkew is TermSkew.
+Tests pass if the prices and risks vary smoothly when shifting the market parameters.
+
+### 4.1.6.1 Stability: Price - EUR IR Curve parallel shift
+
+The price of the HybMultiDigital should vary smoothly when shifting the EUR IR Curve.
+
+![Figure 47: Stability - Price - EUR IR Curve parallel shift - HybMultiDigital](./Fig/47.png)
+
+Figure 47 shows the price of the HybMultiDigital varying smoothly when bumping the EUR IR Curve. Test passes.
+
+### 4.1.6.2 Stability: Price - USD IR Curve parallel shift
+
+The price of the HybMultiDigital should vary smoothly when shifting the USD IR Curve.
+
+![Figure 48: Stability - Price - USD IR Curve parallel shift - HybMultiDigital](./Fig/48.png)
+
+Figure 48 shows shows the price of the HybMultiDigital varying smoothly when bumping the USD IR Curve. Test passes.
+
+### 4.1.6.3 Stability: Price - Asset Forward Curve relative shift
+
+![Figure 49: Stability - Price - Asset Forward curve relative shift - HybMultiDigital](./Fig/49.png)
+
+### 4.1.6.4 Stability: Price - FX Spot relative shift
+
+![Figure 50: Stability - Price - FX Spot relative shift - HybMultiDigital](./Fig/50.png)
+
+## 4.1.7 Stressed Market Conditions: Volatility Stress
+
+In this section we calculate the price under absolute shifts of EQ ATM Vol and absolute shifts of FX DN values. The trade is the HybMultiDigital trade described in section 4.1.1.
+Tests pass if the prices and risks vary smoothly when shifting the market parameters.
+
+### 4.1.7.1 Stability: Price - FX Vol shift
+
+The HybMultiDigital price should vary smoothly when shifting the FX DN Vol.
+
+![Figure 51: Stability - Price vs FX DN - HybMultiDigital](./Fig/51.png)
+
+Figure 51 shows that the price varies smoothly when shifting FX DN Vol. Test passes.
+
+### 4.1.7.2 Stability: Price - Asset ATM vol shift
+
+The HybMultiDigital price should vary smoothly when shifting the Asset ATM Vol.
+
+![Figure 52: Stability - Price vs Asset ATM Vol - HybMultiDigital](./Fig/52.png)
+
+Figure 52 shows that the price varies smoothly when shifting Asset ATM Vol. Test passes.
+
+### 4.1.7.2.1 Stability: Price - Correlation relative shift
+
+We shift correlation skew by relative shifts between −100% to +100%. For positive shifts, we apply $newCorr = oldCorr + (1 - oldCorr) · bump$ not to breach the correlation upper bound of 1. PV should be put.
+Model configuration for CorrelationSkew is TermSkew. There's no guarantee that the PV should be put.
+
+![Figure 53: Stability - Price - Corr relative shift - M4 - HybMultiDigital - Maturity 1Y](./Fig/53.png)
+
+Tests pass as the price varies smoothly under absolute shifts of the correlation parameters.
+As expected, as the HybMultiDigital is a dual digital puts, the price increases when the correlation increases.
+
+## 4.1.8 Stressed Market Conditions: Delta
+
+### 4.1.8.1 Stability: Risks - EUR IR Delta
+
+In this section we test the stability of the EUR IR Delta (MODE=FLATDELTA).
+
+![Figure 54: Stability - EUR IR Delta - EUR IR Curve parallel shift - HybMultiDigital](./Fig/54.png)
+
+Figure 54 shows the EUR IR Delta behaving as expected when shifting the EUR IR Curve. Test passes.
+
+![Figure 55: Stability - EUR IR Delta - USD IR Curve parallel shift - HybMultiDigital](./Fig/55.png)
+
+![Figure 56: Stability - EUR IR Delta - EUR/USD spot relative shift - HybMultiDigital](./Fig/56.png)
+
+![Figure 57: Stability - EUR IR Delta - Asset Forwards curve relative bump - HybMultiDigital](./Fig/57.png)
+
+![Figure 58: Stability - EUR IR Delta - FX DN absolute shift - HybMultiDigital](./Fig/58.png)
+
+![Figure 59: Stability - EUR IR Delta - Asset ATM vol absolute shift - HybMultiDigital](./Fig/59.png)
+
+### 4.1.8.2 Stability: Risks - USD IR Delta
+
+In this section we test the stability of the USD IR Delta (MODE=FLATDELTA).
+
+![Figure 60: Stability - USD IR Delta - EUR IR Curve parallel shift - HybMultiDigital](./Fig/60.png)
+
+![Figure 61: Stability - USD IR Delta - USD IR Curve parallel shift - HybMultiDigital](./Fig/61.png)
+
+![Figure 62: Stability - USD IR Delta - EUR/USD spot relative shift - HybMultiDigital](./Fig/62.png)
+
+![Figure 63: Stability - USD IR Delta - Asset Forwards curve relative bump - HybMultiDigital](./Fig/63.png)
+
+![Figure 64: Stability - USD IR Delta - FX DN absolute shift - HybMultiDigital](./Fig/64.png)
+
+![Figure 65: Stability - USD IR Delta - Asset ATM vol absolute shift - HybMultiDigital](./Fig/65.png)
+
+### 4.1.8.3 Stability: Risks - FX Delta
+
+In this section we test the stability of the FX Delta (MODE=FXDELTA).
+
+![Figure 66: Stability - FX Delta - EUR IR Curve parallel shift - HybMultiDigital](./Fig/66.png)
+
+![Figure 67: Stability - FX Delta - USD IR Curve parallel shift - HybMultiDigital](./Fig/67.png)
+
+![Figure 68: Stability - FX Delta - EUR/USD spot relative shift - HybMultiDigital](./Fig/68.png)
+
+![Figure 69: Stability - FX Delta - Asset Forwards curve relative bump - HybMultiDigital](./Fig/69.png)
+
+![Figure 70: Stability - FX Delta - FX DN absolute shift - HybMultiDigital](./Fig/70.png)
+
+![Figure 71: Stability - FX Delta - Asset ATM vol absolute shift - HybMultiDigital](./Fig/71.png)
+
+### 4.1.8.4 Stability: Risks - Asset Delta
+
+In this section we test the stability of the Asset Delta (MODE=MKTDATARISKAVE).
+The Asset Price PV should vary smoothly and be in line with the Price behaviour when shifting the Asset Forwards curve (Figure 49): the Asset Delta should be negative, decrease from zero and then increase back to zero when increasing the Asset Forwards curve.
+
+![Figure 72: Stability - Asset Delta - EUR IR Curve parallel shift - HybMultiDigital](./Fig/72.png)
+
+![Figure 73: Stability - Asset Delta - USD IR Curve parallel shift - HybMultiDigital](./Fig/73.png)
+
+![Figure 74: Stability - Asset Delta - EUR/USD spot relative shift - HybMultiDigital](./Fig/74.png)
+
+![Figure 75: Stability - Asset Delta - Asset Forwards curve relative bump - HybMultiDigital](./Fig/75.png)
+
+![Figure 76: Stability - Asset Delta - FX DN absolute shift - HybMultiDigital](./Fig/76.png)
+
+![Figure 77: Stability - Asset Delta - Asset ATM vol absolute shift - HybMultiDigital](./Fig/77.png)
+
+Figure 75 shows the Asset Delta of the HybMultiDigital varying as expected when shifting the Asset Forwards curve. Test passes.
+
+## 4.1.9 Stressed Market Conditions: Vega
+
+### 4.1.9.1 Stability: Risks - FX Vega
+
+In this section we test the stability of the FX Vega (MODE=FXVEGA).
+
+![Figure 78: Stability - FX Vega - EUR IR Curve parallel shift - HybMultiDigital](./Fig/78.png)
+
+![Figure 79: Stability - FX Vega - USD IR Curve parallel shift - HybMultiDigital](./Fig/79.png)
+
+![Figure 80: Stability - FX Vega - EUR/USD spot relative shift - HybMultiDigital](./Fig/80.png)
+
+![Figure 81: Stability - FX Vega - Asset Forwards curve relative bump - HybMultiDigital](./Fig/81.png)
+
+![Figure 82: Stability - FX Vega - FX DN absolute shift - HybMultiDigital](./Fig/82.png)
+
+![Figure 83: Stability - FX Vega - Asset ATM vol absolute shift - HybMultiDigital](./Fig/83.png)
+
+### 4.1.9.2 Stability: Risks - Asset Vega
+
+In this section we test the stability of the Asset Vega (MODE=VEGA).
+The Asset Vega behaviour when shifting the Asset ATM Vol should be smooth and in line with the Price behaviour when shifting the Asset ATM Vol in Figure 52.
+
+![Figure 84: Stability - Asset Vega - EUR IR Curve parallel shift - HybMultiDigital](./Fig/84.png)
+
+![Figure 85: Stability - Asset Vega - USD IR Curve parallel shift - HybMultiDigital](./Fig/85.png)
+
+![Figure 86: Stability - Asset Vega - EUR/USD spot relative shift - HybMultiDigital](./Fig/86.png)
+
+![Figure 87: Stability - Asset Vega - Asset Forwards curve relative bump - HybMultiDigital](./Fig/87.png)
+
+![Figure 88: Stability - Asset Vega - FX DN absolute shift - HybMultiDigital](./Fig/88.png)
+
+![Figure 89: Stability - Asset Vega - Asset ATM vol absolute shift - HybMultiDigital](./Fig/89.png)
+
+Figure 89 shows the Asset Vega of the HybMultiDigital varying as expected when shifting the Asset ATM Vol values. Test passes.
+
+## 4.1.10 Taylor Expansion
+
+In this section we review the Taylor testing for the HybMultiDigital. The idea is to compare the Taylor series approximation to the DBAAnalytics produced price, w.r.t the main underlyings of the product being the fxspot and FX DN volatility. We produce:
+- a 3D plot showing how the price of the product varies with curve/spot and volatility shifts
+- a contour plot showing how the approximation differs from the DBAAnalytics produced price
+
+We consider the HybMultiDigital product with Maturity 1Y. The trade is described in details in section 4.1.1.
+The 3D plots show that the PV varies smoothly with FX spot and volatility bumps.
+The behaviour is as expected, in line with the paths shown in Figures 50 and 51.
+The contour plots show that the approximation is close around the initial point, but then it is less the case because the only terms taken into account are first and second order in spot and first oder in volatility.
+
+![Figure 90: 3D plot showing price of HybMultiDigital as a function of FX spot and volatility shifts](./Fig/90.png)
+
+![Figure 91: Contour plot showing relative difference between approximation and DBAAnalytics price under FX spot and volatility shifts](./Fig/91.png)
+
+## 4.1.11 Product Testing
+
+Payoff is $I_{USD/EUR>1.34} \times 1.270 \times X_{502.2300}$.
+
+![Figure 92: Product Testing - Asset barrier and FX barrier relative shifts - HybMultiDigital - M4](./Fig/92.png)
+
+Figure 92 shows the price increasing when increasing the upper barrier level for this dual digital option. Test passes.
+
+## 4.1.12 IRRBB: Tests description
+
+In this subsection we perform the IRRBB test of the HybMultiDigital product. We study 10 IRRBB scenarios and the "base" scenario, which corresponds to the current state of the market: "base", "parallel_up", "parallel_down", "steepener", "flattener", "short_up", "short_down", "long_up", "long_down", "steepener_reg", "flattener_reg".
+Each of those scenarios transforms the IR curves, as is shown on the figures Fig. 93 and 94.
+
+![Figure 93: The zero rates of the EUR IR under 10 different IRRBB scenarios](./Fig/93.png)
+
+![Figure 94: The zero rates of the USD IR under 10 different IRRBB scenarios](./Fig/94.png)
+
+![Figure 95: Convergence of PV under different numbers of simulations](./Fig/95.png)
+
+## 4.1.14 IRRBB: PV ladder versus shifts of the EUR IR curve
+
+We further certify the stability of the price of HybMultiDigital under EUR IR Curve parallel shift for the 10 IRRBB scenarios.
+
+![Figure 96: The PV of the HybMultiDigital as the EUR IR curve undergoes parallel shifts, under 10 different IRRBB scenarios, as comparing with the base scenario](./Fig/96.png)
+
+## 4.1.15 IRRBB: PV ladder versus shifts of the USD IR curve
+
+We further certify the stability of the price of HybMultiDigital under USD IR Curve parallel shift for the 10 IRRBB scenarios.
+![Figure 97: The PV of the HybMultiDigital as the USD IR curve undergoes parallel shifts; under 10 different IRRBB scenarios, as comparing with the base scenario.](./Fig/97.png)
+
+## 4.1.16 IRRBB: PV ladder versus Asset Forwards Curve relative shift
+
+We further certify the stability of the price of HybMultiDigital under Asset Forwards Curve relative shift for the 10 IRRBB scenarios.
+
+![Figure 98: The PV of the HybMultiDigital as Asset Forwards Curve undergoes relative shifts; under 10 different IRRBB scenarios, as comparing with the base scenario.](./Fig/98.png)
+
+## 4.1.17 IRRBB: PV ladder versus FX Spot relative shift
+
+We further certify the stability of the price of HybMultiDigital under USD/EUR Spot relative shift for the 10 IRRBB scenarios.
+
+![Figure 99: The PV of the HybMultiDigital as the USD/EUR Spot undergoes relative shifts; under 10 different IRRBB scenarios, as comparing with the base scenario.](./Fig/99.png)
+
+## 4.1.18 IRRBB: PV ladder versus Asset Vol absolute shift
+
+We further certify the stability of the price of HybMultiDigital under EQ Vol absolute shift for the 10 IRRBB scenarios.
+
+![Figure 100: The PV of the HybMultiDigital as the Asset Vol undergoes absolute shifts; under 10 different IRRBB scenarios, as comparing with the base scenario.](./Fig/100.png)
+
+## 4.1.19 IRRBB: PV ladder versus FX Vol absolute shift
+
+We further certify the stability of the price of HybMultiDigital under USD/EUR Vol absolute shift for the 10 IRRBB scenarios.
+
+![Figure 101: The PV of the HybMultiDigital as the USD/EUR Spot undergoes relative shifts; under 10 different IRRBB scenarios, as comparing with the base scenario.](./Fig/101.png)
+
+## 4.1.20 IRRBB: PV ladder versus correlation shifts
+
+We check the behaviour of the product as the correlations between the Brownian motions driving EQ and EUR IR risk factors are changed. We do the comparison of the base with 10 IRRBB scenarios.
+
+![Figure 102: PV of the HybMultiDigital product under correlation shifts. PV is shown under 10 different IRRBB scenarios, as comparing with the base scenario.](./Fig/102.png)
+
+### 4.1.21 Description of CCAR Scenarios
+
+The current testing covers the adverse and the severely adverse 2020 CCAR scenarios, as well as the base scenario representing the current market data. Namely in the following we use the following notation:
+1. Base Scenario: the EOD dictionary, current market data;
+2. CCAR 1: the severely adverse 2020 CCAR scenario;
+3. CCAR 2: the adverse 2020 CCAR scenario.
+
+The figure Fig. 103 below illustrate the effect of the CCAR shocks on the EUR and USD IR curves:
+
+![Figure 103: Left: the zero rates for the three scenarios, EUR IR curve. Right: the zero rates for the three scenarios, USD IR curve.](./Fig/103.png)
+
+## 4.1.22 CCAR: Convergence
+
+In this section we test the convergence of the Monte Carlo SIMCOPULA. The convergence is tested increasing the number of SIMCOPULA simulation paths.
+Model configuration for CorrelationSkew is TermSkew.
+The trade is the HybMultiDigital trade described in section 4.1.1. The HybMultiDigital trade has a 1Y expiry. We price it with an increasing number of SIMCOPULA simulations: $NumberSims = 1k, 5k, 10k, 20k, 50k, 70k, 90k, 110k$.
+
+### 4.1.22.1 Convergence: Price
+
+We check the convergence of the HybMultiDigital price. We compute the error caused by seed variance ($Error = \frac{StdDevEstimator}{MeanPrice}$).
+Tests pass if ratio declines rapidly when $NumberSims$ increases.
+
+![Figure 104: Price Convergence of HybMultiDigital in the EOD, CCAR1 and CCAR2 scenarios.](./Fig/104.png)
+
+All tests pass, as the $Error$ decreases when $NumberSims$ increases. Prices show good stability from 50K sims.
+
+## 4.1.23 CCAR: Convergence: Delta
+
+### 4.1.23.1 Convergence: EUR IR Delta
+
+We check the convergence of the Monte Carlo pricer for the EUR IR Delta of the HybMultiDigital (MODE=FLATDELTAAVE).
+Test passes if the EUR IR Delta shows good stability when increasing $NumberSims$.
+
+![Figure 105: EUR IR Delta Convergence of HybMultiDigital in the EOD, CCAR1 and CCAR2 scenarios.](./Fig/105.png)
+
+Test passes, the EUR IR Delta shows good stability.
+
+### 4.1.23.2 Convergence: USD IR Delta
+
+We check the convergence of the Monte Carlo pricer for the USD IR Delta of the HybMultiDigital (MODE=FLATDELTAAVE).
+Test passes if the USD IR Delta shows good stability when increasing $NumberSims$.
+
+![Figure 106: USD IR Delta Convergence of HybMultiDigital in the EOD, CCAR1 and CCAR2 scenarios.](./Fig/106.png)
+
+Test passes, the USD IR Delta shows good stability.
+
+### 4.1.23.3 Convergence: FX Delta
+
+We check the convergence of the Monte Carlo pricer for the EUR/USD Delta of the HybMultiDigital (MODE=FXDELTA).
+Test passes if the EUR/USD Delta shows good stability when increasing $NumberSims$.
+
+![Figure 107: FX Delta Convergence of HybMultiDigital in the EOD, CCAR1 and CCAR2 scenarios.](./Fig/107.png)
+
+Test passes, the FX Delta shows good stability.
+
+### 4.1.23.4 Convergence: Asset Delta
+
+We check the convergence of the Monte Carlo pricer for the Asset Delta of the HybMultiDigital (MODE=SPOTGAMMA).
+Test passes if the Asset Delta shows good stability when increasing $NumberSims$.
+
+![Figure 108: Asset Delta Convergence of HybMultiDigital in the EOD, CCAR1 and CCAR2 scenarios.](./Fig/108.png)
+
+Test passes, the Asset Delta shows good stability.
+
+## 4.1.24 CCAR: Convergence: Vega
+
+### 4.1.24.1 Convergence: FX Vega
+
+We check the convergence of the Monte Carlo pricer for the FX Vega of the HybMultiDigital (MODE=VEGAAVE).
+Test passes if the FX Vega shows good stability when increasing $NumberSims$.
+
+![Figure 109: FX Vega Convergence of HybMultiDigital in the EOD, CCAR1 and CCAR2 scenarios.](./Fig/109.png)
+
+Test passes, the FX Vega shows good stability.
+
+### 4.1.24.2 Convergence: Asset Vega
+
+We check the convergence of the Monte Carlo pricer for the Asset Vega of the HybMultiDigital (MODE=VEGA).
+Test passes if the Asset Vega shows good stability when increasing $NumberSims$.
+
+![Figure 110: Asset Vega Convergence of HybMultiDigital in the EOD, CCAR1 and CCAR2 scenarios.](./Fig/110.png)
+
+Test passes, the Asset Vega shows good stability.
+
+## 4.1.25 CCAR:Stability
+
+In this section we calculate the price under:
+- parallel shifts of the USD IR curve and EUR IR curve and relative shifts of Asset Forward Curve and FX spot
+- absolute shifts of volatilities
+- relative shifts of the correlation parameters
+
+The trade is the HybMultiDigital trade described in section 4.1.1.
+Model configuration for CorrelationSkew is TermSkew.
+Tests pass if the prices and risks vary smoothly when shifting the market parameters.
+
+### 4.1.25.1 Stability: Price - EUR IR Curve parallel shift
+
+The price of the HybMultiDigital should vary smoothly when shifting the EUR IR Curve.
+
+![Figure 111: Stability - Price of HybMultiDigital as EUR IR Curve is subject to parallel shift in the EOD, CCAR1 and CCAR2 scenarios.](./Fig/111.png)
+
+Figure 111 shows the price of the HybMultiDigital varying smoothly when bumping the EUR IR Curve. Test passes.
+
+### 4.1.25.2 Stability: Price - USD IR Curve parallel shift
+
+The price of the HybMultiDigital should vary smoothly when shifting the USD IR Curve.
+
+![Figure 112: Stability - Price of HybMultiDigital as USD IR Curve is subject to parallel shift in the EOD, CCAR1 and CCAR2 scenarios.](./Fig/112.png)
+
+Figure 112 shows shows the price of the HybMultiDigital varying smoothly when bumping the USD IR Curve. Test passes.
+
+### 4.1.25.3 Stability: Price - Asset Forwards curve relative shift
+
+![Figure 113: Stability - Price of HybMultiDigital as Asset Forwards Curve is subject to relative shift in the EOD, CCAR1 and CCAR2 scenarios.](./Fig/113.png)
+&&&

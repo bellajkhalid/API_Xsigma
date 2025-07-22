@@ -1,0 +1,46 @@
+# Executive Summary
+
+Prior to Cheyette Local Volatility model, there were 2 major short rate models in production implementation: Heath-Jarrow-Morton 1-factor (HJM1) and Quadratic Gaussian 2-factor (QG2). The advantages of short rate models are fast calibration and pricing. However HJM1 and QG2 both have their own shortcomings: HJM1 is simple and fast but it does not capture skew effect of the volatility surface, while QG2 captures both skew and smile but is relatively complicated and the smile effect is not modeled very well. More details about HJM1 and QG2 can be found in [16] and [17].
+
+## Model Objectives
+
+The idea is to develop a comparable short rate model which:
+
+- retains the ability of fast calibration and pricing
+- more comprehensive than HJM1 but simpler than QG2
+- captures skew effect of the volatility surface
+- adds flexibility for further extension(s) of the model
+
+## Model Overview
+
+In this document, we will explain Cheyette Local Volatility (CLV) model. CLV model is a short rate model with skew, which uses analytical approximations for swaption volatility and skew to achieve efficient calibration. For each expiry/tenor, it can calibrate up to 2 options with different strikes, and hence captures the skew effect. Moreover, it utilizes custom PDE solver which results in accurate pricing. In particular, CLV model can be regarded as an extension of HJM1 with the addition of skew.
+
+## Key Features
+
+### Advantages
+- **Fast Calibration**: Efficient analytical approximations for swaption volatility and skew
+- **Skew Capture**: Ability to calibrate up to 2 options with different strikes per expiry/tenor
+- **Accurate Pricing**: Custom PDE solver for precise valuation
+- **Computational Efficiency**: Faster than Monte Carlo-based models like LMM
+- **Flexibility**: Extension of HJM1 framework with enhanced capabilities
+
+### Main Limitation
+
+The main limitation of CLV model is that it is 1-factor model; therefore it cannot be used with payoffs related to correlation, such as spread options.
+
+## Implementation Requirements
+
+In below sections, we will explain the model methodology as well as model implementation in details. The minimum QA version required for reproducing test results is 2261.
+
+## Document Structure
+
+This documentation covers:
+
+1. **Scope and Purpose**: Detailed explanation of model applications and conceptual framework
+2. **Product Coverage**: Bermudan swaptions, callable inverse floaters (CIF), and callable capped floaters (CCF)
+3. **Mathematical Framework**: Complete model description including short rate dynamics and zero bond reconstruction
+4. **Numerical Implementation**: PDE solver construction and pricing algorithms
+5. **Calibration Procedures**: Analytical approximations and calibration modes
+6. **Risk Management**: Risk metrics calculation and sensitivity analysis
+7. **Validation**: Comprehensive testing and outcome analysis
+8. **Operational Guidelines**: Assumptions, limitations, and monitoring procedures

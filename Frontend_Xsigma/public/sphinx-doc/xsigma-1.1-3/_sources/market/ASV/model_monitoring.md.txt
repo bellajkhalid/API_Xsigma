@@ -1,0 +1,461 @@
+# Model Monitoring and KPIs
+
+## Overview
+
+Continuous monitoring of the Analytical Sigma Volatility (ASV) model is essential to ensure ongoing accuracy, stability, and performance in production environments. The monitoring framework provides real-time oversight, quality assurance, and early warning systems to maintain optimal model performance across all market conditions.
+
+## Key Performance Indicators (KPIs)
+
+### Calibration Quality Metrics
+
+#### Primary Fit Quality Indicators
+
+| Metric | Target | Warning | Critical | Description |
+|--------|--------|---------|----------|-------------|
+| **RMSE** | <0.5% | >0.8% | >1.2% | Root mean square error of volatility fit |
+| **Max Absolute Error** | <1.0% | >2.0% | >3.0% | Worst-case instrument fitting error |
+| **R-squared** | >0.95 | <0.90 | <0.85 | Explained variance in volatility surface |
+| **Weighted RMSE** | <0.3% | >0.6% | >1.0% | Liquidity-weighted fitting accuracy |
+
+**Mathematical Definitions**:
+- **RMSE**: $\sqrt{\frac{1}{N}\sum_{i=1}^{N} (\sigma_i^{\text{market}} - \sigma_i^{\text{ASV}})^2}$
+- **Max Error**: $\max_i |\sigma_i^{\text{market}} - \sigma_i^{\text{ASV}}|$
+- **R-squared**: $1 - \frac{SS_{\text{res}}}{SS_{\text{tot}}}$
+- **Weighted RMSE**: $\sqrt{\frac{\sum w_i (\sigma_i^{\text{market}} - \sigma_i^{\text{ASV}})^2}{\sum w_i}}$
+
+#### Parameter Stability Metrics
+
+**Parameter Change Monitoring**:
+
+| Parameter | Daily Change Limit | Weekly Change Limit | Monthly Change Limit |
+|-----------|-------------------|-------------------|---------------------|
+| **ATM Volatility** | ±5% | ±15% | ±30% |
+| **Skew** | ±10% | ±25% | ±50% |
+| **Smile** | ±15% | ±35% | ±70% |
+| **Put Wing** | ±20% | ±40% | ±80% |
+| **Call Wing** | ±20% | ±40% | ±80% |
+
+**Stability Assessment**:
+```cpp
+class ParameterStabilityMonitor {
+private:
+    std::map<std::string, ParameterHistory> parameter_history_;
+    
+public:
+    StabilityReport assessParameterStability(
+        const ASVParameters& current_params,
+        const std::string& underlying) {
+        
+        StabilityReport report;
+        auto& history = parameter_history_[underlying];
+        
+        // Daily change analysis
+        if (history.hasYesterdayData()) {
+            auto daily_changes = calculateDailyChanges(current_params, history);
+            report.daily_stability = assessChangeMagnitude(daily_changes, DAILY_LIMITS);
+        }
+        
+        // Trend analysis
+        if (history.hasWeeklyData()) {
+            auto trend_analysis = calculateTrendStability(current_params, history);
+            report.trend_stability = assessTrendReasonableness(trend_analysis);
+        }
+        
+        return report;
+    }
+};
+```
+
+### Performance Metrics
+
+#### Computational Performance
+
+**Calibration Speed Monitoring**:
+
+| Metric | Target | Warning | Critical | Impact |
+|--------|--------|---------|----------|--------|
+| **Calibration Time** | <0.5s | >1.0s | >2.0s | Real-time trading impact |
+| **Convergence Rate** | >99% | <97% | <95% | Model reliability |
+| **Memory Usage** | <500MB | >1GB | >2GB | System resource impact |
+| **CPU Utilization** | <50% | >80% | >95% | System performance impact |
+
+**Our Project Performance Monitoring Implementation**:
+```cpp
+namespace xsigma {
+    class asv_performance_monitor {
+    public:
+        struct calibration_metrics {
+            std::chrono::milliseconds calibration_time;
+            bool convergence_achieved;
+            int iterations_used;
+            double final_objective_value;
+            double rmse;
+            double max_error;
+            size_t memory_usage_bytes;
+
+            // Parameter stability metrics
+            double atm_change_percent;
+            double skew_change_percent;
+            double smile_change_percent;
+            double put_wing_change_percent;
+            double call_wing_change_percent;
+        };
+
+        // Record calibration performance
+        static void record_calibration(
+            const std::string& underlying,
+            const calibration_metrics& metrics) {
+
+            // Store metrics in time series database
+            auto& history = calibration_history_[underlying];
+            history.push_back({datetime::now(), metrics});
+
+            // Check against thresholds and generate alerts
+            check_performance_thresholds(underlying, metrics);
+
+            // Update rolling statistics
+            update_rolling_statistics(underlying, metrics);
+        }
+
+        // Generate daily performance report
+        static performance_report generate_daily_report(const datetime& date) {
+            performance_report report;
+            report.date = date;
+
+            for (const auto& [underlying, history] : calibration_history_) {
+                auto daily_metrics = extract_daily_metrics(underlying, date);
+                report.underlying_reports[underlying] = daily_metrics;
+            }
+
+            return report;
+        }
+
+        // Check for performance degradation
+        static void check_performance_thresholds(
+            const std::string& underlying,
+            const calibration_metrics& metrics) {
+
+            // Calibration time threshold
+            if (metrics.calibration_time > std::chrono::milliseconds(1000)) {
+                alert_system::send_alert(alert_level::WARNING,
+                    f"Slow calibration for {underlying}: {metrics.calibration_time.count()}ms");
+            }
+
+            // Fit quality threshold
+            if (metrics.rmse > 0.008) { // 0.8%
+                alert_system::send_alert(alert_level::WARNING,
+                    f"Poor fit quality for {underlying}: RMSE = {metrics.rmse}");
+            }
+
+            // Convergence failure
+            if (!metrics.convergence_achieved) {
+                alert_system::send_alert(alert_level::CRITICAL,
+                    f"Calibration convergence failure for {underlying}");
+            }
+
+            // Parameter stability check
+            if (metrics.atm_change_percent > 0.15) { // 15%
+                alert_system::send_alert(alert_level::WARNING,
+                    f"Large ATM volatility change for {underlying}: {metrics.atm_change_percent}%");
+            }
+        }
+
+    private:
+        static std::map<std::string, std::vector<std::pair<datetime, calibration_metrics>>> calibration_history_;
+
+        static void update_rolling_statistics(
+            const std::string& underlying,
+            const calibration_metrics& metrics) {
+
+            // Update 30-day rolling averages
+            auto& stats = rolling_stats_[underlying];
+            stats.update(metrics);
+        }
+    };
+
+    // Alert system integration
+    class alert_system {
+    public:
+        enum class alert_level { INFO, WARNING, CRITICAL };
+
+        static void send_alert(alert_level level, const std::string& message) {
+            // Implementation depends on alerting infrastructure
+            // Could be email, Slack, monitoring dashboard, etc.
+            log_alert(level, message);
+
+            if (level == alert_level::CRITICAL) {
+                send_immediate_notification(message);
+            }
+        }
+
+    private:
+        static void log_alert(alert_level level, const std::string& message);
+        static void send_immediate_notification(const std::string& message);
+    };
+}
+```
+#### Market Coverage Metrics
+
+**Asset Coverage Monitoring**:
+
+| Coverage Type | Target | Warning | Critical | Action Required |
+|---------------|--------|---------|----------|-----------------|
+| **Successful Calibrations** | >99% | <98% | <95% | Investigate failures |
+| **Data Quality Coverage** | >95% | <90% | <85% | Improve data sources |
+| **Real-time Updates** | >99.5% | <99% | <98% | System maintenance |
+| **Cross-Asset Consistency** | >98% | <95% | <90% | Model validation |
+
+### Quality Control Indicators
+
+#### Arbitrage Monitoring
+
+**Arbitrage Violation Detection**:
+```cpp
+class ArbitrageMonitor {
+public:
+    struct ArbitrageMetrics {
+        int butterfly_violations_count;
+        double max_butterfly_violation;
+        int calendar_violations_count;
+        double max_calendar_violation;
+        double put_call_parity_error;
+    };
+    
+    ArbitrageMetrics checkArbitrageViolations(
+        const VolatilitySurface& surface) {
+        
+        ArbitrageMetrics metrics = {};
+        
+        // Butterfly arbitrage check
+        for (size_t i = 1; i < surface.strikes().size() - 1; ++i) {
+            double butterfly_value = calculateButterflyValue(surface, i);
+            if (butterfly_value < -ARBITRAGE_TOLERANCE) {
+                metrics.butterfly_violations_count++;
+                metrics.max_butterfly_violation = std::min(
+                    metrics.max_butterfly_violation, butterfly_value);
+            }
+        }
+        
+        // Calendar arbitrage check
+        for (size_t i = 0; i < surface.strikes().size(); ++i) {
+            auto variances = surface.getTotalVariances(i);
+            if (!isMonotonicIncreasing(variances)) {
+                metrics.calendar_violations_count++;
+            }
+        }
+        
+        return metrics;
+    }
+};
+```
+
+**Arbitrage KPIs**:
+
+| Arbitrage Type | Tolerance | Warning Threshold | Critical Threshold |
+|----------------|-----------|------------------|-------------------|
+| **Butterfly** | 0.01% | >5 violations/day | >20 violations/day |
+| **Calendar** | 0.1% variance | >2 violations/day | >10 violations/day |
+| **Put-Call Parity** | 0.05% | >1% error | >2% error |
+
+## Monitoring Tests and Procedures
+
+### Real-Time Monitoring
+
+#### Automated Quality Checks
+
+**Continuous Validation Pipeline**:
+```cpp
+class RealTimeMonitor {
+private:
+    QualityThresholds thresholds_;
+    AlertSystem alert_system_;
+    MetricsCollector metrics_collector_;
+    
+public:
+    void performRealTimeValidation(
+        const ASVParameters& params,
+        const CalibrationResults& results,
+        const std::string& underlying) {
+        
+        // 1. Parameter reasonableness check
+        if (!validateParameterRanges(params)) {
+            alert_system_.sendAlert(AlertLevel::CRITICAL,
+                f"Parameter out of range for {underlying}");
+        }
+        
+        // 2. Fit quality assessment
+        if (results.rmse > thresholds_.rmse_warning) {
+            alert_system_.sendAlert(AlertLevel::WARNING,
+                f"Poor fit quality for {underlying}: RMSE = {results.rmse}");
+        }
+        
+        // 3. Arbitrage validation
+        auto arbitrage_metrics = checkArbitrageViolations(results.surface);
+        if (arbitrage_metrics.butterfly_violations_count > 0) {
+            alert_system_.sendAlert(AlertLevel::WARNING,
+                f"Butterfly arbitrage violations for {underlying}");
+        }
+        
+        // 4. Performance tracking
+        metrics_collector_.recordMetrics(underlying, params, results);
+    }
+};
+```
+
+#### Dashboard and Visualization
+
+**Real-Time Dashboard Components**:
+- **Model Health Overview**: Traffic light system for overall model status
+- **Parameter Evolution Charts**: Time series of parameter changes
+- **Fit Quality Heatmap**: Visual representation of calibration quality across assets
+- **Performance Metrics**: Real-time computational performance indicators
+- **Alert Summary**: Current alerts and their severity levels
+
+### Daily Monitoring Procedures
+
+#### Automated Daily Reports
+
+**Daily Quality Report Generation**:
+```cpp
+class DailyReportGenerator {
+public:
+    DailyReport generateDailyReport(const Date& report_date) {
+        DailyReport report(report_date);
+        
+        // Aggregate daily statistics
+        auto daily_stats = aggregateDailyStatistics(report_date);
+        report.addSection("Daily Statistics", daily_stats);
+        
+        // Parameter stability analysis
+        auto stability_analysis = analyzeParameterStability(report_date);
+        report.addSection("Parameter Stability", stability_analysis);
+        
+        // Performance summary
+        auto performance_summary = summarizePerformance(report_date);
+        report.addSection("Performance Summary", performance_summary);
+        
+        // Exception summary
+        auto exceptions = summarizeExceptions(report_date);
+        report.addSection("Exceptions and Alerts", exceptions);
+        
+        return report;
+    }
+};
+```
+
+**Daily Report Contents**:
+1. **Executive Summary**: Key metrics and overall model health
+2. **Calibration Quality**: RMSE, max errors, and fit quality trends
+3. **Parameter Analysis**: Parameter evolution and stability assessment
+4. **Performance Metrics**: Computational performance and system utilization
+5. **Exception Analysis**: Detailed analysis of alerts and violations
+6. **Market Coverage**: Asset coverage and data quality assessment
+
+### Weekly and Monthly Analysis
+
+#### Comprehensive Performance Review
+
+**Weekly Deep Dive Analysis**:
+```cpp
+struct WeeklyAnalysis {
+    // Trend analysis
+    ParameterTrendAnalysis parameter_trends;
+    FitQualityTrendAnalysis fit_quality_trends;
+    PerformanceTrendAnalysis performance_trends;
+    
+    // Comparative analysis
+    CrossAssetConsistencyAnalysis cross_asset_analysis;
+    MarketRegimeAnalysis regime_analysis;
+    
+    // Forward-looking assessment
+    RiskAssessment upcoming_risks;
+    RecommendationList improvement_recommendations;
+};
+```
+
+**Monthly Model Review**:
+- **Statistical Analysis**: Comprehensive statistical assessment of model performance
+- **Market Regime Analysis**: Performance across different market conditions
+- **Comparative Benchmarking**: Comparison with alternative models and market consensus
+- **Enhancement Opportunities**: Identification of potential model improvements
+
+## Performance Exceptions and Mitigation
+
+### Exception Classification
+
+#### Alert Levels and Response
+
+| Alert Level | Trigger Conditions | Response Time | Action Required |
+|-------------|-------------------|---------------|-----------------|
+| **INFO** | Minor parameter changes | N/A | Logging only |
+| **WARNING** | Threshold breaches | 1 hour | Investigation |
+| **CRITICAL** | Severe quality degradation | 15 minutes | Immediate action |
+| **EMERGENCY** | System failure | Immediate | Emergency procedures |
+
+#### Exception Categories
+
+**Calibration Failures**:
+```cpp
+enum class CalibrationFailureType {
+    CONVERGENCE_FAILURE,     // Optimization did not converge
+    PARAMETER_OUT_OF_BOUNDS, // Parameters exceeded reasonable limits
+    ARBITRAGE_VIOLATION,     // Arbitrage-free constraints violated
+    DATA_QUALITY_ISSUE,      // Insufficient or poor quality market data
+    NUMERICAL_INSTABILITY    // Numerical computation issues
+};
+```
+
+**Performance Degradation**:
+- **Slow Calibration**: Calibration time exceeds performance targets
+- **Memory Issues**: Excessive memory usage or memory leaks
+- **CPU Overload**: High CPU utilization affecting system performance
+- **Network Issues**: Market data feed problems or connectivity issues
+
+### Exception Mitigation Plan
+
+#### Automated Recovery Procedures
+
+**Calibration Failure Recovery**:
+```cpp
+class CalibrationRecoveryManager {
+public:
+    ASVParameters recoverFromCalibrationFailure(
+        const CalibrationFailureType& failure_type,
+        const MarketData& market_data,
+        const ASVParameters& previous_params) {
+        
+        switch (failure_type) {
+            case CalibrationFailureType::CONVERGENCE_FAILURE:
+                return retryWithAlternativeInitialization(market_data, previous_params);
+                
+            case CalibrationFailureType::PARAMETER_OUT_OF_BOUNDS:
+                return applyParameterConstraints(market_data, previous_params);
+                
+            case CalibrationFailureType::ARBITRAGE_VIOLATION:
+                return calibrateWithArbitrageConstraints(market_data, previous_params);
+                
+            case CalibrationFailureType::DATA_QUALITY_ISSUE:
+                return useHistoricalParametersWithAdjustment(previous_params);
+                
+            default:
+                return previous_params;  // Fallback to previous parameters
+        }
+    }
+};
+```
+
+#### Manual Intervention Procedures
+
+**Escalation Framework**:
+1. **Level 1**: Automated recovery attempts
+2. **Level 2**: Quantitative analyst investigation
+3. **Level 3**: Senior model validation review
+4. **Level 4**: Emergency model override procedures
+
+**Emergency Procedures**:
+- **Model Bypass**: Temporary use of alternative volatility models
+- **Parameter Override**: Manual parameter adjustment by experts
+- **Market Data Override**: Use of alternative or historical market data
+- **System Fallback**: Revert to previous stable model version
+
+This comprehensive monitoring framework ensures continuous oversight of ASV model performance while providing robust procedures for exception handling and quality maintenance.

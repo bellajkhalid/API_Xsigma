@@ -1,0 +1,376 @@
+# Monitoring and KPIs
+
+## Overview
+
+Continuous monitoring of the Cheyette Local Vol model is essential to ensure its ongoing accuracy, stability, and reliability in production environments. This section outlines the key performance indicators (KPIs), monitoring procedures, and escalation protocols used to maintain model quality and identify potential issues.
+
+## Key Performance Indicators (KPIs)
+
+### Calibration Quality Metrics
+
+**Calibration Error Metrics**:
+- **Root Mean Square Error (RMSE)**: Measures overall calibration accuracy
+  - Target: RMSE < 0.5 basis points for swaption volatilities
+  - Alert threshold: RMSE > 1.0 basis point
+  - Escalation threshold: RMSE > 2.0 basis points
+
+- **Maximum Absolute Error**: Identifies worst-case calibration mismatches
+  - Target: Max error < 1.0 basis point
+  - Alert threshold: Max error > 2.0 basis points
+  - Escalation threshold: Max error > 5.0 basis points
+
+- **Calibration Convergence Rate**: Monitors optimization efficiency
+  - Target: Convergence within 50 iterations
+  - Alert threshold: Convergence > 100 iterations
+  - Escalation threshold: Non-convergence after 200 iterations
+
+**Parameter Stability Metrics**:
+- **Daily Parameter Changes**: Monitors parameter stability over time
+  - Target: Daily changes < 5% relative
+  - Alert threshold: Daily changes > 10% relative
+  - Escalation threshold: Daily changes > 25% relative
+
+- **Parameter Smoothness**: Ensures reasonable parameter evolution
+  - Target: Smooth parameter curves without oscillations
+  - Alert threshold: Significant oscillations in parameter curves
+  - Escalation threshold: Non-monotonic or erratic parameter behavior
+
+## Monitoring Infrastructure Implementation in Our Project
+
+The monitoring framework described above is implemented through a comprehensive monitoring system that tracks all aspects of the Cheyette model performance in real-time.
+
+```cpp
+namespace xsigma {
+    // Main monitoring class for Cheyette model performance tracking
+    class cheyette_model_monitor {
+    public:
+        // Constructor initializes monitoring with model and thresholds
+        cheyette_model_monitor(
+            const ptr_const<model_cheyette>& model,
+            const ptr_const<discount_curve>& curve,
+            const datetime& valuation_date,
+            const monitoring_config& config
+        ) : model_(model), curve_(curve), valuation_date_(valuation_date), config_(config) {}
+
+        // Core KPI calculation methods
+        calibration_quality_metrics calculate_calibration_quality() const;
+        pricing_accuracy_metrics calculate_pricing_accuracy() const;
+        performance_metrics calculate_performance_metrics() const;
+        stability_metrics calculate_stability_metrics() const;
+
+        // Automated monitoring and alerting
+        void run_daily_monitoring() const;
+        void check_all_thresholds() const;
+        void generate_monitoring_report() const;
+
+    private:
+        ptr_const<model_cheyette> model_;
+        ptr_const<discount_curve> curve_;
+        datetime valuation_date_;
+        monitoring_config config_;
+
+        // Helper functions for threshold checking
+        void send_alert(alert_level level, const std::string& message) const;
+        bool is_within_threshold(double value, double threshold) const;
+        double calculate_parameter_change(const matrix<double>& current,
+                                        const matrix<double>& previous) const;
+    };
+
+    // Calibration quality metrics structure
+    struct calibration_quality_metrics {
+        double rmse;                    // Root mean square error vs market
+        double max_absolute_error;      // Maximum absolute pricing error
+        size_t convergence_iterations;  // Iterations required for convergence
+        bool converged;                 // Convergence success flag
+        double objective_value;         // Final optimization objective value
+
+        // Parameter stability tracking
+        double atm_vol_change_percent;         // ATM volatility daily change
+        double skew_change_percent;            // Skew parameter daily change
+        double mean_reversion_change_percent;  // Mean reversion daily change
+
+        // Timing performance
+        std::chrono::milliseconds calibration_time;
+        std::chrono::milliseconds total_time;
+    };
+}
+```
+
+*Cette infrastructure de monitoring implémente le framework de surveillance décrit ci-dessus. La classe `cheyette_model_monitor` centralise tous les calculs de KPI et fournit des mécanismes d'alerte automatisés. Les structures de métriques capturent les indicateurs clés de performance incluant la qualité de calibration, la précision de pricing, et la stabilité des paramètres. Le système surveille en continu les seuils définis et génère des alertes appropriées.*
+
+### Pricing Accuracy Metrics
+
+**Benchmark Comparison**:
+- **European Swaption Accuracy**: Comparison with Black-Scholes pricing
+  - Target: Pricing difference < 0.1% of notional
+  - Alert threshold: Pricing difference > 0.5% of notional
+  - Escalation threshold: Pricing difference > 1.0% of notional
+
+- **Cross-Model Validation**: Comparison with alternative models
+  - Target: Price differences within expected ranges
+  - Alert threshold: Unexplained price differences > 2%
+  - Escalation threshold: Systematic price differences > 5%
+
+**Risk Sensitivity Accuracy**:
+- **Delta Accuracy**: Validation through bump-and-revalue
+  - Target: Delta accuracy within 5% relative error
+  - Alert threshold: Delta accuracy > 10% relative error
+  - Escalation threshold: Delta accuracy > 20% relative error
+
+- **Vega Accuracy**: Volatility sensitivity validation
+  - Target: Vega accuracy within 10% relative error
+  - Alert threshold: Vega accuracy > 20% relative error
+  - Escalation threshold: Vega accuracy > 50% relative error
+
+### Performance Metrics
+
+**Computational Performance**:
+- **Pricing Speed**: Time required for standard trade pricing
+  - Target: < 1 second for standard Bermudan swaption
+  - Alert threshold: > 5 seconds for standard trade
+  - Escalation threshold: > 10 seconds for standard trade
+
+- **Calibration Speed**: Time required for model calibration
+  - Target: < 30 seconds for standard calibration
+  - Alert threshold: > 60 seconds for calibration
+  - Escalation threshold: > 120 seconds for calibration
+
+- **Memory Usage**: System resource utilization
+  - Target: < 2GB memory per pricing instance
+  - Alert threshold: > 4GB memory usage
+  - Escalation threshold: > 8GB memory usage
+
+**System Reliability**:
+- **Calibration Success Rate**: Percentage of successful calibrations
+  - Target: > 99% success rate
+  - Alert threshold: < 95% success rate
+  - Escalation threshold: < 90% success rate
+
+- **Pricing Success Rate**: Percentage of successful pricing runs
+  - Target: > 99.5% success rate
+  - Alert threshold: < 99% success rate
+  - Escalation threshold: < 98% success rate
+
+## Automated Threshold Monitoring Implementation
+
+The monitoring system continuously checks all KPIs against predefined thresholds and automatically generates alerts when limits are exceeded.
+
+```cpp
+namespace xsigma {
+    // Implementation of automated threshold checking
+    void cheyette_model_monitor::run_daily_monitoring() const {
+        try {
+            // Calculate all KPI metrics
+            auto calibration_metrics = calculate_calibration_quality();
+            auto pricing_metrics = calculate_pricing_accuracy();
+            auto performance_metrics = calculate_performance_metrics();
+
+            // Check calibration quality thresholds
+            check_calibration_thresholds(calibration_metrics);
+
+            // Check pricing accuracy thresholds
+            check_pricing_thresholds(pricing_metrics);
+
+            // Check performance thresholds
+            check_performance_thresholds(performance_metrics);
+
+            // Generate daily monitoring report
+            generate_daily_report(calibration_metrics, pricing_metrics, performance_metrics);
+
+            // Store metrics for historical tracking
+            store_daily_metrics(calibration_metrics, pricing_metrics, performance_metrics);
+
+        } catch (const std::exception& e) {
+            send_alert(alert_level::CRITICAL,
+                      "Daily monitoring failed: " + std::string(e.what()));
+        }
+    }
+
+    // Implementation of calibration threshold checking
+    void cheyette_model_monitor::check_calibration_thresholds(
+        const calibration_quality_metrics& metrics) const {
+
+        // Check RMSE thresholds
+        if (metrics.rmse > config_.calibration_thresholds.rmse_escalation) {
+            send_alert(alert_level::CRITICAL,
+                      "Calibration RMSE exceeded escalation threshold: " +
+                      std::to_string(metrics.rmse * 10000) + " bp");
+        } else if (metrics.rmse > config_.calibration_thresholds.rmse_alert) {
+            send_alert(alert_level::WARNING,
+                      "Calibration RMSE exceeded alert threshold: " +
+                      std::to_string(metrics.rmse * 10000) + " bp");
+        }
+
+        // Check maximum error thresholds
+        if (metrics.max_absolute_error > config_.calibration_thresholds.max_error_escalation) {
+            send_alert(alert_level::CRITICAL,
+                      "Maximum calibration error exceeded escalation threshold: " +
+                      std::to_string(metrics.max_absolute_error * 10000) + " bp");
+        }
+
+        // Check convergence
+        if (!metrics.converged) {
+            send_alert(alert_level::CRITICAL,
+                      "Model calibration failed to converge after " +
+                      std::to_string(metrics.convergence_iterations) + " iterations");
+        }
+
+        // Check parameter stability
+        if (metrics.atm_vol_change_percent > config_.calibration_thresholds.param_change_escalation) {
+            send_alert(alert_level::WARNING,
+                      "ATM volatility parameter changed by " +
+                      std::to_string(metrics.atm_vol_change_percent) + "%");
+        }
+    }
+}
+```
+
+*Cette implémentation automatise la surveillance quotidienne du modèle Cheyette en vérifiant tous les KPIs contre les seuils prédéfinis. Le système génère automatiquement des alertes avec différents niveaux de criticité (WARNING, CRITICAL) selon la gravité des dépassements de seuils. Les métriques sont stockées pour le suivi historique et l'analyse des tendances. En cas d'échec du monitoring, une alerte critique est automatiquement envoyée.*
+
+## Daily Monitoring Procedures
+
+### Automated Checks
+
+**Calibration Quality Checks**:
+1. **Daily Calibration Report**: Automated generation of calibration quality metrics
+2. **Parameter Stability Analysis**: Comparison of current vs. historical parameters
+3. **Market Data Validation**: Verification of input market data quality
+4. **Convergence Monitoring**: Tracking of calibration convergence behavior
+
+**Pricing Validation Checks**:
+1. **Benchmark Repricing**: Daily repricing of benchmark instruments
+2. **Cross-Model Comparison**: Comparison with alternative model results
+3. **Risk Sensitivity Validation**: Verification of calculated risk sensitivities
+4. **Portfolio P&L Attribution**: Analysis of daily P&L changes
+
+### Manual Reviews
+
+**Weekly Reviews**:
+- **Parameter Trend Analysis**: Review of parameter evolution over time
+- **Market Condition Assessment**: Evaluation of current market environment
+- **Model Performance Summary**: Compilation of weekly performance metrics
+- **Issue Identification**: Identification of potential model issues
+
+**Monthly Reviews**:
+- **Comprehensive Performance Review**: Detailed analysis of all KPIs
+- **Stress Testing Results**: Review of model performance under stress scenarios
+- **Benchmark Validation**: Comprehensive comparison with alternative approaches
+- **Documentation Updates**: Updates to monitoring procedures and thresholds
+
+## Alert and Escalation Procedures
+
+### Alert Levels
+
+**Level 1 - Information Alerts**:
+- **Trigger**: KPIs approach warning thresholds
+- **Action**: Automated notification to model team
+- **Response Time**: Review within 4 hours
+- **Documentation**: Log alert and initial assessment
+
+**Level 2 - Warning Alerts**:
+- **Trigger**: KPIs exceed warning thresholds
+- **Action**: Immediate investigation by model team
+- **Response Time**: Initial response within 1 hour
+- **Documentation**: Detailed investigation report
+
+**Level 3 - Critical Alerts**:
+- **Trigger**: KPIs exceed critical thresholds
+- **Action**: Immediate escalation to senior management
+- **Response Time**: Immediate response required
+- **Documentation**: Incident report and remediation plan
+
+### Escalation Matrix
+
+**Model Team Response**:
+- **Level 1**: Monitor and investigate if pattern emerges
+- **Level 2**: Immediate investigation and potential model adjustments
+- **Level 3**: Emergency response and potential model suspension
+
+**Management Escalation**:
+- **Risk Management**: Notified for Level 2 and above alerts
+- **Senior Management**: Notified for Level 3 alerts
+- **Regulatory Reporting**: Required for sustained Level 3 issues
+
+## Market Condition Monitoring
+
+### Volatility Environment Assessment
+
+**Normal Market Conditions**:
+- **Volatility Levels**: Swaption volatilities within historical ranges
+- **Skew Behavior**: Volatility skew within normal parameters
+- **Market Liquidity**: Adequate liquidity in calibration instruments
+- **Data Quality**: Consistent and reliable market data
+
+**Stressed Market Conditions**:
+- **High Volatility**: Swaption volatilities > 150% of historical average
+- **Extreme Skew**: Volatility skew > 2 standard deviations from mean
+- **Liquidity Issues**: Wide bid-ask spreads or stale quotes
+- **Data Inconsistencies**: Conflicting or unreliable market data
+
+### Adaptive Monitoring
+
+**Dynamic Threshold Adjustment**:
+- **Market Regime Detection**: Automatic detection of market regime changes
+- **Threshold Scaling**: Adjustment of alert thresholds based on market conditions
+- **Enhanced Monitoring**: Increased monitoring frequency during stressed conditions
+- **Model Validation**: Additional validation during unusual market periods
+
+## Reporting and Documentation
+
+### Daily Reports
+
+**Calibration Quality Report**:
+- Summary of calibration metrics and parameter changes
+- Identification of any calibration issues or failures
+- Comparison with historical performance
+- Recommendations for any required actions
+
+**Pricing Validation Report**:
+- Results of benchmark repricing and cross-model validation
+- Analysis of risk sensitivity accuracy
+- Portfolio P&L attribution analysis
+- Summary of any pricing anomalies
+
+### Weekly and Monthly Reports
+
+**Performance Summary Report**:
+- Comprehensive review of all KPIs and trends
+- Analysis of model performance under different market conditions
+- Identification of any systematic issues or improvements needed
+- Recommendations for model enhancements or parameter adjustments
+
+**Regulatory Reporting**:
+- Model performance metrics for regulatory compliance
+- Documentation of any model issues and remediation actions
+- Validation of model assumptions and limitations
+- Compliance with model risk management requirements
+
+## Continuous Improvement
+
+### Performance Optimization
+
+**Model Enhancement Opportunities**:
+- **Calibration Algorithm Improvements**: Enhanced optimization techniques
+- **PDE Solver Optimization**: Improved numerical methods and grid designs
+- **Parameter Stability**: Methods to improve parameter stability
+- **Computational Efficiency**: Performance optimization initiatives
+
+**Monitoring System Enhancements**:
+- **Real-Time Monitoring**: Implementation of real-time alert systems
+- **Predictive Analytics**: Early warning systems for potential issues
+- **Automated Remediation**: Automated responses to common issues
+- **Enhanced Visualization**: Improved dashboards and reporting tools
+
+### Feedback Loop
+
+**User Feedback Integration**:
+- **Trader Feedback**: Incorporation of user experience and observations
+- **Risk Manager Input**: Integration of risk management perspectives
+- **Quantitative Analysis**: Regular review of model performance metrics
+- **Technology Updates**: Adoption of new technologies and methodologies
+
+**Model Evolution**:
+- **Research and Development**: Ongoing research into model improvements
+- **Industry Best Practices**: Adoption of industry standard practices
+- **Regulatory Updates**: Compliance with evolving regulatory requirements
+- **Technology Advancement**: Integration of new computational technologies

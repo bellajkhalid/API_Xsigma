@@ -1,0 +1,271 @@
+# General Limitations
+
+## Overview
+
+While the New Curve Framework (NCF) provides a robust and flexible approach to curve construction, it is important to understand its limitations and constraints. This section outlines the key limitations, their implications, and recommended mitigation strategies.
+
+## Mathematical and Numerical Limitations
+
+### Optimization Convergence
+
+The framework's optimization-based approach introduces several potential limitations:
+
+| Limitation Type | Description | Risk Level | Mitigation Strategy |
+|-----------------|-------------|------------|-------------------|
+| **Local Minima** | Algorithm may converge to suboptimal solutions | Medium | Multiple starting points, robust initialization |
+| **Ill-Conditioning** | Poor Jacobian matrix conditioning causes instability | High | Regularization, condition monitoring |
+| **Convergence Failure** | Optimization fails under extreme conditions | Low | Fallback algorithms, manual intervention |
+| **Numerical Precision** | Finite precision arithmetic accumulates errors | Low | Extended precision, error monitoring |
+
+**Detailed Analysis:**
+
+**Local Minima Risk:**
+- **Cause**: Non-convex objective function with multiple local optima
+- **Indicators**: Inconsistent results with different initial conditions
+- **Mitigation**: Multi-start optimization, global search algorithms
+- **Monitoring**: Track objective function values across different runs
+
+**Ill-Conditioned Problems:**
+- **Cause**: Highly correlated instruments or data-sparse regions
+- **Indicators**: Large condition numbers (>10¹²), unstable solutions
+- **Mitigation**: Tikhonov regularization, instrument selection review
+- **Monitoring**: Daily condition number tracking and alerting
+
+### Interpolation Limitations
+
+**Extrapolation Accuracy**:
+- Limited accuracy when extrapolating beyond the range of market data
+- Particularly problematic for very long-term or very short-term queries
+- Mitigation: Conservative extrapolation methods and explicit uncertainty quantification
+
+**Interpolation Method Constraints**:
+- Each interpolation method has inherent limitations and assumptions
+- No single method is optimal for all curve regions or market conditions
+- Mitigation: Hybrid interpolation approaches and method selection criteria
+
+**Smoothness vs. Accuracy Trade-off**:
+- Increased smoothing may reduce fitting accuracy to market data
+- Reduced smoothing may lead to unrealistic curve shapes
+- Mitigation: Adaptive smoothing based on data quality and market conditions
+
+### Algorithmic Differentiation Limitations
+
+**Computational Complexity**:
+- AD computational cost scales with the number of parameters
+- Memory requirements can be substantial for large problems
+- Mitigation: Sparse matrix techniques and computational optimization
+
+**Numerical Precision**:
+- Finite precision arithmetic can accumulate errors in complex calculations
+- Particularly relevant for higher-order derivatives
+- Mitigation: Extended precision arithmetic where necessary and error monitoring
+
+## Market Data Limitations
+
+### Data Quality Dependencies
+
+**Market Data Accuracy**:
+- Framework accuracy is fundamentally limited by input data quality
+- Errors in market data propagate directly to curve construction
+- Mitigation: Comprehensive data validation and multiple source verification
+
+**Data Completeness**:
+- Missing or sparse market data reduces curve construction accuracy
+- Particularly challenging in emerging markets or during market stress
+- Mitigation: Intelligent gap-filling procedures and uncertainty quantification
+
+**Data Consistency**:
+- Inconsistent data across different sources can lead to arbitrage violations
+- Time synchronization issues can create apparent arbitrage opportunities
+- Mitigation: Data reconciliation procedures and timestamp validation
+
+### Market Condition Dependencies
+
+**Extreme Market Conditions**:
+- Framework performance may degrade during extreme market stress
+- Assumptions about market behavior may break down during crises
+- Mitigation: Stress testing and crisis-specific procedures
+
+**Low Liquidity Environments**:
+- Reduced market data availability affects curve construction quality
+- Wide bid-ask spreads increase uncertainty in curve positioning
+- Mitigation: Liquidity-adjusted weighting and uncertainty modeling
+
+**Market Structure Changes**:
+- Changes in market structure may require framework modifications
+- New instrument types may not be immediately supported
+- Mitigation: Regular framework updates and flexible architecture
+
+## Model Assumptions and Limitations
+
+### Arbitrage-Free Assumption
+
+**Perfect Market Assumption**:
+- Framework assumes perfect arbitrage-free markets
+- Real markets may have temporary arbitrage opportunities
+- Mitigation: Tolerance bands and arbitrage violation monitoring
+
+**Transaction Cost Neglect**:
+- Framework does not account for transaction costs or bid-ask spreads
+- May lead to overly tight arbitrage relationships
+- Mitigation: Bid-ask spread incorporation in validation procedures
+
+### Single Market Data Set Assumption
+
+**Temporal Consistency**:
+- Assumes all market data is from the same time point
+- Real-world data may have timing inconsistencies
+- Mitigation: Data timestamp validation and synchronization procedures
+
+**Source Consistency**:
+- Assumes consistent pricing methodology across all data sources
+- Different sources may use different conventions or assumptions
+- Mitigation: Source-specific adjustments and reconciliation procedures
+
+## Computational and Performance Limitations
+
+### Scalability Constraints
+
+**Problem Size Limitations**:
+- Very large problems may exceed computational or memory limits
+- Performance may degrade significantly with problem size
+- Mitigation: Problem decomposition and distributed computing approaches
+
+**Real-Time Constraints**:
+- Complex curve construction may not meet real-time requirements
+- Trade-off between accuracy and speed may be necessary
+- Mitigation: Approximation methods and pre-computation strategies
+
+### Hardware Dependencies
+
+**Memory Requirements**:
+- Large Jacobian matrices require substantial memory
+- Memory limitations may constrain problem size
+- Mitigation: Sparse matrix storage and memory optimization
+
+**Computational Resources**:
+- Complex optimizations require significant computational power
+- May not be feasible on limited hardware platforms
+- Mitigation: Algorithm optimization and hardware scaling
+
+## Risk Calculation Limitations
+
+### Linearization Assumptions
+
+**First-Order Approximation**:
+- Risk calculations assume linear relationship between market moves and P&L
+- May be inaccurate for large market moves or non-linear instruments
+- Mitigation: Higher-order risk metrics and scenario analysis
+
+**Static Correlation Assumptions**:
+- Risk calculations assume static correlations between risk factors
+- Correlations may change during market stress
+- Mitigation: Dynamic correlation modeling and stress testing
+
+### Risk Factor Limitations
+
+**Risk Factor Selection**:
+- Choice of risk factors affects risk calculation accuracy
+- May not capture all relevant market risks
+- Mitigation: Comprehensive risk factor analysis and regular review
+
+**Hedge Effectiveness**:
+- Risk calculations assume perfect hedge effectiveness
+- Real hedges may have basis risk and timing differences
+- Mitigation: Hedge effectiveness monitoring and basis risk quantification
+
+## Regulatory and Compliance Limitations
+
+### Model Approval Constraints
+
+**Regulatory Approval Requirements**:
+- Framework changes may require regulatory approval
+- Approval process may limit responsiveness to market changes
+- Mitigation: Proactive regulatory engagement and change management
+
+**Documentation Requirements**:
+- Extensive documentation requirements may slow development
+- May limit ability to implement rapid improvements
+- Mitigation: Automated documentation and streamlined processes
+
+### Audit and Validation Constraints
+
+**Independent Validation Requirements**:
+- Independent validation may identify limitations not apparent to developers
+- May require framework modifications or usage restrictions
+- Mitigation: Early validator engagement and collaborative development
+
+**Audit Trail Requirements**:
+- Complete audit trail requirements may impact performance
+- May limit ability to optimize computational efficiency
+- Mitigation: Efficient logging and selective audit trail generation
+
+## Usage and Implementation Limitations
+
+### User Expertise Requirements
+
+**Technical Complexity**:
+- Framework requires significant technical expertise to use effectively
+- Incorrect usage may lead to inaccurate results
+- Mitigation: Comprehensive training and user support
+
+**Parameter Selection**:
+- Many parameters require expert judgment to set appropriately
+- Incorrect parameter selection may degrade performance
+- Mitigation: Default parameter sets and parameter sensitivity analysis
+
+### Integration Limitations
+
+**System Integration Complexity**:
+- Integration with existing systems may be complex and time-consuming
+- May require significant system modifications
+- Mitigation: Flexible interfaces and phased implementation
+
+**Data Format Dependencies**:
+- Framework may require specific data formats or conventions
+- May not be compatible with all existing data sources
+- Mitigation: Data transformation utilities and flexible input handling
+
+## Mitigation Strategies and Best Practices
+
+### Quality Control Procedures
+
+**Comprehensive Validation**:
+- Regular validation against alternative methods and benchmarks
+- Continuous monitoring of framework performance and accuracy
+- Proactive identification and resolution of issues
+
+**Error Detection and Handling**:
+- Robust error detection and reporting mechanisms
+- Graceful degradation under adverse conditions
+- Clear escalation procedures for critical issues
+
+### Risk Management
+
+**Limitation Documentation**:
+- Clear documentation of all known limitations and constraints
+- Regular review and update of limitation assessments
+- Communication of limitations to all users and stakeholders
+
+**Usage Guidelines**:
+- Clear guidelines on appropriate and inappropriate usage
+- Training and certification requirements for users
+- Regular review of usage patterns and outcomes
+
+### Continuous Improvement
+
+**Regular Review and Enhancement**:
+- Ongoing research and development to address limitations
+- Regular review of framework performance and capabilities
+- Proactive enhancement to address emerging requirements
+
+**Industry Best Practice Adoption**:
+- Monitoring of industry developments and best practices
+- Adoption of improved methodologies and technologies
+- Collaboration with industry peers and academic institutions
+
+## Conclusion
+
+While the NCF has significant limitations, these are well-understood and actively managed through comprehensive quality control procedures, risk management practices, and continuous improvement efforts. Users should be aware of these limitations and ensure they are appropriately considered in all applications of the framework.
+
+The key to successful usage is understanding the limitations, implementing appropriate mitigation strategies, and maintaining ongoing vigilance for potential issues. Regular validation, monitoring, and enhancement ensure that the framework continues to meet its intended objectives while operating within its known constraints.

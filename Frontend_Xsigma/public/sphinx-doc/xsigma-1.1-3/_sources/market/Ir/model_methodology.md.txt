@@ -1,0 +1,428 @@
+# Model / Methodology
+## Advanced Mathematical Framework for Interest Rate Swaps
+
+![IR Model Framework](Fig/4.png)
+
+### 🎯 **Model Excellence Overview**
+
+The **Interest Rate Swaps model framework** employs the sophisticated **New Curve Framework (NCF)** for forecast and discount curves, along with FX forward projections for cross-currency resettable swaps. This enterprise-grade system generates official interest rate curves used for forecasting and discounting, creating a robust foundation for institutional fixed income operations.
+
+### 🧮 **Mathematical Foundation and Integration**
+
+The NCF generates the **official interest rate curves** used for forecasting and discounting, establishing a bidirectional dependency where the New Curve Framework utilizes the swap library to represent calibration instruments, ensuring mathematical consistency and arbitrage-free pricing.
+
+#### **🎪 Framework Scope and Limitations**
+
+As previously mentioned, **pricing, valuation, and risk based on volatility and convexity are not supported** in this linear framework, maintaining focus on deterministic cash flow mechanics for optimal performance and reliability.
+
+### 🎛️ **Enterprise-Grade Model Architecture**
+
+```cpp
+namespace xsigma {
+    /**
+     * @brief Advanced curve framework interface for IR swaps
+     *
+     * This sophisticated interface provides seamless integration with the
+     * New Curve Framework, ensuring consistent and arbitrage-free pricing
+     * across all interest rate derivatives with institutional-grade performance.
+     */
+    class CurveFrameworkInterface {
+    public:
+        /**
+         * @brief Retrieve forecast curve for floating rate projections
+         *
+         * @param curve_id Unique identifier for the forecast curve
+         * @return Shared pointer to forecast curve with thread-safe access
+         */
+        virtual ptr_const<forecast_curve> get_forecast_curve(
+            const forecast_curve_id& curve_id) const = 0;
+
+        /**
+         * @brief Retrieve discount curve for present value calculations
+         *
+         * @param curve_id Unique identifier for the discount curve
+         * @return Shared pointer to discount curve with real-time updates
+         */
+        virtual ptr_const<discount_curve> get_discount_curve(
+            const discount_curve_id& curve_id) const = 0;
+
+        /**
+         * @brief FX forward projection for cross-currency swaps
+         *
+         * @param base_ccy Base currency for FX calculation
+         * @param quote_ccy Quote currency for FX calculation
+         * @param value_date Valuation date for FX spot
+         * @param forward_date Forward date for FX projection
+         * @return FX forward rate with market consistency
+         */
+        virtual double get_fx_forward(
+            const currency& base_ccy,
+            const currency& quote_ccy,
+            const datetime& value_date,
+            const datetime& forward_date) const = 0;
+    };
+    
+    // Moteur de pricing principal pour swaps linéaires
+    class LinearSwapPricingEngine {
+    public:
+        LinearSwapPricingEngine(ptr_const<CurveFrameworkInterface> curve_framework)
+            : curve_framework_(curve_framework) {}
+        
+        // Pricing principal avec support multi-output
+        template<typename SwapType>
+        double price_swap(
+            const SwapType& swap,
+            option_output_enum output_type,
+            const datetime& evaluation_date) const {
+            
+            // Récupération des courbes nécessaires
+            auto discount_curve = curve_framework_->get_discount_curve(swap.get_discount_curve_id());
+            auto forecast_curve = curve_framework_->get_forecast_curve(swap.get_forecast_curve_id());
+            
+            // Construction du container de marché
+            any_container_precomputed market;
+            populate_market_data(market, discount_curve, forecast_curve, evaluation_date);
+            
+            // Pricing via l'interface du swap
+            return swap.price(market, output_type);
+        }
+        
+    private:
+        ptr_const<CurveFrameworkInterface> curve_framework_;
+        
+        void populate_market_data(
+            any_container_precomputed& market,
+            const ptr_const<discount_curve>& discount,
+            const ptr_const<forecast_curve>& forecast,
+            const datetime& eval_date) const;
+    };
+}
+```
+*Cette implémentation C++ dans Our project fournit l'architecture de base du modèle avec intégration au New Curve Framework.*
+
+## Description du Modèle
+
+### Design et Développement du Modèle
+
+Étant donné une structure de payoff pour une jambe de swap dépendante des taux d'intérêt flottants, une courbe de forecast est utilisée pour calculer les taux requis qui n'ont pas eu leur fixing publié. Les courbes utilisées pour forecaster les taux nécessitent deux dates comme entrée - début de forecast ($t_{i}^{fs}$) et fin de forecast ($t_{i}^{fe}$), qui sont calculées comme décrit dans la Section 5. Le calcul de ce taux est interne au New Curve Framework (CMD1746), qui dépendrait du modèle d'interpolation de courbe utilisé.
+
+En plus de la courbe de forecast, les courbes d'actualisation sont requises pour actualiser les paiements de cash flow futurs à la date d'évaluation, $t_{e}$. Les facteurs d'actualisation sont notés par $Z(t_{e},t_{i}^{pay})$ pour un cash flow qui paie le $t_{i}^{pay}$.
+
+```cpp
+// Implémentation Our project du calcul de taux et facteurs d'actualisation
+namespace xsigma {
+    class SwapCashFlowCalculator {
+    public:
+        // Calcul de taux forward pour jambe flottante
+        double calculate_forward_rate(
+            const forecast_curve& curve,
+            const datetime& fixing_date,
+            const datetime& forecast_start,
+            const datetime& forecast_end,
+            const day_count_convention& dcc) const {
+            
+            // Validation des dates
+            if (forecast_start >= forecast_end) {
+                XSIGMA_THROW("Forecast start must be before forecast end");
+            }
+            
+            // Récupération du taux forward de la courbe
+            double forward_rate = curve.forward_rate(fixing_date, forecast_start, forecast_end);
+            
+            // Application de la convention de jour si nécessaire
+            if (dcc.get_type() != day_count_convention::ACT_365) {
+                // Ajustement pour convention de jour spécifique
+                double year_fraction = dcc.year_fraction(forecast_start, forecast_end);
+                forward_rate = forward_rate * year_fraction / 
+                              day_count_convention::ACT_365().year_fraction(forecast_start, forecast_end);
+            }
+            
+            return forward_rate;
+        }
+        
+        // Calcul de facteur d'actualisation
+        double calculate_discount_factor(
+            const discount_curve& curve,
+            const datetime& evaluation_date,
+            const datetime& payment_date) const {
+            
+            if (payment_date <= evaluation_date) {
+                return 1.0;  // Pas d'actualisation pour paiements passés/présents
+            }
+            
+            return curve.discount_factor(evaluation_date, payment_date);
+        }
+        
+        // Calcul de PV d'un cash flow individuel
+        double calculate_cash_flow_pv(
+            double cash_flow_amount,
+            const datetime& evaluation_date,
+            const datetime& payment_date,
+            const discount_curve& discount) const {
+            
+            double df = calculate_discount_factor(discount, evaluation_date, payment_date);
+            return cash_flow_amount * df;
+        }
+    };
+}
+```
+*Cette implémentation C++ dans Our project fournit les calculs de base pour taux forward et facteurs d'actualisation avec validation complète.*
+
+### Conformité Réglementaire
+
+N/A - Les swaps linéaires suivent les définitions ISDA standards et les conventions de marché établies.
+
+## Hypothèses, Limitations et Outliers
+
+### Hypothèses Principales
+
+| Hypothèse | Évaluation |
+|-----------|------------|
+| **Précision des Courbes** | Les courbes fournies par le New Curve Framework (CMD1746) pour le forecasting et l'actualisation sont une représentation précise de la structure de terme des taux d'intérêt. Le Modèle de Swaps Linéaires utilise les courbes de forecast pour récupérer les taux flottants requis et les courbes d'actualisation pour les facteurs d'actualisation requis. |
+| **Interpolation de Stub** | La méthode d'interpolation de stub implémentée correspond étroitement à celle décrite par l'ISDA. L'ISDA fournit des directives pour l'interpolation de stub sous forme d'interpolation linéaire entre les maturités publiées des fixings publiés. Il est implicite que l'interpolation est effectuée dans l'espace de taux simple. Cependant, l'implémentation du Modèle de Swap Linéaire effectue l'interpolation sur les taux composés en continu. |
+
+```cpp
+// Implémentation Our project de l'interpolation de stub
+namespace xsigma {
+    class StubInterpolator {
+    public:
+        // Interpolation linéaire sur taux composés en continu (implémentation Our project)
+        double interpolate_continuously_compounded(
+            double rate1, double time1,
+            double rate2, double time2,
+            double target_time) const {
+            
+            if (target_time <= time1) return rate1;
+            if (target_time >= time2) return rate2;
+            
+            // Interpolation linéaire sur taux composés en continu
+            double weight = (target_time - time1) / (time2 - time1);
+            return rate1 + weight * (rate2 - rate1);
+        }
+        
+        // Interpolation linéaire sur taux simples (méthode ISDA)
+        double interpolate_simple_rates(
+            double rate1, double time1,
+            double rate2, double time2,
+            double target_time) const {
+            
+            if (target_time <= time1) return rate1;
+            if (target_time >= time2) return rate2;
+            
+            // Conversion en taux simples
+            double simple_rate1 = std::exp(rate1 * time1) - 1.0;
+            double simple_rate2 = std::exp(rate2 * time2) - 1.0;
+            
+            // Interpolation linéaire
+            double weight = (target_time - time1) / (time2 - time1);
+            double interpolated_simple = simple_rate1 + weight * (simple_rate2 - simple_rate1);
+            
+            // Conversion retour en taux composé en continu
+            return std::log(1.0 + interpolated_simple) / target_time;
+        }
+        
+        // Évaluation de l'impact de la différence de méthode
+        double calculate_interpolation_impact(
+            double rate1, double time1,
+            double rate2, double time2,
+            double target_time) const {
+            
+            double cc_rate = interpolate_continuously_compounded(rate1, time1, rate2, time2, target_time);
+            double simple_rate = interpolate_simple_rates(rate1, time1, rate2, time2, target_time);
+            
+            return std::abs(cc_rate - simple_rate);
+        }
+    };
+}
+```
+*Cette implémentation C++ dans Our project compare les méthodes d'interpolation et évalue l'impact des différences avec les standards ISDA.*
+
+## Paramètres/Variables du Modèle
+
+### Courbes Requises
+
+Pour le pricing, la valorisation, et le risque, les courbes de forecast et d'actualisation sont requises. Les détails de celles-ci peuvent être trouvés dans la référence [10].
+
+### Fixings Historiques
+
+Les fixings historiques seront requis pour les cash flows où la date de fixing est dans le passé relativement à la date d'évaluation.
+
+```cpp
+// Implémentation Our project de la gestion des fixings historiques
+namespace xsigma {
+    class HistoricalFixingManager {
+    public:
+        // Structure pour stocker un fixing historique
+        struct HistoricalFixing {
+            datetime fixing_date;
+            std::string index_name;
+            double fixing_rate;
+            bool is_validated;
+        };
+        
+        // Ajout d'un fixing historique
+        void add_fixing(
+            const datetime& fixing_date,
+            const std::string& index_name,
+            double fixing_rate) {
+            
+            HistoricalFixing fixing;
+            fixing.fixing_date = fixing_date;
+            fixing.index_name = index_name;
+            fixing.fixing_rate = fixing_rate;
+            fixing.is_validated = validate_fixing(fixing_rate);
+            
+            auto key = std::make_pair(fixing_date, index_name);
+            historical_fixings_[key] = fixing;
+        }
+        
+        // Récupération d'un fixing historique
+        std::optional<double> get_fixing(
+            const datetime& fixing_date,
+            const std::string& index_name) const {
+            
+            auto key = std::make_pair(fixing_date, index_name);
+            auto it = historical_fixings_.find(key);
+            
+            if (it != historical_fixings_.end() && it->second.is_validated) {
+                return it->second.fixing_rate;
+            }
+            
+            return std::nullopt;
+        }
+        
+        // Vérification de disponibilité
+        bool has_fixing(
+            const datetime& fixing_date,
+            const std::string& index_name) const {
+            
+            auto key = std::make_pair(fixing_date, index_name);
+            auto it = historical_fixings_.find(key);
+            return it != historical_fixings_.end() && it->second.is_validated;
+        }
+        
+    private:
+        std::map<std::pair<datetime, std::string>, HistoricalFixing> historical_fixings_;
+        
+        bool validate_fixing(double rate) const {
+            // Validation de base : taux positif et raisonnable
+            return rate >= -0.1 && rate <= 1.0;  // -10% à 100%
+        }
+    };
+}
+```
+*Cette implémentation C++ dans Our project gère les fixings historiques avec validation et récupération efficace.*
+
+## Outputs du Modèle
+
+### Present Value (PV)
+
+PV représente la juste valeur actualisée du trade. Pour calculer la PV d'une jambe de swap, tous les cash flows futurs doivent être actualisés de leur date de paiement à la date d'évaluation du trade.
+
+#### Swaps Single-Currency
+
+$$PV(t_{e})=\sum_{i}^{n}A(t_{i}^{pay})\cdot Z(t_{e},t_{i}^{pay})\quad\forall i:t_{i}^{pay}\geq t_{e}$$ (4.1)
+
+**Note** : Dans certains cas, la PV excluant le cash flow d'aujourd'hui est désirée, auquel cas la condition RHS devient : $\forall i:t_{i}^{pay}>t_{e}$
+
+#### Swaps Cross-Currency
+
+Pour les swaps cross-currency, chaque PV de jambe est reportée dans sa propre devise :
+
+$$PV_{ccy}(t_{e})=\sum_{i}^{n}A_{ccy}(t_{i}^{pay})\cdot Z_{ccy}(t_{e},t_{i}^{pay})\quad\forall i:t_{i}^{pay}\geq t_{e}$$ (4.2)
+
+Cela signifie que pour obtenir une PV unique pour le trade, une conversion FX est requise sur une (ou les deux) jambes.
+
+### DV01
+
+DV01 est une mesure de risque de base communément utilisée pour les swaps linéaires vanilla. C'est une mesure du changement dans la PV d'un swap si la cotation par pour ce swap bouge de 1bp :
+
+$$DV01=N\cdot\sum_{i=1}^{m}\tau(t_{i}^{as},t_{i}^{ac})\cdot Z(t_{e},t_{i}^{pay})$$ (4.3)
+
+**Notes** :
+1. Les composants de la formule DV01 sont ceux de la jambe fixe (pour un swap fixed/float) ou la jambe basis (pour un swap basis)
+2. Pour représenter un changement de 1bp, la formule ci-dessus devrait vraiment être mise à l'échelle par $\frac{1}{10^{4}}$
+
+### Taux Par
+
+Pour un swap fixed/float, le taux par est le taux sur la jambe fixe qui résultera en un swap avec une PV zéro :
+
+$$c = \frac{PV(FloatLeg)}{DV01(FixedLeg)}$$ (4.5)
+
+```cpp
+// Implémentation Our project du calcul de taux par et DV01
+namespace xsigma {
+    class SwapAnalytics {
+    public:
+        // Calcul de DV01 pour une jambe
+        double calculate_dv01(
+            const leg& swap_leg,
+            const discount_curve& discount,
+            const datetime& evaluation_date) const {
+            
+            double dv01 = 0.0;
+            const auto& schedule = swap_leg.get_payment_schedule();
+            
+            for (const auto& period : schedule.get_periods()) {
+                if (period.payment_date >= evaluation_date) {
+                    double df = discount.discount_factor(evaluation_date, period.payment_date);
+                    dv01 += period.day_count_fraction * df;
+                }
+            }
+            
+            return dv01;
+        }
+        
+        // Calcul de taux par pour swap fixed/float
+        double calculate_par_rate(
+            const ir_swap& swap,
+            const any_container_precomputed& market) const {
+            
+            // PV de la jambe flottante
+            double float_pv = swap.get_receive_leg()->price(
+                market.at(swap.get_discount_curve_id()),
+                market.at(swap.get_forecast_curve_id()));
+            
+            // DV01 de la jambe fixe
+            double fixed_dv01 = calculate_dv01(
+                *swap.get_pay_leg(),
+                market.at(swap.get_discount_curve_id()),
+                market.get_evaluation_date());
+            
+            if (std::abs(fixed_dv01) < 1e-12) {
+                XSIGMA_THROW("Fixed leg DV01 is too small for par rate calculation");
+            }
+            
+            return float_pv / fixed_dv01;
+        }
+        
+        // Calcul de spread par pour basis swap
+        double calculate_par_spread(
+            const ir_basis_swap& basis_swap,
+            const any_container_precomputed& market) const {
+            
+            // PV des jambes sans spread
+            double no_basis_pv = basis_swap.get_no_basis_leg()->price(
+                market.at(basis_swap.get_discount_curve_id()),
+                market.at(basis_swap.get_no_basis_index()));
+            
+            double basis_pv_no_spread = basis_swap.get_basis_leg()->price(
+                market.at(basis_swap.get_discount_curve_id()),
+                market.at(basis_swap.get_basis_index()));
+            
+            // DV01 de la jambe basis
+            double basis_dv01 = calculate_dv01(
+                *basis_swap.get_basis_leg(),
+                market.at(basis_swap.get_discount_curve_id()),
+                market.get_evaluation_date());
+            
+            if (std::abs(basis_dv01) < 1e-12) {
+                XSIGMA_THROW("Basis leg DV01 is too small for par spread calculation");
+            }
+            
+            return (no_basis_pv - basis_pv_no_spread) / basis_dv01;
+        }
+    };
+}
+```
+*Cette implémentation C++ dans Our project fournit les calculs d'analytics de swap avec gestion d'erreurs robuste.*

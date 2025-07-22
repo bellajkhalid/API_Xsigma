@@ -1,0 +1,571 @@
+# Theoretical Overview
+
+## 🎯 **Vue d'Ensemble Théorique**
+
+### **Framework Mathématique**
+Le modèle **DBX-ShortRate_FXSkewStochVol** repose sur un framework mathématique sophistiqué combinant des processus stochastiques multiples pour capturer la dynamique complexe des dérivés FX long terme avec taux d'intérêt stochastiques.
+
+#### **Hypothèses Fondamentales**
+1. **Taux stochastiques** : Les taux d'intérêt suivent des processus Hull-White
+2. **Volatilité FX locale** : Calibrée aux données de marché via PIV AutoFit
+3. **Volatilité FX stochastique** : Processus de volatilité stochastique additionnel
+4. **Corrélations** : Corrélations constantes entre tous les facteurs de risque
+
+### **Système d'Équations Stochastiques**
+Sous la mesure risque-neutre $\mathbb{Q}$, le système complet s'écrit :
+
+#### **Taux Domestiques (Hull-White)**
+$$dr_d(t) = [\theta_d(t) - a_d r_d(t)] dt + \sigma_d dW_d(t)$$
+
+#### **Taux Étrangers (Hull-White)**
+$$dr_f(t) = [\theta_f(t) - a_f r_f(t)] dt + \sigma_f dW_f(t)$$
+
+#### **Volatilité Stochastique FX**
+$$dv(t) = \kappa_v [\theta_v - v(t)] dt + \sigma_v \sqrt{v(t)} dW_v(t)$$
+
+#### **Taux de Change FX**
+$$\frac{dS(t)}{S(t)} = [r_d(t) - r_f(t)] dt + \sigma_{LV}(t,S) \sqrt{v(t)} dW_S(t)$$
+
+avec les corrélations : $d\langle W_i, W_j \rangle = \rho_{ij} dt$
+
+---
+
+## 📊 **Modèle Hull-White pour Taux d'Intérêt**
+
+### **Dynamique Hull-White**
+
+#### **Formulation Générale**
+Le modèle Hull-White étend le modèle de Vasicek avec un terme de drift dépendant du temps :
+
+$$dr(t) = [\theta(t) - a r(t)] dt + \sigma dW(t)$$
+
+où :
+- $\theta(t)$ : Fonction de drift dépendante du temps
+- $a$ : Vitesse de retour à la moyenne
+- $\sigma$ : Volatilité des taux courts
+
+#### **Implémentation Hull-White dans Our project**
+```cpp
+// Implémentation complète Hull-White dans Our project
+class hull_white_extended_model : public short_rate_model_base {
+private:
+    struct hull_white_calibration_data {
+        std::vector<double> pillar_maturities;
+        std::vector<double> market_rates;
+        std::vector<double> market_volatilities;
+        matrix<double> swaption_prices;
+    };
+    
+    struct hull_white_state {
+        double current_short_rate;
+        double current_time;
+        std::function<double(double)> theta_function;
+        double mean_reversion_speed;
+        double volatility;
+    };
+    
+    hull_white_state state_;
+    
+public:
+    hull_white_extended_model(const hull_white_parameters& params) {
+        calibrate_hull_white_parameters(params);
+    }
+    
+    double evolve_short_rate(double dt, double current_rate, double random_shock) const override {
+        // Évolution exacte Hull-White
+        double theta = state_.theta_function(state_.current_time);
+        double a = state_.mean_reversion_speed;
+        double sigma = state_.volatility;
+        
+        // Solution exacte de l'EDS Hull-White
+        double exp_a_dt = std::exp(-a * dt);
+        
+        double mean = current_rate * exp_a_dt + 
+                     (theta / a) * (1.0 - exp_a_dt);
+        
+        double variance = (sigma * sigma / (2.0 * a)) * (1.0 - exp_a_dt * exp_a_dt);
+        
+        return mean + std::sqrt(variance) * random_shock;
+    }
+    
+    double calculate_bond_price(double maturity, double current_rate) const override {
+        // Prix d'obligation Hull-White analytique
+        double a = state_.mean_reversion_speed;
+        double sigma = state_.volatility;
+        
+        // Facteur B(t,T)
+        double B = (1.0 - std::exp(-a * maturity)) / a;
+        
+        // Facteur A(t,T)
+        double A = calculate_A_factor(maturity);
+        
+        return A * std::exp(-B * current_rate);
+    }
+    
+    matrix<double> calculate_swaption_prices(
+        const std::vector<double>& option_maturities,
+        const std::vector<double>& swap_maturities,
+        const std::vector<double>& strikes) const {
+        
+        matrix<double> swaption_prices(option_maturities.size(), strikes.size());
+        
+        for (size_t i = 0; i < option_maturities.size(); ++i) {
+            for (size_t j = 0; j < strikes.size(); ++j) {
+                
+                double option_maturity = option_maturities[i];
+                double swap_maturity = swap_maturities[i];
+                double strike = strikes[j];
+                
+                // Prix de swaption Hull-White analytique
+                swaption_prices(i, j) = calculate_swaption_price_analytical(
+                    option_maturity, swap_maturity, strike);
+            }
+        }
+        
+        return swaption_prices;
+    }
+    
+private:
+    double calculate_A_factor(double maturity) const {
+        // Calcul du facteur A dans la formule Hull-White
+        double a = state_.mean_reversion_speed;
+        double sigma = state_.volatility;
+        
+        // Intégrale de la fonction theta
+        double theta_integral = integrate_theta_function(0.0, maturity);
+        
+        // Terme de variance
+        double B = (1.0 - std::exp(-a * maturity)) / a;
+        double variance_term = (sigma * sigma / (4.0 * a)) * B * B * 
+                              (1.0 - std::exp(-2.0 * a * maturity));
+        
+        return std::exp(theta_integral - variance_term);
+    }
+    
+    void calibrate_hull_white_parameters(const hull_white_parameters& params) {
+        // Calibration automatique des paramètres Hull-White
+        
+        // Calibration de la vitesse de retour à la moyenne
+        state_.mean_reversion_speed = calibrate_mean_reversion_speed(params.market_data);
+        
+        // Calibration de la volatilité
+        state_.volatility = calibrate_volatility(params.market_data);
+        
+        // Construction de la fonction theta
+        state_.theta_function = construct_theta_function(params.market_data);
+        
+        // Validation de la calibration
+        validate_hull_white_calibration(params.market_data);
+    }
+    
+    double calibrate_mean_reversion_speed(const hull_white_calibration_data& data) const {
+        // Optimisation pour trouver la vitesse de retour à la moyenne optimale
+        
+        auto objective_function = [&](double a) -> double {
+            // Calcul de l'erreur de calibration pour une vitesse donnée
+            double total_error = 0.0;
+            
+            for (size_t i = 0; i < data.swaption_prices.rows(); ++i) {
+                for (size_t j = 0; j < data.swaption_prices.cols(); ++j) {
+                    
+                    double market_price = data.swaption_prices(i, j);
+                    double model_price = calculate_swaption_price_with_a(
+                        a, data.pillar_maturities[i], data.market_rates[j]);
+                    
+                    total_error += std::pow(market_price - model_price, 2);
+                }
+            }
+            
+            return total_error;
+        };
+        
+        // Optimisation unidimensionnelle
+        golden_section_optimizer optimizer;
+        return optimizer.minimize(objective_function, 0.01, 0.5);
+    }
+};
+```
+*Cette implémentation C++ dans Our project montre le modèle Hull-White complet avec calibration automatique et pricing analytique de swaptions.*
+
+### **Calibration Hull-White**
+
+#### **Fonction Theta Dépendante du Temps**
+```cpp
+// Construction de la fonction theta dans Our project
+class theta_function_builder {
+public:
+    std::function<double(double)> build_theta_function(
+        const std::vector<double>& market_rates,
+        const std::vector<double>& maturities,
+        double mean_reversion_speed) const {
+        
+        // Interpolation des taux de marché
+        auto rate_interpolator = create_rate_interpolator(market_rates, maturities);
+        
+        return [rate_interpolator, mean_reversion_speed](double t) -> double {
+            
+            // Calcul de theta(t) pour reproduire la courbe des taux
+            double forward_rate = rate_interpolator->get_instantaneous_forward(t);
+            double forward_rate_derivative = rate_interpolator->get_forward_derivative(t);
+            
+            // Formule theta Hull-White
+            return forward_rate_derivative + mean_reversion_speed * forward_rate;
+        };
+    }
+    
+private:
+    std::unique_ptr<rate_interpolator_base> create_rate_interpolator(
+        const std::vector<double>& rates,
+        const std::vector<double>& maturities) const {
+        
+        // Interpolation par splines cubiques pour lissage
+        return std::make_unique<cubic_spline_interpolator>(maturities, rates);
+    }
+};
+```
+
+---
+
+## 🔄 **Volatilité FX Locale Stochastique**
+
+### **Modèle de Volatilité Locale**
+
+#### **Surface de Volatilité Locale**
+La volatilité locale $\sigma_{LV}(t, S)$ est calibrée via l'équation de Dupire :
+
+$$\sigma_{LV}^2(T, K) = \frac{\frac{\partial C}{\partial T} + (r_d - r_f) K \frac{\partial C}{\partial K}}{\frac{1}{2} K^2 \frac{\partial^2 C}{\partial K^2}}$$
+
+#### **Implémentation Volatilité Locale dans Our project**
+```cpp
+// Implémentation de volatilité locale FX dans Our project
+class fx_local_volatility_surface_dupire : public fx_volatility_surface_base {
+private:
+    struct dupire_calibration_data {
+        matrix<double> option_prices;
+        std::vector<double> strikes;
+        std::vector<double> expiries;
+        double fx_spot;
+        std::function<double(double)> domestic_rate_curve;
+        std::function<double(double)> foreign_rate_curve;
+    };
+    
+    dupire_calibration_data calib_data_;
+    matrix<double> local_volatility_grid_;
+    
+public:
+    fx_local_volatility_surface_dupire(const dupire_calibration_data& data) 
+        : calib_data_(data) {
+        
+        calibrate_local_volatility_surface();
+    }
+    
+    double get_local_volatility(double time, double fx_level) const override {
+        // Interpolation bilinéaire dans la grille de volatilité locale
+        return interpolate_local_volatility(time, fx_level);
+    }
+    
+private:
+    void calibrate_local_volatility_surface() {
+        // Calibration via équation de Dupire
+        
+        local_volatility_grid_ = matrix<double>(calib_data_.strikes.size(), 
+                                              calib_data_.expiries.size());
+        
+        for (size_t i = 0; i < calib_data_.strikes.size(); ++i) {
+            for (size_t j = 0; j < calib_data_.expiries.size(); ++j) {
+                
+                double strike = calib_data_.strikes[i];
+                double expiry = calib_data_.expiries[j];
+                
+                // Calcul des dérivées partielles
+                double dC_dT = calculate_time_derivative(i, j);
+                double dC_dK = calculate_strike_derivative(i, j);
+                double d2C_dK2 = calculate_second_strike_derivative(i, j);
+                
+                // Taux d'intérêt
+                double r_d = calib_data_.domestic_rate_curve(expiry);
+                double r_f = calib_data_.foreign_rate_curve(expiry);
+                
+                // Formule de Dupire
+                double numerator = dC_dT + (r_d - r_f) * strike * dC_dK;
+                double denominator = 0.5 * strike * strike * d2C_dK2;
+                
+                double local_variance = numerator / denominator;
+                
+                // Validation et bornes
+                local_variance = std::max(local_variance, 0.01); // Borne inférieure
+                local_variance = std::min(local_variance, 4.0);  // Borne supérieure
+                
+                local_volatility_grid_(i, j) = std::sqrt(local_variance);
+            }
+        }
+    }
+    
+    double calculate_time_derivative(size_t strike_idx, size_t expiry_idx) const {
+        // Dérivée temporelle par différences finies
+        
+        if (expiry_idx == 0) {
+            // Forward difference
+            double price_t1 = calib_data_.option_prices(strike_idx, expiry_idx);
+            double price_t2 = calib_data_.option_prices(strike_idx, expiry_idx + 1);
+            double dt = calib_data_.expiries[expiry_idx + 1] - calib_data_.expiries[expiry_idx];
+            
+            return (price_t2 - price_t1) / dt;
+        } else if (expiry_idx == calib_data_.expiries.size() - 1) {
+            // Backward difference
+            double price_t1 = calib_data_.option_prices(strike_idx, expiry_idx - 1);
+            double price_t2 = calib_data_.option_prices(strike_idx, expiry_idx);
+            double dt = calib_data_.expiries[expiry_idx] - calib_data_.expiries[expiry_idx - 1];
+            
+            return (price_t2 - price_t1) / dt;
+        } else {
+            // Central difference
+            double price_t1 = calib_data_.option_prices(strike_idx, expiry_idx - 1);
+            double price_t2 = calib_data_.option_prices(strike_idx, expiry_idx + 1);
+            double dt = calib_data_.expiries[expiry_idx + 1] - calib_data_.expiries[expiry_idx - 1];
+            
+            return (price_t2 - price_t1) / dt;
+        }
+    }
+    
+    double interpolate_local_volatility(double time, double fx_level) const {
+        // Interpolation bilinéaire dans la grille
+        
+        // Recherche des indices
+        auto time_indices = find_time_indices(time);
+        auto strike_indices = find_strike_indices(fx_level);
+        
+        // Interpolation bilinéaire
+        return bilinear_interpolation(time_indices, strike_indices, time, fx_level);
+    }
+};
+```
+
+### **Volatilité Stochastique FX**
+
+#### **Processus de Volatilité Stochastique**
+Le facteur de volatilité stochastique suit un processus CIR :
+
+$$dv(t) = \kappa (\theta - v(t)) dt + \sigma_v \sqrt{v(t)} dW_v(t)$$
+
+#### **Implémentation Volatilité Stochastique dans Our project**
+```cpp
+// Implémentation de volatilité stochastique FX dans Our project
+class fx_stochastic_volatility_cir : public stochastic_volatility_base {
+private:
+    struct cir_parameters {
+        double kappa;      // Vitesse de retour à la moyenne
+        double theta;      // Niveau de long terme
+        double sigma;      // Volatilité de la volatilité
+        double v0;         // Valeur initiale
+    };
+    
+    cir_parameters params_;
+    
+public:
+    fx_stochastic_volatility_cir(const cir_parameters& params) : params_(params) {
+        validate_cir_parameters();
+    }
+    
+    double evolve_volatility_factor(double dt, double current_v, double random_shock) const override {
+        // Évolution exacte du processus CIR
+        
+        // Schéma d'Euler avec correction pour éviter les valeurs négatives
+        double drift = params_.kappa * (params_.theta - current_v) * dt;
+        double diffusion = params_.sigma * std::sqrt(std::max(current_v, 0.0)) * 
+                          std::sqrt(dt) * random_shock;
+        
+        double next_v = current_v + drift + diffusion;
+        
+        // Réflexion à zéro pour maintenir la positivité
+        return std::max(next_v, 1e-6);
+    }
+    
+    double calculate_characteristic_function(double u, double time) const {
+        // Fonction caractéristique analytique du processus CIR
+        
+        double kappa = params_.kappa;
+        double theta = params_.theta;
+        double sigma = params_.sigma;
+        double v0 = params_.v0;
+        
+        // Paramètres de la fonction caractéristique
+        std::complex<double> i_u(0.0, u);
+        std::complex<double> d = std::sqrt(kappa * kappa - 2.0 * sigma * sigma * i_u);
+        
+        std::complex<double> g = (kappa - d) / (kappa + d);
+        std::complex<double> exp_dt = std::exp(-d * time);
+        
+        std::complex<double> A = (kappa * theta / (sigma * sigma)) * 
+                                (2.0 * std::log((1.0 - g * exp_dt) / (1.0 - g)) + 
+                                 (kappa - d) * time);
+        
+        std::complex<double> B = (2.0 * i_u * exp_dt) / 
+                                ((kappa + d) * (1.0 - exp_dt) + 2.0 * d);
+        
+        return std::exp(A + B * v0);
+    }
+    
+private:
+    void validate_cir_parameters() const {
+        // Condition de Feller pour éviter que le processus atteigne zéro
+        double feller_condition = 2.0 * params_.kappa * params_.theta;
+        
+        XSIGMA_CHECK(params_.kappa > 0, "Mean reversion speed must be positive");
+        XSIGMA_CHECK(params_.theta > 0, "Long-term mean must be positive");
+        XSIGMA_CHECK(params_.sigma > 0, "Volatility must be positive");
+        XSIGMA_CHECK(params_.v0 > 0, "Initial volatility must be positive");
+        XSIGMA_CHECK(feller_condition >= params_.sigma * params_.sigma,
+                    "Feller condition must be satisfied");
+    }
+};
+```
+
+---
+
+## 🔗 **Corrélations et Couplage**
+
+### **Matrice de Corrélation Complète**
+
+#### **Structure de Corrélation**
+Le modèle utilise une matrice de corrélation $4 \times 4$ :
+
+$$\rho = \begin{pmatrix}
+1 & \rho_{r_d,r_f} & \rho_{r_d,S} & \rho_{r_d,v} \\
+\rho_{r_d,r_f} & 1 & \rho_{r_f,S} & \rho_{r_f,v} \\
+\rho_{r_d,S} & \rho_{r_f,S} & 1 & \rho_{S,v} \\
+\rho_{r_d,v} & \rho_{r_f,v} & \rho_{S,v} & 1
+\end{pmatrix}$$
+
+#### **Génération de Nombres Aléatoires Corrélés**
+```cpp
+// Générateur de nombres aléatoires corrélés dans Our project
+class correlated_random_generator {
+private:
+    matrix<double> cholesky_decomposition_;
+    std::mt19937 rng_;
+    std::normal_distribution<double> normal_dist_;
+    
+public:
+    correlated_random_generator(const matrix<double>& correlation_matrix, 
+                               unsigned int seed = std::random_device{}()) 
+        : rng_(seed), normal_dist_(0.0, 1.0) {
+        
+        // Décomposition de Cholesky de la matrice de corrélation
+        cholesky_decomposition_ = cholesky_decompose(correlation_matrix);
+    }
+    
+    vector<double> generate_correlated_normals() {
+        // Génération de variables normales indépendantes
+        vector<double> independent_normals(cholesky_decomposition_.rows());
+        
+        for (size_t i = 0; i < independent_normals.size(); ++i) {
+            independent_normals[i] = normal_dist_(rng_);
+        }
+        
+        // Application de la transformation de Cholesky
+        return cholesky_decomposition_ * independent_normals;
+    }
+    
+private:
+    matrix<double> cholesky_decompose(const matrix<double>& correlation_matrix) const {
+        // Décomposition de Cholesky : A = L * L^T
+        
+        size_t n = correlation_matrix.rows();
+        matrix<double> L(n, n);
+        
+        for (size_t i = 0; i < n; ++i) {
+            for (size_t j = 0; j <= i; ++j) {
+                if (i == j) {
+                    // Élément diagonal
+                    double sum = 0.0;
+                    for (size_t k = 0; k < j; ++k) {
+                        sum += L(i, k) * L(i, k);
+                    }
+                    L(i, j) = std::sqrt(correlation_matrix(i, i) - sum);
+                } else {
+                    // Élément sous-diagonal
+                    double sum = 0.0;
+                    for (size_t k = 0; k < j; ++k) {
+                        sum += L(i, k) * L(j, k);
+                    }
+                    L(i, j) = (correlation_matrix(i, j) - sum) / L(j, j);
+                }
+            }
+        }
+        
+        return L;
+    }
+};
+```
+
+---
+
+## 🧮 **Pricing Monte Carlo**
+
+### **Algorithme de Simulation**
+
+#### **Schéma de Discrétisation**
+```cpp
+// Schéma de discrétisation complet dans Our project
+class dbx_discretization_scheme {
+public:
+    struct simulation_state {
+        double domestic_rate;
+        double foreign_rate;
+        double fx_rate;
+        double sv_factor;
+        double current_time;
+    };
+    
+    simulation_state evolve_state(const simulation_state& current_state,
+                                 double dt,
+                                 const vector<double>& correlated_randoms,
+                                 const dbx_model_parameters& params) const {
+        
+        simulation_state next_state;
+        next_state.current_time = current_state.current_time + dt;
+        
+        // Évolution Hull-White domestique
+        next_state.domestic_rate = evolve_hull_white_rate(
+            current_state.domestic_rate,
+            params.domestic_hw,
+            dt,
+            correlated_randoms[0]);
+        
+        // Évolution Hull-White étranger
+        next_state.foreign_rate = evolve_hull_white_rate(
+            current_state.foreign_rate,
+            params.foreign_hw,
+            dt,
+            correlated_randoms[1]);
+        
+        // Évolution volatilité stochastique
+        next_state.sv_factor = evolve_stochastic_volatility(
+            current_state.sv_factor,
+            params.fx_sv_params,
+            dt,
+            correlated_randoms[2]);
+        
+        // Évolution FX avec volatilité locale stochastique
+        double local_vol = params.fx_local_vol_surface->get_volatility(
+            current_state.current_time, current_state.fx_rate);
+        
+        double total_vol = local_vol * std::sqrt(next_state.sv_factor);
+        
+        double fx_drift = (next_state.domestic_rate - next_state.foreign_rate) * 
+                         current_state.fx_rate * dt;
+        
+        double fx_diffusion = total_vol * current_state.fx_rate * 
+                             std::sqrt(dt) * correlated_randoms[3];
+        
+        next_state.fx_rate = current_state.fx_rate + fx_drift + fx_diffusion;
+        
+        return next_state;
+    }
+};
+```
+
+---
+
+*Cette section fournit une vue d'ensemble théorique complète du framework DBX-ShortRate_FXSkewStochVol, intégrant les implémentations C++ de Our project avec les fondements mathématiques rigoureux pour la modélisation de dérivés FX long terme avec taux stochastiques et volatilité locale stochastique.*

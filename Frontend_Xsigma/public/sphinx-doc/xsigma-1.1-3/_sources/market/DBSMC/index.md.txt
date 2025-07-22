@@ -1,0 +1,325 @@
+# DBSMC - FX Market Models
+
+## 📋 **Vue d'Ensemble**
+
+Le modèle **DBSMC-RateDeterministic_FXMarket** est un framework analytique fermé multi-devises qui assume que la dynamique des taux d'intérêt domestiques et étrangers est déterministe et que la dynamique du taux FX suit un processus lognormal dont la volatilité peut avoir une forme non-paramétrique (interpolation/extrapolation de surface de volatilité) ou paramétrique (SA4, LABGD).
+
+---
+
+## 🎯 **Caractéristiques Principales**
+
+### **Modèles Couverts**
+- **DBSMC-RateDeterministic_FXMarket[AUTO]**
+- **DBSMC-RateDeterministic_FXMarket**
+
+### **Produits Supportés**
+- **FXEuroOpt** - Options européennes FX
+- **FXDigitalOpt** - Options digitales FX
+- **FXGeometricBasketOpt** - Options sur panier géométrique FX
+- **FXNonDeliverableEuroOpt** - Options européennes non-livrables
+
+### **Usages Approuvés**
+- ✅ **End of Day (EOD)** - Évaluation et gestion des risques
+- ✅ **HistSim** - Simulations historiques
+- ✅ **CCAR** - Tests de stress réglementaires
+- ✅ **IRRBB** - Interest Rate Risk in Banking Book
+
+---
+
+## 🏗️ **Architecture du Framework**
+
+### **Approche Multi-Devises**
+Le framework utilise une approche sophistiquée de modélisation FX :
+- **Taux déterministes** pour les devises domestiques et étrangères
+- **Processus lognormal** pour les taux de change
+- **Surfaces de volatilité** non-paramétriques ou paramétriques
+- **Calibration PIV** automatique aux données de marché
+
+### **Composants Techniques**
+```cpp
+// Exemple d'implémentation Black-Scholes FX dans Our project
+class fx_black_scholes_pricer {
+private:
+    double domestic_rate_;
+    double foreign_rate_;
+    double fx_spot_;
+    std::shared_ptr<fx_volatility_surface> vol_surface_;
+
+public:
+    fx_black_scholes_pricer(double dom_rate, double for_rate,
+                           double fx_spot,
+                           std::shared_ptr<fx_volatility_surface> vol_surface)
+        : domestic_rate_(dom_rate), foreign_rate_(for_rate),
+          fx_spot_(fx_spot), vol_surface_(vol_surface) {}
+
+    double price_european_option(double strike, double expiry,
+                                bool is_call, double notional) const {
+        // Calcul du forward FX
+        double forward = fx_spot_ * std::exp((domestic_rate_ - foreign_rate_) * expiry);
+
+        // Volatilité interpolée
+        double volatility = vol_surface_->get_volatility(strike, expiry);
+
+        // Prix Black-Scholes
+        double discount_factor = std::exp(-domestic_rate_ * expiry);
+
+        return black_scholes::price(forward, strike, expiry, volatility,
+                                  discount_factor * notional, is_call ? 1.0 : -1.0);
+    }
+};
+```
+*Cette implémentation C++ dans Our project montre le pricing Black-Scholes FX avec taux déterministes et surface de volatilité interpolée.*
+
+---
+
+## 📊 **Évaluation des Risques**
+
+### **Global Model Risk Assessment**
+
+| Critère | Rating | Justification |
+|---------|--------|---------------|
+| **Complexité** | LOW | Le modèle est analytique |
+| **Incertitude** | LOW | Le modèle n'utilise aucun modèle feeder externe |
+| **Dépendance** | HIGH | Les modèles de pricing ont une dépendance élevée |
+
+**Justifications :**
+- **Complexité LOW** : Modèle analytique fermé avec formules Black-Scholes
+- **Incertitude LOW** : Pas de source d'incertitude externe ou de modèle feeder
+- **Dépendance HIGH** : Les outputs définissent les métriques officiellement reportées
+
+---
+
+## 📚 **Documentation Détaillée**
+
+```{toctree}
+:maxdepth: 2
+:caption: Documentation DBSMC
+
+executive_summary
+introduction_model_validation
+theoretical_overview
+independent_validation_testing
+model_uncertainty_management
+control_assessment
+conclusion
+document_change_history
+product_testing_fxeuropt
+product_testing_fxdigitalopt
+product_testing_fxbasketopt
+model_parameters_testing
+```
+
+### **Sections Principales**
+
+#### **📋 Documentation Fondamentale**
+- **[Executive Summary](executive_summary.md)** - Résumé exécutif et évaluation globale des risques
+- **[Introduction & Model Validation](introduction_model_validation.md)** - Scope, description des produits et méthodologie
+- **[Theoretical Overview](theoretical_overview.md)** - Vue d'ensemble théorique et surfaces de volatilité
+
+#### **🔬 Tests et Validation**
+- **[Independent Validation Testing](independent_validation_testing.md)** - Tests de validation indépendants et frameworks réglementaires
+
+#### **📊 Tests de Produits Spécifiques**
+- **[Product Testing: FXEuroOpt](product_testing_fxeuropt.md)** - Tests complets pour options européennes FX
+- **[Product Testing: FXDigitalOpt](product_testing_fxdigitalopt.md)** - Tests complets pour options digitales FX
+- **[Product Testing: FXBasketOpt](product_testing_fxbasketopt.md)** - Tests complets pour options sur panier FX
+
+#### **🔧 Tests de Paramètres**
+- **[Model Parameters Testing](model_parameters_testing.md)** - Tests détaillés des paramètres de modèle
+
+#### **🔬 Gestion des Risques et Contrôles**
+- **[Model Uncertainty Management](model_uncertainty_management.md)** - Identification, mesure et gestion des incertitudes du modèle
+- **[Control Assessment](control_assessment.md)** - Évaluation des contrôles, monitoring de performance et conditions d'utilisation
+- **[Conclusion](conclusion.md)** - Approbation du modèle, tests de stress et revue annuelle
+- **[Document Change History](document_change_history.md)** - Historique complet des changements et versions
+
+---
+
+## 🔧 **Implémentation Technique Avancée**
+
+### **Moteur Black-Scholes FX Optimisé**
+Le framework utilise un moteur Black-Scholes spécialisé pour FX :
+
+```cpp
+// Moteur Black-Scholes FX optimisé dans Our project
+class fx_black_scholes_engine_optimized {
+public:
+    struct fx_option_parameters {
+        double spot;
+        double strike;
+        double expiry;
+        double domestic_rate;
+        double foreign_rate;
+        double volatility;
+        bool is_call;
+        double notional;
+    };
+
+    struct complete_option_metrics {
+        double price;
+        double delta;
+        double gamma;
+        double vega;
+        double theta;
+        double rho_domestic;
+        double rho_foreign;
+        double lambda; // Elasticity
+        double vanna;  // Cross-gamma
+        double volga;  // Vega convexity
+    };
+
+    static complete_option_metrics calculate_all_metrics(
+        const fx_option_parameters& params) {
+
+        complete_option_metrics metrics;
+
+        // Calculs préliminaires optimisés
+        double forward = params.spot * std::exp(
+            (params.domestic_rate - params.foreign_rate) * params.expiry);
+
+        double sqrt_t = std::sqrt(params.expiry);
+        double vol_sqrt_t = params.volatility * sqrt_t;
+        double vol_squared_t = params.volatility * params.volatility * params.expiry;
+
+        double d1 = (std::log(forward / params.strike) + 0.5 * vol_squared_t) / vol_sqrt_t;
+        double d2 = d1 - vol_sqrt_t;
+
+        double discount_factor = std::exp(-params.domestic_rate * params.expiry);
+
+        // Fonctions de distribution normale (optimisées)
+        double n_d1 = normal_cdf(d1);
+        double n_d2 = normal_cdf(d2);
+        double phi_d1 = normal_pdf(d1);
+        double phi_d2 = normal_pdf(d2);
+
+        // Prix
+        if (params.is_call) {
+            metrics.price = discount_factor * (forward * n_d1 - params.strike * n_d2);
+        } else {
+            metrics.price = discount_factor * (params.strike * (1.0 - n_d2) - forward * (1.0 - n_d1));
+        }
+        metrics.price *= params.notional;
+
+        // Greeks de premier ordre
+        metrics.delta = discount_factor * (params.is_call ? n_d1 : n_d1 - 1.0) * params.notional;
+
+        metrics.vega = discount_factor * forward * phi_d1 * sqrt_t * params.notional;
+
+        // Greeks de second ordre
+        metrics.gamma = discount_factor * phi_d1 / (params.spot * vol_sqrt_t) * params.notional;
+
+        // Theta
+        double theta_vol_term = -discount_factor * forward * phi_d1 * params.volatility / (2.0 * sqrt_t);
+        double theta_rate_term = params.domestic_rate * metrics.price;
+        metrics.theta = (theta_vol_term + theta_rate_term) * params.notional;
+
+        // Rhos
+        metrics.rho_domestic = params.expiry * metrics.price;
+        metrics.rho_foreign = -params.expiry * discount_factor * forward *
+                             (params.is_call ? n_d1 : n_d1 - 1.0) * params.notional;
+
+        // Greeks avancés
+        metrics.lambda = metrics.delta * params.spot / metrics.price; // Elasticity
+
+        // Vanna (sensibilité croisée Delta/Vol)
+        metrics.vanna = -discount_factor * phi_d1 * d2 / params.volatility * params.notional;
+
+        // Volga (convexité Vega)
+        metrics.volga = metrics.vega * d1 * d2 / params.volatility;
+
+        return metrics;
+    }
+
+    // Pricing vectorisé pour performance
+    static std::vector<double> price_option_portfolio(
+        const std::vector<fx_option_parameters>& portfolio) {
+
+        std::vector<double> prices;
+        prices.reserve(portfolio.size());
+
+        // Optimisation vectorielle
+        for (const auto& params : portfolio) {
+            auto metrics = calculate_all_metrics(params);
+            prices.push_back(metrics.price);
+        }
+
+        return prices;
+    }
+};
+```
+*Cette implémentation C++ dans Our project montre un moteur Black-Scholes FX optimisé avec calcul complet des Greeks et support vectorisé.*
+
+---
+
+## 🎯 **Avantages Techniques du Framework**
+
+### **✅ Pricing Analytique Haute Performance**
+- **Formules fermées** Black-Scholes pour performance optimale
+- **Calcul vectorisé** pour portfolios d'options
+- **Cache intelligent** des surfaces de volatilité
+- **Optimisations numériques** pour Greeks avancés
+
+### **✅ Flexibilité des Surfaces de Volatilité**
+- **Support multi-méthodes** : Interpolation, SA4, LABGD, SVI
+- **Sélection automatique** de la méthode optimale
+- **Calibration robuste** aux données de marché
+- **Validation d'arbitrage** intégrée
+
+### **✅ Validation Exhaustive**
+- **Tests analytiques** contre formules théoriques
+- **Validation des Greeks** par différences finies
+- **Put-call parity** avec précision machine
+- **Tests de stabilité** sous stress extrême
+
+---
+
+## 📈 **Cas d'Usage Spécialisés**
+
+### **Options Européennes Multi-Devises**
+```cpp
+// Exemple d'usage pour portfolio FX multi-devises dans Our project
+class fx_portfolio_manager {
+public:
+    void price_multi_currency_portfolio() {
+        // Configuration du portfolio
+        std::vector<fx_option_specification> portfolio = {
+            {"EURUSD", 1.10, 1.0, true, 1000000},   // EUR/USD Call
+            {"GBPUSD", 1.25, 0.5, false, 500000},   // GBP/USD Put
+            {"USDJPY", 110.0, 2.0, true, 100000000}, // USD/JPY Call
+            {"AUDUSD", 0.75, 1.5, false, 2000000}   // AUD/USD Put
+        };
+
+        // Pricing avec corrélations FX
+        auto portfolio_metrics = calculate_portfolio_metrics(portfolio);
+
+        // Analyse des risques
+        analyze_portfolio_fx_risks(portfolio_metrics);
+    }
+};
+```
+
+### **Gestion des Risques FX**
+- **Delta hedging** automatique multi-devises
+- **Gamma scalping** pour options courtes
+- **Vega hedging** contre volatilité
+- **Stress testing** réglementaire
+
+---
+
+## 🔍 **Surveillance et Contrôle Qualité**
+
+### **Model Parameter Monitoring**
+- **Surveillance automatisée** des paramètres de volatilité via MARS
+- **Alertes** sur déviations de calibration significatives
+- **Validation continue** des surfaces de volatilité
+- **Monitoring** de la stabilité des Greeks
+
+### **Contrôles de Cohérence**
+- **Tests de réplication** quotidiens pour options vanilles
+- **Validation croisée** avec données de marché
+- **Monitoring des écarts** de pricing vs benchmarks
+- **Analyse des tendances** de volatilité FX
+
+---
+
+*Cette documentation complète du framework DBSMC-RateDeterministic_FXMarket intègre les meilleures pratiques de Our project avec une validation rigoureuse et des implémentations techniques avancées pour le pricing analytique de dérivés FX.*

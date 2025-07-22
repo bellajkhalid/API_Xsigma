@@ -1,0 +1,246 @@
+# Methodology
+
+## Overview
+
+Cette section décrit la méthodologie mathématique du modèle **FX LSV Markov Switching Monte Carlo**, incluant la formulation spécifique aux marchés de change et les extensions du framework LSV MS standard.
+
+## FX Mathematical Framework
+
+### Garman-Kohlhagen Extension
+
+Le modèle étend le framework Garman-Kohlhagen avec volatilité locale, stochastique et Markov switching :
+
+#### FX Spot Dynamics
+$$dS_t = (r_d - r_f) S_t dt + \sigma_{eff}(S_t, t, V_t, \zeta_t) S_t dW_t^S$$
+
+où :
+- $S_t$ : Taux de change (prix de la devise étrangère en devise domestique)
+- $r_d$ : Taux d'intérêt domestique
+- $r_f$ : Taux d'intérêt étranger
+- $\sigma_{eff}$ : Volatilité effective combinée
+
+#### Effective Volatility Structure
+$$\sigma_{eff}(S,t,V,\zeta) = \sigma_{LV}(S,t) \cdot \sqrt{V} \cdot \sigma_{\zeta}$$
+
+Composants :
+- $\sigma_{LV}(S,t)$ : Volatilité locale FX (surface de marché)
+- $\sqrt{V}$ : Composant stochastique (processus CIR)
+- $\sigma_{\zeta}$ : Multiplicateur de l'état Markov
+
+### Stochastic Variance Process
+
+#### CIR Process for FX Variance
+$$dV_t = \kappa(\theta - V_t)dt + \nu\sqrt{V_t}dW_t^V$$
+
+avec corrélation spot-variance :
+$$dW_t^S \cdot dW_t^V = \rho dt$$
+
+#### FX-Specific Calibration
+- **Mean Reversion Speed** : $\kappa$ calibré sur structure de terme FX
+- **Long-Term Variance** : $\theta$ aligné sur volatilité implicite long terme
+- **Vol of Vol** : $\nu$ calibré sur smile de volatilité FX
+- **Correlation** : $\rho$ estimé sur données historiques FX
+
+### Markov Switching Framework
+
+#### State-Dependent Volatility
+États de volatilité discrets pour capturer les régimes FX :
+- **Low Volatility** : Périodes de stabilité (σ₁ ≈ 0.8)
+- **Normal Volatility** : Conditions normales (σ₂ ≈ 1.0)
+- **High Volatility** : Périodes de stress (σ₃ ≈ 1.5)
+- **Crisis Volatility** : Crises financières (σ₄ ≈ 2.0)
+
+#### Transition Rate Matrix
+$$Q = \begin{pmatrix}
+-\lambda_{12}-\lambda_{13}-\lambda_{14} & \lambda_{12} & \lambda_{13} & \lambda_{14} \\
+\lambda_{21} & -\lambda_{21}-\lambda_{23}-\lambda_{24} & \lambda_{23} & \lambda_{24} \\
+\lambda_{31} & \lambda_{32} & -\lambda_{31}-\lambda_{32}-\lambda_{34} & \lambda_{34} \\
+\lambda_{41} & \lambda_{42} & \lambda_{43} & -\lambda_{41}-\lambda_{42}-\lambda_{43}
+\end{pmatrix}$$
+
+#### State Evolution
+Probabilités de transition : $P(t,T) = \exp(Q(T-t))$
+
+## FX-Specific Extensions
+
+### Multi-Currency Considerations
+
+#### Triangular Arbitrage Constraints
+Pour trois devises A, B, C :
+$$S_{AC} = S_{AB} \times S_{BC}$$
+
+Contrainte de cohérence dans la simulation.
+
+#### Cross-Currency Correlations
+Matrice de corrélation entre paires FX :
+$$\Sigma_{FX} = \begin{pmatrix}
+1 & \rho_{12} & \rho_{13} & \cdots \\
+\rho_{12} & 1 & \rho_{23} & \cdots \\
+\rho_{13} & \rho_{23} & 1 & \cdots \\
+\vdots & \vdots & \vdots & \ddots
+\end{pmatrix}$$
+
+### Quanto Mechanism
+
+#### Quanto Drift Adjustment
+Pour option quanto avec devise de référence Q :
+$$dS_t^Q = (r_d - r_f - \rho_{SQ}\sigma_S\sigma_Q) S_t dt + \sigma_S S_t dW_t^S$$
+
+où $\rho_{SQ}$ est la corrélation entre le sous-jacent et le taux de change de référence.
+
+#### Multi-Quanto Framework
+Extension pour produits avec plusieurs devises de référence.
+
+## Monte Carlo Implementation
+
+### Correlated Random Number Generation
+
+#### Cholesky Decomposition
+Pour générer des innovations corrélées :
+$$\mathbf{Z} = \mathbf{L} \mathbf{U}$$
+
+où $\mathbf{L}$ est la décomposition de Cholesky de la matrice de corrélation et $\mathbf{U}$ sont des variables aléatoires indépendantes.
+
+#### FX Correlation Structure
+```cpp
+// Génération de nombres aléatoires corrélés pour FX
+class FXCorrelatedRNG {
+public:
+    FXCorrelatedRNG(const Eigen::MatrixXd& correlation_matrix, int seed)
+        : correlation_(correlation_matrix), rng_(seed) {
+        
+        // Décomposition de Cholesky
+        Eigen::LLT<Eigen::MatrixXd> cholesky(correlation_matrix);
+        if (cholesky.info() != Eigen::Success) {
+            throw std::runtime_error("Matrice de corrélation non définie positive");
+        }
+        cholesky_factor_ = cholesky.matrixL();
+    }
+    
+    Eigen::VectorXd generate_correlated_normals(int dimension, double dt) {
+        Eigen::VectorXd independent_normals(dimension);
+        std::normal_distribution<> normal(0.0, std::sqrt(dt));
+        
+        for (int i = 0; i < dimension; ++i) {
+            independent_normals(i) = normal(rng_);
+        }
+        
+        return cholesky_factor_ * independent_normals;
+    }
+    
+private:
+    Eigen::MatrixXd correlation_;
+    Eigen::MatrixXd cholesky_factor_;
+    mutable std::mt19937 rng_;
+};
+```
+
+### Discretization Schemes
+
+#### Euler Scheme for FX Spot
+$$S_{t+\Delta t} = S_t \exp\left((r_d - r_f - \frac{1}{2}\sigma_{eff}^2)\Delta t + \sigma_{eff}\sqrt{\Delta t}Z^S\right)$$
+
+#### CIR Scheme for Variance
+$$V_{t+\Delta t} = V_t + \kappa(\theta - V_t)\Delta t + \nu\sqrt{\max(V_t, 0)}\sqrt{\Delta t}Z^V$$
+
+avec correction pour éviter les valeurs négatives.
+
+#### Markov State Evolution
+Simulation de la chaîne de Markov via méthode de l'inverse :
+```cpp
+int evolve_markov_state(int current_state, double dt, 
+                       const Eigen::MatrixXd& rate_matrix) {
+    
+    // Calcul des probabilités de transition
+    Eigen::MatrixXd transition_probs = (rate_matrix * dt).exp();
+    
+    // Génération uniforme
+    double u = uniform_distribution_(rng_);
+    
+    // Sélection du nouvel état
+    double cumulative_prob = 0.0;
+    for (int new_state = 0; new_state < transition_probs.cols(); ++new_state) {
+        cumulative_prob += transition_probs(current_state, new_state);
+        if (u <= cumulative_prob) {
+            return new_state;
+        }
+    }
+    
+    return current_state; // Fallback
+}
+```
+
+### Variance Reduction Techniques
+
+#### Antithetic Variates
+Génération de chemins antithétiques pour réduction de variance :
+$$\text{Estimateur} = \frac{1}{2}[f(Z) + f(-Z)]$$
+
+#### Control Variates
+Utilisation d'options vanilles comme variables de contrôle :
+$$\hat{\theta} = \bar{Y} - \beta(\bar{X} - \mathbb{E}[X])$$
+
+où $X$ est le prix d'option vanille et $Y$ le prix d'option exotique.
+
+#### Importance Sampling
+Pour événements rares (barrières loin du spot) :
+$$\mathbb{E}[f(X)] = \mathbb{E}\left[\frac{f(X)p(X)}{q(X)}\right]$$
+
+avec $q(X)$ densité d'importance.
+
+## Calibration Methodology
+
+### Local Volatility Calibration
+
+#### FX Dupire Equation
+$$\sigma_{LV}^2(K,T) = \frac{2\frac{\partial C}{\partial T} + (r_d - r_f)K\frac{\partial C}{\partial K}}{K^2\frac{\partial^2 C}{\partial K^2}}$$
+
+Adaptation de l'équation de Dupire pour FX avec taux duaux.
+
+#### FX Smile Interpolation
+- **Strike Interpolation** : Splines cubiques ou SABR
+- **Time Interpolation** : Interpolation linéaire en variance totale
+- **Extrapolation** : Flat volatility aux extrêmes
+
+### Stochastic Volatility Calibration
+
+#### Parameter Estimation
+Calibration simultanée de $(\kappa, \theta, \nu, \rho)$ sur :
+- **ATM Volatilities** : Structure de terme ATM
+- **Smile Curvature** : Courbure du smile de volatilité
+- **Time Decay** : Décroissance temporelle de la volatilité
+
+#### Objective Function
+$$\min_{\kappa,\theta,\nu,\rho} \sum_{i,j} w_{ij} \left(\sigma_{market}(K_i,T_j) - \sigma_{model}(K_i,T_j)\right)^2$$
+
+### Markov Switching Calibration
+
+#### State Identification
+- **Regime Detection** : Algorithmes de détection de régimes
+- **Historical Analysis** : Analyse de données historiques FX
+- **Market Stress Periods** : Identification des périodes de stress
+
+#### Transition Rate Estimation
+- **Maximum Likelihood** : Estimation par maximum de vraisemblance
+- **Baum-Welch Algorithm** : Algorithme EM pour HMM
+- **Cross-Validation** : Validation sur données out-of-sample
+
+## Risk-Neutral Measure
+
+### Measure Change for FX
+
+#### Domestic Risk-Neutral Measure
+Sous la mesure domestique $\mathbb{Q}^d$ :
+$$\frac{dS_t}{S_t} = (r_d - r_f)dt + \sigma_{eff}dW_t^{S,d}$$
+
+#### Foreign Risk-Neutral Measure
+Sous la mesure étrangère $\mathbb{Q}^f$ :
+$$\frac{dS_t}{S_t} = (r_d - r_f)dt + \sigma_{eff}dW_t^{S,f}$$
+
+avec $dW_t^{S,f} = dW_t^{S,d} - \sigma_{eff}dt$.
+
+#### Quanto Measure
+Sous la mesure quanto $\mathbb{Q}^Q$ :
+$$\frac{dS_t}{S_t} = (r_d - r_f - \rho_{SQ}\sigma_S\sigma_Q)dt + \sigma_{eff}dW_t^{S,Q}$$
+
+La méthodologie FX LSV Markov Switching Monte Carlo dans Our project combine rigueur mathématique et spécificités FX pour fournir un framework robuste et précis pour la modélisation de la volatilité et le pricing d'options sur devises.

@@ -1,0 +1,583 @@
+# Product Testing: HybMultiDigital
+
+## 📊 **Vue d'Ensemble du Produit HybMultiDigital**
+
+### **Description du Trade**
+Nous considérons un trade **HybMultiDigital** dans un template de sécurité DBA avec les caractéristiques suivantes :
+
+#### **Structure du Produit**
+- **Type** : Digital hybride multi-actifs
+- **Sous-jacents** : Commodity/Equity/FX + Interest Rate
+- **Coupon Structure** : DigiOpt (Digital Option)
+- **Option Type** : European
+- **Barrier** : Aucune barrière
+- **Path-Dependent** : Non
+- **Basket Function** : Non applicable
+
+### **Implémentation dans Our project**
+
+#### **🔧 Classe HybMultiDigital**
+```cpp
+// Implémentation du produit HybMultiDigital dans Our project
+class HybMultiDigital : public correlation_skew_product_base {
+private:
+    struct digital_specification {
+        std::string underlying_1_id;
+        std::string underlying_2_id;
+        double strike_1;
+        double strike_2;
+        double notional;
+        datetime expiry_date;
+        digital_type type;  // CALL_CALL, CALL_PUT, PUT_CALL, PUT_PUT
+    };
+    
+    digital_specification spec_;
+    correlation_skew_copula copula_;
+    
+public:
+    HybMultiDigital(const digital_specification& spec,
+                    const correlation_skew_copula& copula)
+        : spec_(spec), copula_(copula) {
+        validate_digital_specification();
+    }
+    
+    double calculate_pv(const market_data& market) const override {
+        // Pricing Monte Carlo avec copule de corrélation
+        return calculate_digital_pv_monte_carlo(market);
+    }
+    
+    sensitivity_results calculate_sensitivities(
+        const market_data& market) const override {
+        
+        sensitivity_results results;
+        
+        // Sensibilités par différences finies
+        results.underlying_1_delta = calculate_underlying_delta(market, 1);
+        results.underlying_2_delta = calculate_underlying_delta(market, 2);
+        results.correlation_sensitivity = calculate_correlation_sensitivity(market);
+        results.vega_1 = calculate_vega(market, 1);
+        results.vega_2 = calculate_vega(market, 2);
+        
+        return results;
+    }
+    
+private:
+    double calculate_digital_pv_monte_carlo(const market_data& market) const {
+        const int num_simulations = 100000;
+        double payoff_sum = 0.0;
+        
+        // Générateur de nombres aléatoires corrélés
+        auto correlation_generator = copula_.create_correlation_generator();
+        
+        for (int i = 0; i < num_simulations; ++i) {
+            // Génération de paire corrélée
+            auto [u1, u2] = correlation_generator.generate_correlated_pair();
+            
+            // Transformation en niveaux de sous-jacents
+            double s1 = transform_to_underlying_level(u1, spec_.underlying_1_id, market);
+            double s2 = transform_to_underlying_level(u2, spec_.underlying_2_id, market);
+            
+            // Calcul du payoff digital
+            double payoff = calculate_digital_payoff(s1, s2);
+            payoff_sum += payoff;
+        }
+        
+        // Prix moyen actualisé
+        double average_payoff = payoff_sum / num_simulations;
+        double discount_factor = market.get_discount_factor(spec_.expiry_date);
+        
+        return spec_.notional * average_payoff * discount_factor;
+    }
+    
+    double calculate_digital_payoff(double s1, double s2) const {
+        switch (spec_.type) {
+            case digital_type::CALL_CALL:
+                return (s1 > spec_.strike_1 && s2 > spec_.strike_2) ? 1.0 : 0.0;
+            case digital_type::CALL_PUT:
+                return (s1 > spec_.strike_1 && s2 < spec_.strike_2) ? 1.0 : 0.0;
+            case digital_type::PUT_CALL:
+                return (s1 < spec_.strike_1 && s2 > spec_.strike_2) ? 1.0 : 0.0;
+            case digital_type::PUT_PUT:
+                return (s1 < spec_.strike_1 && s2 < spec_.strike_2) ? 1.0 : 0.0;
+            default:
+                XSIGMA_THROW("Unsupported digital type");
+        }
+    }
+};
+```
+*Cette implémentation C++ dans Our project montre la structure complète d'un HybMultiDigital avec pricing Monte Carlo utilisant la copule de corrélation.*
+
+---
+
+## 🧪 **EOD Testing**
+
+### **Tests de Fin de Journée**
+
+#### **🔍 Convergence Testing**
+
+##### **Tests de Convergence Monte Carlo**
+```cpp
+// Tests de convergence pour HybMultiDigital dans Our project
+class hybmultidigital_convergence_tester {
+public:
+    struct convergence_test_results {
+        std::vector<int> simulation_counts;
+        std::vector<double> pv_estimates;
+        std::vector<double> standard_errors;
+        std::vector<double> delta_estimates;
+        std::vector<double> vega_estimates;
+        bool pv_converged;
+        bool sensitivities_converged;
+    };
+    
+    convergence_test_results test_convergence(
+        const HybMultiDigital& digital,
+        const market_data& market) {
+        
+        convergence_test_results results;
+        
+        // Différentes tailles d'échantillon
+        std::vector<int> sim_counts = {1000, 5000, 10000, 25000, 50000, 100000};
+        
+        for (int num_sims : sim_counts) {
+            // Configuration Monte Carlo
+            monte_carlo_config mc_config;
+            mc_config.num_simulations = num_sims;
+            mc_config.random_seed = 12345;
+            
+            // Multiples runs pour estimation de l'erreur
+            std::vector<double> pv_samples;
+            std::vector<double> delta_samples;
+            std::vector<double> vega_samples;
+            
+            const int num_runs = 10;
+            for (int run = 0; run < num_runs; ++run) {
+                mc_config.random_seed = 12345 + run;
+                
+                double pv = digital.calculate_pv_with_config(market, mc_config);
+                auto sensitivities = digital.calculate_sensitivities_with_config(
+                    market, mc_config);
+                
+                pv_samples.push_back(pv);
+                delta_samples.push_back(sensitivities.underlying_1_delta);
+                vega_samples.push_back(sensitivities.vega_1);
+            }
+            
+            // Statistiques
+            results.simulation_counts.push_back(num_sims);
+            results.pv_estimates.push_back(calculate_mean(pv_samples));
+            results.standard_errors.push_back(calculate_standard_error(pv_samples));
+            results.delta_estimates.push_back(calculate_mean(delta_samples));
+            results.vega_estimates.push_back(calculate_mean(vega_samples));
+        }
+        
+        // Validation de la convergence
+        results.pv_converged = validate_pv_convergence(results);
+        results.sensitivities_converged = validate_sensitivities_convergence(results);
+        
+        return results;
+    }
+    
+private:
+    bool validate_pv_convergence(const convergence_test_results& results) const {
+        // Vérification que l'erreur standard diminue avec sqrt(n)
+        for (size_t i = 1; i < results.standard_errors.size(); ++i) {
+            double expected_ratio = std::sqrt(
+                static_cast<double>(results.simulation_counts[i-1]) / 
+                results.simulation_counts[i]);
+            
+            double actual_ratio = results.standard_errors[i-1] / 
+                                results.standard_errors[i];
+            
+            // Tolérance de 20% pour la convergence théorique
+            if (std::abs(actual_ratio - expected_ratio) / expected_ratio > 0.2) {
+                return false;
+            }
+        }
+        
+        return true;
+    }
+};
+```
+
+#### **🔍 PV Validation Testing**
+
+##### **Validation du Pricing**
+```cpp
+// Validation du pricing HybMultiDigital dans Our project
+class hybmultidigital_pv_validator {
+public:
+    struct pv_validation_results {
+        double monte_carlo_pv;
+        double analytical_approximation_pv;
+        double relative_difference;
+        bool validation_passed;
+        std::string validation_notes;
+    };
+    
+    pv_validation_results validate_pv_calculation(
+        const HybMultiDigital& digital,
+        const market_data& market) {
+        
+        pv_validation_results results;
+        
+        // PV Monte Carlo (référence)
+        results.monte_carlo_pv = digital.calculate_pv(market);
+        
+        // Approximation analytique pour validation
+        results.analytical_approximation_pv = 
+            calculate_analytical_approximation(digital, market);
+        
+        // Comparaison
+        results.relative_difference = std::abs(
+            results.monte_carlo_pv - results.analytical_approximation_pv) /
+            std::abs(results.monte_carlo_pv);
+        
+        // Validation
+        results.validation_passed = (results.relative_difference < 0.05); // 5%
+        
+        if (results.validation_passed) {
+            results.validation_notes = "PV validation passed - MC and analytical agree";
+        } else {
+            results.validation_notes = "PV validation failed - significant difference detected";
+        }
+        
+        return results;
+    }
+    
+private:
+    double calculate_analytical_approximation(
+        const HybMultiDigital& digital,
+        const market_data& market) const {
+        
+        // Approximation analytique pour digital bivarié
+        // Utilisation de la copule Gaussienne comme approximation
+        
+        auto spec = digital.get_specification();
+        
+        // Probabilités marginales
+        double prob_1 = calculate_marginal_probability(
+            spec.underlying_1_id, spec.strike_1, market);
+        double prob_2 = calculate_marginal_probability(
+            spec.underlying_2_id, spec.strike_2, market);
+        
+        // Corrélation effective
+        double correlation = extract_effective_correlation(digital, market);
+        
+        // Probabilité jointe (approximation Gaussienne)
+        double joint_probability = calculate_bivariate_normal_probability(
+            prob_1, prob_2, correlation);
+        
+        // PV approximatif
+        double discount_factor = market.get_discount_factor(spec.expiry_date);
+        
+        return spec.notional * joint_probability * discount_factor;
+    }
+    
+    double calculate_bivariate_normal_probability(
+        double prob_1, double prob_2, double correlation) const {
+        
+        // Transformation en quantiles normaux
+        double z1 = inv_normal_cdf(prob_1);
+        double z2 = inv_normal_cdf(prob_2);
+        
+        // Probabilité bivariée normale
+        return bivariate_normal_cdf(z1, z2, correlation);
+    }
+};
+```
+
+#### **🔍 Delta Sensitivity Testing**
+
+##### **Tests de Sensibilités Delta**
+```cpp
+// Tests des sensibilités Delta pour HybMultiDigital dans Our project
+class hybmultidigital_delta_tester {
+public:
+    struct delta_test_results {
+        double analytical_delta_1;
+        double analytical_delta_2;
+        double finite_difference_delta_1;
+        double finite_difference_delta_2;
+        double delta_1_error;
+        double delta_2_error;
+        bool delta_validation_passed;
+    };
+    
+    delta_test_results test_delta_sensitivities(
+        const HybMultiDigital& digital,
+        const market_data& market) {
+        
+        delta_test_results results;
+        
+        // Deltas analytiques (du modèle)
+        auto sensitivities = digital.calculate_sensitivities(market);
+        results.analytical_delta_1 = sensitivities.underlying_1_delta;
+        results.analytical_delta_2 = sensitivities.underlying_2_delta;
+        
+        // Deltas par différences finies
+        const double shock_size = 1e-4; // 1 bp
+        
+        results.finite_difference_delta_1 = calculate_finite_difference_delta(
+            digital, market, 1, shock_size);
+        results.finite_difference_delta_2 = calculate_finite_difference_delta(
+            digital, market, 2, shock_size);
+        
+        // Calcul des erreurs
+        results.delta_1_error = std::abs(
+            results.analytical_delta_1 - results.finite_difference_delta_1);
+        results.delta_2_error = std::abs(
+            results.analytical_delta_2 - results.finite_difference_delta_2);
+        
+        // Validation
+        results.delta_validation_passed = 
+            (results.delta_1_error < 0.01) && (results.delta_2_error < 0.01);
+        
+        return results;
+    }
+    
+private:
+    double calculate_finite_difference_delta(
+        const HybMultiDigital& digital,
+        const market_data& market,
+        int underlying_index,
+        double shock_size) const {
+        
+        // PV de base
+        double pv_base = digital.calculate_pv(market);
+        
+        // Choc positif
+        auto market_up = shock_underlying(market, underlying_index, +shock_size);
+        double pv_up = digital.calculate_pv(market_up);
+        
+        // Choc négatif
+        auto market_down = shock_underlying(market, underlying_index, -shock_size);
+        double pv_down = digital.calculate_pv(market_down);
+        
+        // Delta par différences finies centrées
+        return (pv_up - pv_down) / (2.0 * shock_size);
+    }
+};
+```
+
+#### **🔍 Vega Sensitivity Testing**
+
+##### **Tests de Sensibilités Vega**
+```cpp
+// Tests des sensibilités Vega pour HybMultiDigital dans Our project
+class hybmultidigital_vega_tester {
+public:
+    struct vega_test_results {
+        std::map<std::string, double> analytical_vegas;
+        std::map<std::string, double> finite_difference_vegas;
+        std::map<std::string, double> vega_errors;
+        bool vega_validation_passed;
+    };
+    
+    vega_test_results test_vega_sensitivities(
+        const HybMultiDigital& digital,
+        const market_data& market) {
+        
+        vega_test_results results;
+        
+        // Vegas analytiques
+        auto sensitivities = digital.calculate_sensitivities(market);
+        results.analytical_vegas["UNDERLYING_1_VEGA"] = sensitivities.vega_1;
+        results.analytical_vegas["UNDERLYING_2_VEGA"] = sensitivities.vega_2;
+        
+        // Vegas par différences finies
+        const double vol_shock = 0.01; // 1% de volatilité
+        
+        results.finite_difference_vegas["UNDERLYING_1_VEGA"] = 
+            calculate_finite_difference_vega(digital, market, 1, vol_shock);
+        results.finite_difference_vegas["UNDERLYING_2_VEGA"] = 
+            calculate_finite_difference_vega(digital, market, 2, vol_shock);
+        
+        // Calcul des erreurs
+        for (const auto& [vega_name, analytical_value] : results.analytical_vegas) {
+            double fd_value = results.finite_difference_vegas[vega_name];
+            results.vega_errors[vega_name] = std::abs(analytical_value - fd_value);
+        }
+        
+        // Validation
+        results.vega_validation_passed = true;
+        for (const auto& [vega_name, error] : results.vega_errors) {
+            if (error > 0.05) { // 5% de tolérance
+                results.vega_validation_passed = false;
+                break;
+            }
+        }
+        
+        return results;
+    }
+    
+private:
+    double calculate_finite_difference_vega(
+        const HybMultiDigital& digital,
+        const market_data& market,
+        int underlying_index,
+        double vol_shock) const {
+        
+        // PV de base
+        double pv_base = digital.calculate_pv(market);
+        
+        // Choc de volatilité positif
+        auto market_vol_up = shock_volatility(market, underlying_index, +vol_shock);
+        double pv_vol_up = digital.calculate_pv(market_vol_up);
+        
+        // Choc de volatilité négatif
+        auto market_vol_down = shock_volatility(market, underlying_index, -vol_shock);
+        double pv_vol_down = digital.calculate_pv(market_vol_down);
+        
+        // Vega par différences finies centrées
+        return (pv_vol_up - pv_vol_down) / (2.0 * vol_shock);
+    }
+};
+```
+
+---
+
+## 🏛️ **Stability Testing**
+
+### **Tests de Stabilité sous Stress**
+
+#### **🔍 Price Stability under Risk Factor Shifts**
+
+##### **Tests de Stabilité des Prix**
+```cpp
+// Tests de stabilité des prix sous chocs de facteurs de risque
+class hybmultidigital_stability_tester {
+public:
+    void test_price_stability_under_shifts(
+        const HybMultiDigital& digital,
+        const market_data& base_market) {
+        
+        // Tests de chocs parallèles
+        test_parallel_shifts_stability(digital, base_market);
+        
+        // Tests de chocs de volatilité
+        test_volatility_shifts_stability(digital, base_market);
+        
+        // Tests de chocs de corrélation
+        test_correlation_shifts_stability(digital, base_market);
+    }
+    
+private:
+    void test_parallel_shifts_stability(
+        const HybMultiDigital& digital,
+        const market_data& base_market) {
+        
+        std::cout << "=== Parallel Shifts Stability Testing ===" << std::endl;
+        
+        // Chocs de -200bp à +200bp
+        for (int shock_bp = -200; shock_bp <= 200; shock_bp += 25) {
+            double shock = shock_bp * 1e-4;
+            
+            // Application du choc parallèle
+            auto shocked_market = apply_parallel_shift(base_market, shock);
+            
+            // Calcul des métriques
+            double pv = digital.calculate_pv(shocked_market);
+            auto sensitivities = digital.calculate_sensitivities(shocked_market);
+            
+            // Validation de stabilité
+            EXPECT_TRUE(std::isfinite(pv));
+            EXPECT_TRUE(std::isfinite(sensitivities.underlying_1_delta));
+            EXPECT_TRUE(std::isfinite(sensitivities.underlying_2_delta));
+            
+            std::cout << "Shock: " << shock_bp << "bp, "
+                      << "PV: " << pv << ", "
+                      << "Delta1: " << sensitivities.underlying_1_delta << ", "
+                      << "Delta2: " << sensitivities.underlying_2_delta << std::endl;
+        }
+    }
+    
+    void test_correlation_shifts_stability(
+        const HybMultiDigital& digital,
+        const market_data& base_market) {
+        
+        std::cout << "=== Correlation Shifts Stability Testing ===" << std::endl;
+        
+        // Chocs de corrélation de -0.5 à +0.5
+        for (double corr_shock = -0.5; corr_shock <= 0.5; corr_shock += 0.1) {
+            auto shocked_market = apply_correlation_shock(base_market, corr_shock);
+            
+            double pv = digital.calculate_pv(shocked_market);
+            auto sensitivities = digital.calculate_sensitivities(shocked_market);
+            
+            // Validation de stabilité
+            EXPECT_TRUE(std::isfinite(pv));
+            EXPECT_TRUE(std::isfinite(sensitivities.correlation_sensitivity));
+            
+            // Validation que la corrélation reste dans [-1, 1]
+            double effective_correlation = extract_effective_correlation(
+                digital, shocked_market);
+            EXPECT_GE(effective_correlation, -1.0);
+            EXPECT_LE(effective_correlation, 1.0);
+            
+            std::cout << "Corr Shock: " << corr_shock << ", "
+                      << "PV: " << pv << ", "
+                      << "Effective Corr: " << effective_correlation << std::endl;
+        }
+    }
+};
+```
+
+---
+
+## 📊 **Taylor Expansion Testing**
+
+### **Tests de Cohérence Taylor**
+
+#### **🔍 Taylor Expansion Validation**
+```cpp
+// Tests de cohérence d'expansion de Taylor pour HybMultiDigital
+class hybmultidigital_taylor_tester {
+public:
+    void test_taylor_expansion_consistency(
+        const HybMultiDigital& digital,
+        const market_data& market) {
+        
+        // Sensibilités de base
+        auto base_sensitivities = digital.calculate_sensitivities(market);
+        double base_pv = digital.calculate_pv(market);
+        
+        // Tests Taylor pour chaque facteur de risque
+        test_underlying_1_taylor_consistency(digital, market, base_pv, base_sensitivities);
+        test_underlying_2_taylor_consistency(digital, market, base_pv, base_sensitivities);
+        test_correlation_taylor_consistency(digital, market, base_pv, base_sensitivities);
+    }
+    
+private:
+    void test_underlying_1_taylor_consistency(
+        const HybMultiDigital& digital,
+        const market_data& market,
+        double base_pv,
+        const sensitivity_results& base_sens) {
+        
+        std::cout << "=== Underlying 1 Taylor Consistency ===" << std::endl;
+        
+        for (double shock = -10e-4; shock <= 10e-4; shock += 2e-4) {
+            auto shocked_market = shock_underlying(market, 1, shock);
+            double pv_dba = digital.calculate_pv(shocked_market);
+            
+            // Approximation Taylor premier ordre
+            double pv_taylor = base_pv + base_sens.underlying_1_delta * shock;
+            
+            double relative_error = std::abs(pv_dba - pv_taylor) / std::abs(base_pv);
+            
+            std::cout << "Shock: " << (shock * 10000) << "bp, "
+                      << "DBA PV: " << pv_dba << ", "
+                      << "Taylor PV: " << pv_taylor << ", "
+                      << "Rel Error: " << (relative_error * 100) << "%" << std::endl;
+            
+            // Validation de la précision Taylor
+            EXPECT_LT(relative_error, 0.02); // < 2% pour chocs modérés
+        }
+    }
+};
+```
+
+---
+
+*Cette section fournit une documentation complète des tests de produit pour HybMultiDigital, intégrant les implémentations C++ de Our project avec des méthodologies de validation rigoureuses incluant les tests de convergence Monte Carlo, stabilité et cohérence Taylor.*

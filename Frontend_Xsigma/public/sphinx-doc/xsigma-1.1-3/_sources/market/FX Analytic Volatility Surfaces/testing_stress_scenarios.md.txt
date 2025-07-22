@@ -1,0 +1,320 @@
+# Stress Testing & Scenarios
+
+## 📊 **Stress Testing Overview**
+
+### **Stress Testing Objectives**
+Stress tests for FX volatility surfaces aim to evaluate the robustness and stability of models under extreme market conditions. These tests are essential for regulatory validation and risk management.
+
+### **Types of Stress Tests**
+- **Market Stress**: Extreme market shocks
+- **Liquidity Stress**: Degraded liquidity conditions
+- **Model Stress**: Model parameter stress
+- **Operational Stress**: System and data failures
+
+---
+
+## 🔧 **Market Stress Scenarios**
+
+### **Extreme Volatility Shocks**
+
+#### **🔍 Historical Scenarios**
+- **Black Monday 1987**: Volatility shock +500%
+- **Asian Crisis 1997**: Emerging FX volatility +300%
+- **Lehman Crisis 2008**: Generalized volatility +200%
+- **COVID-19 2020**: All markets volatility +150%
+
+### **Implementation in Our Project**
+
+#### **🔧 Stress Testing Framework**
+```cpp
+// Stress testing framework for FX surfaces in Our project
+class fx_stress_testing_framework {
+public:
+    enum class stress_scenario_type {
+        HISTORICAL_REPLAY,      // Historical crisis replay
+        HYPOTHETICAL_EXTREME,   // Extreme hypothetical scenarios
+        REGULATORY_STRESS,      // Regulatory scenarios (CCAR, etc.)
+        TAIL_RISK_SCENARIOS    // Tail risk scenarios
+    };
+    
+    struct stress_scenario {
+        std::string scenario_name;
+        stress_scenario_type type;
+        std::map<std::string, double> market_shocks; // Instrument -> Shock
+        std::map<std::string, double> correlation_shocks;
+        double scenario_probability;
+        std::string description;
+        std::string historical_reference;
+    };
+    
+    struct stress_test_result {
+        std::string scenario_name;
+        bool surface_stable;
+        bool arbitrage_free;
+        double max_calibration_error;
+        double surface_smoothness_metric;
+        std::map<std::string, double> performance_metrics;
+        std::vector<std::string> failure_modes;
+        std::string stability_assessment;
+    };
+    
+    class market_stress_tester {
+    public:
+        std::vector<stress_test_result> run_stress_test_suite(
+            const fx_volatility_surface_base& base_surface,
+            const std::vector<stress_scenario>& scenarios) {
+            
+            std::vector<stress_test_result> results;
+            
+            for (const auto& scenario : scenarios) {
+                stress_test_result result = run_single_stress_scenario(base_surface, scenario);
+                results.push_back(result);
+            }
+            
+            return results;
+        }
+        
+    private:
+        stress_test_result run_single_stress_scenario(
+            const fx_volatility_surface_base& base_surface,
+            const stress_scenario& scenario) {
+            
+            stress_test_result result;
+            result.scenario_name = scenario.scenario_name;
+            
+            try {
+                // Application of market shocks
+                auto stressed_market_data = apply_market_shocks(scenario);
+
+                // Attempt calibration under stress
+                auto stressed_surface = calibrate_surface_under_stress(stressed_market_data);
+
+                // Stability evaluation
+                result.surface_stable = evaluate_surface_stability(stressed_surface);
+
+                // Arbitrage-free verification
+                result.arbitrage_free = check_arbitrage_free_under_stress(stressed_surface);
+
+                // Performance metrics calculation
+                result.performance_metrics = calculate_stress_performance_metrics(
+                    base_surface, stressed_surface);
+
+                // Overall evaluation
+                result.stability_assessment = assess_overall_stability(result);
+                
+            } catch (const std::exception& e) {
+                result.surface_stable = false;
+                result.failure_modes.push_back("Calibration failure: " + std::string(e.what()));
+            }
+            
+            return result;
+        }
+        
+        market_data apply_market_shocks(const stress_scenario& scenario) {
+            market_data stressed_data;
+            
+            // Application of volatility shocks
+            for (const auto& [instrument, shock] : scenario.market_shocks) {
+                if (instrument.find("ATM") != std::string::npos) {
+                    // ATM volatility shock
+                    double base_vol = get_base_volatility(instrument);
+                    double stressed_vol = apply_volatility_shock(base_vol, shock);
+                    stressed_data.set_volatility(instrument, stressed_vol);
+
+                } else if (instrument.find("RR") != std::string::npos) {
+                    // Risk Reversal shock
+                    double base_rr = get_base_risk_reversal(instrument);
+                    double stressed_rr = apply_rr_shock(base_rr, shock);
+                    stressed_data.set_risk_reversal(instrument, stressed_rr);
+
+                } else if (instrument.find("ST") != std::string::npos) {
+                    // Strangle shock
+                    double base_st = get_base_strangle(instrument);
+                    double stressed_st = apply_st_shock(base_st, shock);
+                    stressed_data.set_strangle(instrument, stressed_st);
+                }
+            }
+
+            // Application of correlation shocks
+            for (const auto& [correlation_pair, shock] : scenario.correlation_shocks) {
+                double base_corr = get_base_correlation(correlation_pair);
+                double stressed_corr = apply_correlation_shock(base_corr, shock);
+                stressed_data.set_correlation(correlation_pair, stressed_corr);
+            }
+            
+            return stressed_data;
+        }
+        
+        double apply_volatility_shock(double base_vol, double shock) {
+            // Volatility shock application with constraints
+            double shocked_vol = base_vol * (1.0 + shock);
+
+            // Physical constraints
+            shocked_vol = std::max(0.001, std::min(shocked_vol, 10.0)); // 0.1% to 1000%
+
+            return shocked_vol;
+        }
+
+        bool evaluate_surface_stability(const fx_volatility_surface_base& surface) {
+            // Surface stability evaluation under stress
+            
+            // Continuity test
+            bool continuous = test_surface_continuity(surface);
+
+            // Variance monotonicity test
+            bool monotonic_variance = test_variance_monotonicity(surface);
+
+            // Volatility bounds test
+            bool within_bounds = test_volatility_bounds(surface);
+
+            // Smoothness test
+            bool smooth = test_surface_smoothness(surface);
+            
+            return continuous && monotonic_variance && within_bounds && smooth;
+        }
+        
+        std::map<std::string, double> calculate_stress_performance_metrics(
+            const fx_volatility_surface_base& base_surface,
+            const fx_volatility_surface_base& stressed_surface) {
+            
+            std::map<std::string, double> metrics;
+            
+            // Surface deformation metric
+            metrics["SURFACE_DEFORMATION"] = calculate_surface_deformation(
+                base_surface, stressed_surface);
+
+            // Calibration stability metric
+            metrics["CALIBRATION_STABILITY"] = calculate_calibration_stability(
+                base_surface, stressed_surface);
+
+            // Shape preservation metric
+            metrics["SHAPE_PRESERVATION"] = calculate_shape_preservation(
+                base_surface, stressed_surface);
+
+            // Bumping performance metric
+            metrics["BUMPING_PERFORMANCE"] = test_bumping_under_stress(stressed_surface);
+            
+            return metrics;
+        }
+    };
+    
+    class regulatory_stress_tester {
+    public:
+        struct regulatory_scenario {
+            std::string regulation_name; // "CCAR", "IRRBB", "FRTB"
+            std::map<std::string, double> prescribed_shocks;
+            std::vector<std::string> required_metrics;
+            double pass_threshold;
+        };
+        
+        std::map<std::string, bool> run_regulatory_stress_tests(
+            const fx_volatility_surface_base& surface,
+            const std::vector<regulatory_scenario>& reg_scenarios) {
+            
+            std::map<std::string, bool> regulatory_results;
+            
+            for (const auto& scenario : reg_scenarios) {
+                bool passed = run_regulatory_scenario(surface, scenario);
+                regulatory_results[scenario.regulation_name] = passed;
+            }
+            
+            return regulatory_results;
+        }
+        
+    private:
+        bool run_regulatory_scenario(const fx_volatility_surface_base& surface,
+                                   const regulatory_scenario& scenario) {
+            
+            // Application of regulatory prescribed shocks
+            auto stressed_surface = apply_regulatory_shocks(surface, scenario.prescribed_shocks);
+
+            // Required metrics calculation
+            std::map<std::string, double> calculated_metrics;
+            for (const auto& metric_name : scenario.required_metrics) {
+                calculated_metrics[metric_name] = calculate_regulatory_metric(
+                    stressed_surface, metric_name);
+            }
+
+            // Test pass evaluation
+            return evaluate_regulatory_pass(calculated_metrics, scenario.pass_threshold);
+        }
+    };
+};
+```
+*This C++ implementation in Our project shows the complete stress testing framework with market and regulatory scenarios.*
+
+---
+
+## 📈 **Specific Stress Scenarios**
+
+### **Liquidity Stress**
+
+#### **🔍 Degraded Liquidity Conditions**
+- **Wide Spreads**: Bid-offer spread widening to 5-10%
+- **Stale Quotes**: Quotes aged 2-4 hours
+- **Missing Quotes**: Absence of quotes for 30-50% of instruments
+- **Source Failures**: Main data provider failures
+
+### **Correlation Stress**
+
+#### **🔍 Correlation Breakdown**
+- **Correlation Spike**: Correlations → 0.9+ (systemic crisis)
+- **Correlation Collapse**: Correlations → 0.1- (decorrelation)
+- **Correlation Inversion**: Sign inversion of correlations
+- **Regime Change**: Abrupt correlation regime change
+
+---
+
+## 🎯 **Operational Stress Tests**
+
+### **System Failures**
+
+#### **🔍 Failure Scenarios**
+- **Data Feed Outage**: Data feed failure
+- **Calibration System Failure**: Calibration system failure
+- **Network Latency**: High network latency (>5 seconds)
+- **Memory Constraints**: Severe memory constraints
+
+### **Performance Stress**
+
+#### **🔍 Load Tests**
+- **High Query Volume**: 10,000+ queries/second
+- **Large Portfolio Bumping**: Bumping 100,000+ positions
+- **Concurrent Calibrations**: Multiple simultaneous calibrations
+- **Memory Stress**: Memory usage > 90%
+
+---
+
+## 🔧 **Stress Metrics**
+
+### **Stability Metrics**
+- **Surface Continuity**: Surface continuity
+- **Arbitrage Violations**: Number of arbitrage violations
+- **Calibration Convergence**: Calibration convergence rate
+- **Numerical Stability**: Numerical stability of calculations
+
+### **Performance Metrics**
+- **Calibration Time**: Calibration time under stress
+- **Query Response Time**: Query response time
+- **Memory Usage**: Maximum memory usage
+- **Error Rates**: Calculation error rates
+
+---
+
+## 📊 **Reporting et Escalation**
+
+### **Stress Test Reports**
+- **Executive Summary**: Summary for management
+- **Technical Details**: Technical details for teams
+- **Risk Assessment**: Assessment of identified risks
+- **Remediation Plans**: Remediation plans
+
+### **Escalation Procedures**
+- **Critical Failures**: Immediate escalation
+- **Performance Degradation**: Escalation within 4 hours
+- **Stability Issues**: Escalation within 24 hours
+- **Documentation**: Complete incident documentation
+
+---
+
+*This section details the complete stress tests for FX volatility surfaces, integrating Our project best practices with realistic scenarios and robust metrics for stability evaluation under extreme conditions.*

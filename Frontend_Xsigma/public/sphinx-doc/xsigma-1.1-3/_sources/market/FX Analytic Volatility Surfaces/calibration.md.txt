@@ -1,0 +1,382 @@
+# Calibration
+
+## 📊 **Calibration Overview**
+
+### **Calibration Objective**
+The calibration of FX volatility surfaces aims to adjust model parameters to faithfully reproduce observed market quotes. The process must balance fitting precision with stability and absence of arbitrage in the resulting surface.
+
+### **Data Sources**
+- **ATM Quotes**: At-the-money volatilities for different maturities
+- **Risk Reversals**: Volatility differences between calls and puts
+- **Strangles**: Volatility premiums for out-of-the-money options
+- **Standard Deltas**: 25-delta and 10-delta (depending on model)
+
+---
+
+## 🔧 **Calibration Process**
+
+### **Main Steps**
+1. **Data collection**: Aggregation of market quotes
+2. **Input validation**: Consistency and quality controls
+3. **Smile calibration**: Fitting of smile models per tenor
+4. **Temporal interpolation**: Construction of ATM backbone and wings
+5. **Final validation**: Verification of absence of arbitrage
+
+### **Implementation in Our Project**
+
+#### **🔧 Calibration Framework**
+```cpp
+// FX surfaces calibration framework in Our project
+class fx_surface_calibration_framework {
+public:
+    enum class calibration_method {
+        LEAST_SQUARES,          // Standard least squares
+        WEIGHTED_LEAST_SQUARES, // Weighted least squares
+        MAXIMUM_LIKELIHOOD,     // Maximum likelihood
+        ROBUST_REGRESSION       // Robust regression
+    };
+    
+    struct market_quote {
+        std::string instrument_type; // "ATM", "RR_25D", "ST_25D", etc.
+        double maturity;
+        double quote_value;
+        double bid_offer_spread;
+        double market_weight;
+        std::string currency_pair;
+        std::string source;
+        std::string timestamp;
+    };
+    
+    struct calibration_inputs {
+        std::vector<market_quote> market_quotes;
+        calibration_method method;
+        std::map<std::string, double> calibration_weights;
+        std::vector<double> parameter_bounds_lower;
+        std::vector<double> parameter_bounds_upper;
+        double tolerance;
+        int max_iterations;
+        bool enforce_arbitrage_free;
+    };
+    
+    struct calibration_results {
+        std::vector<double> calibrated_parameters;
+        std::map<std::string, double> fitting_errors;
+        double total_objective_value;
+        bool calibration_successful;
+        int iterations_used;
+        std::string convergence_status;
+        std::vector<double> residuals;
+    };
+    
+    class surface_calibrator {
+    public:
+        calibration_results calibrate_surface(const calibration_inputs& inputs) {
+            calibration_results results;
+            
+            // 1. Data validation and preparation
+            auto validated_quotes = validate_and_prepare_quotes(inputs.market_quotes);
+
+            // 2. Tenor calibration (smiles)
+            auto smile_results = calibrate_smile_models(validated_quotes, inputs);
+
+            // 3. Temporal calibration (ATM backbone)
+            auto temporal_results = calibrate_temporal_models(smile_results, inputs);
+
+            // 4. Global optimization
+            results = perform_global_optimization(temporal_results, inputs);
+
+            // 5. Final validation
+            validate_calibrated_surface(results);
+            
+            return results;
+        }
+        
+    private:
+        std::vector<market_quote> validate_and_prepare_quotes(
+            const std::vector<market_quote>& raw_quotes) {
+            
+            std::vector<market_quote> validated_quotes;
+            
+            for (const auto& quote : raw_quotes) {
+                // Consistency validation
+                if (validate_quote_consistency(quote)) {
+                    // Cleaning and normalization
+                    market_quote cleaned_quote = clean_and_normalize_quote(quote);
+                    validated_quotes.push_back(cleaned_quote);
+                }
+            }
+
+            // Outlier detection and handling
+            validated_quotes = detect_and_handle_outliers(validated_quotes);
+
+            return validated_quotes;
+        }
+
+        bool validate_quote_consistency(const market_quote& quote) {
+            // Volatility bounds validation
+            if (quote.quote_value < 0.001 || quote.quote_value > 5.0) {
+                return false;
+            }
+            
+            // Maturity validation
+            if (quote.maturity <= 0.0 || quote.maturity > 50.0) {
+                return false;
+            }
+
+            // Bid-offer spread validation
+            if (quote.bid_offer_spread < 0.0 || quote.bid_offer_spread > 0.1) {
+                return false;
+            }
+            
+            return true;
+        }
+        
+        std::map<double, smile_calibration_result> calibrate_smile_models(
+            const std::vector<market_quote>& quotes,
+            const calibration_inputs& inputs) {
+            
+            std::map<double, smile_calibration_result> smile_results;
+            
+            // Group quotes by maturity
+            auto quotes_by_maturity = group_quotes_by_maturity(quotes);
+
+            for (const auto& [maturity, maturity_quotes] : quotes_by_maturity) {
+                // Calibrate smile for this maturity
+                smile_calibration_result smile_result = calibrate_single_smile(
+                    maturity_quotes, inputs);
+                
+                smile_results[maturity] = smile_result;
+            }
+            
+            return smile_results;
+        }
+        
+        smile_calibration_result calibrate_single_smile(
+            const std::vector<market_quote>& maturity_quotes,
+            const calibration_inputs& inputs) {
+            
+            smile_calibration_result result;
+            
+            // Extract quotes by type
+            auto quote_map = extract_quotes_by_type(maturity_quotes);
+
+            // Determine model type (3-point or 5-point)
+            bool has_10d_quotes = quote_map.find("RR_10D") != quote_map.end() &&
+                                 quote_map.find("ST_10D") != quote_map.end();
+            
+            if (has_10d_quotes) {
+                result = calibrate_5_point_smile(quote_map, inputs);
+            } else {
+                result = calibrate_3_point_smile(quote_map, inputs);
+            }
+            
+            return result;
+        }
+        
+        smile_calibration_result calibrate_3_point_smile(
+            const std::map<std::string, market_quote>& quotes,
+            const calibration_inputs& inputs) {
+            
+            smile_calibration_result result;
+            
+            // Extract required quotes
+            double atm_vol = quotes.at("ATM").quote_value;
+            double rr_25d = quotes.at("RR_25D").quote_value;
+            double st_25d = quotes.at("ST_25D").quote_value;
+
+            // Convert to call/put volatilities
+            double vol_call_25d = atm_vol + st_25d + 0.5 * rr_25d;
+            double vol_put_25d = atm_vol + st_25d - 0.5 * rr_25d;
+
+            // Calibrate quartic parameters
+            auto objective = [&](const std::vector<double>& params) {
+                double skew = params[0];
+                double smile = params[1];
+                
+                // Calculate model volatilities
+                double model_vol_call = calculate_quartic_volatility(0.25, atm_vol, skew, smile);
+                double model_vol_put = calculate_quartic_volatility(-0.25, atm_vol, skew, smile);
+                double model_vol_atm = atm_vol; // By construction
+
+                // Objective function
+                double error = 0.0;
+                error += std::pow(model_vol_call - vol_call_25d, 2);
+                error += std::pow(model_vol_put - vol_put_25d, 2);
+                
+                return error;
+            };
+            
+            // Optimization
+            std::vector<double> initial_guess = {0.0, 0.0}; // skew, smile
+            std::vector<double> lower_bounds = {-2.0, -1.0};
+            std::vector<double> upper_bounds = {2.0, 1.0};
+            
+            auto optimized_params = optimize_constrained(objective, initial_guess, 
+                                                       lower_bounds, upper_bounds);
+            
+            result.parameters = optimized_params;
+            result.calibration_error = objective(optimized_params);
+            result.calibration_successful = (result.calibration_error < inputs.tolerance);
+            
+            return result;
+        }
+        
+        calibration_results perform_global_optimization(
+            const std::map<double, smile_calibration_result>& smile_results,
+            const calibration_inputs& inputs) {
+            
+            calibration_results results;
+            
+            // Global optimization for temporal consistency
+            auto global_objective = [&](const std::vector<double>& global_params) {
+                double total_error = 0.0;
+                
+                // Smile fitting error
+                for (const auto& [maturity, smile_result] : smile_results) {
+                    total_error += smile_result.calibration_error;
+                }
+                
+                // Temporal regularization penalty
+                double temporal_penalty = calculate_temporal_regularization_penalty(
+                    smile_results, global_params);
+                total_error += 0.1 * temporal_penalty; // Regularization weight
+
+                // Arbitrage penalty
+                if (inputs.enforce_arbitrage_free) {
+                    double arbitrage_penalty = calculate_arbitrage_penalty(
+                        smile_results, global_params);
+                    total_error += 10.0 * arbitrage_penalty; // High weight
+                }
+                
+                return total_error;
+            };
+            
+            // Global optimization
+            std::vector<double> global_initial_guess = extract_global_parameters(smile_results);
+            auto global_optimized = optimize_global_parameters(global_objective, 
+                                                             global_initial_guess, inputs);
+            
+            results.calibrated_parameters = global_optimized;
+            results.total_objective_value = global_objective(global_optimized);
+            results.calibration_successful = (results.total_objective_value < inputs.tolerance);
+            
+            return results;
+        }
+        
+        double calculate_temporal_regularization_penalty(
+            const std::map<double, smile_calibration_result>& smile_results,
+            const std::vector<double>& global_params) {
+            
+            double penalty = 0.0;
+            
+            // Penalty on temporal parameter variations
+            std::vector<double> maturities;
+            std::vector<double> skew_params;
+            std::vector<double> smile_params;
+            
+            for (const auto& [maturity, result] : smile_results) {
+                maturities.push_back(maturity);
+                skew_params.push_back(result.parameters[0]);
+                smile_params.push_back(result.parameters[1]);
+            }
+            
+            // Penalty on second derivatives (smoothing)
+            for (size_t i = 1; i < maturities.size() - 1; ++i) {
+                double dt1 = maturities[i] - maturities[i-1];
+                double dt2 = maturities[i+1] - maturities[i];
+
+                // Second derivative of skew
+                double d2_skew = (skew_params[i+1] - skew_params[i])/dt2 -
+                               (skew_params[i] - skew_params[i-1])/dt1;
+                penalty += d2_skew * d2_skew;
+
+                // Second derivative of smile
+                double d2_smile = (smile_params[i+1] - smile_params[i])/dt2 -
+                                (smile_params[i] - smile_params[i-1])/dt1;
+                penalty += d2_smile * d2_smile;
+            }
+            
+            return penalty;
+        }
+        
+        double calculate_arbitrage_penalty(
+            const std::map<double, smile_calibration_result>& smile_results,
+            const std::vector<double>& global_params) {
+            
+            double penalty = 0.0;
+            
+            // Verification of absence of calendar arbitrage
+            for (auto it1 = smile_results.begin(); it1 != smile_results.end(); ++it1) {
+                auto it2 = std::next(it1);
+                if (it2 != smile_results.end()) {
+                    double t1 = it1->first;
+                    double t2 = it2->first;
+
+                    // Verify that var(t2) >= var(t1)
+                    double var1 = calculate_total_variance(it1->second, t1);
+                    double var2 = calculate_total_variance(it2->second, t2);
+                    
+                    if (var2 < var1) {
+                        penalty += (var1 - var2) * (var1 - var2);
+                    }
+                }
+            }
+            
+            return penalty;
+        }
+    };
+};
+```
+*This C++ implementation in Our project shows the complete FX surfaces calibration framework with global optimization and arbitrage constraints.*
+
+---
+
+## 📈 **Calibration Methods**
+
+### **Standard Least Squares**
+- **Objective**: Minimize sum of squared residuals
+- **Usage**: Standard calibration without weighting
+- **Advantage**: Simplicity and robustness
+
+### **Weighted Least Squares**
+- **Objective**: Weighting by quote quality/liquidity
+- **Usage**: Calibration with market priorities
+- **Advantage**: Better fitting on important quotes
+
+### **Robust Regression**
+- **Objective**: Reduce impact of outliers
+- **Usage**: Markets with aberrant quotes
+- **Advantage**: Stability against noisy data
+
+---
+
+## 🎯 **Constraints and Regularization**
+
+### **Arbitrage Constraints**
+- **Calendar arbitrage**: Monotonicity of total variances
+- **Smile arbitrage**: Convexity of option prices
+- **Volatility bounds**: Realistic physical limits
+
+### **Temporal Regularization**
+- **Parameter smoothing**: Penalty on abrupt variations
+- **Continuity**: Preservation of derivative continuity
+- **Stability**: Reduction of sensitivity to perturbations
+
+---
+
+## 🔧 **Calibration Validation**
+
+### **Quality Metrics**
+- **RMSE**: Root Mean Square Error of residuals
+- **MAE**: Mean Absolute Error
+- **R²**: Coefficient of determination
+- **Chi-square**: Statistical test of fit quality
+
+### **Robustness Tests**
+- **Input perturbation**: Stability under noise
+- **Cross-validation**: Temporal cross-validation
+- **Stress testing**: Behavior under extreme conditions
+
+---
+
+*This section details the complete FX volatility surfaces calibration process, integrating Our project best practices with robust optimization methods and arbitrage constraints to ensure quality and stability of calibrated surfaces.*

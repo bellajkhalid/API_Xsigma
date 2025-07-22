@@ -1,0 +1,316 @@
+# Model Monitoring
+
+    // Calibration quality metrics structure
+    struct calibration_quality_metrics {
+        double rmse;                        // Root mean square error
+        double max_absolute_error;          // Maximum absolute error
+        double atm_error;                   // ATM-specific error
+        size_t convergence_iterations;      // Number of iterations to converge
+        bool converged;                     // Convergence flag
+        double objective_value;             // Final objective function value
+        
+        // Parameter stability metrics
+        double alpha_change_percent;
+        double beta_change_percent;
+        double rho_change_percent;
+        double nu_change_percent;
+        
+        // Timing metrics
+        std::chrono::milliseconds calibration_time;
+        std::chrono::milliseconds total_time;
+    };
+
+    // Model stability metrics structure
+    struct model_stability_metrics {
+        double parameter_volatility;        // Parameter change volatility
+        double smile_consistency;           // Smile shape consistency
+        double arbitrage_violations;        // Number of arbitrage violations
+        
+        // Numerical stability
+        double pde_convergence_error;
+        double interpolation_error;
+        
+        // Economic reasonableness
+        bool negative_probabilities;
+        bool excessive_skew;
+        double tail_behavior_score;
+    };
+
+    // Implementation of calibration quality calculation
+    calibration_quality_metrics sabr_model_monitor::calculate_calibration_quality(
+        const std::vector<double>& market_vols,
+        const std::vector<double>& strikes) const {
+        
+        calibration_quality_metrics metrics;
+        
+        // Calculate model implied volatilities
+        std::vector<double> model_vols(strikes.size());
+        for (size_t i = 0; i < strikes.size(); ++i) {
+            model_vols[i] = model_->implied_volatility(
+                forward_, strikes[i], expiry_, implied_volatility_enum::NORMAL);
+        }
+        
+        // Calculate RMSE
+        double sum_squared_errors = 0.0;
+        double max_error = 0.0;
+        
+        for (size_t i = 0; i < market_vols.size(); ++i) {
+            double error = model_vols[i] - market_vols[i];
+            sum_squared_errors += error * error;
+            max_error = std::max(max_error, std::abs(error));
+        }
+        
+        metrics.rmse = std::sqrt(sum_squared_errors / market_vols.size());
+        metrics.max_absolute_error = max_error;
+        
+        // Calculate ATM error
+        size_t atm_index = find_closest_strike_index(strikes, forward_);
+        metrics.atm_error = std::abs(model_vols[atm_index] - market_vols[atm_index]);
+        
+        // Get parameter stability from previous calibration
+        auto previous_params = get_previous_calibration_parameters();
+        if (previous_params) {
+            metrics.alpha_change_percent = calculate_parameter_change(
+                model_->alpha(), previous_params->alpha);
+            metrics.beta_change_percent = calculate_parameter_change(
+                model_->beta(), previous_params->beta);
+            metrics.rho_change_percent = calculate_parameter_change(
+                model_->rho(), previous_params->rho);
+            metrics.nu_change_percent = calculate_parameter_change(
+                model_->vol_of_vol(), previous_params->nu);
+        }
+        
+        return metrics;
+    }
+
+    // Implementation of stability metrics calculation
+    model_stability_metrics sabr_model_monitor::calculate_stability_metrics() const {
+        model_stability_metrics metrics;
+        
+        // Generate test strikes for stability analysis
+        std::vector<double> test_strikes;
+        double strike_range = forward_ * 2.0;
+        for (int i = -50; i <= 50; ++i) {
+            test_strikes.push_back(forward_ + (i * strike_range / 100.0));
+        }
+        
+        // Calculate implied volatilities
+        std::vector<double> implied_vols;
+        for (double strike : test_strikes) {
+            try {
+                double vol = model_->implied_volatility(
+                    forward_, strike, expiry_, implied_volatility_enum::NORMAL);
+                implied_vols.push_back(vol);
+            } catch (...) {
+                implied_vols.push_back(std::numeric_limits<double>::quiet_NaN());
+            }
+        }
+        
+        // Check for negative probabilities (arbitrage violations)
+        metrics.negative_probabilities = false;
+        for (size_t i = 1; i < implied_vols.size() - 1; ++i) {
+            if (!std::isnan(implied_vols[i])) {
+                // Check butterfly arbitrage condition
+                double butterfly = implied_vols[i-1] - 2*implied_vols[i] + implied_vols[i+1];
+                if (butterfly < -1e-6) {
+                    metrics.negative_probabilities = true;
+                    break;
+                }
+            }
+        }
+        
+        // Calculate smile consistency (smoothness measure)
+        double sum_second_derivatives = 0.0;
+        size_t valid_points = 0;
+        for (size_t i = 1; i < implied_vols.size() - 1; ++i) {
+            if (!std::isnan(implied_vols[i-1]) && !std::isnan(implied_vols[i]) && !std::isnan(implied_vols[i+1])) {
+                double second_derivative = implied_vols[i+1] - 2*implied_vols[i] + implied_vols[i-1];
+                sum_second_derivatives += std::abs(second_derivative);
+                valid_points++;
+            }
+        }
+        metrics.smile_consistency = valid_points > 0 ? sum_second_derivatives / valid_points : 0.0;
+        
+        // Check for excessive skew
+        if (implied_vols.size() >= 2) {
+            double left_vol = implied_vols[10];  // 40% OTM put
+            double right_vol = implied_vols[90]; // 40% OTM call
+            double skew_magnitude = std::abs(left_vol - right_vol);
+            metrics.excessive_skew = skew_magnitude > 0.05; // 5% threshold
+        }
+        
+        return metrics;
+    }
+}
+```
+
+## Overview
+
+Continuous monitoring of the SABR/GSABR models in Our project is essential to ensure ongoing accuracy, reliability, and performance in production environments. The monitoring framework provides real-time oversight, quality assurance, and early warning systems to maintain optimal model performance across all market conditions.
+
+## Key Performance Indicators (KPIs)
+
+### 1. Calibration Quality Metrics
+
+#### Primary Metrics
+- **Root Mean Square Error (RMSE)**: Overall fit quality across all strikes
+- **Maximum Absolute Error**: Worst-case calibration error
+- **ATM Error**: Specific error at the at-the-money strike
+- **Coverage Ratio**: Percentage of strikes within acceptable tolerance
+
+#### Secondary Metrics
+- **Convergence Rate**: Number of iterations required for calibration
+- **Parameter Stability**: Day-over-day parameter changes
+- **Objective Function Value**: Final optimization objective value
+
+### 2. Model Stability Metrics
+
+#### Arbitrage Conditions
+- **Butterfly Arbitrage**: Convexity violations in option prices
+- **Calendar Arbitrage**: Time-consistency violations
+- **Strike Arbitrage**: Monotonicity violations
+
+#### Numerical Stability
+- **PDE Convergence**: Grid convergence for ZABR models
+- **Interpolation Error**: Accuracy of strike interpolation
+- **Extrapolation Stability**: Behavior outside calibrated ranges
+
+### 3. Performance Metrics
+
+#### Computational Performance
+- **Calibration Time**: Time required for parameter fitting
+- **Pricing Speed**: Option pricing performance
+- **Memory Usage**: Memory footprint of model instances
+
+#### Production Metrics
+- **Throughput**: Number of calibrations per hour
+- **Availability**: Model uptime and reliability
+- **Error Rate**: Frequency of calibration failures
+
+## SABR Monitoring Infrastructure Implementation in Our Project
+
+The monitoring framework described above is implemented through a comprehensive system that tracks all aspects of SABR model performance and quality in real-time.
+
+```cpp
+namespace xsigma {
+    // Main monitoring class for SABR model performance tracking
+    class sabr_model_monitor {
+    public:
+        // Constructor initializes monitoring with model and thresholds
+        sabr_model_monitor(
+            const ptr_const<volatility_model_sabr>& model,
+            double forward,
+            double expiry,
+            const monitoring_config& config
+        ) : model_(model), forward_(forward), expiry_(expiry), config_(config) {}
+
+        // Core KPI calculation methods
+        calibration_quality_metrics calculate_calibration_quality(
+            const std::vector<double>& market_vols,
+            const std::vector<double>& strikes) const;
+
+        model_stability_metrics calculate_stability_metrics() const;
+        performance_metrics calculate_performance_metrics() const;
+
+        // Automated monitoring and alerting
+        void run_daily_monitoring() const;
+        void check_arbitrage_conditions() const;
+        void validate_parameter_bounds() const;
+
+    private:
+        ptr_const<volatility_model_sabr> model_;
+        double forward_;
+        double expiry_;
+        monitoring_config config_;
+
+        // Helper functions for quality assessment
+        void send_alert(alert_level level, const std::string& message) const;
+        bool check_butterfly_arbitrage(const std::vector<double>& strikes) const;
+        double calculate_smile_smoothness(const std::vector<double>& vols) const;
+    };
+
+    // SABR calibration quality metrics structure
+    struct calibration_quality_metrics {
+        double rmse;                        // Root mean square error
+        double max_absolute_error;          // Maximum absolute error
+        double atm_error;                   // ATM-specific error
+        double coverage_ratio;              // Percentage within tolerance
+        size_t convergence_iterations;      // Number of iterations to converge
+        bool converged;                     // Convergence success flag
+
+        // SABR parameter values
+        double alpha;                       // ATM volatility level
+        double beta;                        // CEV exponent
+        double rho;                         // Correlation parameter
+        double nu;                          // Volatility of volatility
+
+        // Parameter stability tracking
+        double alpha_change_percent;        // Daily alpha change
+        double beta_change_percent;         // Daily beta change
+        double rho_change_percent;          // Daily rho change
+        double nu_change_percent;           // Daily nu change
+
+        // Timing performance
+        std::chrono::milliseconds calibration_time;
+        std::chrono::milliseconds total_time;
+    };
+}
+```
+
+*This monitoring infrastructure implements the surveillance framework described above for SABR/GSABR models. The `sabr_model_monitor` class centralizes all SABR model-specific KPI calculations, including validation of arbitrage conditions, verification of parameter bounds, and monitoring of volatility smile stability. The system continuously monitors the four SABR parameters (α, β, ρ, ν) and generates appropriate alerts.*
+
+## Monitoring Thresholds and Alerts
+
+### Critical Thresholds
+- **RMSE > 0.5%**: Critical calibration quality alert
+- **ATM Error > 0.2%**: ATM-specific quality alert
+- **Parameter Change > 20%**: Parameter stability alert
+- **Arbitrage Violations**: Immediate critical alert
+
+### Warning Thresholds
+- **RMSE > 0.2%**: Warning-level quality alert
+- **ATM Error > 0.1%**: ATM warning alert
+- **Parameter Change > 10%**: Parameter stability warning
+- **Calibration Time > 30s**: Performance warning
+
+### Information Thresholds
+- **RMSE > 0.1%**: Information-level quality notification
+- **Parameter Change > 5%**: Parameter change notification
+- **Calibration Time > 10s**: Performance information
+
+## Daily Monitoring Reports
+
+### Calibration Quality Report
+- Summary statistics across all currency pairs and tenors
+- Worst-performing calibrations with detailed analysis
+- Parameter stability trends and outliers
+- Comparison with previous day's performance
+
+### Model Stability Report
+- Arbitrage violation summary
+- Numerical stability assessment
+- Economic reasonableness checks
+- Extrapolation behavior analysis
+
+### Performance Report
+- Calibration timing statistics
+- Memory usage trends
+- Error rate analysis
+- System availability metrics
+
+## Trend Analysis and Historical Tracking
+
+### Parameter Evolution
+- Long-term parameter trends across market cycles
+- Correlation analysis between parameters and market conditions
+- Seasonal patterns in parameter behavior
+
+### Quality Metrics Evolution
+- Historical RMSE trends
+- ATM error evolution
+- Calibration convergence patterns
+
+### Performance Trends
+- Calibration time evolution
+- Memory usage trends
+- System performance degradation detection

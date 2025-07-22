@@ -1,0 +1,1037 @@
+# FX LSV Markov Switching : Monte Carlo
+
+## Table of Contents
+
+- [FX LSV Markov Switching : Monte Carlo](#fx-lsv-markov-switching--monte-carlo)
+  - [Table of Contents](#table-of-contents)
+  - [1. Executive Summary](#1-executive-summary)
+  - [2. Scope and Use](#2-scope-and-use)
+  - [3. Product and Portfolio](#3-product-and-portfolio)
+    - [3.1. Description](#31-description)
+      - [3.1.1. Vanilla Options](#311-vanilla-options)
+      - [3.1.2. Volatility swap](#312-volatility-swap)
+    - [3.2. Relationship to Other Approved Models](#32-relationship-to-other-approved-models)
+- [4. Methodology](#4-methodology)
+    - [4.1. Design Consideration \& Development Process](#41-design-consideration--development-process)
+    - [4.2. Description](#42-description)
+      - [4.2.1. Stochastic Volatility](#421-stochastic-volatility)
+      - [4.2.2. Local Stochastic Volatility](#422-local-stochastic-volatility)
+    - [4.3. Model Assumptions](#43-model-assumptions)
+- [FX LSV Markov Switching : Monte Carlo](#fx-lsv-markov-switching--monte-carlo-1)
+    - [4.4. Model Limitations](#44-model-limitations)
+    - [4.5. Model Inputs and Parameters](#45-model-inputs-and-parameters)
+    - [4.6. Model Outputs](#46-model-outputs)
+    - [4.7. Feeder Models](#47-feeder-models)
+    - [4.8. Conceptual Soundness and Model Selection](#48-conceptual-soundness-and-model-selection)
+  - [5. Data Processing and Calibration](#5-data-processing-and-calibration)
+    - [5.1. Description](#51-description)
+      - [5.1.1. Calibration of the Local Volatility Correction](#511-calibration-of-the-local-volatility-correction)
+        - [5.1.1.1. Calibration of the Local Volatility](#5111-calibration-of-the-local-volatility)
+        - [5.1.1.2. Use of the Fokker Planck equation to calibrate the Local Volatility Correction factor](#5112-use-of-the-fokker-planck-equation-to-calibrate-the-local-volatility-correction-factor)
+      - [5.1.2. Time Grids Construction in Calibration of LSV MS Monte Carlo](#512-time-grids-construction-in-calibration-of-lsv-ms-monte-carlo)
+      - [5.1.3. Inputs and Parameters Used for Calibration.](#513-inputs-and-parameters-used-for-calibration)
+        - [5.1.3.1. Local Volatility Correction Calibration Settings](#5131-local-volatility-correction-calibration-settings)
+    - [5.2. Alternative Approaches](#52-alternative-approaches)
+    - [5.3. Quality control](#53-quality-control)
+    - [5.4. Limitations](#54-limitations)
+  - [6. Numerical Implementation](#6-numerical-implementation)
+    - [6.1. Description](#61-description)
+      - [6.1.1. Discretization of spot and volatility process](#611-discretization-of-spot-and-volatility-process)
+        - [6.1.1.1. Evolution of spot process](#6111-evolution-of-spot-process)
+        - [6.1.1.2. Evolution of volatility process](#6112-evolution-of-volatility-process)
+          - [6.1.1.2.1 Computation of the transition Probability Matrix](#61121-computation-of-the-transition-probability-matrix)
+          - [6.1.1.2.2  Generation of Bernoullis](#61122--generation-of-bernoullis)
+    - [6.2.  Inputs](#62--inputs)
+      - [6.2.1.  FXMCDateOptionsPP](#621--fxmcdateoptionspp)
+      - [6.2.2.  FXDateOptionsStepSchedulePP](#622--fxdateoptionsstepschedulepp)
+      - [6.2.3.  FXMCPLSimulatorOptionsPP](#623--fxmcplsimulatoroptionspp)
+      - [6.2.4. FXMCRNGOptionsPP](#624-fxmcrngoptionspp)
+    - [6.3. Limitations](#63-limitations)
+  - [7. Risk Measures](#7-risk-measures)
+    - [7.1. Description](#71-description)
+    - [7.2. Inputs](#72-inputs)
+    - [7.3. Limitations](#73-limitations)
+  - [8. Testing and Outcome Analysis](#8-testing-and-outcome-analysis)
+    - [8.1. Testing Plan](#81-testing-plan)
+      - [8.1.1. Calibration correctness : repricing of FX Volatility inputs](#811-calibration-correctness--repricing-of-fx-volatility-inputs)
+      - [8.1.2. Consistency with LSV MS PDE](#812-consistency-with-lsv-ms-pde)
+      - [8.1.3. CCAR Scenario Stress testing](#813-ccar-scenario-stress-testing)
+      - [8.1.4. Sensitivity Analysis with respect to Market Inputs](#814-sensitivity-analysis-with-respect-to-market-inputs)
+      - [8.1.5. Sensitivity Analysis with respect to Model Parameters](#815-sensitivity-analysis-with-respect-to-model-parameters)
+    - [8.2. Market Data, Model Parameters and Calibration Settings](#82-market-data-model-parameters-and-calibration-settings)
+      - [8.2.1. Market Data and Model Parameters](#821-market-data-and-model-parameters)
+        - [Vol-of-Vol Term Structure](#vol-of-vol-term-structure)
+        - [Transition q Term Structure](#transition-q-term-structure)
+      - [8.2.2. Calibration Settings](#822-calibration-settings)
+    - [8.3. Accuracy, Robustness and Stability Testing](#83-accuracy-robustness-and-stability-testing)
+      - [8.3.1. LSV MS MC Test 1: Check convergence of numerical method for a vanilla option](#831-lsv-ms-mc-test-1-check-convergence-of-numerical-method-for-a-vanilla-option)
+      - [8.3.2. LSV MS MC Test 6: Check convergence of numerical method for a Volatility Swap](#832-lsv-ms-mc-test-6-check-convergence-of-numerical-method-for-a-volatility-swap)
+      - [8.3.3. LSV MS MC Test 2: Check matching implied volatilities with Analytic pricer for short and long dated vanilla options](#833-lsv-ms-mc-test-2-check-matching-implied-volatilities-with-analytic-pricer-for-short-and-long-dated-vanilla-options)
+    - [8.3.4. LSV MS MC Test 3 : Check matching implied volatilities with Analytic pricer for different $q$ parameter values](#834-lsv-ms-mc-test-3--check-matching-implied-volatilities-with-analytic-pricer-for-different-q-parameter-values)
+    - [8.4. Scenario and Stress-testing](#84-scenario-and-stress-testing)
+    - [8.4.1. LSV MS MC Test 10 : CCAR Scenarios](#841-lsv-ms-mc-test-10--ccar-scenarios)
+    - [8.5. Sensitivity Analysis](#85-sensitivity-analysis)
+      - [8.5.1. LSV MS MC Test 11 : Sensitivity with respect to market inputs](#851-lsv-ms-mc-test-11--sensitivity-with-respect-to-market-inputs)
+      - [Relative Shift of Spot and ATM Vol: Delta CCY1](#relative-shift-of-spot-and-atm-vol-delta-ccy1)
+      - [Relative Shift of Spot and ATM Vol: Delta CCY2](#relative-shift-of-spot-and-atm-vol-delta-ccy2)
+      - [Comparison between LSV MS MC and LSV MC PDE for different strikes values](#comparison-between-lsv-ms-mc-and-lsv-mc-pde-for-different-strikes-values)
+      - [Comparison between LSV MS MC and LSV MC PDE for different q parameter values](#comparison-between-lsv-ms-mc-and-lsv-mc-pde-for-different-q-parameter-values)
+      - [Comparison between LSV MS MC and LSV MC PDE for different Vol of Vol values](#comparison-between-lsv-ms-mc-and-lsv-mc-pde-for-different-vol-of-vol-values)
+      - [FX LSV Markov Switching : Monte Carlo](#fx-lsv-markov-switching--monte-carlo-2)
+      - [8.5.2. LSV MS MC Test 12 : Sensitivity with respect to model parameters](#852-lsv-ms-mc-test-12--sensitivity-with-respect-to-model-parameters)
+    - [8.6. Back-testing](#86-back-testing)
+    - [8.7. Benchmarking](#87-benchmarking)
+      - [8.7.1. LSV MS MC Test 7 : Check matching prices between LSV MS MC and LSV MS PDE for a Volatility Swap for different strikes prices](#871-lsv-ms-mc-test-7--check-matching-prices-between-lsv-ms-mc-and-lsv-ms-pde-for-a-volatility-swap-for-different-strikes-prices)
+      - [8.7.2. LSV MS MC Test 8 : Check matching prices between LSV MS MC and LSV MS PDE for a Volatility Swap for different transition q parameters](#872-lsv-ms-mc-test-8--check-matching-prices-between-lsv-ms-mc-and-lsv-ms-pde-for-a-volatility-swap-for-different-transition-q-parameters)
+    - [8.8. Other Analysis / Testing](#88-other-analysis--testing)
+  - [9. Assumptions and Limitations](#9-assumptions-and-limitations)
+  - [10. QA Implementation Environment and Controls](#10-qa-implementation-environment-and-controls)
+  - [11. Model Monitoring – KPIs](#11-model-monitoring--kpis)
+  - [12. References](#12-references)
+  - [A. Appendix: Glossary](#a-appendix-glossary)
+
+## 1. Executive Summary
+
+The aim of this document is to describe the Local Stochastic Volatility Markov Switching (LSV MS) model and its pricing of FX derivative products using the Monte Carlo (MC) approach (GMD 4198).
+
+Local Stochastic Volatility models (LSV) combine the best aspects of Stochastic Volatility models (SV) - i.e capture stylized facts of volatility dynamics - and Local Volatility models (LV), i.e fit any market quoted volatility surface. However, standard LSV models need a two dimensional partial derivative equation (PDE) to calibrate which is slow.
+
+To address this issue, the LSV MS was designed among LSV models to achieve a better speed performance. The main idea is to use a discrete number of volatility states instead of a continuous volatility process. The randomness of the volatility process is captured with a continuous time Markov chain. This has a clear speed advantage and improves both pricing and risk management.
+
+The LSV MS model has been extensively discussed in [1], where various tests on its calibration, back-testing and a detailed study of model dynamics have been presented. This document focuses on the Monte Carlo scheme and is designed to explain the main differences with the PDE scheme.
+
+The Monte Carlo scheme, while slower to converge than the PDE scheme, is able to price a wider range of exotic products. All calibration routines are performed prior to pricing and thus are common and valid for both PDE and Monte Carlo pricing engines. For this reason, tests presented in this document only focus on whether LSV MS MC can match the results of LSV MS PDE on vanilla options and first generation exotics.
+
+The LSV MS is only fit for single currency pair trades. Other limitations include the independence between the Brownian motion driving the spot process and the Markov chain driving the volatility process, or the fact that only the deterministic interest rate case is considered.
+
+Tests are conclusive and confirm that LSV MS MC is able to match LSV MS PDE prices within an acceptable degree of tolerance. Because the pricing computation time is slower than with the PDE scheme, the MC scheme should only be used for payoffs which cannot be priced by the PDE engine, i.e. some of the second generation exotics.
+
+Feedback from Trading is positive. They qualify the model as easy to understand and generating intuitive and stable risks.
+
+## 2. Scope and Use
+
+The scope of the present document is to present the model dynamics, its calibration and the pricing using the Monte Carlo schema.
+
+The PDE engine allows precise and fast calculation of PV as well as risks. However the payoffs covered by this technique are quite restricted, especially when applying to highly path-dependent products. Therefore, connecting LSV MS to the Monte Carlo engine opens the road for pricing and hedging a whole new range of products. Particularly, this allows all the Pre-Trade-Approval (PTA) trades based on Padla script to be priced, booked and hedged under LSV MS model.
+
+The pricing of specific payoffs will be covered in separate documents.
+
+The intended usage of the valuation model is for both internal users, including the trading desk, risk management and research, and external clients. LSVMS calculates Present Value (PV) and risk measures are calculated externally by the risk engine using the finite difference bump and reprice approach. Results of the calculation i.e. PV, risks, scenarios are for live pricing and risk management of the trading positions, hedging analysis, setting risk limits and for VaR calculations.
+
+In the following sections, we will explain the products/payoffs, model methodology, numerical implementation, calibration, risks, test results and analysis, and some limitations of the model. We focus on details specific to the Monte Carlo scheme and therefore only provide a short description on other aspects of the LSV MS model. More details can be found in [1].
+
+## 3. Product and Portfolio
+
+In this chapter we give a brief description of the payoffs encountered in this document.
+We focus in this document on showing that:
+
+• LSV MS MC can match the prices of vanilla options which are used for calibration
+
+• LSV MS MC can match the prices of LSV MS PDE for first generation exotics, which are forward smile dependent products (see [1] for more on forward smile).
+
+No details is given on the second generation exotic payoffs as these will be covered in a separate document.
+
+Only enough detail is provided in order to make sense of the pricing results provided in the testing sections. The following is not an exhaustive description of the booked trades of similar type, and separate documents will cover those products for pricing purposes.
+
+### 3.1. Description
+
+#### 3.1.1. Vanilla Options
+
+The cash settled European vanilla option has a pay-off, at a specified payment date T_p > T and settlement currency, given by:
+
+• European Call option pay-off: $N(S_T - K)_+$
+
+• European Put option pay-off: $N(K - S_T)_+$
+
+where $S_T$ is the market settled FX Spot level at expiry time $T$, $K$ is the option strike level and $N$ the notional amount. Please refer to [12] and [13] for more details.
+
+#### 3.1.2. Volatility swap
+
+A volatility swap is a forward contract on the future realized volatility of a given underlying asset. In detail, it is a product that pays:
+
+$$
+M(\sqrt{V} - K),
+$$
+
+at a settlement date $t_s$, where $M$ is the notional, $K$ is the strike and $V$ is the realized variance of the returns of the spot rate $S$ over the fixing dates $\{T_0,...,T_N\}$. The variance $V$ is given by:
+
+$$
+V = \frac{252}{N} \sum_{i=1}^{N} (\log(S_{T_i}/S_{T_{i-1}}))^2, (3.1)
+$$
+
+where 252 is a standard annualization factor that stands for the number of business days in one year. For more details please refer to [14].
+
+### 3.2. Relationship to Other Approved Models
+
+This is not applicable as this is a not pricing model.
+
+## 4. Methodology
+
+### 4.1. Design Consideration & Development Process
+
+The search for parsimonious models that would capture the market-observed smile behavior in the implied volatility surface (IVS) is still one of the main research topics in Mathematical Finance. Among the different models that have been introduced, perhaps the two most important attempts are the Stochastic Volatility models (e.g. Heston model), and the Local Volatility model of Dupire (see [9]). While SV models capture crucial stylized facts of the volatility dynamics, they cannot perfectly calibrate the IVS, especially for short maturities. On the other hand, the LV model was constructed to fit any arbitrage-free IVS but has poor dynamical properties.
+
+Thanks to Gyongy's lemma, Local Stochastic Volatility models are able to combine the best aspects of LV and SV. However, standard LSV models require to solve a full two-dimensional PDE for the calibration which can be time consuming.
+
+In this chapter we consider the Local Stochastic Volatility Markov Switching model which is a LSV model designed primarily for speed performance. The gist is to use only a discrete states continuous Markov chain to model the volatility instead of a full stochastic process. Conceptually this allows to switch from a two dimension model to a multi one dimension model, which represents a clear speed advantage. In addition to this, the possibility to directly mark the stochastic volatility parameters makes the impact of the stochastic volatility component transparent to the trading desk.
+
+### 4.2. Description
+
+In LSV MS, the FX spot rate follows a stochastic process where the instantaneous volatility has a stochastic volatility component in combination with a local volatility one.
+
+We begin by describing how the stochastic volatility is specified within the model.
+
+#### 4.2.1. Stochastic Volatility
+
+The stochastic instantaneous volatility is allowed to take one of $n$ possible values. Random transitions are allowed between the volatility states at any time and are described by a continuous time Markov chain process.
+
+A continuous time, discrete-valued Markov chain is a stochastic process $\{\xi(t) : t \geq 0\}$, where $\xi(t)$ takes values only in $\{1,\ldots,n\}$, with $n$ being the number of states. To define a continuous time Markov Chain we need to specify its $n \times n$ instantaneous transition rate matrix $Q(t)$, with elements $q_{ij}(t)$, $i,j \in \{1,\ldots,n\}$ and $t \geq 0$. For the transition matrix to be valid, it must fulfill the following conditions :
+
+• $n \times n$ matrix, with $n$ being the number of states.
+
+• $q_{ii}(t) \leq 0$ for all $i$. $q_i(t) := -q_{ii}(t)$ is the rate at which the process leaves the state $i$.
+
+• $q_{ij}(t) \geq 0$ for all $i \neq j$. $q_{ij}(t)$ being the instantaneous rate at which the process moves from state $i$ to state $j$.
+
+• $\sum_j q_{ij}(t) = 0$ for all $i$.
+
+When considering a given time interval $[s,t]$, a transition generator matrix $Q(s,t)$ is utilized and defined as :
+
+$$
+Q(s,t) := \int_s^t Q(u)du,  \tag{4.1}
+$$
+
+i.e. the integral of instantaneous transition rate matrix with respect to the given time interval. From the transition generator matrix follows the transition probability matrix between the different states, which following the general theory of Markov chains is obtained as (see [3]) :
+
+$$
+P(s,t) = \exp(Q(s,t)).  \tag{4.2}
+$$
+
+In other terms, given that we are in state $i$ at time $s$, the conditional probability $p_{ij}(s,t)$ of being in state $j$ at time $t$, is :
+
+$$
+p_{ij}(s,t) := \mathbb{P}(\xi(t) = j|\xi(s) = i) = P(s,t)_{ij}.
+$$
+
+Furthermore we make the following simplifying assumption [A.2] $^1$ on $Q(s,t)$, that is :
+
+$$
+Q(s,t) = \bar{Q} \int_s^t q(u)du,  \tag{4.3}
+$$
+
+where $\bar{Q}$ is a constant $n \times n$ matrix and $q(u)$ is a time dependent scalar function. In addition to the above, the time dependent function $q(u)$ is assumed to be piecewise constant (assumption [A.3]).
+
+In summary the stochastic instantaneous volatility in Markov Switching follows the following process:
+
+$$
+\Sigma(t) = \sigma_{\xi(t)}(t),
+$$
+
+where
+
+• $\xi(t) : [0,\infty) \to 1\ldots n$ a continuous time stochastic Markov chain.
+
+• $n \in \mathbb{N}$ being the number of volatility states with $n > 1$.
+
+• $\sigma_i : [0,\infty) \to \mathbb{R}^+$ where $i \in 1\ldots n$ a discrete set of deterministic functions.
+
+Each discrete volatility $\sigma_i$ is a function of the volatility of volatility (vol-of-vol) parameter $\alpha(t)$ defined as follows:
+
+$$
+\sigma_i(t) = \exp^{(i-1-[\frac{n}{2}])\alpha(t)}.
+$$
+
+Similarly to transition term structure $q(t)$, the vol-of-vol function $\alpha(t)$ is assumed to be piecewise constant (assumption [A.3]).
+
+The LSV MS model implemented in the library supports an odd number of states. Moreover, for $n = 2k + 1, k \in \mathbb{N}$, the initial volatility state will be the middle state $\sigma_{k+1}(t)$.
+
+E.g. For three volatility states, we have the following:
+
+$$
+\sigma_1(t) = \exp^{-\alpha(t)}.
+$$
+
+$$
+\sigma_2(t) = 1.
+$$
+
+$$
+\sigma_3(t) = \exp^{+\alpha(t)}.
+$$
+
+$^1$A summary of assumptions can be found in 4.3
+
+#### 4.2.2. Local Stochastic Volatility
+
+A local volatility correction is incorporated in the FX spot diffusion term in order to be able to recover the vanilla prices in the market for any strike.
+
+The model dynamics of LSV MS are specified then by the following Stochastic Differential Equation (SDE),
+
+$$
+\frac{dS(t)}{S(t)} = r_{d,f}(t)dt + \Sigma(t)A(S(t),t)dW(t)  \tag{4.4}
+$$
+
+$$
+\Sigma(t) = \sigma_{\xi(t)}(t)
+$$
+
+where :
+
+• $S(t)$ is the spot FX (units of domestic currency per foreign).
+
+• $r_{d,f}(t) : r_d(t) - r_f(t)$ is the FX rate drift, assumed deterministic ([A.4]).
+
+• $W(t)$ is a Brownian motion under the risk-neutral measure. $W(t)$ is independent of $\xi(t)$.
+
+• $A(S(t),t)$ deterministic local volatility correction.
+
+• $\xi(t) : [0,\infty) \to 1\ldots n$ a continuous time stochastic Markov chain.
+
+• $n \in \mathbb{N}$ being the number of volatility states
+
+• $\sigma_i : [0,\infty) \to \mathbb{R}^+$ where $i \in 1\ldots n$ a discrete set of deterministic functions as specified in the previous subsection.
+
+We will assume throughout the document that the number of volatility states is 3, which is the current standard in production (Assumption [A.5]). Similarly, we assume (Assumption [A.6]) that the transition matrix $\bar{Q}$ to be :
+
+$$
+\bar{Q} = \begin{pmatrix} -1 & 1 & 0 \\ 1/2 & -1 & 1/2 \\ 0 & 1 & -1 \end{pmatrix},  \tag{4.5}
+$$
+
+which implies that the Markov chain can only jump to an adjacent state. The second row of the matrix tells that there is equal probability to move from the middle state towards the upper and lower state. This mimic the behavior of a stochastic volatility dynamics driven by a diffusion process: at any given time $t$, if $\sigma_t$ is dependent on a Brownian motion, $\sigma_{t+\delta t}$ has the same probability of being above or below the level of $\sigma_t$. This default setting for $\bar{Q}$ however can be changed by the end user.
+
+### 4.3. Model Assumptions
+
+The following assumptions are made :
+
+[A. 0 ] The market is assumed arbitrage free with unlimited liquidity, cost of transactions are not taken into account and there is no restriction on leverage.
+
+[A. 1] The stochastic Markov chain is independent of the Brownian motion that drives the underlying spot. However, the spot and volatility processes are implicitly correlated by the local volatility correction $A(t,S(t))$.
+
+[A. 2] The Transition Generator Matrix has to satisfy equation 4.3. This is to make it easy for traders to mark the transition probability structure : they mark one parameter instead of a whole matrix.
+
+[A. 3] The volatility of volatility $\alpha(u)$ and the transition matrix term structure $q(u)$ are piecewise constant in time. These values are marked directly by the trading desk and this enables to clearly describe the forward smile profile across different tenors. Piecewise constancy is the choice maintaining the balance between accuracy and generality.
+
+[A. 4] Both the domestic and foreign interest rates are assumed to be deterministic. Therefore, when valuing long dated structures, the stochastic interest rate effect is not taken into account.
+
+[A. 5] The number of states for the Markov chain used in production is equal to 3. Any trade probing this assumption would have a quite specific dependence on the volatility process and therefore have a price that depends heavily on the details of the stochastic volatility component.
+
+[A. 6] The matrix $\tilde{Q}$ is set by default as in equation 4.5. However, it is possible to use any other matrix which satisfies conditions (i)-(iv) from Section 4.2.
+
+### 4.4. Model Limitations
+
+The model has the following limitations (for additional limitations please refer to [1] ):
+
+[L.1] This model is a one asset model. It is not suitable for multi-asset trades.
+
+### 4.5. Model Inputs and Parameters
+
+The parameters and variables affecting model dynamics are specified in the table below:
+
+| Input / Parameter Name | Description | Type |
+| --- | --- | --- |
+| FX Spot S(0) | Spot FX rate quoted as units of domestic currency per foreign at valuation date $t = 0$. | Market Data |
+| Interest rate $r_d, r_f$ | Continuous compounding interest rate for domestic and foreign currency. | Market Data |
+| Volatility State Number n | Number of states for volatility Markov chain. | Model Input |
+| FX Analytic Volatility surface $\sigma_{Implied}(K, T)$ | The FX vol surface as provided by feeder Model GMD4181. | Market Data |
+| Volatility of Volatility $\alpha(t)$ | Piecewise constant volatility of volatility parameters controlling the separation between states. | Model Input |
+| Transition scalar parameter $q(t)$ | Piecewise constant parameter controlling the transitions between different volatility states. | Model Input |
+| Constant transition matrix $\tilde{Q}$ | A $n \times n$ matrix which is paired with transition parameter q(t) to define the transition generation matrix of stochastic volatility Markov chain. | Model Input |
+
+### 4.6. Model Outputs
+
+In common with other valuation models, this model is used to produce a present value. The risks that can be computed by perturbing the input market data are calculated by the QALib risk engine.
+
+### 4.7. Feeder Models
+
+| GMD ID | Feeder Model Name | Description |
+| --- | --- | --- |
+| GMD4181 | FX Analytic Volatility Surface | Provides the FX volatility surface. |
+| GMD1746 | New curve framework | Used for initial yield curve construction in calibration, pricing and risk calculation. |
+
+### 4.8. Conceptual Soundness and Model Selection
+
+The Local Stochastic Volatility model family aggregates the advantages from both pure Local Volatility models and pure Stochastic Volatility models:
+
+- Pure Local Volatility models are known for generating an unrealistic forward volatility dynamics and hence fails to match market prices of first generation exotics (e.g. Touch options, Knock-In/Knock-Out Barriers, etc.).
+
+- Pure Stochastic Volatility models provide more realistic forward volatility dynamics, however lack of flexibility to exactly match all available market volatility quotes.
+
+Published Research on LSV models can be found in [6].
+
+Among the Local Stochastic Volatility model family, LSV MS is selected for its stability and efficient performance. It provides a consistent model used both for quotations and risk management.
+
+See [1] for further considerations about LSV MS.
+
+## 5. Data Processing and Calibration
+
+The principle and implementation of calibration for LSV MS used with Monte Carlo engine is identical to the one with PDE engine. We refer to [1] for more details. The only difference with the calibration of LSV MS Monte Carlo is how time grids for calibration are specifically built from Monte Carlo time discretization.
+
+### 5.1. Description
+
+The following section will discuss the calibration of the Local Volatility Correction, applying to both Monte Carlo and PDE engine. We will also emphasis on the time grid construction specifically used with Monte Carlo.
+
+As a reminder all stochastic volatility parameters are marked directly by the traders.
+
+#### 5.1.1. Calibration of the Local Volatility Correction
+
+##### 5.1.1.1. Calibration of the Local Volatility
+
+The calibration on Local Volatility relies on Gyongy's lemma and Dupire's formulae.
+
+Gyongy's lemma states that the relationship between a Local Stochastic Volatility process and its corresponding Local Volatility can be described using the following formula, written under the risk neutral measure:
+
+$$\sigma_{Local}^2(x,t) = \mathbb{E} \left[ \Sigma^2(t) \times A^2(S(t),t)|S(t) = x \right] . \quad (5.1)$$
+
+Namely, given stochastic volatility parameters and specified $\Sigma(t)$, the Local Volatility correction can be derived from Local Volatility surface $\sigma_{Local}(S(t),t)$.
+
+According to Dupire's formulae, the Local Volatility surface can be uniquely determined by the market vanilla prices:
+
+$$\sigma_{Local}^2(K,T) = \frac{\frac{\partial C(K,T)}{\partial T} + (r_d - r_f)K\frac{\partial C(K,T)}{\partial K} + r_f C(K,T)}{\frac{1}{2}K^2\frac{\partial^2 C(K,T)}{\partial K^2}} \quad (5.2)$$
+
+Where $r_d, r_f$ are time dependent deterministic short rates as derived from the domestic/foreign discounting factor for tenor $T$.
+
+Once the Local Volatility surface $\sigma_{Local}(S(t),t)$ and stochastic volatility process $\Sigma(t)$ are both calibrated, the volatility correction factor $A(S(t),t)$ can be deduced using formula (5.1) by solving a Fokker Planck forward PDE (one-dimensional PDE with planes). The detailed steps evolving the forward PDE can be found in [1]. We give a short description below.
+
+##### 5.1.1.2. Use of the Fokker Planck equation to calibrate the Local Volatility Correction factor
+
+In the case of one state ($\sigma_1 = \cdots = \sigma_n = \sigma$) we can write from the spot SDE 4.4 the Fokker Planck PDE which tells us that the probability density function (pdf) of $S(t)$ follows the below diffusion PDE:
+
+$$\frac{\partial p}{\partial t} + \frac{\partial}{\partial x} \left[(r_d - r_f - \frac{1}{2}\sigma^2 A(x,t)^2)p\right] - \frac{1}{2} \frac{\partial^2}{\partial x^2}[\sigma^2 A(x,t)^2)p] = 0$$
+
+To apply this in our case we discretize on a lattice and only allow transitions between states to happen at discrete times. We denote by $p_i(x,t)$ the probability density of being in state $(x,i)$ at time $t$. Then at time $t + \delta t^-$ we have:
+
+$$p_i(x, t + \delta t^-) = p_i(x,t) - \frac{\partial}{\partial x}\left[(r_d - r_f - \frac{1}{2}\sigma_i^2 A(x,t)^2)p_i(x,t)\right]\delta t + \frac{\partial^2}{\partial x^2}[\sigma_i^2 A(x,t)^2 p_i(x,t)]\delta t$$
+
+and then allowing a transition at time $t + \delta t$:
+
+$$p_i(x, t + \delta t) = \sum_j (\delta_{ji} + Q_{ji}\delta t)\left(p_i(x,t) - \frac{\partial}{\partial x}\left[(r_d - r_f - \frac{1}{2}\sigma_i^2 A(x,t)^2)p_i(x,t)\right]\delta t + \frac{\partial^2}{\partial x^2}[\sigma_i^2 A(x,t)^2 p_i(x,t)]\delta t\right) \quad (5.3)$$
+
+We can now compute the local vol correction inductively as follows. Let us suppose inductively that we know the pdf $p$ at time $t$. Then we can compute the denominator of our local volatility adjustment equation (5.1) via:
+
+$$\mathbb{E} \left[ \Sigma^2(t)|S_t = x \right] = \frac{\sum_{i=1}^n \sigma_i^2 p_i(x,t)}{\sum_{i=1}^n p_i(x,t)}$$
+
+Once $A(x,t)$ is known we can proceed to the next step thanks to equation (5.3). In order to begin this inductive process, we assume that we begin in the middle state at time zero. So initially, the pdf p is a Dirac function. We can compute the local vol correction at time zero from (5.1), using the limit of the Dupire local volatility as $T \searrow 0$ for the numerator, and the middle state volatility $\sigma$ for the denominator.
+
+#### 5.1.2. Time Grids Construction in Calibration of LSV MS Monte Carlo
+
+In LSV MS Monte Carlo, the calibration time grid for forward PDE is built from the time schedule of Monte Carlo simulation, which is an important difference from LSV MS PDE. Hence, the original setting entry DateOptions.TotalNumberOfTimeSteps in LSV MS calibration instruction has no impact in the context of LSV MS Monte Carlo.
+
+The construction of time grid starts with generating the time step schedule of Monte Carlo simulation, which consists of three steps:
+
+- With default settings, the time grid will include a daily step up to 2 months, a weekly step in the following year, and a biweekly step for the remainder (till the end of trade's horizon). Note that each schedule period is additive (2 months followed by another 1 year).
+
+- Next, all trade event dates are added to make sure the simulation captures all payout-related operations.
+
+- At last, all dates corresponding to the term structure of piecewise-constant stochastic volatility parameters are sequentially added to time grid (set explicitly by Trading Desks via input).
+
+The time grid is used directly for the Monte Carlo simulation and is shared by LSV MS calibration algorithm (PDE time grid).
+
+#### 5.1.3. Inputs and Parameters Used for Calibration.
+
+As stated above, the following market data are required for calibration:
+
+- Yield curves for both foreign and domestic currencies.
+
+- Underlying FX spot levels.
+
+- Underlying FX Volatility surface.
+
+In addition, the following market data like parameters $^1$ are required as well:
+
+- Transition scalar parameter $q(t)$ term structure.
+
+- Volatility of volatility (Vol-of-Vol) parameter $\alpha(t)$ with term structure.
+
+##### 5.1.3.1. Local Volatility Correction Calibration Settings
+
+| Name | Description / Purpose | Default Setting | Recommended Setting (Range) |
+| --- | --- | --- | --- |
+| CalibrationEndDate | Last calibration date for the LV correction component. | Last trade payment Date | - |
+| DateOptions.TotalNumberOfTimeSteps | ** Obsolete in the context of LSV MS Monte Carlo | N/A | N/A |
+| PDEGridSettings[0].PDEGridName | Name of the grid observable in the PDE solver. | SpotFX | N/A |
+| PDEGridSettings[0].NumberOfSpaceStdDevs | The number of space standard deviations. | 5 | - |
+| PDEGridSettings[0].NumberOfSpaceSteps | The number of space steps | 300 | - |
+| PDEGridSettings[0].UseNonUniformGrid | Whether to use a non uniform grid or not. | True | True |
+
+### 5.2. Alternative Approaches
+
+The calibration steps for the local volatility correction are standard for a model combining local and stochastic volatility. In particular, the forward induction technique described in Section 5.1 represents a market standard for most investment banks.
+
+Possible alternative approaches would be related to the determination of the stochastic volatility parameters of the model. Instead of being marked by the trading desk, the vol-of-vol term structure could be the outcome of an internal calibration routine. This could be done by introducing another piecewise constant function $\gamma(t)$, sampled at the same tenors as the vol-of-vol, which we would use to redefine the instantaneous stochastic volatility as
+
+$$\Sigma(t) = \gamma(t)\sigma_{\xi(t)}(t).$$
+
+At this point we could loop over the calibration dates $\{T_1,\ldots,T_m\}$, bootstrapping the values of $\gamma(T_i)$ and $\alpha(T_i)$ to match the value of certain vanilla products, as ATM options and 25 delta strangles for example. Although all of this is feasible, the trading desk prefers marking directly the stochastic volatility parameters as it provides more transparency, with the ability to see in particular the actual vol-of-vol values used directly. In addition to that, it does not rely on any internal calibration algorithm, further avoiding the chance of failures.
+
+### 5.3. Quality control
+
+QA deals with the local volatility calibration failures in a common and standard way between the different models involving a local volatility component. In case of a failure to find the local vol correction at certain spot points and certain time, we allow first that the values at the failed points can be interpolated or extrapolated using the successful calibrated points. If none are found, then a floor volatility level is applied. The latter is defaulted to 0.0%.
+
+The end user has the ability to turn on exception messages whenever a step of the forward PDE fails, by setting the flag ExceptionOnLVFailure to True.
+
+### 5.4. Limitations
+
+[L. 2] As the local volatility correction is calibrated to the smile volatility surface, there is a direct dependence on the quality of the input market data. If the volatility surface has noisy local volatility, this will feed directly to the local volatility correction parameters in the model.
+
+[L. 3] In local stochastic volatility model, care needs to be taken when we have high vol of vols as trade maturity increases. It can be numerically challenging and the accuracy of the calibration to vanillas could suffer. However test LSV MS MC 11 in section 8.3 shows sufficient robustness.
+
+## 6. Numerical Implementation
+
+### 6.1. Description
+
+In this section we will describe the algorithm for Monte Carlo simulations of the Markov Switching model.
+
+#### 6.1.1. Discretization of spot and volatility process
+
+We assume the time axis is discretized as: $t_0 = 0, t_1, \ldots, t_{m-1}, t_m$.
+
+The above time series is not necessarily a regular/uniform grid.
+
+##### 6.1.1.1. Evolution of spot process
+
+With initial volatility set as $\Sigma(t_0) = \sigma_{i_0}$, we diffuse the log spot following the Euler scheme:
+
+$$\log S_{t_{k+1}} = \log S_{t_k} + \left(r_d(t_k) - r_f(t_k) - \frac{1}{2}\Sigma^2(t_k)A^2(S_{t_k},t_k)\right) \Delta t + \Sigma(t_k)A (S_{t_k},t_k) \Delta W_k. \quad (6.1)$$
+
+A quick way to obtain $(r_d(t_k) - r_f(t_k)) \Delta t$ as a whole is to calculate the log ratio of forwards at two consecutive dates as below:
+
+$$(r_d(t_k) - r_f(t_k)) \Delta t = \log \left(\frac{F(t_k + \Delta t)}{F(t_k)}\right). \quad (6.2)$$
+
+$A (S_k,t_k)$ is obtained from the calibrated deterministic Local Volatility correction. Brownian increments $\Delta W_k$ are obtained by:
+
+$$\Delta W_k = g_u \sqrt{t_{k+1} - t_k}. \quad (6.3)$$
+
+where $g_u$ is a standard normal random variable. All standard normal random numbers $g_u$ are obtained with pseudo or quasi random number generators such as Mersenne Twister, Sobol sequence, or a combination of both if the required dimension is above the dimension of the Sobol sequence generator.
+
+Once a step has evolved, a new volatility state $i_{k+1}$ is updated from the current state $i_k$ (the algorithm is elaborated in the next section). Accordingly, the volatility process will be updated to $\Sigma(t_{k+1}) = \sigma_{i_{k+1}}(t_{k+1})$.
+
+##### 6.1.1.2. Evolution of volatility process
+
+Assume the volatility process is currently in state $i$ at time $t_{k-1}$. The process diffuses from $t_{k-1}$ towards $t_k$ with a volatility level of $\sigma_i(t_{k-1})$ using the above Euler scheme.
+
+When arriving at $t_k$ the volatility level $i$ will change to level $j$ with a probability $P(t_{k-1},t_k)_{ij}$.
+
+Once the new volatility state index $j$ for time $t_k$ is determined, the spot process will evolve another step according to above Euler Scheme with a new volatility value $\sigma_j(t_k)$.
+
+###### 6.1.1.2.1 Computation of the transition Probability Matrix
+
+When computing the transition probability matrix $P(s,t)$, a first order approximation would be sufficient for PDE pricing, as the time steps are small enough to justify the following approach
+
+$$P(s,t) \approx I + Q(s,t).$$
+
+However for Monte Carlo simulations one can expect longer time steps especially for long dated options (a monthly time step is quite common for instance). Therefore a more precise way to compute $P(s,t)$ is required. Given the equation 4.3, if $\tilde{Q}$ is diagonalizable, the transition generator matrix $Q(s,t)$ is also diagonalizable as follows :
+
+$$\tilde{Q} = \Gamma^{-1}D\Gamma, \quad (6.4)$$
+
+
+$$Q(s,t) = \left(\int_s^t q(u)du\right) F^{-1}DF := F^{-1}D(s,t)F,$$
+
+
+Where $D(s,t) := \int_s^t q(u)du$.
+
+Using linear algebra it is then possible to show that :
+
+
+$$P(s,t) = F^{-1} \exp (D(s,t))F,$$
+
+
+
+$$\exp (D(s,t)) = \begin{pmatrix} e^{d_1} & 0 & 0 \\ 0 & \ddots & 0 \\ 0 & 0 & e^{d_n} \end{pmatrix},$$
+
+
+where $(d_i)_{i=1,...,n}$ are the diagonal elements of matrix $D(s,t)$. Under 4.3, the diagonalization operation in (6.4) is only required once for $\bar{Q}$ at the beginning, and the elements of $D$ can be cached for future scaling.
+
+###### 6.1.1.2.2  Generation of Bernoullis
+
+To implement Markov Switching, one needs to use the Bernoulli random variables. The current QA Monte Carlo framework implements Gaussian random variables (for Brownian increments $\Delta W_k$).
+
+To sample a Bernoulli distribution from Gaussian random variables, an auxiliary vector is constructed as:
+
+$$
+\Phi^j (t_{k-1}, t_k) = \begin{bmatrix} N^{-1}\left(\sum_{j=1}^1 p_{ij}(t_{k-1},t_k)\right) \\ N^{-1}\left(\sum_{j=1}^2 p_{ij}(t_{k-1},t_k)\right) \\ \vdots \\ N^{-1}\left(\sum_{j=1}^n p_{ij}(t_{k-1},t_k)\right) = N^{-1}[1] = \infty \end{bmatrix}
+$$
+
+where $N^{-1}()$ is the inverse of the cumulative density function of a standard normal distribution.
+
+Elements in above vector are guaranteed in an ascending order as indexes increase. The sampling starts with drawing a standard Gaussian number $g \sim N(0,1)$, and then comparing it to each element of above auxiliary vector in an index ascending order. If we assume index $j$ corresponds to the first element in $\Phi^i (t_{k-1}, t_k)$ that is strictly larger than $g$, then index $j$ is selected as the next volatility state.
+
+Note that the above auxiliary vectors are calculated at the very beginning of the simulation (rather than generated along each simulation step). Therefore for each time step $[t_{k-1},t_k]$, we need to cache a $n \times n$ matrix containing $n$ auxiliary vectors $\Phi^i (t_{k-1}, t_k), i = 1, \ldots, n$ to make sure the sampling is available for any potential state $i$ at time $t_{k-1}$.
+
+### 6.2.  Inputs
+
+Monte Carlo inputs are supplied through FXMCCalculationPP. The various subgroups that we are interested in are :
+
+- FXDateOptionsStepSchedulePP which controls Monte Carlo stepping schedule.
+- FXMCPLSimulatorOptionPP which contains the simulator options.
+- FXMCRNGOptionsPP which contains settings for the underlying random number and path generator.
+
+(Please refer to http://qa.barcapint.com/QAWeb/Framework/Release.2450.00/QALib/PropertyPages for more details).
+
+#### 6.2.1.  FXMCDateOptionsPP
+
+| Input Name         | Description / Purpose                                                                                                                         | Default Setting | Recommended Setting                        |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- | --------------- | ------------------------------------------ |
+| MinNumStepsPerYear | At least this number of time steps per year; zero means use only the trade dates, negative means use all available dates from the calibration | 4               | Default                                    |
+| StepSchedule       | Time stepping schedule as a set of end tenors and step sizes, specified using FXDateOptionsStepSchedulePP                                     | -               | See below under FXDateOptionStepSchedulePP |
+| ValuationDate      | The valuation date for pricing                                                                                                                | -               | -                                          |
+
+#### 6.2.2.  FXDateOptionsStepSchedulePP
+
+| Input Name                               | Description / Purpose                                                                                                                                           | Default Setting | Recommended Setting |
+| ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- | ------------------- |
+| StepSchedule[i].PeriodLength             | Tenor length from the end of the previous period to which the step size applies – do not set for the last period                                               | -               | -                   |
+| StepSchedule[i].RequestedAverageStepSize | Amount (optional, assumed 1 if missing) and units of the requested step size                                                                                    | -               | -                   |
+| StepSchedule[i].UseForTheRemainder       | Whether this time step applies after the last tenor defined. This can only be true for the last period, and if this is true the PeriodLength must be left unset | -               | -                   |
+
+#### 6.2.3.  FXMCPLSimulatorOptionsPP
+
+| Input Name | Description / Purpose | Default Setting | Recommended Setting |
+|------------|----------------------|-----------------|---------------------|
+| NPaths | The number of paths for Monte-Carlo | 40000 | $2^n, n \geq 17$ |
+
+#### 6.2.4. FXMCRNGOptionsPP
+
+| Input Name | Description / Purpose | Default Setting | Recommended Setting |
+|------------|----------------------|-----------------|---------------------|
+| Seed | The seed for the pseudo-random number generator | 606497 | Any non-negative integer |
+| UseSobolForPathGeneration | Use Sobol for path generation | True | True |
+| SobolPseudoRandomSplitByModel | If true then the model determines how best to do the Sobol pseudo-random splitting. | True | True |
+| UseParallelMersenneTwister | Use the Parallel Mersenne Twister for path generation | True | True |
+| BatchIndexForParallelMT | Batch index for the parallel Mersenne Twister | 10 | Integer between 0 and 9999 (10) |
+| UseSpectralDecomposition | Use spectral decomposition for path generation (False/Unset = Brownian bridge) | False | False |
+| SobolSequenceType | Sobol Sequence Type, SOBOL_21201 or SOBOL_1111 | SOBOL_1111 | SOBOL_21201 |
+
+### 6.3. Limitations
+
+[L. 4] Monte-Carlo prices are less accurate when number of paths is too small and/or when time schedule is too coarse. User should check pricing result has converged with selected simulation settings such as the number of paths and time schedule.
+
+[L. 5] Observed convergence can be very slow in case of high vol-of-vol parameters. This is because a high vol-of-vol means a larger variance of the Monte Carlo estimators.
+
+## 7. Risk Measures
+
+### 7.1. Description
+
+Risk metrics (Greeks) are calculated by bumping market data and recalibrating the model (bump and recalibrate methodology). Monte Carlo engine reuses the random numbers that were used for the base valuation for variance reduction. Market data perturbations are performed by the QARisk2 framework [7], which is a shared framework, used across QA models, for risk and scenario calculations.
+
+### 7.2. Inputs
+
+QARisk2 metrics can be configured with a set of inputs, such as a bump size, bump style (multiplicative, additive, etc.), differencing type (central, above, below, etc.), etc. A full description of the metric and listing of the inputs expected by each metric can be found in [10].
+
+### 7.3. Limitations
+
+[L. 6] As in all models involving a smile volatility surface, failures can occur in risk if the original FX volatility surface is on the verge of breaking. This means that although the non-bumped volatility surface builds, a small change in the market data input can cause it to break in the bumped state. It is worth noticing however that the stability of the volatility surface has been extensively tested in Section 9.3 of [8], where the new feature allowing for constant moneyness interpolation proved to sensibly improve the quality of the volatility surface itself. This in turns reduces the probability of failures in the construction of the bumped volatility surface. In addition to the above, the desk has a validation put in place before publishing the volatility surface in order to minimize the occurrence of these failures at pricing time.
+
+## 8. Testing and Outcome Analysis  
+
+We describe here the results of the tests we have performed. We pick a set of representative trades for testing. All trades start and are valued on 3rd January 2018. The underlying rate is EURUSD and the notional is 1,000,000 Euro. Market data inputs are as of London Close on this date.
+
+| Name | Definition |
+|------|------------|
+| Vanilla | European Put and Call options on different expiries and strike levels. |
+| Volatility Swaps | A Volatility Swap with strike 0.0 and maturity 1Y. |
+
+The market data, model parameters and calibration settings used for the testing are summarized in 8.2.
+
+### 8.1. Testing Plan
+
+In this section we present an overview of all the tests by grouping them according to main themes:
+
+- Calibration correctness : repricing of FX Volatility inputs.
+- Consistency with LSV MS PDE.
+- CCAR Scenario Stress testing.
+- Sensitivity Analysis with respect to market inputs.
+- Sensitivity Analysis with respect to market parameters.
+
+In the following subsections, each covering one of the themes listed above, we provide the specific test performed, the official tests type that correspond to the official test grouping of the sections that will follow later in the chapter (like 'Accuracy and Convergence', 'Stability' or 'Boundary Cases', etc) and the corresponding section in the main part of the document that describes the feature being targeted by the test.
+
+#### 8.1.1. Calibration correctness : repricing of FX Volatility inputs
+
+Thanks to the local volatility correction, LSV MS MC is expected to be able to reprice perfectly the implied volatility surface it has been calibrated to. However, due to numerical approximations there will always be a small error. The below tests were designed to check that this error is within an acceptable range.
+
+| Test ID | Test Cases | Type | Section |
+|---------|------------|------|---------|
+| LSV MS MC 1 | Check convergence of LSV MS MC numerical method for a vanilla option. | Accuracy, Robustness and Stability Testing. | 5.1.1 |
+| LSV MS MC 2 | Check matching implied volatilities with Analytic pricer for short and long dated vanilla options. | Accuracy, Robustness and Stability 
+| LSV MS MC 4 | Check matching implied volatilities with Analytic pricer for different vol-of-vol values. | Accuracy, Robustness and Stability Testing. | 5.1.1 |
+| LSV MS MC 5 | In the worst case scenario observed in previous test, check convergence of numerical method by increasing the number of Montecarlo paths and the number of time steps | Accuracy, Robustness and Stability Testing. | 5.1.1 |
+
+#### 8.1.2. Consistency with LSV MS PDE
+
+We remind here that LSV MS PDE and LSV MS MC implements the same dynamics and differ only by the numerical method used for pricing. To check the accuracy of the LSV MS MC implementation as well as the convergence we therefore compare results with LSV MS PDE for a volatility swap, a product which is dependent on the stochastic volatility dynamics.
+
+| Test ID | Test Cases | Type | Section |
+|---------|------------|------|---------|
+| LSV MS MC 6 | Check convergence of LSV MS MC numerical method toward LSV MS PDE for a Volatility Swap. | Benchmarking | 6.1 |
+| LSV MS MC 7 | Check matching prices between LSV MS MC and LSV MS PDE for a Volatility Swap for different strikes prices. | Benchmarking | 6.1 |
+| LSV MS MC 8 | Check matching prices between LSV MS MC and LSV MS PDE for a Volatility Swap for different transition q parameters. | Benchmarking | 6.1 |
+| LSV MS MC 9 | Check matching prices between LSV MS MC and LSV MS PDE for a Volatility Swap for different vol-of-vol parameters. | Benchmarking | 6.1 |
+
+#### 8.1.3. CCAR Scenario Stress testing
+
+In these tests we check the robustness of the model by using the CCAR 2018 Adverse Market shocks and the CCAR 2018 Severely Adverse Market shocks.
+
+| Test ID | Test Cases | Type | Section |
+|---------|------------|------|---------|
+| LSV MS MC 10 | Compute the PVs obtained for different ladders of the Adverse and Severely Adverse CCAR scenarios for a Volatility Swap | Scenario and Stress-testing | 6.1 |
+
+#### 8.1.4. Sensitivity Analysis with respect to Market Inputs
+
+The purpose of these tests is to evaluate the PV and risks sensitivities to incremental changes of market data. The main market variables risk factors are spot rates and FX volatility so we focus on these. We apply different shocks to these pieces of market data and observe if PV, Delta, Gamma, Vega, Near Rega, Far Rega, Near Sega and Far Sega show any unstable performance under the LSV MS model. Volatility bumps are additive while spot bumps are multiplicative.
+
+| Test ID | Test Cases | Type | Section |
+|---------|------------|------|---------|
+| LSV MS MC 11 | Check the impact of ATM volatility shifts for different levels of the spot on PV, Delta, Gamma, Vega, Near Rega, Far Rega, Near Sega and Far Sega for a Volatility Swap | Sensitivity Analysis | 6.1 |
+
+#### 8.1.5. Sensitivity Analysis with respect to Model Parameters
+
+The purpose of these tests is to evaluate the PV and risks sensitivities to incremental changes of vol-of-vol and transition term structure. We apply different shocks to these model parameters and observe if PV, Delta, Gamma, Vega, Near Rega, Far Rega, Near Sega and Far Sega show any unstable performance under the LSV MS model. Both bumps to α and q are multiplicative.
+
+| Test ID | Test Cases | Type | Section |
+|---------|------------|------|---------|
+| LSV MS MC 12 | Check the impact of vol-of-vol shifts for different levels of the transition q on PV, Delta, Gamma, Vega, Near Rega, Far Rega, Near Sega and Far Sega of a Volatility Swap | Sensitivity Analysis | 6.1 |
+
+### 8.2. Market Data, Model Parameters and Calibration Settings
+
+#### 8.2.1. Market Data and Model Parameters
+
+| Item | Moniker | Note |
+|------|---------|------|
+| FX Spot | official@20180103/chain.fx/fxderivsldnclose/usd/corrected | EURUSD |
+| Yield Curve | official@20180103/curve.fi/ldnficlose/nccurveset/USD/mid/curveset/csaPP | EUR |
+| Yield Curve | official@20180103_curve.fi/ldnficlose_nccurveset/XCY/mid/eur/xccy/csaPP | USD |
+| FX Volatility | official@20180103/volsurface.fx/pivot/eurusd/meanrevertingextratenors/builder | EURUSD Vol, short term |
+| FX Volatility | official@20180103/volsurface.fx/pivot/eurusd/LongDateLdnClose/builder | EURUSD Vol, long term |
+
+##### Vol-of-Vol Term Structure
+
+| Tenor | 1W | 2W | 1M | 3M | 6M | 9M | 1Y | 2Y | 3Y | 5Y | 10Y | 20Y |
+|-------|----|----|----|----|----|----|----|----|----|----|-----|-----|
+| Vol-of-Vols | 1.2 | 0.95 | 0.85 | 0.8 | 0.7 | 0.67 | 0.65 | 0.65 | 0.55 | 0.5 | 0.6 | 0.59 |
+
+##### Transition q Term Structure
+
+| Tenor | 1W | 2W | 1M | 2Y | 5Y | 10Y | 20Y |
+|-------|----|----|----|----|----|----|-----|
+| Transition q | 3.8 | 3.8 | 2 | 0.8 | 0.4 | 0.2 | 0.2 |
+
+#### 8.2.2. Calibration Settings
+
+| Parameter | Value |
+|-----------|-------|
+| Number of Monte Carlo Paths | 40,000 |
+| Calibration, number of Time steps | Schedule shared with simulation |
+| Calibration, number of Spot steps | 200 |
+
+| Period Length | 2M | 5Y | ∞ |
+|---------------|----|----|---|
+| Steps Frequency | D | W | 2W |
+
+### 8.3. Accuracy, Robustness and Stability Testing
+
+#### 8.3.1. LSV MS MC Test 1: Check convergence of numerical method for a vanilla option
+
+We first want to check that 40000 is a reasonable number of paths which enables us to obtain a good level of precision.
+
+Below is a summary of PVs (expressed as implied volatilities) when we raise the number of Monte Carlo paths for a 1Y Vanilla.
+
+| Number of MC paths | LSVMSMC | LSVMSMC 95% Confidence Interval Estimation | LSVMSPDE | Difference (%) |
+|-------------------|---------|-------------------------------------------|----------|---------------|
+| 1,000 | 0.0751 | [ 0.0711-0.0791 ] | 0.0731 | 0.6036 |
+| 2,000 | 0.0731 | [ 0.0701-0.0761 ] | 0.0731 | 0.3050 |
+| 4,000 | 0.0729 | [ 0.0708-0.0750 ] | 0.0731 | 0.1917 |
+| 10,000 | 0.0731 | [ 0.0718-0.0745 ] | 0.0731 | 0.1400 |
+| 20,000 | 0.0726 | [ 0.0717-0.0735 ] | 0.0731 | 0.0481 |
+| 30,000 | 0.0731 | [ 0.0724-0.0739 ] | 0.0731 | 0.0807 |
+| 40,000 | 0.0729 | [ 0.0722-0.0735 ] | 0.0731 | 0.0452 |
+| 50,000 | 0.0726 | [ 0.0720-0.0732 ] | 0.0731 | 0.0165 |
+| 60,000 | 0.0731 | [ 0.0726-0.0737 ] | 0.0731 | 0.0589 |
+| 100,000 | 0.0729 | [ 0.0725-0.0734 ] | 0.0731 | 0.0305 |
+| 150,000 | 0.0729 | [ 0.0725-0.0732 ] | 0.0731 | 0.0163 |
+| 200,000 | 0.0726 | [ 0.0723-0.0729 ] | 0.0731 | 0.0198 |
+
+We observe the convergence of the Monte Carlo numerical method. We observe a small difference with the PDE scheme results which is due to different time discretization.
+
+#### 8.3.2. LSV MS MC Test 6: Check convergence of numerical method for a Volatility Swap
+
+Below is a summary of PVs when we raise the number of Monte Carlo paths for the Volatility Swap trade (PVs have been floored to nearest number for clarity):
+
+| Number of MC paths | LSVMSMC | LSVMSMC 95% Confidence Interval Estimation | LSVMSPDE | Absolute Difference |
+|-------------------|---------|-------------------------------------------|----------|-------------------|
+| 1,000 | 90,377 | [ 89,304-91,449 ] | 90,287 | 89 |
+| 2,000 | 91,740 | [ 90,965-92,515 ] | 90,287 | 453 |
+| 4,000 | 90,499 | [ 90,958-91,041 ] | 90,287 | 212 |
+| 10,000 | 90,084 | [ 90,748-90,420 ] | 90,287 | 202 |
+| 20,000 | 90,193 | [ 90,956-90,431 ] | 90,287 | 93 |
+| 30,000 | 90,203 | [ 90,009-90,397 ] | 90,287 | 84 |
+| 40,000 | 90,316 | [ 90,147-90,486 ] | 90,287 | 29 |
+| 50,000 | 90,275 | [ 90,123-90,427 ] | 90,287 | 12 |
+| 60,000 | 90,284 | [ 90,146-90,422 ] | 90,287 | 2 |
+| 100,000 | 90,211 | [ 90,105-90,318 ] | 90,287 | 75 |
+| 150,000 | 90,286 | [ 90,199-90,373 ] | 90,287 | 1 |
+| 200,000 | 90,290 | [ 90,214-90,366 ] | 90,287 | 2 |
+
+We observe the convergence of the Monte Carlo numerical method. In production we use 40,000 paths as the computation/precision ratio is the most satisfying for this number for the FX market (for instance difference is less than bid offer spread). A larger number can be used by traders at the expense of a larger computation time.
+
+#### 8.3.3. LSV MS MC Test 2: Check matching implied volatilities with Analytic pricer for short and long dated vanilla options
+
+In this section we look at how well European options are repriced. We compare the results of LSV MS MC against the results of the Analytical pricer which outputs directly the market data values.
+
+For short term options:
+
+![Comparison between Analytic and LSV MS MC pricers for short term vanilla options](https://i.imgur.com/placeholder.jpg)
+
+For long term options:
+
+![Comparison between LSV MS MC and Analytic pricers for long term vanilla options](https://i.imgur.com/placeholder2.jpg)
+
+We observe a good match between the model and the data it has been calibrated to. The maximum error is 24 bps. As a reference, the bid-ask spread on a 1Y ATM vanilla is about 25 bps and for a 10Y ATM it is about 180 bps.
+
+### 8.3.4. LSV MS MC Test 3 : Check matching implied volatilities with Analytic pricer for different $q$ parameter values
+
+In these tests we want to check if vanillas options are still repriced correctly as we shift the q parameter. We have chosen 10Y vanillas.
+
+We observe a good match between the model and the data it has been calibrated to (8 bps).
+
+**Comparison between LSV MS MC and Analytic pricers for different q parameter values**
+
+![lsv_mc_analytic_comparison](./Fig/lsv_mc_analytic_comparison.jpg)
+
+We observe a good match between the model and the data it has been calibrated to (8 bps).
+
+**Comparison between LSV MS MC and Analytic pricers for different q parameter values**
+
+![implied_volatility_difference](./Fig/implied_volatility_difference.jpg)
+
+PVs change smoothly between ladders and no calibration failure is observed. The model supports well stressed periods with high market moves.
+
+### 8.4. Scenario and Stress-testing
+
+The purpose of stress testing is to verify that the model continues to function under significant market movements.
+
+### 8.4.1. LSV MS MC Test 10 : CCAR Scenarios
+
+The model was tested using the CCAR 2018 Adverse Market shocks [17] and the CCAR 2018 Severely Adverse Market shocks [18]. The volatility surface and the FX Spot are simultaneously bumped.
+We use again the Volatility Swap.
+
+| Ladder | Adverse PV | Severely Adverse PV |
+|--------|------------|---------------------|
+| Base   | 90,316     | 90,316              |
+| 10%    | 94,447     | 97,777              |
+| 20%    | 99,528     | 103,159             |
+| 30%    | 103,561    | 109,464             |
+| 40%    | 107,545    | 116,694             |
+| 50%    | 110,480    | 122,849             |
+| 60%    | 114,367    | 128,931             |
+| 70%    | 118,207    | 134,938             |
+| 80%    | 122,998    | 140,873             |
+| 90%    | 126,742    | 146,735             |
+| 100%   | 129,437    | 152,524             |
+
+PVs change smoothly between ladders and no calibration failure is observed. The model supports well stressed periods with high market moves.
+
+![volatility_swap_adverse_scenario](./Fig/volatility_swap_adverse_scenario.jpg)
+
+![volatility_swap_severely_adverse_scenario](./Fig/volatility_swap_severely_adverse_scenario.jpg)
+
+### 8.5. Sensitivity Analysis
+
+The purpose of this section is to test the PV and risks sensitivities to incremental changes of market data and model parameters. In the model, the most impacting market variables are the spot rate and the implied volatility surface. The most relevant model parameters are the vol-of-vol α and the transition term structure q. We apply different shocks to these pieces of market data and model parameters and observe if PV, Delta, Gamma, Vega, Near Rega, Near Sega, Far Rega and Far Sega show any unstable performance under the LSVMS model.
+
+We use the Volatility Swap trade as stated in section 8.1.
+
+#### 8.5.1. LSV MS MC Test 11 : Sensitivity with respect to market inputs
+
+All risks look smooths. The results for Gamma are less smooth but this is expected as Gamma is a second order derivative and therefore is more sensitive to numerical approximations.
+
+As expected the Present Value is an increasing (approximately linear) function of the ATM volatility. It is also an increasing function of the Spot which is consistent with a positive Risk Reversal term structure of EURUSD at the valuation day (which means higher volatility at higher strikes).
+
+#### Relative Shift of Spot and ATM Vol: Delta CCY1
+
+![delta_ccy1](./Fig/delta_ccy1.jpg)
+
+#### Relative Shift of Spot and ATM Vol: Delta CCY2
+
+![delta_ccy2](./Fig/delta_ccy2.jpg)
+
+#### Comparison between LSV MS MC and LSV MC PDE for different strikes values
+
+![strike_comparison](./Fig/strike_comparison.jpg)
+
+#### Comparison between LSV MS MC and LSV MC PDE for different q parameter values
+
+![q_parameter_comparison](./Fig/q_parameter_comparison.jpg)
+
+#### Comparison between LSV MS MC and LSV MC PDE for different Vol of Vol values
+
+![vol_of_vol_comparison](./Fig/vol_of_vol_comparison.jpg)
+
+#### FX LSV Markov Switching : Monte Carlo
+QA Macro Products, 3 September 2018
+
+#### 8.5.2. LSV MS MC Test 12 : Sensitivity with respect to model parameters
+
+We see straight away that the vol-of-vol is the parameter with the greatest impact. The risks behave smoothly and we can see that, as expected, all results are the same for a transition parameter q equal to zero. This is because the stochastic part of the volatility is removed and the model is equivalent to a Local Volatility model regardless of the volatility.
+
+![pv_q_parameter](./Fig/pv_q_parameter.jpg)
+
+Relative Shift of Vol of Vol for different q parameter values: PV
+
+![far_sega](./Fig/far_sega.jpg)
+
+Relative Shift of Vol of Vol for different q parameter values: Far Sega
+
+### 8.6. Back-testing
+
+Not applicable.
+
+### 8.7. Benchmarking
+
+#### 8.7.1. LSV MS MC Test 7 : Check matching prices between LSV MS MC and LSV MS PDE for a Volatility Swap for different strikes prices
+
+We observe a very close match across all risks. The maximum difference in PV is below 1 bp of notional, which is very low and well under the bid ask spread for this kind of exotic products. Except for the present value and the Delta CCY1, risks are independent of strike as expected. Note that the differences on the graphs are small in relative value.
+
+![pv_strikes_comparison](./Fig/pv_strikes_comparison.jpg)
+
+Comparison between LSV MS MC and LSV MC PDE for different strikes values
+
+![delta_ccy1_strikes](./Fig/delta_ccy1_strikes.jpg)
+
+![delta_ccy2_strikes](./Fig/delta_ccy2_strikes.jpg)
+
+![gamma_strikes](./Fig/gamma_strikes.jpg)
+
+![vega_strikes](./Fig/vega_strikes.jpg)
+
+![near_sega_strikes](./Fig/near_sega_strikes.jpg)
+
+![far_rega_strikes](./Fig/far_rega_strikes.jpg)
+
+![far_sega_strikes](./Fig/far_sega_strikes.jpg)
+
+#### 8.7.2. LSV MS MC Test 8 : Check matching prices between LSV MS MC and LSV MS PDE for a Volatility Swap for different transition q parameters
+
+Again we observe a close match between risks. The maximum difference in PV is below 1 bp of notional, which is very low and well under the bid ask spread for this kind of exotic products. We observe small discrepancies for some of the risks (especially Delta CCY2 and Gamma). These discrepancies are expected and tolerated : for more precision on these risks one need to use a higher
+
+![pv_q_values](./Fig/pv_q_values.jpg)
+
+Comparison between LSV MS MC and LSV MC PDE for different q parameter values
+
+![delta_ccy1_q](./Fig/delta_ccy1_q.jpg)
+
+![delta_ccy2_q](./Fig/delta_ccy2_q.jpg)
+
+![gamma_q](./Fig/gamma_q.jpg)
+
+![near_rega_q](./Fig/near_rega_q.jpg)
+
+![near_sega_q](./Fig/near_sega_q.jpg)
+
+![far_rega_q](./Fig/far_rega_q.jpg)
+
+![far_sega_q](./Fig/far_sega_q.jpg)
+
+Comparison between LSV MS MC and LSV MC PDE for different Vol of Vol values
+
+### 8.8. Other Analysis / Testing
+
+![far_sega_vol](./Fig/far_sega_vol.jpg)
+
+## 9. Assumptions and Limitations
+
+Model Assumptions
+
+| | Assumption | Justification & Impact | Reference |
+|---|---|---|---|
+| [A.0] | No-arbitrage and frictionless market (no transaction cost, no bid-ask spread, no restrictions on trade such as margin requirements or short sale restrictions, no tax). | These are basic pricing assumptions, also very large institutional traders approximate frictionless markets since their transaction costs are minimal. | N/A |
+| [A.1] | The stochastic Markov chain is independent of the Brownian motion that drives the underlying spot. | The spot and volatility processes are naturally correlated by the local volatility correction A(t, S(t)). | N/A |
+| [A.2] | The Transition Generator Matrix has to satisfy equation 4.3. | This is a simplification to make it easy for the traders to mark the transition probability structure : they mark one parameter instead of a whole matrix. | N/A |
+| [A.3] | The volatility of volatility α(u) and the transition matrix term structure q(u) are piecewise constant in time. | Piecewise constancy is the choice maintaining balance between simplicity and generality : piecewise constant functions are easy to mark for the traders and they can approximate a very large set of functions. | N/A |
+| [A.4] | Both the domestic and foreign interest rates are assumed to be deterministic. | The stochastic interest rate effect is not taken into account. | N/A |
+| [A.5] | The number of states for the Markov chain used in production is equal to 3. | Any trade probing this assumption would have a quite specific dependence on the volatility process and therefore have a price that depends heavily on the details of the stochastic volatility component. As such, this would not be a trade suitable for the bank book. | N/A |
+| [A.6] | The matrix Q is set by default as in 4.5. | However, it is possible to use any other matrix which satisfies conditions (i)-(iv) from Section 4.2. | N/A |
+
+Model Limitations
+
+| | Limitation | Justification, Mitigation & Impact | Reference |
+|---|---|---|---|
+| [L.1] | This model is a one asset model. It is not suitable for multi-asset trades. | This model can only be used for one asset trades | N/A |
+| [L.2] | As the local volatility correction is calibrated to the smile volatility surface, there is a direct dependence on the quality of the input market data. If the volatility surface has noisy local volatility, this will feed directly to the local volatility correction parameters in the model. | This limitation is a direct consequence of possible defaults in the input volatility surface. | N/A |
+| [L.3] | Also, as in every local stochastic volatility model, care needs to be taken when we have high vol-of-vols as trade maturity increases. It can be numerically challenging and the accuracy of the calibration to vanillas could suffer. | An increase of the PDE settings would be required to improve the accuracy. | N/A |
+| [L.4] | Monte-Carlo prices are less accurate when number of paths is too small and/or when time schedule is too coarse. | User should check pricing result has converged with selected simulation settings such as the number of paths and time schedule. | N/A |
+| [L.5] | Observed convergence can be very slow in case of high vol-of-vol parameters. | This is because a high vol-of-vol means a larger variance of the Monte Carlo estimators. User should check pricing result has converged with selected simulation settings such as the number of paths and time schedule. | N/A |
+| [L.6] | Risking limitations: as in all models involving a smile volatility surface, failures can occur in risk if the original FX volatility surface is on the verge of breaking. | The stability of the volatility surface has been extensively tested in Section 9.3 of [8], where the new feature allowing for constant moneyness interpolation proved to sensibly improve the quality of the volatility surface itself. This in turns reduces the probability of failures in the construction of the bumped volatility surface. | N/A |
+
+## 10. QA Implementation Environment and Controls
+
+The LSV MS MC has been implemented in the QAlib inside the Monte Carlo framework. For more information on this please refer to [19].
+
+The pricing of assets using the MC engine uses PADLA scripts, please refer to [20].
+
+In addition to this, ad-hoc tests have been created to check the stability and robustness of the LSVMS model. They are constantly monitored and can be found in the following Perforce folder : //depot/QA/QAConsultancy/QAConsultancy_main.br/Testing/Tests/QABurn/FX/Regression/MRM/4198.
+
+## 11. Model Monitoring – KPIs
+
+N/A
+
+## 12. References
+
+[1] Quantitative Analytics team (2018), LSV Markov Switching Model : PDE, Xsigma Capital, QA internal document, http://qa.barcapint.com/Publications/Models/Macro/FX/Models/LSV/LSVMS_PDE_GMD4188.pdf.
+
+[2] N.Oliver (2012), Computing the Distribution of the Variance in a Markov Switching Model, Xsigma Capital, QA internal document, http://qa.barcapint.com/Publications/Models/Macro/FX/Models/LSV/MarkovSwitchingVarianceDistribution.pdf.
+
+[3] P. Austing (2014), Smile Pricing Explained, Palgrave Macmillan UK.
+
+[4] I. J. Clark (2015), Foreign Exchange Option Pricing - a Practitioner's guide, Wiley Finance.
+
+[5] L.Sadiq (2011), LSV Markov Switching qualitative analysis, Xsigma Capital, QA internal document, http://qa.barcapint.com/Publications/Models/Macro/FX/Models/LSV/QualitativeAnalysisLSVMarkovSwitchingOnePlus.pdf.
+
+[6] C.Homescu (2014), Local Stochastic Volatility Models: Calibration and Pricing.
+
+[7] Quantitative Analytics team (2014), QARisk2 Documentation Index, QA internal document.
+
+[8] Quantitative Analytics team (2017), FX Analytic Volatility Surface : Build, http://qa.barcapint.com/Publications/Models/Macro/FX/MarketData/FXVolSurfaces/FX_3pt_5pt_Analytic_VolatilitySurface_Build.pdf.
+
+[9] B. Dupire (1994), Pricing with a smile, Risk.
+
+[10] Quantitative Analytics team, AEMetricsTopic, Xsigma Capital, QA internal document, http://qa:8080/wiki/AEMetricsTopic_(QATopic).
+
+[11] G. Farnan (2010), Multi-Currency Aggregation of FX Delta and Gamma Risk, Xsigma Capital, QA internal document, http://qa.barcapint.com/Publications/Models/Macro/FX/Risk/FX%20Risk%20Measures/MultiCurrencyRiskAggregation.pdf.
+
+[12] Quantitative Analytics team, FX European Option PTax, QA, Xsigma Capital, London, PTax131, http://qa.barcapint.com/Publications/Models/Macro/FX/Trades/PTax/PTax_131_FX_European_Option.PDF.
+
+[13] Quantitative Analytics team, FX Vanilla on Black. QA, Xsigma Capital, London, GMD4187. http://qa.barcapint.com/Publications/Models/Macro/FX/Models/FXVanillaBlack/FXVanillaOptionsOnBlack.pdf.
+
+[14] Quantitative Analytics team, FX Volatility Swap PTax, Xsigma Capital, QA internal document, http://qa.barcapint.com/Publications/FX/Templates/CTR_3.6/FXVolatilitySwap.xsd
+
+[15] K.Yendapalli (2016), Local Volatility: PDE and MC, Xsigma Capital, QA internal document, http://qa.barcapint.com/Publications/Models/Macro/FX/Models/LV/FX%20Local%20Volatility%20-%20PDE%20and%20MC.pdf.
+
+[16] D.Madan, Y.Ren, M.Qian Qian (2007), Calibrating and pricing with embedded local volatility models, Risk.
+
+[17] Federal Reserve (2018), CCAR 2018 Adverse Market Shocks, https://www.federalreserve.gov/supervisionreg/files/ccar-2018-adverse-market-shocks.xlsx.
+
+[19] Quantitative Analytics team, The Generic Monte Carlo Engine, http://qa.barcapint.com/publications/Models/EDG/Monte%20Carlo/The%20Generic%20Monte%20Carlo%20Engine.doc.
+
+[20] Padla QAWiki page, Xsigma Capital, QA internal document, http://qa.barcapint.com:8080/wiki/Padla
+
+[21] S. Frankau (2007), Notes on Using Sobol's Sequences, Xsigma Capital, QA internal document, http://qa.barcapint.com/publications/Models/EDG/Monte%20Carlo/Random%20Number%20Generators/sobol.pdf.
+
+[22] S.Joe and F.Y.Kuo, Construction Sobol Sequences with better two dimensional Projections.## B. Appendix: Peer Reviewer Sign off
+
+## A. Appendix: Glossary
+
+| Name | Definition |
+|------|------------|
+| LV | Local Volatility. |
+| LSV | Local Stochastic Volatility. |
+| LSV MS | Local Stochastic Volatility Markov Switching. |
+| LSV MS MC | Local Stochastic Volatility Markov Switching with Monte Carlo scheme. |
+| LSV MS PDE | Local Stochastic Volatility Markov Switching with Partial Differential Equation scheme. |
+| MC | Monte Carlo. |
+| PADLA | QA Payout Definition Language. |
+| PDE | Partial Differential Equation. |
+| PDF | Probability Density Function. |
+| PV | Present Value. |
+| SDE | Stochastic Differential Equation. |
+| SV | Stochastic Volatility. |
+| UMIFX | Unified model interface for FX. |
+| Vol-of-vol | Volatility of volatility. |

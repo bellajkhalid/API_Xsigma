@@ -1,0 +1,588 @@
+# Implementation / Numerical Schema Description
+
+## Implementation Architecture
+
+The volatility fitter implementation is organized as a `volatilityFitter` class whose member variables are all the input parameters. It contains a `fit()` function that triggers the fitting process and returns the fitting report.
+
+```cpp
+// Our project implementation of main VolatilityFitter class
+namespace xsigma {
+    class VolatilityFitter {
+    public:
+        // Constructor with complete configuration
+        VolatilityFitter(
+            const FittingConfig& config,
+            const MarketData& market_data,
+            const QualityInstructions& quality_instructions)
+            : config_(config), market_data_(market_data), 
+              quality_instructions_(quality_instructions) {}
+        
+        // Main fitting function
+        FittingReport fit() {
+            FittingReport report;
+            
+            // Step 1: Quote processing and repo fitting
+            auto inversion_report = implied_volatility_from_quotes();
+            report.inversion_report = inversion_report;
+
+            // Step 2: Surface parameter fitting
+            auto surface_report = fit_volatility_surface_from_report(inversion_report);
+            report.surface_report = surface_report;
+
+            // Step 3: Validation and post-fitting controls
+            report.validation_report = performPostFitChecks(surface_report);
+            
+            return report;
+        }
+        
+    private:
+        FittingConfig config_;
+        MarketData market_data_;
+        QualityInstructions quality_instructions_;
+        
+        InversionReport implied_volatility_from_quotes();
+        SurfaceReport fit_volatility_surface_from_report(const InversionReport& report);
+        ValidationReport performPostFitChecks(const SurfaceReport& surface);
+    };
+}
+```
+*This C++ implementation in Our project shows the main volatility fitter architecture with clear separation of responsibilities.*
+
+## Process Description
+
+The volatility fitter implementation centers around the `fit()` function, which operates in two sequential steps:
+
+1. **Quote Processing and Repo Fitting** (`implied_volatility_from_quotes()`)
+2. **Surface Parameter Fitting** (`fit_volatility_surface_from_report()`)
+
+### Step 1: Quote Processing Pipeline
+
+The `implied_volatility_from_quotes()` function executes through the following sequence:
+
+| Nom de Fonction | Objectif | Output |
+|-----------------|----------|--------|
+| `filter_aggregated_quotes()` | Preprocessing and quote organization | Quote lists ordered by maturity with ATM indices |
+| `implied_repo_curve_from_quotes()` | ATM-based repo curve calibration | Adjusted repo rates corresponding to Call/Put volatilities |
+| `invert_premiums()` | Premium-to-volatility conversion | Implied volatilities using adjusted repo curve |
+| `volatility_inversion_report()` | Result consolidation | Complete inversion report with inverted volatilities, repo curve data, updated forward curve |
+
+```cpp
+// Our project implementation of quote processing pipeline
+namespace xsigma {
+    class QuoteProcessingPipeline {
+    public:
+        InversionReport processQuotes(const std::vector<OptionQuote>& raw_quotes) {
+            InversionReport report;
+            
+            // Step 1: Filtering and organization
+            auto filtered_quotes = filter_aggregated_quotes(raw_quotes);
+            report.filtered_quotes = filtered_quotes;
+
+            // Step 2: Repo calibration
+            auto repo_curve = implied_repo_curve_from_quotes(filtered_quotes);
+            report.repo_curve = repo_curve;
+
+            // Step 3: Premium inversion
+            auto implied_vols = invert_premiums(filtered_quotes, repo_curve);
+            report.implied_volatilities = implied_vols;
+
+            // Step 4: Consolidation
+            report.forward_curve = updateForwardCurve(repo_curve);
+            report.quality_metrics = calculateQualityMetrics(implied_vols);
+            
+            return report;
+        }
+        
+    private:
+        std::vector<OptionQuote> filter_aggregated_quotes(const std::vector<OptionQuote>& quotes);
+        RepoCurve implied_repo_curve_from_quotes(const std::vector<OptionQuote>& quotes);
+        std::vector<ImpliedVolPoint> invert_premiums(const std::vector<OptionQuote>& quotes, 
+                                                    const RepoCurve& repo_curve);
+        ForwardCurve updateForwardCurve(const RepoCurve& repo_curve);
+    };
+}
+```
+*This C++ implementation in Our project structures the quote processing pipeline with error handling and quality metrics.*
+
+### Brent Algorithm for Root Finding
+
+All numerical root-finding operations use the Brent algorithm, combining bisection, secant, and inverse quadratic interpolation methods for optimal convergence.
+
+```cpp
+// Our project implementation of Brent algorithm
+namespace xsigma {
+    class BrentSolver {
+    public:
+        struct SolverConfig {
+            double tolerance = 1e-8;
+            int max_iterations = 100;
+            bool use_adaptive_bounds = true;
+        };
+        
+        double solve(
+            const std::function<double(double)>& objective,
+            double lower_bound,
+            double upper_bound,
+            const SolverConfig& config = {}) {
+            
+            // Initial bounds verification
+            double fa = objective(lower_bound);
+            double fb = objective(upper_bound);
+            
+            if (fa * fb > 0) {
+                throw std::runtime_error("Brent solver: function values at bounds have same sign");
+            }
+            
+            double a = lower_bound, b = upper_bound, c = upper_bound;
+            double fc = fb, d = 0, e = 0;
+            
+            for (int iter = 0; iter < config.max_iterations; ++iter) {
+                // Adaptive method selection
+                if (std::abs(fc) < std::abs(fb)) {
+                    // Swap to maintain |f(b)| <= |f(c)|
+                    std::swap(a, c); std::swap(fa, fc);
+                    std::swap(b, c); std::swap(fb, fc);
+                }
+                
+                // Test de convergence
+                double tol = 2 * config.tolerance * std::abs(b) + config.tolerance;
+                double m = 0.5 * (c - b);
+                
+                if (std::abs(m) <= tol || std::abs(fb) <= config.tolerance) {
+                    return b;  // Convergence atteinte
+                }
+                
+                // Method choice: interpolation vs bisection
+                if (std::abs(e) >= tol && std::abs(fa) > std::abs(fb)) {
+                    // Tentative d'interpolation
+                    double s = fb / fa;
+                    double p, q;
+                    
+                    if (a == c) {
+                        // Interpolation quadratique inverse
+                        p = 2 * m * s;
+                        q = 1 - s;
+                    } else {
+                        // Interpolation quadratique inverse
+                        q = fa / fc;
+                        double r = fb / fc;
+                        p = s * (2 * m * q * (q - r) - (b - a) * (r - 1));
+                        q = (q - 1) * (r - 1) * (s - 1);
+                    }
+                    
+                    if (p > 0) q = -q;
+                    else p = -p;
+                    
+                    // Test d'acceptation de l'interpolation
+                    if (2 * p < std::min(3 * m * q - std::abs(tol * q), std::abs(e * q))) {
+                        e = d; d = p / q;  // Interpolation accepted
+                    } else {
+                        d = m; e = d;      // Forced bisection
+                    }
+                } else {
+                    d = m; e = d;          // Bissection
+                }
+                
+                // Update
+                a = b; fa = fb;
+                b += (std::abs(d) > tol) ? d : (m > 0 ? tol : -tol);
+                fb = objective(b);
+                
+                // Maintien de l'encadrement
+                if ((fb > 0 && fc > 0) || (fb < 0 && fc < 0)) {
+                    c = a; fc = fa; d = e = b - a;
+                }
+            }
+            
+            throw std::runtime_error("Brent solver: maximum iterations exceeded");
+        }
+    };
+}
+```
+*This C++ implementation in Our project provides a robust Brent solver with adaptive method selection and comprehensive error handling.*
+
+### Step 2: Surface Parameter Fitting
+
+The `fit_volatility_surface_from_report()` function instantiates a `vol_param_fitter` class and executes the following optimization sequence:
+
+#### Initialization Phase
+- Processes the volatility inversion report
+- Applies data quality filters
+- Initializes optimization parameters
+- Configures fitting environment
+
+#### Pipeline d'Optimisation
+
+| Fonction | Description | Livrables |
+|----------|-------------|-----------|
+| `local_fit()` | Maturity-specific parameter calibration | • Liquid maturity parameters<br>• Gap interpolation results |
+| `fit_term_structures()` | Term structure parameter optimization | • Fitted TS parameters<br>• Continuous parameter curves |
+| `global_fit()` | Surface-wide parameter refinement | • Globally optimized parameters<br>• Arbitrage-free constraints |
+| `extrapolate_vol_surface()` | Surface extension and completion | • Complete parameter surface<br>• Boundary region handling |
+
+```cpp
+// Our project implementation of surface optimization pipeline
+namespace xsigma {
+    class SurfaceParameterFitter {
+    public:
+        struct OptimizationPhases {
+            bool enable_local_fit = true;
+            bool enable_term_structure_fit = false;
+            bool enable_global_fit = false;
+            bool enable_extrapolation = true;
+        };
+        
+        SurfaceReport fitSurface(
+            const InversionReport& inversion_report,
+            const OptimizationPhases& phases) {
+            
+            SurfaceReport report;
+            
+            // Phase d'initialisation
+            initializeOptimization(inversion_report);
+            
+            // Pipeline d'optimisation
+            if (phases.enable_local_fit) {
+                report.local_fit_results = performLocalFit();
+            }
+            
+            if (phases.enable_term_structure_fit) {
+                report.ts_fit_results = fitTermStructures(report.local_fit_results);
+            }
+            
+            if (phases.enable_global_fit) {
+                report.global_fit_results = performGlobalFit(report.ts_fit_results);
+            }
+            
+            if (phases.enable_extrapolation) {
+                report.final_surface = extrapolateVolSurface(report);
+            }
+            
+            return report;
+        }
+        
+    private:
+        void initializeOptimization(const InversionReport& report);
+        LocalFitResults performLocalFit();
+        TSFitResults fitTermStructures(const LocalFitResults& local_results);
+        GlobalFitResults performGlobalFit(const TSFitResults& ts_results);
+        VolatilitySurface extrapolateVolSurface(const SurfaceReport& report);
+    };
+}
+```
+*This C++ implementation in Our project organizes the surface optimization pipeline with configurable phases and intermediate result management.*
+
+### Optimization Methods
+
+Each optimization phase employs the Brent algorithm for root finding, adaptively selecting between:
+
+- **Bisection method** : Guaranteed convergence but slower
+- **Secant method** : Fast convergence but not guaranteed
+- **Inverse quadratic interpolation** : Super-linear convergence under good conditions
+
+### NAG E04UFA Solver
+
+The main optimization uses the NAG E04UFA solver for constrained nonlinear programming:
+
+#### Optimization Problem
+
+**Minimize** $F(x)$ **subject to:**
+
+$$l \leq \begin{pmatrix} x \\ A_L x \\ c(x) \end{pmatrix} \leq u$$
+
+**Where:**
+- $F(x)$ : Smooth nonlinear objective function
+- $l, u$ : Parameter bounds
+- $A_L$ : Linear constraint matrix ($n_L \times n$)
+- $c(x)$ : Nonlinear constraint vector ($n_N$ elements)
+
+#### Requirements
+
+- **Twice differentiable functions** : Objective and constraints
+- **Analytical gradients recommended** : `use_analytic_gradient = true`
+
+```cpp
+// Our project implementation of NAG E04UFA wrapper
+namespace xsigma {
+    class NAGOptimizer {
+    public:
+        struct OptimizationProblem {
+            std::function<double(const std::vector<double>&)> objective;
+            std::function<std::vector<double>(const std::vector<double>&)> gradient;
+            std::function<std::vector<double>(const std::vector<double>&)> constraints;
+            std::function<Eigen::MatrixXd(const std::vector<double>&)> constraint_jacobian;
+
+            std::vector<double> lower_bounds;
+            std::vector<double> upper_bounds;
+            std::vector<double> initial_guess;
+        };
+
+        struct OptimizationResult {
+            std::vector<double> solution;
+            double objective_value;
+            int iterations;
+            bool converged;
+            std::string status_message;
+        };
+
+        OptimizationResult solve(const OptimizationProblem& problem) {
+            OptimizationResult result;
+
+            // Configuration NAG E04UFA
+            setupNAGEnvironment();
+
+            // Data preparation
+            int n = problem.initial_guess.size();
+            int nclin = 0;  // Linear constraints
+            int ncnln = getConstraintCount(problem);  // Nonlinear constraints
+
+            // NAG memory allocation
+            std::vector<double> x = problem.initial_guess;
+            std::vector<double> bl = problem.lower_bounds;
+            std::vector<double> bu = problem.upper_bounds;
+
+            // Wrapper pour fonction objectif
+            auto objective_wrapper = [&](const double* x_ptr, double* f, double* g) {
+                std::vector<double> x_vec(x_ptr, x_ptr + n);
+                *f = problem.objective(x_vec);
+
+                if (g != nullptr) {  // Gradient calculation if requested
+                    auto grad = problem.gradient(x_vec);
+                    std::copy(grad.begin(), grad.end(), g);
+                }
+            };
+
+            // Wrapper pour contraintes
+            auto constraint_wrapper = [&](const double* x_ptr, double* c, double* cjac) {
+                std::vector<double> x_vec(x_ptr, x_ptr + n);
+                auto constraints = problem.constraints(x_vec);
+                std::copy(constraints.begin(), constraints.end(), c);
+
+                if (cjac != nullptr) {  // Jacobian if requested
+                    auto jacobian = problem.constraint_jacobian(x_vec);
+                    // Copie du jacobien en format NAG
+                    copyJacobianToNAG(jacobian, cjac, ncnln, n);
+                }
+            };
+
+            // Appel NAG E04UFA
+            int ifail = 0;
+            double objf;
+
+            e04ufa_(n, nclin, ncnln,
+                   bl.data(), bu.data(), x.data(),
+                   objective_wrapper, constraint_wrapper,
+                   &objf, &ifail);
+
+            // Results processing
+            result.solution = x;
+            result.objective_value = objf;
+            result.converged = (ifail == 0);
+            result.status_message = getNAGStatusMessage(ifail);
+
+            return result;
+        }
+
+    private:
+        void setupNAGEnvironment();
+        int getConstraintCount(const OptimizationProblem& problem);
+        void copyJacobianToNAG(const Eigen::MatrixXd& jacobian, double* cjac, int ncnln, int n);
+        std::string getNAGStatusMessage(int ifail);
+    };
+}
+```
+*This C++ implementation in Our project encapsulates the NAG E04UFA solver with modern interface and robust error handling.*
+
+## Inputs
+
+### Input Parameters
+
+Refer to Section 4.3 for volatility fitter input parameters. Main inputs include:
+
+#### Market Data
+- **Option quotes** with bid/ask/mid
+- **Rate curves** discount and repo
+- **Forward data** and dividends
+- **Exchange calendars** and conventions
+
+#### Fitting Configuration
+- **Fitting instructions** (local, TS, global)
+- **Quality parameters** and filtering
+- **Arbitrage constraints** and tolerances
+- **Extrapolation parameters** and smoothing
+
+```cpp
+// Our project implementation of complete input structure
+namespace xsigma {
+    struct VolatilityFitterInputs {
+        // Market data
+        std::vector<OptionQuote> option_quotes;
+        ptr_const<DiscountCurve> discount_curve;
+        ptr_const<RepoCurve> repo_curve;
+        ptr_const<ForwardCurve> forward_curve;
+        ptr_const<Calendar> exchange_calendar;
+
+        // Configuration d'ajustement
+        FittingInstructions fitting_instructions;
+        QualityInstructions quality_instructions;
+        ArbitrageConstraints arbitrage_constraints;
+        ExtrapolationConfig extrapolation_config;
+
+        // Surface initiale
+        ptr_const<VolatilitySurface> initial_surface;
+
+        // Control parameters
+        double pricing_date;
+        std::vector<double> liquid_maturities;
+        bool use_analytic_gradients = true;
+        int max_iterations = 1000;
+        double convergence_tolerance = 1e-8;
+
+        // Validation
+        void validate() const {
+            if (option_quotes.empty()) {
+                throw std::invalid_argument("No option quotes provided");
+            }
+            if (!discount_curve) {
+                throw std::invalid_argument("Discount curve is required");
+            }
+            if (liquid_maturities.empty()) {
+                throw std::invalid_argument("At least one liquid maturity required");
+            }
+            // Validation additionnelle...
+        }
+    };
+}
+```
+*This C++ structure in Our project centralizes all necessary inputs with complete validation.*
+
+## Quality Control
+
+### Post-Fitting Control Report
+
+The volatility fitter report contains a post-fitting verification report that contains any threshold violations. It also contains auxiliary fitting data showing the fitting process which includes:
+
+#### Quality Metrics
+- **Selected ATM strike values**
+- **Volatility data** filtered and unfiltered bid/ask/mid
+- **Initial and adjusted weights**
+- **Average bid/ask spreads**
+- **RMS local (global) final**
+- **Constraint function values** initial and final
+- **Number of iterations** spent by NAG routine per maturity
+
+```cpp
+// Our project implementation of quality control system
+namespace xsigma {
+    struct QualityControlReport {
+        // Basic metrics
+        double rmse_local;
+        double rmse_global;
+        std::vector<double> atm_strikes;
+        std::vector<double> bid_ask_spreads;
+
+        // Filtering data
+        struct FilteringStats {
+            int total_quotes;
+            int filtered_quotes;
+            int rejected_outliers;
+            std::vector<std::string> rejection_reasons;
+        } filtering_stats;
+
+        // Optimization results
+        struct OptimizationStats {
+            int local_iterations;
+            int global_iterations;
+            bool converged;
+            double final_objective_value;
+            std::vector<double> constraint_violations;
+        } optimization_stats;
+
+        // Arbitrage validation
+        struct ArbitrageCheck {
+            bool calendar_arbitrage_free;
+            bool butterfly_arbitrage_free;
+            std::vector<ArbitrageViolation> violations;
+        } arbitrage_check;
+
+        // Text report generation
+        std::string generateReport() const {
+            std::stringstream ss;
+            ss << "=== Quality Control Report ===\n";
+            ss << "Local RMSE: " << rmse_local << "\n";
+            ss << "Global RMSE: " << rmse_global << "\n";
+            ss << "Filtered quotes: " << filtering_stats.filtered_quotes
+               << "/" << filtering_stats.total_quotes << "\n";
+            ss << "Convergence: " << (optimization_stats.converged ? "YES" : "NO") << "\n";
+            ss << "Arbitrage-free: " << (arbitrage_check.calendar_arbitrage_free &&
+                                       arbitrage_check.butterfly_arbitrage_free ? "YES" : "NO") << "\n";
+
+            if (!arbitrage_check.violations.empty()) {
+                ss << "\nArbitrage violations detected:\n";
+                for (const auto& violation : arbitrage_check.violations) {
+                    ss << "- " << violation.description << " (severity: " << violation.severity << ")\n";
+                }
+            }
+
+            return ss.str();
+        }
+    };
+
+    class QualityController {
+    public:
+        QualityControlReport performQualityChecks(
+            const SurfaceReport& surface_report,
+            const std::vector<ImpliedVolPoint>& original_data) {
+
+            QualityControlReport report;
+
+            // Basic metrics calculation
+            report.rmse_local = calculateLocalRMSE(surface_report, original_data);
+            report.rmse_global = calculateGlobalRMSE(surface_report, original_data);
+
+            // Analyse du filtrage
+            report.filtering_stats = analyzeFiltering(original_data);
+
+            // Arbitrage verification
+            report.arbitrage_check = checkArbitrageConditions(surface_report.final_surface);
+
+            // Statistiques d'optimisation
+            report.optimization_stats = extractOptimizationStats(surface_report);
+
+            return report;
+        }
+
+    private:
+        double calculateLocalRMSE(const SurfaceReport& report,
+                                 const std::vector<ImpliedVolPoint>& data);
+        double calculateGlobalRMSE(const SurfaceReport& report,
+                                  const std::vector<ImpliedVolPoint>& data);
+        QualityControlReport::FilteringStats analyzeFiltering(
+            const std::vector<ImpliedVolPoint>& data);
+        QualityControlReport::ArbitrageCheck checkArbitrageConditions(
+            const VolatilitySurface& surface);
+    };
+}
+```
+*This C++ implementation in Our project provides a comprehensive quality control system with detailed metrics and report generation.*
+
+## Limitations
+
+### Implementation Limitations
+
+Refer to Section 4.2 for implied volatility fitter model limitations. Main limitations include:
+
+#### Numerical Limitations
+- **Convergence** : Dependent on initial data quality
+- **Stability** : Sensitive to configuration parameters
+- **Performance** : Computational complexity for large surfaces
+
+#### Data Limitations
+- **Quote quality** : Direct impact on robustness
+- **Liquidity** : Extrapolation needed for illiquid maturities
+- **Temporal consistency** : Variations between trading sessions
+
+#### Model Limitations
+- **ASV parameterizations** : Constraints on supported smile shapes
+- **Arbitrage constraints** : Trade-off between fit and arbitrage-free
+- **Extrapolation** : Increasing uncertainty for distant maturities
