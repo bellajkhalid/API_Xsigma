@@ -45,6 +45,20 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
+echo "📚 Step 3.1: Copying documentation files..."
+
+# Copy built frontend to nginx directory
+sudo rm -rf /home/debian/api-xsigma/frontend-dist
+sudo cp -r dist /home/debian/api-xsigma/frontend-dist
+sudo chown -R www-data:www-data /home/debian/api-xsigma/frontend-dist
+
+# Verify documentation files are copied
+if [ -d "/home/debian/api-xsigma/frontend-dist/sphinx-doc" ]; then
+    echo "✅ Documentation files copied successfully"
+else
+    echo "❌ Documentation files not found in build"
+fi
+
 echo "🔄 Step 4: Restarting application..."
 
 # Restart the backend application
