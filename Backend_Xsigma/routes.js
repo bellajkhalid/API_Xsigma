@@ -106,6 +106,11 @@ module.exports = function configureRoutes(app) {
 
   // ===== SYSTEM ROUTES =====
   
+  // GET /doc - Redirect to Sphinx documentation
+  router.get('/doc', (req, res) => {
+    res.redirect('/sphinx-doc/xsigma-1.1-3/index.html');
+  });
+
   // GET / - API Information
   router.get('/', (req, res) => {
     res.json({
@@ -120,6 +125,8 @@ module.exports = function configureRoutes(app) {
         zabr_variables_impact: '/api/zabr-variables-impact',
         calibration: '/api/AnalyticalSigmaVolatilityCalibration',
         documentation: '/api-docs',
+        sphinx_documentation: '/sphinx-doc/xsigma-1.1-3/index.html',
+        doc_redirect: '/doc',
         health: '/health',
         metrics: '/metrics'
       },

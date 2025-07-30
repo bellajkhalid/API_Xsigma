@@ -142,6 +142,43 @@ if (swaggerDocument) {
   }));
 }
 
+// ===== STATIC FILES SERVING =====
+
+// Serve Sphinx documentation
+app.use('/sphinx-doc', express.static(path.join(__dirname, '..', 'Frontend_Xsigma', 'public', 'sphinx-doc'), {
+  maxAge: '1d', // Cache for 1 day
+  etag: true,
+  lastModified: true,
+  setHeaders: (res, filePath) => {
+    // Set proper MIME types for documentation files
+    if (filePath.endsWith('.html')) {
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      // Very permissive CSP for Sphinx documentation
+      res.setHeader('Content-Security-Policy',
+        "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob:; " +
+        "style-src 'self' 'unsafe-inline' data:; " +
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' data:; " +
+        "img-src 'self' data: https: blob:; " +
+        "font-src 'self' https: data: blob:; " +
+        "connect-src 'self' https:; " +
+        "frame-src 'self'; " +
+        "object-src 'none'"
+      );
+    } else if (filePath.endsWith('.css')) {
+      res.setHeader('Content-Type', 'text/css; charset=utf-8');
+    } else if (filePath.endsWith('.js')) {
+      res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+    }
+  }
+}));
+
+// Serve other static files from Frontend public directory
+app.use('/static', express.static(path.join(__dirname, '..', 'Frontend_Xsigma', 'public'), {
+  maxAge: '1d',
+  etag: true,
+  lastModified: true
+}));
+
 // ===== CONFIGURE ROUTES =====
 
 configureRoutes(app);
@@ -190,6 +227,7 @@ app.use('*', (req, res) => {
       'GET /health',
       'GET /metrics',
       'GET /api-docs',
+      'GET /sphinx-doc/xsigma-1.1-3/index.html (Documentation)',
       'GET /api/analytical-sigma',
       'POST /api/analytical-sigma',
       'GET /api/analytical-sigma/test-cases',
