@@ -4,6 +4,7 @@ import { Button } from "./ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
 import { useTheme } from "@/contexts/ThemeContext";
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 
 const Navigation = () => {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -14,6 +15,7 @@ const Navigation = () => {
   const { getThemeClasses, isDark } = useTheme();
   const theme = getThemeClasses();
 
+  const navigate = useNavigate();
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 50);
@@ -90,33 +92,34 @@ const Navigation = () => {
           title: "Data",
           description: "Discover, organize, manage, and analyze data on the cloud.",
           items: [
-            { name: "Curated Data", icon: "📊", href: "#data" },
-            { name: "Data Analytics", icon: "📈", href: "#analytics" }
+            { name: "Curated Data", icon: "📊", href: "/solutions/data" },
+            { name: "Data Analytics", icon: "📈", href: "/solutions/analytics" }
           ]
         },
         {
           title: "Analytics",
           description: "Rapidly create custom data and risk analytics solutions spanning global markets.",
           items: [
-            { name: "PlotTool Pro", icon: "📊", href: "#plottool" },
-            { name: "Portfolio Analytics", icon: "💼", href: "#portfolio" },
-            { name: "GS Quant", icon: "🔬", href: "#quant" }
+            { name: "PlotTool Pro", icon: "📊", href: "/solutions/plottool" },
+            { name: "Portfolio Analytics", icon: "💼", href: "/solutions/portfolio" },
+            { name: "GS Quant", icon: "🔬", href: "/solutions/quant" }
           ]
         },
         {
           title: "Banking",
           description: "Embed business and digital financial products within your own experience.",
           items: [
-            { name: "Transaction Banking", icon: "🏦", href: "#banking" },
-            { name: "GS DAP®", icon: "💳", href: "#dap" }
+            { name: "Transaction Banking", icon: "🏦", href: "/solutions/banking" },
+            { name: "GS DAP®", icon: "💳", href: "/solutions/dap" }
           ]
         }
       ]
     },
     { name: "Download", href: "https://pypi.org/project/xsigma/", onClick: () => window.open('https://pypi.org/project/xsigma/', '_blank') },
     { name: "Docs", href: "/sphinx-doc/xsigma-1.1-3/index.html", onClick: () => window.open('/sphinx-doc/xsigma-1.1-3/index.html', '_blank') },
-    { name: "Blog", href: "#blog", onClick: () => scrollToSection('blog') },
-    { name: "Account", href: "#account", onClick: () => scrollToSection('account') },
+    { name: "Blog", href: "/blog", onClick: () => window.location.href = '/blog' },
+    { name: "LinkedIn", href: "/linkedin", onClick: () => navigate('/linkedin') },
+    { name: "Account", href: "/account", onClick: () => navigate('/account') },
   ];
 
   return (
@@ -131,6 +134,7 @@ const Navigation = () => {
         <nav className="flex items-center justify-between h-full">
           <motion.div
             className="flex items-center gap-2 cursor-pointer"
+            onClick={() => navigate('/')}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
@@ -142,7 +146,7 @@ const Navigation = () => {
               whileHover={{ rotate: 5 }}
               transition={{ duration: 0.3, ease: "easeOut" }}
             />
-            <span className={`font-bold text-base ${isDark ? 'text-white' : 'text-black'} transition-colors duration-300 hover:text-primary`}>
+            <span className={`font-bold text-base ${isDark ? 'text-white' : 'text-black'} transition-all duration-300 hover:text-blue-600 hover:scale-105`}>
               XsigmaSolution
             </span>
           </motion.div>
@@ -200,7 +204,11 @@ const Navigation = () => {
                                 <div className="space-y-3">
                                   <div className={`text-xs font-medium ${theme.textMuted} uppercase tracking-wider`}>FEATURED</div>
                                   {section.items.map((subItem) => (
-                                    <div key={subItem.name} className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer">
+                                    <div
+                                      key={subItem.name}
+                                      className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+                                      onClick={() => navigate(subItem.href)}
+                                    >
                                       <span className="text-lg">{subItem.icon}</span>
                                       <span className={`text-sm font-medium ${theme.text}`}>{subItem.name}</span>
                                     </div>

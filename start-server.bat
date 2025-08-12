@@ -84,7 +84,7 @@ goto menu
 :frontend
 echo.
 echo 🌐 Opening frontend in browser...
-start http://51.83.47.117/
+start http://www.xsigma.co.uk/
 echo Frontend opened in browser!
 pause
 goto menu
@@ -92,7 +92,7 @@ goto menu
 :api
 echo.
 echo 📚 Opening API documentation in browser...
-start http://51.83.47.117/api/api-docs
+start http://www.xsigma.co.uk/api/api-docs
 echo API docs opened in browser!
 pause
 goto menu

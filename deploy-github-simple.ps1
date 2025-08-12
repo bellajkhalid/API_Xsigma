@@ -105,7 +105,7 @@ echo "Configuring Nginx..."
 sudo tee /etc/nginx/sites-available/api-xsigma > /dev/null << 'EOFNGINX'
 server {
     listen 80;
-    server_name 51.83.47.117;
+    server_name www.xsigma.co.uk xsigma.co.uk;
 
     location / {
         root /home/debian/api-xsigma/Frontend_Xsigma/dist;
@@ -146,9 +146,9 @@ pm2 startup
 echo "Deployment completed!"
 echo ""
 echo "Your application is available at:"
-echo "  Frontend: http://51.83.47.117/"
-echo "  Backend API: http://51.83.47.117/api/"
-echo "  API Docs: http://51.83.47.117/api/api-docs"
+echo "  Frontend: http://www.xsigma.co.uk/"
+echo "  Backend API: http://www.xsigma.co.uk/api/"
+echo "  API Docs: http://www.xsigma.co.uk/api/api-docs"
 "@
 
 # Save deployment script to temporary file
@@ -171,9 +171,9 @@ Write-Host ""
 Write-Host "GitHub deployment completed!" -ForegroundColor Green
 Write-Host ""
 Write-Host "Your application should now be available at:" -ForegroundColor Cyan
-Write-Host "  Frontend: http://51.83.47.117/" -ForegroundColor White
-Write-Host "  Backend API: http://51.83.47.117/api/" -ForegroundColor White
-Write-Host "  API Documentation: http://51.83.47.117/api/api-docs" -ForegroundColor White
+Write-Host "  Frontend: http://www.xsigma.co.uk/" -ForegroundColor White
+Write-Host "  Backend API: http://www.xsigma.co.uk/api/" -ForegroundColor White
+Write-Host "  API Documentation: http://www.xsigma.co.uk/api/api-docs" -ForegroundColor White
 Write-Host ""
 Write-Host "To manage your application:" -ForegroundColor Cyan
 Write-Host "  ssh ${SERVER_USER}@${SERVER_HOST}" -ForegroundColor White
