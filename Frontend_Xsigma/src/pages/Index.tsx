@@ -183,7 +183,7 @@ const Index = () => {
                 className="mb-8"
               >
                 <h1 className={`text-5xl md:text-6xl lg:text-7xl font-light leading-tight ${isDark ? 'text-white' : 'text-gray-900'} mb-6 drop-shadow-lg`}>
-                  XSigma Financial
+                  XSigma Analytix
                 </h1>
 
                 <motion.p
@@ -275,7 +275,7 @@ const Index = () => {
 
                 <p className={`text-lg ${isDark ? 'text-gray-300' : 'text-gray-600'} leading-relaxed`}>
                   A comprehensive platform for XVA calculations, risk management, and regulatory reporting.
-                  Leverage our quantitative expertise built over decades of financial innovation.
+                  Leverage our quantitative expertise built over decades of analytix innovation.
                 </p>
 
                 <Button
@@ -398,7 +398,7 @@ const Index = () => {
                 </h3>
                 <p className={`text-lg ${isDark ? 'text-gray-300' : 'text-gray-600'} leading-relaxed`}>
                   Comprehensive risk assessment and regulatory reporting tools. Real-time monitoring and stress testing
-                  capabilities for complex financial portfolios.
+                  capabilities for complex analytix portfolios.
                 </p>
                 <Button
                   onClick={() => window.location.href = '/solutions/portfolio'}

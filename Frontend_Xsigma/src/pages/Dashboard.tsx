@@ -28,7 +28,7 @@ const Dashboard = () => {
   const [expandedASVCalibration, setExpandedASVCalibration] = useState(false);
   const modelsContainerRef = useRef<HTMLDivElement>(null);
 
-  const financialModels = [
+  const analytixModels = [
     {
       id: 'zabr',
       name: 'ZABR Models',
@@ -206,8 +206,8 @@ const Dashboard = () => {
       };
     }
 
-    // Otherwise, find in main financial models
-    const mainModel = financialModels.find(m => m.id === activeModel);
+    // Otherwise, find in main analytix models
+    const mainModel = analytixModels.find(m => m.id === activeModel);
     return {
       name: mainModel?.name || 'Unknown Model',
       description: mainModel?.description || 'Model description not available.'
@@ -314,7 +314,7 @@ const Dashboard = () => {
             }}
             onScroll={(e) => updateScrollIndicators(e.currentTarget)}
           >
-            {financialModels.map((model, index) => (
+            {analytixModels.map((model, index) => (
               <motion.div
                 key={model.id}
                 initial={{ opacity: 0, x: -20 }}
@@ -486,7 +486,7 @@ const Dashboard = () => {
           >
             {/* Model Selection Section */}
             <ModelSelector
-              financialModels={financialModels}
+              analytixModels={analytixModels}
               onModelSelect={setActiveModel}
             />
 
@@ -546,10 +546,10 @@ const Dashboard = () => {
                       animate={{ scale: 1 }}
                       transition={{ delay: 0.4, type: "spring", stiffness: 200 }}
                     >
-                      {financialModels.find(m => m.id === activeModel)?.icon}
+                      {analytixModels.find(m => m.id === activeModel)?.icon}
                     </motion.div>
                     <h2 className="text-3xl font-corporate font-bold mb-4 bg-gradient-to-r from-primary to-[#22c55e] bg-clip-text text-transparent">
-                      {financialModels.find(m => m.id === activeModel)?.name}
+                      {analytixModels.find(m => m.id === activeModel)?.name}
                     </h2>
                     <p className={`${theme.textMuted} mb-8 text-lg font-clean`}>
                       Model interface will be implemented here

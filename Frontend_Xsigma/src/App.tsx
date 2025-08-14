@@ -16,6 +16,7 @@ import Banking from "./pages/solutions/Banking";
 import Dap from "./pages/solutions/Dap";
 import RegisterInterest from "./pages/RegisterInterest";
 import Account from "./pages/Account";
+import Careers from "./pages/Careers";
 import LinkedIn from "./pages/LinkedIn";
 import LinkedInCallback from "./pages/LinkedInCallback";
 
@@ -44,6 +45,7 @@ const App = () => (
               <Route path="/solutions/dap" element={<Dap />} />
               <Route path="/register-interest" element={<RegisterInterest />} />
               <Route path="/account" element={<Account />} />
+              <Route path="/careers" element={<Careers />} />
               <Route path="/linkedin" element={<LinkedIn />} />
               <Route path="/linkedin/callback" element={<LinkedInCallback />} />
             </Routes>

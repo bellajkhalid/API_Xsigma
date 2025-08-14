@@ -134,7 +134,7 @@ const FontShowcase = () => {
       <Card className={`${theme.glassBg} backdrop-blur-lg ${theme.borderColor} border`}>
         <CardHeader>
           <CardTitle className={`${theme.text} font-corporate`}>
-            🏦 Financial Data Example
+            🏦 Analytix Data Example
           </CardTitle>
         </CardHeader>
         <CardContent>

@@ -53,6 +53,8 @@ const Navigation = () => {
     'cta': 'cta',
     'testimonials': 'testimonials',
     'blog': 'blog',
+    'careers': 'careers',
+    'jobs': 'careers',
     'download': 'download',
     'docs': 'docs',
     'documentation': 'docs'
@@ -63,7 +65,14 @@ const Navigation = () => {
     const sectionId = searchSections[lowerQuery as keyof typeof searchSections];
 
     if (sectionId) {
-      scrollToSection(sectionId);
+      // Handle navigation to different pages
+      if (sectionId === 'blog') {
+        navigate('/blog');
+      } else if (sectionId === 'careers') {
+        navigate('/careers');
+      } else {
+        scrollToSection(sectionId);
+      }
       setIsSearchOpen(false);
       setSearchQuery("");
     } else {
@@ -74,7 +83,13 @@ const Navigation = () => {
 
       if (partialMatch) {
         const sectionId = searchSections[partialMatch as keyof typeof searchSections];
-        scrollToSection(sectionId);
+        if (sectionId === 'blog') {
+          navigate('/blog');
+        } else if (sectionId === 'careers') {
+          navigate('/careers');
+        } else {
+          scrollToSection(sectionId);
+        }
         setIsSearchOpen(false);
         setSearchQuery("");
       }
@@ -107,7 +122,7 @@ const Navigation = () => {
         },
         {
           title: "Banking",
-          description: "Embed business and digital financial products within your own experience.",
+          description: "Embed business and digital analytix products within your own experience.",
           items: [
             { name: "Transaction Banking", icon: "🏦", href: "/solutions/banking" },
             { name: "GS DAP®", icon: "💳", href: "/solutions/dap" }
@@ -118,6 +133,7 @@ const Navigation = () => {
     { name: "Download", href: "https://pypi.org/project/xsigma/", onClick: () => window.open('https://pypi.org/project/xsigma/', '_blank') },
     { name: "Docs", href: "/sphinx-doc/xsigma-1.1-3/index.html", onClick: () => window.open('/sphinx-doc/xsigma-1.1-3/index.html', '_blank') },
     { name: "Blog", href: "/blog", onClick: () => window.location.href = '/blog' },
+    { name: "Careers", href: "/careers", onClick: () => navigate('/careers') },
     { name: "LinkedIn", href: "/linkedin", onClick: () => navigate('/linkedin') },
     { name: "Account", href: "/account", onClick: () => navigate('/account') },
   ];

@@ -3,7 +3,7 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { BarChart3, TrendingUp, Calculator, Zap } from "lucide-react";
 
 interface ModelSelectorProps {
-  financialModels: Array<{
+  analytixModels: Array<{
     id: string;
     name: string;
     description: string;
@@ -14,7 +14,7 @@ interface ModelSelectorProps {
   onModelSelect: (modelId: string) => void;
 }
 
-const ModelSelector = ({ financialModels, onModelSelect }: ModelSelectorProps) => {
+const ModelSelector = ({ analytixModels, onModelSelect }: ModelSelectorProps) => {
   const { getThemeClasses } = useTheme();
   const theme = getThemeClasses();
 
