@@ -1,23 +1,5 @@
 // Browser-compatible authentication service
-
-// User interface
-export interface User {
-  id: string;
-  username: string;
-  email: string;
-  password: string; // This will be hashed
-  role: 'admin' | 'user';
-  permissions: string[];
-  createdAt: string;
-  lastLogin?: string;
-  isActive: boolean;
-  profile: {
-    firstName: string;
-    lastName: string;
-    department?: string;
-    phone?: string;
-  };
-}
+import type { User, AuthResult, LoginCredentials, CreateUserData } from '@/types/auth';
 
 // Pre-configured admin accounts with hashed passwords
 const ADMIN_ACCOUNTS: User[] = [
