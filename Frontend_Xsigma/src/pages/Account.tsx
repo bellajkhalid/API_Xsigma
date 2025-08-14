@@ -5,9 +5,10 @@ import AnimatedBackground from "@/components/AnimatedBackground";
 import Navigation from "@/components/Navigation";
 import ThemeToggle from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
-import { authService, type User } from "@/services/authService";
+import { authService } from "@/services/authService";
+import type { User } from "@/types/auth";
 import {
-  Settings, Key, CreditCard, FileText, LogOut,
+  User as UserIcon, Settings, Key, CreditCard, FileText, LogOut,
   Eye, EyeOff, Copy, Check, TrendingUp, Activity,
   AlertTriangle, Shield, Zap, Globe, Clock, Download,
   BarChart3, PieChart, LineChart, RefreshCw, Bell,
@@ -297,7 +298,7 @@ export default function Account() {
 
   const tabs = [
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3, badge: null },
-    { id: 'profile', label: 'Profile', icon: User, badge: null },
+    { id: 'profile', label: 'Profile', icon: UserIcon, badge: null },
     ...(currentUser?.role === 'admin' ? [
       { id: 'users', label: 'User Management', icon: UserPlus, badge: allUsers.length.toString() }
     ] : []),
@@ -342,7 +343,7 @@ export default function Account() {
                 >
                   <div className="text-center mb-8">
                     <div className={`w-16 h-16 mx-auto mb-4 rounded-full ${isDark ? 'bg-blue-900' : 'bg-blue-100'} flex items-center justify-center`}>
-                      <User className={`w-8 h-8 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
+                      <UserIcon className={`w-8 h-8 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
                     </div>
                     <h2 className="text-2xl font-light mb-2">Welcome Back</h2>
                     <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Sign in to your XSigma developer account</p>
@@ -423,7 +424,7 @@ export default function Account() {
                           {currentUser?.role === 'admin' ? (
                             <Crown className={`w-6 h-6 ${isDark ? 'text-yellow-400' : 'text-yellow-600'}`} />
                           ) : (
-                            <User className={`w-6 h-6 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
+                            <UserIcon className={`w-6 h-6 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
                           )}
                         </div>
                         <div>
@@ -600,7 +601,7 @@ export default function Account() {
                               {/* Profile Picture */}
                               <div className="flex items-center gap-6">
                                 <div className={`w-20 h-20 rounded-full ${isDark ? 'bg-blue-900' : 'bg-blue-100'} flex items-center justify-center`}>
-                                  <User className={`w-10 h-10 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
+                                  <UserIcon className={`w-10 h-10 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
                                 </div>
                                 <div>
                                   <Button variant="outline" size="sm" className="mr-2">
@@ -729,7 +730,7 @@ export default function Account() {
                                             {user.role === 'admin' ? (
                                               <Crown className={`w-4 h-4 ${isDark ? 'text-yellow-400' : 'text-yellow-600'}`} />
                                             ) : (
-                                              <User className={`w-4 h-4 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
+                                              <UserIcon className={`w-4 h-4 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
                                             )}
                                           </div>
                                           <div>
@@ -1297,7 +1298,7 @@ export default function Account() {
                                       {member.role === 'Owner' ? (
                                         <Crown className={`w-6 h-6 ${isDark ? 'text-yellow-400' : 'text-yellow-600'}`} />
                                       ) : (
-                                        <User className={`w-6 h-6 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
+                                        <UserIcon className={`w-6 h-6 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
                                       )}
                                     </div>
                                     <div>
