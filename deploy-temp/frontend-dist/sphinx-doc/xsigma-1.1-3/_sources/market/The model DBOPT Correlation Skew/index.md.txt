@@ -1,0 +1,214 @@
+# The Model DBOPT Correlation Skew
+
+## Vue d'Ensemble
+
+Le modèle **DBOPT-CorrelationSkew** représente une implémentation sophistiquée de copula de corrélation skew pour le pricing de produits 2D. Ce modèle analytique et Monte Carlo à horizon unique est spécialement conçu pour capturer la corrélation skew mise en évidence par les dual digitals à différents strikes.
+
+### Caractéristiques Principales
+
+✅ **Copula TERMSKEW** : Approche numérique Monte Carlo avec grille 2D de corrélations
+✅ **Produits 2D** : Dual digitals et options contingentes multi-asset
+✅ **Sticky Strike** : Corrélation fonction des niveaux d'underlying
+✅ **Ajustement Quanto** : Support rigoureux des produits multi-devises
+✅ **Validation Complète** : Tests de convergence et stabilité extensifs
+
+### Évaluation des Risques
+
+| Critère | Rating | Justification |
+|---------|--------|---------------|
+| **Complexité** | HIGH | Le modèle a plus d'un actif avec skew |
+| **Incertitude** | LOW | Le modèle n'a pas de trades en production |
+| **Dépendance** | HIGH | Les modèles de pricing ont une dépendance élevée |
+
+### Configurations Supportées
+
+Le modèle supporte **3 configurations principales** :
+
+#### 1. DBOPT-RateDeterministic_FXMarket_AssetMarket_CorrelationSkew
+- **Configuration** : DBOPT-RatesMarketDeterministic_FXMarket_AssetMarket_CorrelationSkew[TermSkew]
+- **Underlyings** : Rates (Deterministic) + FX + Asset
+
+#### 2. DBOPT-RateDeterministic_EquityBlackScholes_AssetMarket_CorrelationSkew
+- **Configuration** : DBOPT-RatesMarketDeterministic_Equity[BSANALYTIC]_AssetMarket_CorrelationSkew[TermSkew]
+- **Underlyings** : Rates (Deterministic) + Equity + Asset
+
+#### 3. DBOPT-RatesMarketAFSABR_FXMarket_EquityBlackScholes_CorrelationSkew
+- **Configuration** : DBOPT-RatesMarketAFSABR_FXMarket[AUTO]_Equity[BSANALYTIC]_CorrelationSkew[TERMSKEW]
+- **Underlyings** : Rates (AFSABR) + FX + Equity
+
+### Produits Supportés
+
+| Produit | Type | Description |
+|---------|------|-------------|
+| **HybMultiDigital** | Dual Digital | Paie un coupon fixe si 2 conditions digitales sont remplies à l'expiry |
+| **HybContingentOptMultiAssetBasket** | Option Contingente | Paie un payoff d'option européenne conditionnellement à un digital |
+
+### Portfolio de Production
+
+**Statut actuel :** ✅ **Aucun trade en production** (au 28-02-2022)
+
+Cette absence de trades justifie le **rating d'incertitude LOW**, réduisant significativement le risque opérationnel du modèle.
+
+### Usages Approuvés
+
+| Usage | Status | Description |
+|-------|--------|-------------|
+| **EOD** | ✅ RFU | Valorisation End of Day et gestion des risques |
+| **HistSim** | ✅ RFU | Modèle servicer pour HistSim VaR |
+| **CCAR** | ✅ RFU | Tests de stress réglementaires CCAR |
+| **IRRRBB** | ✅ RFU | Calcul Delta EVE sous IRRBB |
+
+## Navigation de la Documentation
+
+```{toctree}
+:maxdepth: 2
+:caption: Documentation Complète
+
+executive_summary
+introduction_model_validation
+assessment_approach_soundness
+independent_validation_testing
+```
+
+### Sections Principales
+
+#### [Executive Summary](executive_summary.md)
+- Évaluation globale des risques modèle (HIGH/LOW/HIGH)
+- Résumé des résultats de validation principaux
+- Vue d'ensemble des limitations et contrôles
+- Statement d'approbation pour tous les usages
+
+#### [Introduction to Model and Validation](introduction_model_validation.md)
+- Scope de validation et classification des produits 2D
+- Description détaillée des swaptions contingentes
+- Paramètres de modèle et inputs de marché
+- Portfolio composition (aucun trade live)
+
+#### [Assessment of Approach, Conceptual Soundness and Implementation](assessment_approach_soundness.md)
+- Copula TERMSKEW avec décomposition de Cholesky
+- Modélisation du skew de corrélation sticky strike
+- Ajustement quanto rigoureux avec marginales
+- Évaluation de la solidité conceptuelle
+
+#### [Independent Validation Testing](independent_validation_testing.md)
+- Tests de convergence Monte-Carlo pour prix et Greeks
+- Analyse de stabilité sous stress de marché
+- Validation de l'approximation Taylor
+- Tests spécifiques aux produits HybMultiDigital
+
+## Implémentation Our project
+
+Le modèle DBOPT Correlation Skew est entièrement intégré dans Our project avec :
+
+- **Architecture C++ sophistiquée** avec copula TERMSKEW et ajustement quanto
+- **Framework de validation automatisée** avec tests de convergence complets
+- **Simulation Monte-Carlo** avec contrôle de variance et stabilité
+- **Gestion des corrélations skew** avec interpolation 2D et lissage
+- **Support multi-underlyings** (IR/FX/EQ/Asset) avec configurations flexibles
+
+## Modèle Mathématique
+
+### Copula TERMSKEW
+
+Le modèle utilise une **grille 2D de corrélations** fonction des niveaux des sous-jacents (L₁, L₂) avec décomposition de Cholesky pairwise :
+
+$$X_1^{(1)} = \sqrt{\frac{1 + \rho_k}{2}}Z_1 + \sqrt{\frac{1 - \rho_k}{2}}Z_2$$
+
+$$X_2^{(1)} = \sqrt{\frac{1 + \rho_k}{2}}Z_1 - \sqrt{\frac{1 - \rho_k}{2}}Z_2$$
+
+où ρₖ = ρ(ATM₁, ATM₂) est la corrélation interpolée.
+
+### Ajustement Quanto
+
+Pour un produit quanto où un taux R dénommé en devise d est payé en devise f :
+
+$$V_0^f = DF^f(0, T) \cdot E^{Q_f}[S^d(T)]$$
+
+L'ajustement utilise une copula gaussienne standard pour générer la marginale quanto.
+
+### Calibration
+
+Le modèle se calibre aux **dual digitals** pour déterminer la grille de corrélation skew :
+
+**Exemple de corrélations implicites gaussiennes :**
+
+| Strike\Underlying | 0.60% | 1.20% |
+|-------------------|-------|-------|
+| **3000** | 9.53% | 23.58% |
+| **3600** | 12.43% | 61.30% |
+
+**Grille de corrélation skew résultante :**
+
+| Strike\Underlying | 0.60% | 1.20% |
+|-------------------|-------|-------|
+| **3000** | 6.63% | 20.00% |
+| **3600** | -5.92% | 84.81% |
+
+## Paramètres de Contrôle
+
+### Paramètres DBOPT
+- **NumberSims** : 2000 (défaut), jusqu'à 50K pour validation
+- **CopulaMethod** : SIMCOPULA (obligatoire)
+- **TermSkewMaxIter** : 3 (nombre d'itérations)
+- **TermSkewSmoothing** : YES (obligatoire pour stabilité)
+
+### Paramètres de Corrélation
+- **CorrelationInterpolationSpace** : TERMSKEW
+- **QuantoCorrelationInterpolationSpace** : TIME
+- **InterpType** : LINEAR
+- **SkewConvexityType** : STANDARD
+
+## Limitations et Contrôles
+
+### Limitation Principale
+
+**Numerical[Monte-Carlo Error](DBOPT-CorrelationSkew[TS])** : Les simulations Monte-Carlo ont une erreur associée fonction du nombre de simulations utilisées. **ID-2865**
+
+**Contrôle** : Tests de convergence garantissant que l'erreur numérique est négligeable avec les paramètres recommandés.
+
+### Validation Findings
+
+✅ **Aucun finding de validation** actuellement identifié.
+
+### Conditions for Use
+
+Le modèle est soumis à **80+ règles de paramètres** surveillées via le processus automatisé de Model Parameter Monitoring, couvrant :
+
+- **CURVE** : AveragingConvexity
+- **FUNDINGVOL** : Type, DecayTime, FreqTimeVec, FrontLatticeFreq, PolyOrder, StateMaxFraction
+- **CORRELATION** : DIFFUSE FULLDRIVER, SkewConvexityType, TermSkewSmoothing
+
+## Résultats de Validation
+
+### Tests de Convergence
+✅ **Prix** : Convergence excellente, stabilité à partir de 60K simulations
+✅ **Greeks** : Tous les Greeks convergent (Delta, Vega, Gamma)
+✅ **Variance de graine** : Contrôlée et acceptable
+
+### Tests de Stabilité
+✅ **Stress IR** : Comportement lisse sous shifts de courbes
+✅ **Stress FX** : Sensibilités cohérentes avec shifts de spot
+✅ **Stress Volatilité** : Stabilité sous stress de vol FX et Asset
+✅ **Stress Corrélation** : Paramètres de corrélation stables
+
+### Tests Spécifiques
+✅ **HybMultiDigital** : Validation complète du produit représentatif
+✅ **Approximation Taylor** : Greeks précis et cohérents
+✅ **Ajustement Quanto** : Fonctionnement rigoureux validé
+
+## Expert Judgments
+
+Le modèle utilise le **jugement expert du trading desk** pour les paramètres de corrélation skew, car les dual digitals ne sont pas suffisamment liquides pour fournir une estimation précise de la corrélation skew. Une corrélation plate est généralement utilisée en l'absence de données de marché.
+
+## Liens Rapides
+
+- 📊 [Évaluation des Risques](executive_summary.md#global-model-risk-assessment)
+- 🧮 [Modèle Mathématique](assessment_approach_soundness.md#factor-based-correlation-skew-copula-termskew)
+- 🧪 [Tests de Validation](independent_validation_testing.md#convergence-testing-results)
+- ⚙️ [Paramètres de Contrôle](executive_summary.md#control-overview)
+- 🎯 [Produits Supportés](introduction_model_validation.md#product-description)
+- 📈 [Ajustement Quanto](assessment_approach_soundness.md#quanto-adjustment-implementation)
+
+---
+
+**Le modèle DBOPT Correlation Skew représente une solution sophistiquée pour le pricing de produits 2D avec corrélation skew dans Our project, offrant une flexibilité supérieure aux modèles de copula simples tout en maintenant une validation rigoureuse et des contrôles appropriés.**

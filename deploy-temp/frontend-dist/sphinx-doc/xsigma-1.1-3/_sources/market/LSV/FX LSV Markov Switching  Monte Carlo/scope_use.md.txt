@@ -1,0 +1,214 @@
+# Scope and Use
+
+## Overview
+
+Cette section définit le scope d'application et les cas d'usage du modèle **FX LSV Markov Switching Monte Carlo**, incluant les marchés cibles, les produits supportés et les limitations d'usage.
+
+## Model Scope
+
+### Target Markets
+
+#### Primary FX Markets
+- **G10 Currency Pairs** : EUR/USD, GBP/USD, USD/JPY, USD/CHF, AUD/USD, USD/CAD, NZD/USD
+- **Cross Currency Pairs** : EUR/GBP, EUR/JPY, GBP/JPY, AUD/JPY, EUR/CHF
+- **Emerging Market Pairs** : USD/CNY, USD/INR, USD/BRL, USD/MXN (avec précautions)
+
+#### Market Segments
+- **Institutional FX** : Banques centrales, fonds souverains, grandes institutions
+- **Corporate FX** : Multinationales avec expositions FX significatives
+- **Asset Management** : Fonds avec mandats multi-devises
+- **Hedge Funds** : Stratégies FX directionnelles et relatives
+
+### Product Coverage
+
+#### Vanilla FX Options
+- **European Calls/Puts** : Options vanilles européennes
+- **American Options** : Exercice anticipé (support limité)
+- **Digital Options** : One-touch, no-touch, range digitals
+- **Forward Contracts** : Contrats à terme FX
+
+#### Exotic FX Options
+- **Barrier Options** : Knock-out, knock-in, double barriers
+- **Asian Options** : Moyenne arithmétique et géométrique
+- **Lookback Options** : Fixed et floating strike
+- **Compound Options** : Options sur options
+
+#### Multi-Currency Products
+- **Quanto Options** : Élimination du risque de change
+- **Cross-Currency Swaps** : Échange de flux multi-devises
+- **Currency Baskets** : Options sur paniers de devises
+- **Rainbow Options** : Options multi-sous-jacents FX
+
+### Intended Use Cases
+
+#### Primary Applications
+
+**1. FX Options Trading**
+- Pricing et valorisation d'options FX vanilles et exotiques
+- Market making et cotation en temps réel
+- Structuration de produits FX complexes
+- Arbitrage et trading directionnel
+
+**2. Corporate FX Hedging**
+- Couverture d'expositions commerciales
+- Hedging de cash flows futurs
+- Gestion du risque de translation
+- Optimisation de stratégies de couverture
+
+**3. Portfolio Risk Management**
+- Calcul d'expositions FX au niveau portfolio
+- Stress testing et analyse de scénarios
+- Optimisation d'allocation multi-devises
+- Monitoring des limites de risque FX
+
+**4. Regulatory Compliance**
+- Calcul de capital réglementaire
+- Reporting de positions FX
+- Tests de stress réglementaires
+- Validation de modèles internes
+
+#### Secondary Applications
+
+**1. Research and Development**
+- Développement de nouveaux produits FX
+- Analyse de stratégies de trading
+- Backtesting de modèles FX
+- Études de corrélations inter-devises
+
+**2. Client Services**
+- Pricing pour clients institutionnels
+- Conseil en gestion de risque FX
+- Formation et éducation FX
+- Support de vente et structuration
+
+## Technical Scope
+
+### Supported Currencies
+
+#### Major Currencies (Full Support)
+- **USD** : Dollar américain (devise de référence)
+- **EUR** : Euro (liquidité maximale)
+- **GBP** : Livre sterling (volatilité élevée)
+- **JPY** : Yen japonais (safe haven)
+- **CHF** : Franc suisse (stabilité)
+- **AUD** : Dollar australien (commodities)
+- **CAD** : Dollar canadien (ressources)
+- **NZD** : Dollar néo-zélandais (carry trade)
+
+#### Emerging Currencies (Limited Support)
+- **CNY** : Yuan chinois (contrôles capitaux)
+- **INR** : Roupie indienne (volatilité élevée)
+- **BRL** : Real brésilien (instabilité politique)
+- **MXN** : Peso mexicain (proximité USD)
+
+### Model Capabilities
+
+#### Volatility Modeling
+- **Local Volatility** : Surface de volatilité locale calibrée
+- **Stochastic Volatility** : Processus CIR pour variance
+- **Markov Switching** : États discrets de volatilité
+- **Correlation Structure** : Corrélations spot-volatilité
+
+#### Risk Metrics
+- **Standard Greeks** : Delta, Gamma, Vega, Theta, Rho
+- **FX-Specific Greeks** : Rho domestique/étranger, cross gamma
+- **Higher-Order Greeks** : Volga, Vanna, charm
+- **Scenario Analysis** : Stress testing multi-factoriel
+
+#### Calibration Features
+- **Market Data Integration** : Surfaces de volatilité FX
+- **Real-Time Calibration** : Mise à jour automatique
+- **Cross-Currency Consistency** : Arbitrage triangulaire
+- **Historical Validation** : Backtesting sur données historiques
+
+## Usage Guidelines
+
+### Recommended Applications
+
+#### High Confidence Use Cases
+- **Liquid FX Pairs** : G10 currencies avec spreads serrés
+- **Standard Maturities** : 1 semaine à 2 ans
+- **Vanilla Products** : Options européennes simples
+- **Institutional Size** : Notionnels > $10M
+
+#### Medium Confidence Use Cases
+- **Cross Pairs** : EUR/GBP, EUR/JPY avec liquidité suffisante
+- **Exotic Options** : Barrières simples, digitals
+- **Extended Maturities** : 2-5 ans avec validation
+- **Emerging Markets** : Avec ajustements de modèle
+
+#### Limited Confidence Use Cases
+- **Illiquid Pairs** : Paires exotiques avec spreads larges
+- **Complex Exotics** : Produits multi-barrières complexes
+- **Very Long Maturities** : > 5 ans
+- **High Correlation Products** : Sensibilité extrême aux corrélations
+
+### Performance Expectations
+
+#### Accuracy Targets
+- **Vanilla Options** : Erreur < 0.1% vs Garman-Kohlhagen
+- **Simple Exotics** : Erreur < 0.5% vs benchmarks
+- **Complex Products** : Erreur < 1% avec validation
+- **Greeks Accuracy** : Erreur relative < 2%
+
+#### Speed Requirements
+- **Real-Time Pricing** : < 100ms pour vanilles
+- **Portfolio Valuation** : < 5 minutes pour 1000 positions
+- **Risk Calculation** : < 10 minutes pour Greeks complets
+- **Stress Testing** : < 30 minutes pour 100 scénarios
+
+### Operational Constraints
+
+#### Market Data Requirements
+- **Real-Time Feeds** : Taux de change et volatilités
+- **Historical Data** : Minimum 2 ans pour calibration
+- **Cross-Currency Data** : Cohérence entre sources
+- **Quality Control** : Validation automatique des données
+
+#### System Requirements
+- **Computing Power** : Minimum 8 cores pour performance
+- **Memory** : 16GB RAM pour portfolios standards
+- **Storage** : SSD pour accès rapide aux données
+- **Network** : Faible latence pour données temps réel
+
+#### Regulatory Considerations
+- **Model Validation** : Validation indépendante requise
+- **Documentation** : Conformité aux standards réglementaires
+- **Audit Trail** : Traçabilité complète des calculs
+- **Stress Testing** : Conformité aux exigences de stress
+
+## Limitations and Exclusions
+
+### Product Limitations
+- **American Options** : Support limité, validation requise
+- **Path-Dependent Complex** : Produits avec dépendances extrêmes
+- **Multi-Asset Hybrids** : Produits FX-equity, FX-commodity
+- **Credit-Linked FX** : Options avec risque de crédit
+
+### Market Limitations
+- **Crisis Periods** : Performance dégradée en crise
+- **Low Liquidity** : Paires avec liquidité insuffisante
+- **Extreme Volatility** : Périodes de volatilité > 50%
+- **Market Disruptions** : Événements exceptionnels
+
+### Technical Limitations
+- **Real-Time Constraints** : Latence pour calculs complexes
+- **Memory Constraints** : Portfolios très larges
+- **Calibration Failures** : Données de marché insuffisantes
+- **Numerical Instability** : Paramètres extrêmes
+
+## Best Practices
+
+### Implementation Guidelines
+1. **Start Simple** : Commencer par produits vanilles
+2. **Validate Extensively** : Tests contre benchmarks
+3. **Monitor Continuously** : Surveillance de performance
+4. **Document Thoroughly** : Traçabilité des décisions
+
+### Risk Management
+1. **Diversify Models** : Ne pas dépendre d'un seul modèle
+2. **Set Limits** : Limites claires d'usage
+3. **Regular Review** : Revue périodique de performance
+4. **Escalation Procedures** : Procédures en cas de problème
+
+Le modèle FX LSV Markov Switching Monte Carlo dans Our project offre une solution robuste pour une large gamme d'applications FX, avec des guidelines claires pour optimiser son utilisation et gérer les risques associés.

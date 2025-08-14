@@ -1,0 +1,129 @@
+# Products and Payoffs
+
+## Description
+
+The CLV model will be used to price Bermudan swaptions, callable inverse floaters (CIF) and callable capped floaters (CCF) and calculate GMS loss for these products. Currently under Xsigma, all Bermudan swaptions, CIFs and CCFs are single currency, namely the currency of all cash flows is the same, which is also the denomination currency of index.
+
+## Bermudan Swaption
+
+The Bermudan swaption consists of a funding leg, a structured leg and an option leg.
+
+### Funding Leg
+
+For the i-th flow of the funding leg, the primary factors are margin $m_0^i$ and rate index $I_0$, the payoff is as below:
+
+$$Cpn = N \times DCF_0^i \times (I_0^i + m_0^i)$$
+
+where $I_0^i$ is reset of $I_0$ at the i-th coupon flow from funding leg.
+
+### Structured Leg
+
+For the i-th flow of the structured leg, the primary factor is margin $m_1^i$, the payoff is as below:
+
+$$Cpn = N \times DCF_1^i \times m_1^i$$
+
+Here DCF (day count fraction) of each coupon flow of each leg is calculated from the corresponding accrual start and end dates of that particular flow, and N is trade notional; for a bullet swaption, N is constant for each flow; for an accreter, ${N_i}_{i=1,...,n}$ is an increasing sequence, while for an amortizer, ${N_i}_{i=1,...,n}$ is a decreasing sequence.
+
+The value of $m_0^i$ and $m_1^i$ may vary by coupons, but the definition of the underlying index $I_0$ is a specific Libor index which will be the same for the entire trade.
+
+### Option Leg
+
+For the option leg, the payoff is as below:
+
+If Long/Short = Long (Short) and Option Right = Cancel, at exercise we (counterparty) decide to cancel the swap and pay fee or keep the option until next exercise.
+
+$$option = max(min)\{-remaining\ swap + F_0, remaining\ option\}$$
+
+If Long/Short = Long (Short) and Option Right = Enter, at exercise we (counterparty) decide to enter into the remaining swap and receive fee or keep the option until next exercise.
+
+$$option = max(min)\{entered\ swap + F_0, remaining\ option\}$$
+
+This is a Bermudan style option giving the right to enter or cancel a swap on a set of exercise dates. The Long/Short and Option Right would be defined at leg level and cannot be changed per exercise. The swap is made of the structured and funding legs with a start date on or after the effective date of the exercise as described above. Upon exercise, a settlement fee $F_0$ can also be applied.
+
+## CIF/CCF
+
+The CIF/CCF consists of a funding leg, a structured leg and an option leg.
+
+### Funding Leg
+
+For the i-th flow of the funding leg, the primary factors are margin $m_0^i$ and rate index $I_0$, the payoff is as below:
+
+$$Cpn = N \times DCF_0^i \times (I_0^i + m_0^i)$$
+
+where $I_0^i$ is reset of $I_0$ at the i-th coupon flow from funding leg.
+
+### Structured Leg
+
+For the i-th flow of the structured leg, the primary factors are margin $m_1^i$, rate index $I_0$, gearing $G^i$ and floor/cap values $F^i/C^i$, the payoff is as below:
+
+$Cpn = N \times DCF_1^i \times max(F^i, min(C^i,G^iI_0^i+m_1^i))$, for callable inverse floater
+
+$Cpn = N \times DCF_1^i \times min(C^i,G^iI_0^i+m_1^i)$, for callable capped floater
+
+where $I_0^i$ is reset of $I_0$ at the i-th coupon flow from structured leg.
+Here N is trade notional, and DCF (day count fraction) of each coupon flow of each leg is calculated from the corresponding accrual start and end dates of that particular flow.
+
+The value of $m_0^i$, $m_1^i$, $G^i$, $F^i$, $C^i$ may vary by coupons, but the definition of the underlying index $I_0$ is a specific Libor index which will be the same for the entire trade.
+
+### Option Leg
+
+For the option leg, the payoff is as below:
+
+If Long/Short = Long (Short) and Option Right = Cancel, at exercise we (counterparty) decide to cancel the swap and pay fee or keep the option until next exercise.
+
+$$option = max(min)\{-remaining\ swap + F_0, remaining\ option\}$$
+
+If Long/Short = Long (Short) and Option Right = Enter, at exercise we (counterparty) decide to enter into the remaining swap and receive fee or keep the option until next exercise.
+
+$$option = max(min)\{entered\ swap + F_0, remaining\ option\}$$
+
+This is a Bermudan style option giving the right to enter or cancel a swap on a set of exercise dates. The Long/Short and Option Right would be defined at leg level and cannot be changed per exercise. The swap is made of the structured and funding legs with a start date on or after the effective date of the exercise as described above. Upon exercise, a settlement fee $F_0$ can also be applied.
+
+## Relationship to Other Approved Models / Payoffs
+
+European swaption is a degenerated case of Bermudan swaption with only 1 option exercise date.
+
+## Inputs
+
+Trade inputs are briefly described below:
+
+| Name                      | Description                                      | Example     |
+| ------------------------- | ------------------------------------------------ | ----------- |
+| Currency                  | payment currency                                 | USD         |
+| Start Date                | start date of the trade                          | 12/27/2012  |
+| End Date                  | end date of the trade                            | 10Y         |
+| Notional                  | notional of the trade                            | 100,000,000 |
+| LongShort                 | Long OR short option                             | Long        |
+| PayReceive                | pay OR receive structured leg of underlying swap | Receive     |
+| OptionRight               | enter OR cancel underlying swap upon exercise    | Cancel      |
+| Index                     | underlying index                                 | LIBOR3M     |
+| Structure Frequency       | structured leg coupon frequency                  | S           |
+| Structure Basis           | structured leg day count basis                   | 30/360      |
+| Structure Roll Convention | structured leg date roll convention              | MF          |
+| Structure Margin          | structured leg margin                            | 0           |
+| Structure Gearing         | structured leg index gearing (for CIF/CCF)       | 1           |
+| Structure Cap             | structured leg cap value (for CIF/CCF)           | 0.05        |
+| Structure Floor           | structured leg floor value (for CIF/CCF)         | 0.01        |
+| Funding Frequency         | funding leg coupon frequency                     | Q           |
+| Funding Basis             | funding leg day count basis                      | Act/360     |
+| Funding Roll Convention   | funding leg date roll convention                 | MF          |
+| Funding Margin            | funding leg margin                               | 0           |
+| Option Frequency          | option exercise frequency                        | S           |
+| Option Settlement Type    | option settlement type                           | Physical    |
+| Fee settlement            | fee upon exercise                                | 0           |
+
+With these inputs, swap cash flows and date schedule can be generated. More details about schedule generation process can be found in [14].
+
+## Outputs
+
+The output is the PV and risks of the corresponding payoff.
+
+Risks are calculated internally and will be explained more in details in Section 7.
+
+## Payoff Analysis
+
+As most of simple exotic payoffs, Bermudan swaption/CIF/CCF are sensitive to both rate and volatility. Therefore it has all the standard risks such as Delta, Vega, SABR risks, etc.
+
+Regarding the volatility part, most simple exotic payoffs have sensitivities not only to term volatilities and skew, but also to forward volatility and forward skew. This is one of the main advantages to use CLV as this model captures not only term skew but also forward volatility very well, which we will examine more in later sections.
+
+It is also noticed that these payoffs have little sensitivities to correlation, rendering them suitable to be priced using CLV.

@@ -1,0 +1,245 @@
+# General Limitations
+
+## Overview
+
+Cette section décrit les limitations générales du modèle LSV Markov Switching Monte Carlo et les considérations importantes pour son utilisation en production.
+
+## Model Limitations
+
+### 1. Monte Carlo Statistical Error
+
+**Nature** : Erreur statistique inhérente aux simulations Monte Carlo
+
+**Impact** :
+- Erreur proportionnelle à $1/\sqrt{N}$ où $N$ = nombre de simulations
+- Erreur plus élevée pour produits avec payoffs discontinus
+- Variabilité des résultats entre runs avec seeds différents
+
+**Mitigation** :
+- Utilisation d'un nombre suffisant de simulations (≥ 100K pour production)
+- Techniques de réduction de variance (antithetic variates, control variates)
+- Monitoring de l'erreur standard et intervalles de confiance
+- Validation de convergence avant utilisation des résultats
+
+### 2. Computational Performance vs Accuracy Trade-off
+
+**Nature** : Compromis entre vitesse de calcul et précision
+
+**Impact** :
+- Temps de calcul augmente linéairement avec le nombre de simulations
+- Greeks de second ordre nécessitent plus de simulations pour convergence
+- Calculs en temps réel limités par contraintes de performance
+
+**Mitigation** :
+- Optimisation du nombre de simulations selon l'usage (pricing vs risk management)
+- Utilisation de techniques de parallélisation
+- Pré-calcul pour produits standards
+- Approximations rapides pour monitoring intraday
+
+### 3. Calibration Dependency
+
+**Nature** : Qualité des résultats dépendante de la calibration
+
+**Impact** :
+- Erreurs de calibration se propagent dans les prix
+- Sensibilité aux données de marché utilisées pour calibration
+- Instabilité potentielle si calibration de mauvaise qualité
+
+**Mitigation** :
+- Validation rigoureuse de la calibration quotidiennement
+- Monitoring des métriques de qualité de calibration
+- Procédures de fallback en cas d'échec de calibration
+- Tests de sensibilité aux paramètres de calibration
+
+### 4. Discrete State Approximation
+
+**Nature** : Approximation de la volatilité par états discrets
+
+**Impact** :
+- Nombre fini d'états peut ne pas capturer toute la richesse des dynamiques
+- Transitions abruptes entre états vs transitions continues
+- Calibration plus complexe avec augmentation du nombre d'états
+
+**Mitigation** :
+- Choix approprié du nombre d'états selon les besoins
+- Validation que le nombre d'états est suffisant
+- Tests de sensibilité au nombre d'états
+- Comparaison avec modèles à volatilité continue
+
+### 5. Path Dependency Limitations
+
+**Nature** : Certains produits path-dependent complexes peuvent être difficiles à implémenter
+
+**Impact** :
+- Produits avec dépendances de chemin très complexes
+- Produits avec exercice optimal américain/bermudien
+- Limitations du framework Padla pour certains payoffs
+
+**Mitigation** :
+- Évaluation cas par cas pour nouveaux produits complexes
+- Développement de scripts Padla spécialisés si nécessaire
+- Utilisation d'algorithmes spécialisés (Longstaff-Schwartz pour callable)
+- Validation extensive pour nouveaux types de produits
+
+## Implementation Limitations
+
+### 6. Memory Requirements
+
+**Nature** : Stockage des chemins Monte Carlo peut être intensif en mémoire
+
+**Impact** :
+- Limitation du nombre de chemins pour produits très complexes
+- Besoins mémoire augmentent avec la complexité du produit
+- Contraintes sur les systèmes avec mémoire limitée
+
+**Mitigation** :
+- Optimisation de l'utilisation mémoire
+- Traitement par batches pour gros portfolios
+- Streaming des résultats sans stockage complet des chemins
+- Monitoring de l'utilisation mémoire
+
+### 7. Numerical Precision
+
+**Nature** : Limitations de précision numérique en arithmétique flottante
+
+**Impact** :
+- Accumulation d'erreurs d'arrondi sur longues simulations
+- Problèmes potentiels pour produits très sensibles
+- Instabilité numérique dans certains cas extrêmes
+
+**Mitigation** :
+- Utilisation de précision double systématiquement
+- Validation des résultats pour cas extrêmes
+- Tests de stabilité numérique
+- Monitoring des indicateurs de précision
+
+### 8. Correlation Structure Limitations
+
+**Nature** : Modèle limité à corrélation spot-volatilité simple
+
+**Impact** :
+- Pas de corrélation stochastique
+- Corrélation constante dans le temps
+- Limitations pour produits multi-asset complexes
+
+**Mitigation** :
+- Validation que l'hypothèse de corrélation constante est appropriée
+- Tests de sensibilité à la corrélation
+- Considération de modèles alternatifs pour cas complexes
+- Monitoring de la stabilité de la corrélation de marché
+
+## Market Data Limitations
+
+### 9. Calibration Data Quality
+
+**Nature** : Dépendance à la qualité et disponibilité des données de marché
+
+**Impact** :
+- Calibration dégradée si données de marché de mauvaise qualité
+- Problèmes avec données manquantes ou aberrantes
+- Instabilité en périodes de stress de marché
+
+**Mitigation** :
+- Validation et nettoyage des données de marché
+- Procédures de fallback pour données manquantes
+- Monitoring de la qualité des données en temps réel
+- Tests de robustesse avec données historiques
+
+### 10. Market Regime Changes
+
+**Nature** : Modèle peut ne pas s'adapter rapidement aux changements de régime de marché
+
+**Impact** :
+- Paramètres calibrés peuvent devenir obsolètes
+- Performance dégradée en périodes de transition
+- Risque de model breakdown en crises
+
+**Mitigation** :
+- Recalibration fréquente (quotidienne)
+- Monitoring des indicateurs de performance du modèle
+- Tests de stress réguliers
+- Procédures d'escalation en cas de dégradation
+
+## Usage Limitations
+
+### 11. Product Scope
+
+**Nature** : Modèle optimisé pour certains types de produits
+
+**Impact** :
+- Performance optimale pour options vanilles et exotiques première génération
+- Limitations pour produits très exotiques ou multi-asset complexes
+- Nécessité de validation pour nouveaux types de produits
+
+**Mitigation** :
+- Définition claire du scope de produits supportés
+- Validation extensive pour extensions du scope
+- Documentation des limitations par type de produit
+- Procédures d'approbation pour nouveaux produits
+
+### 12. Real-time Constraints
+
+**Nature** : Limitations pour usage en temps réel strict
+
+**Impact** :
+- Temps de calcul peut être prohibitif pour certains usages
+- Latence incompatible avec trading haute fréquence
+- Limitations pour risk management intraday intensif
+
+**Mitigation** :
+- Optimisation des performances pour usages critiques
+- Pré-calcul et mise en cache pour produits standards
+- Approximations rapides pour monitoring temps réel
+- Architecture distribuée pour parallélisation
+
+## Risk Management Considerations
+
+### 13. Model Risk
+
+**Nature** : Risque inhérent à l'utilisation de tout modèle financier
+
+**Impact** :
+- Possibilité d'erreurs de pricing systématiques
+- Risque de perte en cas de model breakdown
+- Dépendance excessive au modèle
+
+**Mitigation** :
+- Diversification des modèles pour validation croisée
+- Monitoring continu de la performance du modèle
+- Tests de stress et scenario analysis
+- Réserves pour incertitude de modèle
+
+### 14. Operational Risk
+
+**Nature** : Risques liés à l'implémentation et l'utilisation opérationnelle
+
+**Impact** :
+- Erreurs d'implémentation ou de configuration
+- Problèmes de données ou de systèmes
+- Erreurs humaines dans l'utilisation
+
+**Mitigation** :
+- Procédures de validation et contrôle qualité
+- Formation appropriée des utilisateurs
+- Documentation complète et à jour
+- Monitoring opérationnel continu
+
+## Recommendations for Usage
+
+### Best Practices
+
+1. **Validation Continue** : Tests réguliers contre benchmarks
+2. **Monitoring Qualité** : Surveillance des métriques de performance
+3. **Documentation** : Maintien de documentation à jour
+4. **Formation** : Formation continue des utilisateurs
+5. **Escalation** : Procédures claires en cas de problème
+
+### Risk Controls
+
+1. **Limites d'Usage** : Définition claire des limites d'application
+2. **Validation Croisée** : Comparaison avec modèles alternatifs
+3. **Tests de Stress** : Validation sous conditions extrêmes
+4. **Réserves** : Provisions pour incertitude de modèle
+5. **Audit** : Revues régulières par équipes indépendantes
+
+Le modèle LSV Markov Switching Monte Carlo, malgré ces limitations, reste un outil puissant et approprié pour le pricing et la gestion des risques d'une large gamme de produits dérivés, à condition d'être utilisé dans le cadre de ses limitations et avec les contrôles appropriés.

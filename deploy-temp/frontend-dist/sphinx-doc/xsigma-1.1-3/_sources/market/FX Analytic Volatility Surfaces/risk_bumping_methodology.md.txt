@@ -1,0 +1,455 @@
+# Risk Bumping Methodology
+
+## 📊 **Bumping Overview**
+
+### **Bumping Objective**
+FX volatility surface bumping consists of applying controlled shocks to surface parameters to calculate sensitivities (Greeks) of option portfolios. This methodology is essential for risk management and VaR metrics calculation.
+
+### **Bumping Types**
+- **ATM Bumping**: Shocks on at-the-money volatility
+- **Wing Bumping**: Shocks on Risk Reversals and Strangles
+- **Parallel Bumping**: Uniform shocks across entire surface
+- **Non-Parallel Bumping**: Differentiated shocks by tenor/strike
+
+---
+
+## 🔧 **ATM Bumping Methodologies**
+
+### **Parallel ATM Shift**
+Application of uniform shock to all ATM volatilities of the surface.
+
+#### **🔍 Formula**
+$$\sigma_{ATM}^{bumped}(T) = \sigma_{ATM}^{base}(T) + \Delta\sigma_{ATM} \quad \forall T \tag{8.1}$$
+
+### **Proportional ATM Shift**
+Application of proportional shock to existing ATM volatilities.
+
+#### **🔍 Formula**
+$$\sigma_{ATM}^{bumped}(T) = \sigma_{ATM}^{base}(T) \times (1 + \epsilon_{ATM}) \quad \forall T \tag{8.2}$$
+
+### **Implementation in Our Project**
+
+#### **🔧 ATM Bumping Framework**
+```cpp
+// ATM bumping framework in Our project
+class fx_atm_bumping_framework {
+public:
+    enum class atm_bump_type {
+        PARALLEL_ABSOLUTE,      // Uniform absolute shock
+        PARALLEL_RELATIVE,      // Uniform relative shock
+        TENOR_SPECIFIC,         // Tenor-specific shocks
+        BUCKETED_BUMPING        // Bumping by maturity buckets
+    };
+    
+    struct atm_bump_specification {
+        atm_bump_type type;
+        double bump_size;
+        std::vector<double> tenor_specific_bumps; // For TENOR_SPECIFIC
+        std::vector<std::pair<double, double>> maturity_buckets; // For BUCKETED
+        bool preserve_arbitrage_free;
+    };
+    
+    struct bumped_surface_result {
+        std::shared_ptr<fx_volatility_surface_base> bumped_surface;
+        std::map<std::string, double> bump_validation_metrics;
+        bool bump_successful;
+        std::string bump_description;
+    };
+    
+    class atm_bumper {
+    public:
+        bumped_surface_result apply_atm_bump(
+            const fx_volatility_surface_base& base_surface,
+            const atm_bump_specification& bump_spec) {
+            
+            bumped_surface_result result;
+            
+            switch (bump_spec.type) {
+                case atm_bump_type::PARALLEL_ABSOLUTE:
+                    result = apply_parallel_absolute_bump(base_surface, bump_spec);
+                    break;
+                case atm_bump_type::PARALLEL_RELATIVE:
+                    result = apply_parallel_relative_bump(base_surface, bump_spec);
+                    break;
+                case atm_bump_type::TENOR_SPECIFIC:
+                    result = apply_tenor_specific_bump(base_surface, bump_spec);
+                    break;
+                case atm_bump_type::BUCKETED_BUMPING:
+                    result = apply_bucketed_bump(base_surface, bump_spec);
+                    break;
+                default:
+                    result.bump_successful = false;
+                    result.bump_description = "Unknown bump type";
+            }
+            
+            // Validation post-bump
+            if (result.bump_successful && bump_spec.preserve_arbitrage_free) {
+                result.bump_successful = validate_arbitrage_free_surface(result.bumped_surface);
+            }
+            
+            return result;
+        }
+        
+    private:
+        bumped_surface_result apply_parallel_absolute_bump(
+            const fx_volatility_surface_base& base_surface,
+            const atm_bump_specification& bump_spec) {
+            
+            bumped_surface_result result;
+            
+            // Clone base surface
+            auto bumped_surface = base_surface.clone();
+
+            // Apply uniform absolute shock
+            auto tenor_grid = base_surface.get_tenor_grid();
+
+            for (double tenor : tenor_grid) {
+                double base_atm_vol = base_surface.get_atm_volatility(tenor);
+                double bumped_atm_vol = base_atm_vol + bump_spec.bump_size;
+
+                // Volatility constraints
+                bumped_atm_vol = std::max(0.001, std::min(bumped_atm_vol, 5.0));
+
+                bumped_surface->set_atm_volatility(tenor, bumped_atm_vol);
+            }
+
+            // Recalibrate wings if necessary
+            bumped_surface->recalibrate_wings_to_atm_changes();
+
+            result.bumped_surface = bumped_surface;
+            result.bump_successful = true;
+            result.bump_description = "Parallel absolute ATM bump: " +
+                                    std::to_string(bump_spec.bump_size);
+
+            // Validation metrics
+            result.bump_validation_metrics = calculate_bump_validation_metrics(
+                base_surface, *bumped_surface);
+            
+            return result;
+        }
+        
+        bumped_surface_result apply_bucketed_bump(
+            const fx_volatility_surface_base& base_surface,
+            const atm_bump_specification& bump_spec) {
+            
+            bumped_surface_result result;
+            
+            auto bumped_surface = base_surface.clone();
+            auto tenor_grid = base_surface.get_tenor_grid();
+            
+            // Apply shocks by maturity bucket
+            for (double tenor : tenor_grid) {
+                double bucket_bump = determine_bucket_bump(tenor, bump_spec.maturity_buckets);
+
+                double base_atm_vol = base_surface.get_atm_volatility(tenor);
+                double bumped_atm_vol = base_atm_vol + bucket_bump;
+
+                // Constraints
+                bumped_atm_vol = std::max(0.001, std::min(bumped_atm_vol, 5.0));
+
+                bumped_surface->set_atm_volatility(tenor, bumped_atm_vol);
+            }
+
+            // Smoothing between buckets to avoid discontinuities
+            bumped_surface->smooth_bucket_transitions();
+            
+            result.bumped_surface = bumped_surface;
+            result.bump_successful = true;
+            result.bump_description = "Bucketed ATM bump with " + 
+                                    std::to_string(bump_spec.maturity_buckets.size()) + " buckets";
+            
+            return result;
+        }
+        
+        double determine_bucket_bump(double tenor, 
+                                   const std::vector<std::pair<double, double>>& buckets) {
+            
+            // Search for appropriate bucket
+            for (const auto& [bucket_maturity, bucket_bump] : buckets) {
+                if (tenor <= bucket_maturity) {
+                    return bucket_bump;
+                }
+            }
+
+            // If beyond last bucket, use last bump
+            return buckets.empty() ? 0.0 : buckets.back().second;
+        }
+        
+        std::map<std::string, double> calculate_bump_validation_metrics(
+            const fx_volatility_surface_base& base_surface,
+            const fx_volatility_surface_base& bumped_surface) {
+            
+            std::map<std::string, double> metrics;
+            
+            auto tenor_grid = base_surface.get_tenor_grid();
+            
+            // Calculate validation metrics
+            double max_atm_change = 0.0;
+            double avg_atm_change = 0.0;
+            double total_variance_change = 0.0;
+            
+            for (double tenor : tenor_grid) {
+                double base_vol = base_surface.get_atm_volatility(tenor);
+                double bumped_vol = bumped_surface.get_atm_volatility(tenor);
+                
+                double vol_change = std::abs(bumped_vol - base_vol);
+                max_atm_change = std::max(max_atm_change, vol_change);
+                avg_atm_change += vol_change;
+                
+                double base_var = base_vol * base_vol * tenor;
+                double bumped_var = bumped_vol * bumped_vol * tenor;
+                total_variance_change += std::abs(bumped_var - base_var);
+            }
+            
+            avg_atm_change /= tenor_grid.size();
+            
+            metrics["MAX_ATM_CHANGE"] = max_atm_change;
+            metrics["AVG_ATM_CHANGE"] = avg_atm_change;
+            metrics["TOTAL_VARIANCE_CHANGE"] = total_variance_change;
+            
+            return metrics;
+        }
+    };
+};
+```
+*This C++ implementation in Our project shows the complete ATM bumping framework with different methodologies and validation.*
+
+---
+
+## 🎯 **Wing Bumping Methodologies**
+
+### **Risk Reversal Bumping**
+Shocks applied specifically to Risk Reversals to measure skew sensitivity.
+
+#### **🔍 Approaches**
+- **Additive RR Bump**: $RR^{bumped} = RR^{base} + \Delta RR$
+- **Multiplicative RR Bump**: $RR^{bumped} = RR^{base} \times (1 + \epsilon_{RR})$
+
+### **Strangle Bumping**
+Shocks applied to Strangles to measure convexity sensitivity.
+
+#### **🔍 Safe Bumping Method**
+To avoid negative volatilities, use of ratios:
+
+$$ST^{bumped} = ST^{base} \times \frac{ST^{base} + \Delta ST}{ST^{base}} \tag{8.3}$$
+
+### **Implementation in Our Project**
+
+#### **🔧 Wing Bumping Framework**
+```cpp
+// Wing bumping framework in Our project
+class fx_wing_bumping_framework {
+public:
+    enum class wing_bump_type {
+        RISK_REVERSAL_BUMP,     // RR bump only
+        STRANGLE_BUMP,          // ST bump only
+        COMBINED_WING_BUMP,     // RR and ST bump simultaneously
+        DELTA_SPECIFIC_BUMP     // Delta level specific bump
+    };
+
+    struct wing_bump_specification {
+        wing_bump_type type;
+        double rr_bump_size;
+        double st_bump_size;
+        std::vector<double> delta_levels; // 0.25, 0.10, etc.
+        std::map<double, double> delta_specific_bumps;
+        bool use_safe_bumping; // Avoid negative volatilities
+        bool preserve_wing_ratios;
+    };
+    
+    class wing_bumper {
+    public:
+        bumped_surface_result apply_wing_bump(
+            const fx_volatility_surface_base& base_surface,
+            const wing_bump_specification& bump_spec) {
+            
+            bumped_surface_result result;
+            
+            auto bumped_surface = base_surface.clone();
+            auto tenor_grid = base_surface.get_tenor_grid();
+            
+            for (double tenor : tenor_grid) {
+                // Apply wing bumps for this tenor
+                apply_wing_bump_for_tenor(bumped_surface, tenor, bump_spec);
+            }
+
+            // Validation and smoothing
+            if (bump_spec.preserve_wing_ratios) {
+                bumped_surface->preserve_wing_ratio_consistency();
+            }
+            
+            result.bumped_surface = bumped_surface;
+            result.bump_successful = validate_wing_bump_result(*bumped_surface);
+            result.bump_description = generate_wing_bump_description(bump_spec);
+            
+            return result;
+        }
+        
+    private:
+        void apply_wing_bump_for_tenor(
+            std::shared_ptr<fx_volatility_surface_base> surface,
+            double tenor,
+            const wing_bump_specification& bump_spec) {
+            
+            switch (bump_spec.type) {
+                case wing_bump_type::RISK_REVERSAL_BUMP:
+                    apply_rr_bump_for_tenor(surface, tenor, bump_spec);
+                    break;
+                case wing_bump_type::STRANGLE_BUMP:
+                    apply_st_bump_for_tenor(surface, tenor, bump_spec);
+                    break;
+                case wing_bump_type::COMBINED_WING_BUMP:
+                    apply_combined_wing_bump_for_tenor(surface, tenor, bump_spec);
+                    break;
+                case wing_bump_type::DELTA_SPECIFIC_BUMP:
+                    apply_delta_specific_bump_for_tenor(surface, tenor, bump_spec);
+                    break;
+            }
+        }
+        
+        void apply_rr_bump_for_tenor(
+            std::shared_ptr<fx_volatility_surface_base> surface,
+            double tenor,
+            const wing_bump_specification& bump_spec) {
+            
+            // Bump Risk Reversals for all delta levels
+            for (double delta_level : bump_spec.delta_levels) {
+                double base_rr = surface->get_risk_reversal(tenor, delta_level);
+                double bumped_rr;
+
+                if (bump_spec.use_safe_bumping) {
+                    // Safe bumping to avoid numerical problems
+                    bumped_rr = apply_safe_rr_bump(base_rr, bump_spec.rr_bump_size);
+                } else {
+                    // Direct bump
+                    bumped_rr = base_rr + bump_spec.rr_bump_size;
+                }
+                
+                surface->set_risk_reversal(tenor, delta_level, bumped_rr);
+            }
+        }
+        
+        void apply_st_bump_for_tenor(
+            std::shared_ptr<fx_volatility_surface_base> surface,
+            double tenor,
+            const wing_bump_specification& bump_spec) {
+            
+            // Bump Strangles with safe method
+            for (double delta_level : bump_spec.delta_levels) {
+                double base_st = surface->get_strangle(tenor, delta_level);
+                double bumped_st;
+
+                if (bump_spec.use_safe_bumping) {
+                    // Safe bumping by ratio to avoid negative volatilities
+                    bumped_st = apply_safe_st_bump(base_st, bump_spec.st_bump_size);
+                } else {
+                    bumped_st = base_st + bump_spec.st_bump_size;
+                }
+
+                // Positivity constraint
+                bumped_st = std::max(bumped_st, 0.001);
+                
+                surface->set_strangle(tenor, delta_level, bumped_st);
+            }
+        }
+        
+        double apply_safe_rr_bump(double base_rr, double bump_size) {
+            // Safe bumping for Risk Reversal
+            // Avoid unwanted sign changes
+
+            if (std::abs(base_rr) < 1e-6) {
+                // RR close to zero - direct bump
+                return bump_size;
+            } else {
+                // Proportional bump to preserve sign
+                double relative_bump = bump_size / std::abs(base_rr);
+                return base_rr * (1.0 + relative_bump);
+            }
+        }
+
+        double apply_safe_st_bump(double base_st, double bump_size) {
+            // Safe bumping for Strangle by ratio method
+
+            if (base_st <= 0.001) {
+                // Very small Strangle - minimum bump
+                return std::max(0.001, base_st + bump_size);
+            }
+
+            // Ratio method to avoid negative volatilities
+            double target_st = base_st + bump_size;
+
+            if (target_st <= 0.0) {
+                // Bump too negative - use reduction ratio
+                double reduction_ratio = 0.5; // 50% reduction
+                return base_st * reduction_ratio;
+            }
+
+            return target_st;
+        }
+        
+        bool validate_wing_bump_result(const fx_volatility_surface_base& bumped_surface) {
+            // Validation that bump did not create arbitrage
+
+            auto tenor_grid = bumped_surface.get_tenor_grid();
+
+            for (double tenor : tenor_grid) {
+                // Verify that all volatilities remain positive
+                double atm_vol = bumped_surface.get_atm_volatility(tenor);
+
+                for (double delta : {0.25, 0.10}) {
+                    double rr = bumped_surface.get_risk_reversal(tenor, delta);
+                    double st = bumped_surface.get_strangle(tenor, delta);
+
+                    double vol_call = atm_vol + st + 0.5 * rr;
+                    double vol_put = atm_vol + st - 0.5 * rr;
+
+                    if (vol_call <= 0.0 || vol_put <= 0.0) {
+                        return false;
+                    }
+                }
+            }
+            
+            return true;
+        }
+    };
+};
+```
+
+---
+
+## 📊 **Projection Methods**
+
+### **Default Projection**
+Standard method for projecting shocks onto the surface.
+
+### **KeepConvex Projection**
+Advanced method preserving surface convexity after bumping.
+
+#### **🔍 KeepConvex Algorithm**
+1. **Initial shock application**
+2. **Convexity violation detection**
+3. **Iterative correction** to restore convexity
+4. **Final validation** of arbitrage-free conditions
+
+---
+
+## 🎯 **Calcul des Sensibilités**
+
+### **Vega Bucketed**
+Sensibilité aux chocs de volatilité par bucket de maturité.
+
+$$Vega_{bucket}(T_i) = \frac{PV(\sigma + \Delta\sigma_i) - PV(\sigma)}{\Delta\sigma_i} \tag{8.4}$$
+
+### **Rega (Risk Reversal Greeks)**
+Sensibilité aux chocs de Risk Reversal.
+
+$$Rega = \frac{PV(RR + \Delta RR) - PV(RR)}{\Delta RR} \tag{8.5}$$
+
+### **Sega (Strangle Greeks)**
+Sensibilité aux chocs de Strangle.
+
+$$Sega = \frac{PV(ST + \Delta ST) - PV(ST)}{\Delta ST} \tag{8.6}$$
+
+---
+
+*This section details complete bumping methodologies for FX volatility surfaces, integrating Our project best practices with robust approaches for sensitivity calculation and arbitrage-free preservation.*

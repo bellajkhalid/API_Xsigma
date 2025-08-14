@@ -1,0 +1,266 @@
+# Scope
+
+## Overview
+
+Cette section définit le scope d'application du modèle **Local Volatility PDE and MC**, incluant les marchés cibles, les produits supportés et les critères de sélection entre méthodes PDE et Monte Carlo.
+
+## Model Scope
+
+### Target Markets
+
+#### Equity Markets
+- **Single Stocks** : Actions individuelles avec volatilité locale
+- **Equity Indices** : Indices avec smile de volatilité
+- **ETFs** : Fonds négociés en bourse
+- **ADRs** : American Depositary Receipts
+
+#### Market Segments
+- **Institutional Trading** : Banques d'investissement, hedge funds
+- **Retail Derivatives** : Produits structurés pour particuliers
+- **Market Making** : Cotation d'options vanilles et exotiques
+- **Risk Management** : Gestion des risques de portefeuilles d'options
+
+### Product Coverage
+
+#### Vanilla Options
+- **European Options** : Calls et puts européens
+- **American Options** : Exercice anticipé via méthodes hybrides
+- **Digital Options** : Options binaires avec traitement spécialisé
+- **Forward Contracts** : Contrats à terme
+
+#### Exotic Options
+- **Barrier Options** : Knock-out, knock-in, double barriers
+- **Asian Options** : Moyenne arithmétique et géométrique
+- **Lookback Options** : Fixed strike et floating strike
+- **Cliquet Options** : Options à cliquet avec volatilité locale
+
+#### Complex Structures
+- **Multi-Barrier Products** : Produits avec barrières multiples
+- **Path-Dependent Structures** : Structures avec dépendance de chemin complexe
+- **Autocallable Notes** : Notes autocallables avec volatilité locale
+- **Worst-of/Best-of Options** : Options sur minimum/maximum
+
+### Intended Use Cases
+
+#### Primary Applications
+
+**1. Vanilla Options Trading**
+- Pricing précis avec smile de volatilité
+- Market making pour options liquides
+- Arbitrage de volatilité
+- Hedging de positions vanilles
+
+**2. Exotic Options Structuring**
+- Développement de nouveaux produits exotiques
+- Pricing de structures complexes
+- Optimisation de payoffs
+- Analyse de sensibilités
+
+**3. Risk Management**
+- Calcul de Greeks pour gestion des risques
+- Stress testing avec volatilité locale
+- Hedging dynamique de portefeuilles
+- Optimisation de stratégies de couverture
+
+**4. Model Validation**
+- Validation croisée PDE vs Monte Carlo
+- Benchmarking de modèles existants
+- Développement de nouveaux modèles
+- Recherche quantitative
+
+#### Secondary Applications
+
+**1. Portfolio Optimization**
+- Optimisation de portefeuilles d'options
+- Allocation d'actifs avec dérivés
+- Construction de stratégies
+- Gestion de corrélations
+
+**2. Regulatory Compliance**
+- Calcul de capital réglementaire
+- Validation de modèles internes
+- Stress testing réglementaire
+- Reporting de positions
+
+## Technical Scope
+
+### Supported Methodologies
+
+#### PDE Methods
+- **Finite Differences** : Différences finies explicites et implicites
+- **Finite Elements** : Éléments finis pour géométries complexes
+- **Spectral Methods** : Méthodes spectrales haute précision
+- **Adaptive Grids** : Grilles adaptatives pour optimisation
+
+#### Monte Carlo Methods
+- **Standard MC** : Monte Carlo standard avec volatilité locale
+- **Quasi-Monte Carlo** : Séquences à faible discrépance
+- **Antithetic Variables** : Variables antithétiques
+- **Control Variates** : Variables de contrôle
+
+#### Hybrid Approaches
+- **Adaptive Selection** : Sélection automatique de méthode
+- **PDE for Greeks** : PDE pour Greeks, MC pour prix
+- **Cross Validation** : Validation croisée systématique
+- **Error Control** : Contrôle d'erreur sophistiqué
+
+### Model Capabilities
+
+#### Local Volatility Features
+- **Dupire Surface** : Surface de volatilité locale calibrée
+- **Smile Modeling** : Modélisation du smile de volatilité
+- **Term Structure** : Structure temporelle de volatilité
+- **Interpolation** : Interpolation sophistiquée
+
+#### Numerical Features
+- **Grid Optimization** : Optimisation de grilles PDE
+- **Path Generation** : Génération de chemins optimisée
+- **Variance Reduction** : Techniques de réduction de variance
+- **Parallel Processing** : Traitement parallélisé
+
+#### Risk Metrics
+- **Standard Greeks** : Delta, Gamma, Vega, Theta, Rho
+- **Advanced Greeks** : Vanna, Volga, Charm, Color
+- **Path Greeks** : Greeks pour produits path-dependent
+- **Cross Greeks** : Greeks croisés pour portefeuilles
+
+## Usage Guidelines
+
+### Recommended Applications
+
+#### High Confidence Use Cases
+- **Liquid Underlyings** : Actions et indices liquides
+- **Standard Maturities** : 1 semaine à 2 ans
+- **Moderate Complexity** : Produits avec complexité modérée
+- **Stable Markets** : Conditions de marché normales
+
+#### Medium Confidence Use Cases
+- **Illiquid Underlyings** : Actions moins liquides
+- **Long Maturities** : 2-5 ans avec validation
+- **High Complexity** : Produits très complexes
+- **Volatile Markets** : Périodes de forte volatilité
+
+#### Limited Confidence Use Cases
+- **Very Illiquid Assets** : Actifs très illiquides
+- **Very Long Maturities** : > 5 ans
+- **Extreme Complexity** : Produits avec dépendances extrêmes
+- **Crisis Periods** : Périodes de crise extrême
+
+### Method Selection Criteria
+
+#### PDE Preferred
+- **Smooth Payoffs** : Payoffs lisses et différentiables
+- **Greeks Intensive** : Applications nécessitant Greeks fréquents
+- **Low Dimensionality** : Problèmes de faible dimension
+- **Boundary Conditions** : Conditions aux limites importantes
+
+#### Monte Carlo Preferred
+- **Path Dependency** : Forte dépendance de chemin
+- **High Dimensionality** : Problèmes de haute dimension
+- **Complex Payoffs** : Payoffs non-lisses ou discontinus
+- **Exotic Features** : Caractéristiques très exotiques
+
+#### Hybrid Recommended
+- **Mixed Features** : Combinaison de caractéristiques
+- **High Precision** : Exigences de haute précision
+- **Validation Required** : Validation croisée nécessaire
+- **Uncertain Complexity** : Complexité difficile à évaluer
+
+### Performance Expectations
+
+#### Accuracy Targets
+- **Vanilla Options** : Erreur < 0.05% vs Black-Scholes
+- **Barrier Options** : Erreur < 0.1% vs solutions analytiques
+- **Asian Options** : Erreur < 0.2% vs références
+- **Greeks Accuracy** : Erreur relative < 1%
+
+#### Speed Requirements
+- **Single Option** : < 200ms pour produits standards
+- **Portfolio Pricing** : < 15 minutes pour 100 positions
+- **Greeks Calculation** : < 300ms pour Greeks complets
+- **Stress Testing** : < 45 minutes pour 50 scénarios
+
+### Operational Constraints
+
+#### Computational Requirements
+- **CPU** : Minimum 8 cores pour performance optimale
+- **Memory** : 16GB RAM pour usage standard, 32GB pour haute précision
+- **Storage** : SSD recommandé pour accès rapide aux données
+- **Network** : Connexion stable pour données de marché
+
+#### Market Data Requirements
+- **Real-Time Feeds** : Prix et volatilités en temps réel
+- **Historical Data** : Minimum 2 ans pour calibration
+- **Surface Data** : Surfaces de volatilité complètes
+- **Quality Control** : Validation et nettoyage automatiques
+
+#### System Integration
+- **UMIFX Integration** : Intégration native avec UMIFX
+- **Risk Systems** : Connectivité avec systèmes de risque
+- **Market Data** : Interfaces avec fournisseurs
+- **Reporting** : Génération automatique de rapports
+
+## Limitations and Exclusions
+
+### Product Limitations
+- **Multi-Asset Products** : Support limité pour multi-sous-jacents
+- **Credit-Linked Products** : Pas de support pour risque de crédit
+- **Interest Rate Derivatives** : Limité aux dérivés actions
+- **Commodity Derivatives** : Pas de support pour commodités
+
+### Market Limitations
+- **Extreme Volatility** : Performance dégradée pour vol > 100%
+- **Market Disruptions** : Limitations lors d'événements exceptionnels
+- **Low Liquidity** : Précision réduite pour actifs illiquides
+- **Data Quality** : Dépendance à la qualité des données
+
+### Technical Limitations
+- **Memory Constraints** : Limitations pour très grandes grilles
+- **Computation Time** : Contraintes temps réel pour certains cas
+- **Convergence Issues** : Possible non-convergence pour paramètres extrêmes
+- **Numerical Stability** : Limitations pour conditions extrêmes
+
+### Regulatory Limitations
+- **Model Approval** : Validation réglementaire requise
+- **Documentation** : Exigences documentaires extensives
+- **Independent Validation** : Validation par tiers obligatoire
+- **Ongoing Monitoring** : Surveillance continue requise
+
+## Best Practices
+
+### Implementation Guidelines
+1. **Start Simple** : Commencer par options vanilles
+2. **Method Selection** : Utiliser la sélection adaptative
+3. **Cross Validation** : Activer la validation croisée
+4. **Performance Monitoring** : Surveiller les métriques
+5. **Regular Calibration** : Recalibration quotidienne
+
+### Risk Management
+1. **Model Diversification** : Utiliser plusieurs modèles
+2. **Limit Setting** : Définir des limites claires
+3. **Stress Testing** : Tests réguliers sous conditions extrêmes
+4. **Error Monitoring** : Surveillance continue des erreurs
+5. **Escalation Procedures** : Procédures d'escalade claires
+
+### Quality Assurance
+1. **Automated Testing** : Tests automatisés complets
+2. **Cross-Validation** : Validation croisée systématique
+3. **Performance Benchmarks** : Benchmarks réguliers
+4. **Documentation Updates** : Maintien de documentation
+5. **User Training** : Formation continue des utilisateurs
+
+## Usage Recommendations
+
+### Production Deployment
+- **Phased Rollout** : Déploiement progressif par type de produit
+- **Parallel Running** : Fonctionnement en parallèle avec modèles existants
+- **Gradual Migration** : Migration graduelle des positions
+- **Continuous Monitoring** : Surveillance continue post-déploiement
+
+### Optimization Strategies
+- **Method Optimization** : Optimisation de sélection de méthode
+- **Parameter Tuning** : Ajustement des paramètres
+- **Resource Management** : Gestion optimale des ressources
+- **Performance Tuning** : Optimisation de performance
+
+Le modèle Local Volatility PDE and MC dans Our project offre une solution flexible et puissante pour une large gamme d'applications de pricing d'options, avec des guidelines claires pour optimiser son utilisation selon les besoins spécifiques.

@@ -1,0 +1,574 @@
+# Product Testing: InflSwapYOY
+
+## 📊 **Vue d'Ensemble du Produit InflSwapYOY**
+
+### **Description du Trade**
+Nous considérons un trade **InflSwapYOY** dans un template de sécurité DBA MULTISWAP avec les caractéristiques suivantes :
+
+#### **Structure du Produit**
+- **Receive Leg** : Paiements annuels basés sur le retour d'INFLATION avec CPXTEMU comme sous-jacent
+- **Pay Leg** : Paiements annuels avec Libor plus un spread
+- **Date effective** : 11 octobre 2019
+- **Date de fin** : 11 octobre 2033
+- **Maturité** : 14 ans
+
+#### **Détails du Trade**
+- **Date de valorisation** : 6 octobre 2023
+- **Devise de rapport** : EUR
+- **Devise de courbe** : EUR
+- **Nom de funding** : usdois
+- **Notionnel (N)** : 275 EUR
+- **Spread** : 1.24%
+
+### **Implémentation dans Our project**
+
+#### **🔧 Classe InflSwapYOY**
+```cpp
+// Implémentation du produit InflSwapYOY dans Our project
+class InflSwapYOY : public inflation_product_base {
+private:
+    struct yoy_leg_configuration {
+        payment_frequency frequency;
+        std::string inflation_index;
+        double spread;
+        bool include_convexity_adjustment;
+        std::vector<datetime> payment_dates;
+        std::vector<datetime> fixing_dates;
+    };
+    
+    yoy_leg_configuration receive_leg_;  // Leg inflation YoY
+    yoy_leg_configuration pay_leg_;      // Leg taux fixe
+    double notional_;
+    datetime effective_date_;
+    datetime maturity_date_;
+    std::string funding_curve_name_;
+    
+public:
+    InflSwapYOY(double notional,
+                const datetime& effective_date,
+                const datetime& maturity_date,
+                const yoy_leg_configuration& receive_leg,
+                const yoy_leg_configuration& pay_leg,
+                const std::string& funding_curve)
+        : notional_(notional),
+          effective_date_(effective_date),
+          maturity_date_(maturity_date),
+          receive_leg_(receive_leg),
+          pay_leg_(pay_leg),
+          funding_curve_name_(funding_curve) {
+        
+        generate_payment_schedules();
+        validate_yoy_configuration();
+    }
+    
+    double calculate_pv(const market_data& market) const override {
+        double receive_leg_pv = calculate_receive_leg_pv(market);
+        double pay_leg_pv = calculate_pay_leg_pv(market);
+        
+        return receive_leg_pv - pay_leg_pv;
+    }
+    
+private:
+    double calculate_receive_leg_pv(const market_data& market) const {
+        double total_pv = 0.0;
+        
+        auto inflation_curve = market.get_inflation_curve(receive_leg_.inflation_index);
+        auto discount_curve = market.get_discount_curve("EUR");
+        auto cmt_object = market.get_convexity_adjustment_object();
+        
+        for (size_t i = 0; i < receive_leg_.payment_dates.size(); ++i) {
+            const auto& payment_date = receive_leg_.payment_dates[i];
+            const auto& fixing_date = receive_leg_.fixing_dates[i];
+            
+            if (payment_date <= market.valuation_date) continue;
+            
+            // Calcul du retour d'inflation YoY
+            double yoy_return = calculate_yoy_inflation_return(
+                inflation_curve, fixing_date);
+            
+            // Ajustement de convexité si activé
+            if (receive_leg_.include_convexity_adjustment) {
+                datetime start_date = fixing_date - years(1);
+                double convexity_adj = cmt_object->get_convexity_adjustment(
+                    start_date, fixing_date);
+                yoy_return += convexity_adj;
+            }
+            
+            // Facteur d'accroissement
+            double accrual_factor = calculate_accrual_factor(
+                get_previous_payment_date(payment_date), payment_date);
+            
+            // Facteur d'actualisation
+            double discount_factor = discount_curve->get_discount_factor(payment_date);
+            
+            // Contribution au PV
+            double cashflow = notional_ * yoy_return * accrual_factor;
+            total_pv += cashflow * discount_factor;
+        }
+        
+        return total_pv;
+    }
+    
+    double calculate_yoy_inflation_return(
+        const std::shared_ptr<inflation_curve>& curve,
+        const datetime& fixing_date) const {
+        
+        // Dates pour calcul YoY (T-1Y à T)
+        datetime start_date = fixing_date - years(1);
+        
+        // Valeurs d'inflation
+        double inflation_start = curve->cpi(start_date, tenor("2M"));
+        double inflation_end = curve->cpi(fixing_date, tenor("2M"));
+        
+        // Retour YoY
+        return (inflation_end / inflation_start) - 1.0;
+    }
+};
+```
+*Cette implémentation C++ dans Our project montre la structure d'un InflSwapYOY avec gestion des retours d'inflation year-on-year et des ajustements de convexité.*
+
+---
+
+## 🧪 **4.3.1 EOD Testing**
+
+### **Tests de Fin de Journée**
+
+#### **🔍 4.3.1.1 Effect of Convexity Adjustment on PV**
+
+##### **Impact de l'Ajustement de Convexité**
+```cpp
+// Tests de l'effet de l'ajustement de convexité
+class convexity_adjustment_tester {
+public:
+    struct convexity_test_results {
+        double pv_with_cmt;
+        double pv_without_cmt;
+        double convexity_impact;
+        double relative_impact;
+    };
+    
+    convexity_test_results test_convexity_impact(
+        const InflSwapYOY& swap,
+        const market_data& market) {
+        
+        convexity_test_results results;
+        
+        // PV avec ajustement de convexité
+        results.pv_with_cmt = swap.calculate_pv(market);
+        
+        // PV sans ajustement de convexité
+        auto swap_no_cmt = create_swap_without_convexity(swap);
+        results.pv_without_cmt = swap_no_cmt.calculate_pv(market);
+        
+        // Impact de la convexité
+        results.convexity_impact = results.pv_with_cmt - results.pv_without_cmt;
+        results.relative_impact = results.convexity_impact / 
+                                 std::abs(results.pv_without_cmt);
+        
+        return results;
+    }
+    
+    void test_convexity_under_curve_shifts() {
+        std::vector<double> ir_shifts = {-100, -50, 0, 50, 100}; // bp
+        std::vector<double> infl_shifts = {-50, -25, 0, 25, 50}; // bp
+        
+        for (double ir_shift : ir_shifts) {
+            for (double infl_shift : infl_shifts) {
+                auto shifted_market = apply_curve_shifts(base_market_, 
+                                                       ir_shift * 1e-4, 
+                                                       infl_shift * 1e-4);
+                
+                auto results = test_convexity_impact(test_swap_, shifted_market);
+                
+                // Documentation des résultats
+                std::cout << "IR Shift: " << ir_shift << "bp, "
+                          << "Infl Shift: " << infl_shift << "bp, "
+                          << "Convexity Impact: " << results.convexity_impact
+                          << " (" << (results.relative_impact * 100) << "%)" << std::endl;
+                
+                // Validation que l'impact est significatif
+                EXPECT_GT(std::abs(results.relative_impact), 0.001); // > 0.1%
+            }
+        }
+    }
+};
+```
+
+#### **🔍 4.3.1.2 Cashflow Replication of the Trade**
+
+##### **Réplication des Cashflows YoY**
+```cpp
+// Réplication détaillée des cashflows pour InflSwapYOY
+class inflswapyoy_cashflow_replicator {
+public:
+    struct yoy_cashflow_details {
+        datetime payment_date;
+        datetime fixing_date_start;
+        datetime fixing_date_end;
+        double inflation_start;
+        double inflation_end;
+        double yoy_return;
+        double convexity_adjustment;
+        double total_coupon_rate;
+        double accrual_factor;
+        double discount_factor;
+        double cashflow_amount;
+        double present_value;
+    };
+    
+    std::vector<yoy_cashflow_details> replicate_receive_leg(
+        const InflSwapYOY& swap,
+        const market_data& market) {
+        
+        std::vector<yoy_cashflow_details> cashflows;
+        
+        auto inflation_curve = market.get_inflation_curve("CPXTEMU");
+        auto discount_curve = market.get_discount_curve("EUR");
+        auto cmt_object = market.get_convexity_adjustment_object();
+        
+        // Génération des dates de paiement annuelles
+        auto payment_dates = generate_annual_payment_dates(
+            swap.get_effective_date(), swap.get_maturity_date());
+        
+        for (const auto& payment_date : payment_dates) {
+            if (payment_date <= market.valuation_date) continue;
+            
+            yoy_cashflow_details cf;
+            cf.payment_date = payment_date;
+            cf.fixing_date_end = get_inflation_fixing_date(payment_date);
+            cf.fixing_date_start = cf.fixing_date_end - years(1);
+            
+            // Valeurs d'inflation
+            cf.inflation_start = inflation_curve->cpi(cf.fixing_date_start, tenor("2M"));
+            cf.inflation_end = inflation_curve->cpi(cf.fixing_date_end, tenor("2M"));
+            
+            // Retour YoY
+            cf.yoy_return = (cf.inflation_end / cf.inflation_start) - 1.0;
+            
+            // Ajustement de convexité
+            cf.convexity_adjustment = cmt_object->get_convexity_adjustment(
+                cf.fixing_date_start, cf.fixing_date_end);
+            
+            // Taux de coupon total
+            cf.total_coupon_rate = cf.yoy_return + cf.convexity_adjustment;
+            
+            // Facteur d'accroissement (annuel)
+            cf.accrual_factor = 1.0; // Paiements annuels
+            
+            // Facteur d'actualisation
+            cf.discount_factor = discount_curve->get_discount_factor(payment_date);
+            
+            // Montant du cashflow
+            cf.cashflow_amount = swap.get_notional() * cf.total_coupon_rate * cf.accrual_factor;
+            
+            // Valeur présente
+            cf.present_value = cf.cashflow_amount * cf.discount_factor;
+            
+            cashflows.push_back(cf);
+        }
+        
+        return cashflows;
+    }
+    
+    void validate_cashflow_replication(const InflSwapYOY& swap,
+                                      const market_data& market) {
+        // PV DBA
+        double dba_receive_pv = swap.calculate_receive_leg_pv(market);
+        
+        // PV par réplication
+        auto cashflows = replicate_receive_leg(swap, market);
+        double replicated_pv = 0.0;
+        
+        for (const auto& cf : cashflows) {
+            replicated_pv += cf.present_value;
+        }
+        
+        // Validation
+        double replication_error = std::abs(dba_receive_pv - replicated_pv);
+        EXPECT_LT(replication_error, 1e-8);
+        
+        // Documentation détaillée
+        std::cout << "=== InflSwapYOY Receive Leg Cashflow Replication ===" << std::endl;
+        std::cout << "Payment Date | YoY Return | Convexity Adj | Total Rate | PV" << std::endl;
+        
+        for (const auto& cf : cashflows) {
+            std::cout << cf.payment_date.to_string() << " | "
+                      << (cf.yoy_return * 100) << "% | "
+                      << (cf.convexity_adjustment * 10000) << "bp | "
+                      << (cf.total_coupon_rate * 100) << "% | "
+                      << cf.present_value << std::endl;
+        }
+        
+        std::cout << "DBA PV: " << dba_receive_pv << std::endl;
+        std::cout << "Replicated PV: " << replicated_pv << std::endl;
+        std::cout << "Error: " << replication_error << std::endl;
+    }
+};
+```
+
+#### **🔍 4.3.1.3 Stability Testing: EUR Curve Shift**
+
+##### **Tests de Stabilité sous Chocs EUR**
+```cpp
+// Tests de stabilité sous chocs de courbe EUR
+class eur_curve_stability_tester {
+public:
+    void test_eur_curve_stability(const InflSwapYOY& swap,
+                                 const market_data& base_market) {
+        
+        std::vector<double> shock_levels;
+        std::vector<double> pv_values;
+        std::vector<double> eur_flat_deltas;
+        std::vector<double> cpxtemu_flat_deltas;
+        std::vector<double> eur_flat_gammas;
+        std::vector<double> cpxtemu_flat_gammas;
+        
+        // Tests de -200bp à +200bp
+        for (int shock_bp = -200; shock_bp <= 200; shock_bp += 25) {
+            double shock = shock_bp * 1e-4;
+            shock_levels.push_back(shock_bp);
+            
+            // Application du choc EUR
+            auto shocked_market = apply_eur_curve_shock(base_market, shock);
+            
+            // Calcul des métriques
+            double pv = swap.calculate_pv(shocked_market);
+            pv_values.push_back(pv);
+            
+            auto sensitivities = calculate_sensitivities(swap, shocked_market);
+            eur_flat_deltas.push_back(sensitivities.eur_flat_delta);
+            cpxtemu_flat_deltas.push_back(sensitivities.cpxtemu_flat_delta);
+            eur_flat_gammas.push_back(sensitivities.eur_flat_gamma);
+            cpxtemu_flat_gammas.push_back(sensitivities.cpxtemu_flat_gamma);
+        }
+        
+        // Validation de la stabilité
+        validate_smooth_behavior(shock_levels, pv_values, "PV");
+        validate_smooth_behavior(shock_levels, eur_flat_deltas, "EUR Delta");
+        validate_smooth_behavior(shock_levels, cpxtemu_flat_deltas, "CPXTEMU Delta");
+        
+        // Analyse de l'effet sur PV
+        analyze_pv_behavior_under_eur_shocks(shock_levels, pv_values);
+    }
+    
+private:
+    void analyze_pv_behavior_under_eur_shocks(
+        const std::vector<double>& shocks,
+        const std::vector<double>& pv_values) {
+        
+        std::cout << "=== EUR Curve Shock Impact Analysis ===" << std::endl;
+        std::cout << "L'effet sur le PV lors du shift de la courbe nominale est dû à l'actualisation." << std::endl;
+        std::cout << "Quand la courbe est shiftée positivement, le facteur d'actualisation diminue," << std::endl;
+        std::cout << "d'où la diminution du PV avec le montant du shift." << std::endl;
+        
+        // Validation de la relation inverse PV vs taux
+        for (size_t i = 1; i < pv_values.size(); ++i) {
+            double shock_change = shocks[i] - shocks[i-1];
+            double pv_change = pv_values[i] - pv_values[i-1];
+            
+            if (shock_change > 0) {
+                // Choc positif de taux doit diminuer le PV
+                EXPECT_LT(pv_change, 0);
+            } else if (shock_change < 0) {
+                // Choc négatif de taux doit augmenter le PV
+                EXPECT_GT(pv_change, 0);
+            }
+        }
+    }
+};
+```
+
+#### **🔍 4.3.1.4 Stability Testing: CPXTEMU Inflation Curve Shift**
+
+##### **Tests de Stabilité sous Chocs d'Inflation**
+```cpp
+// Tests de stabilité sous chocs de courbe d'inflation CPXTEMU
+void test_cpxtemu_curve_stability(const InflSwapYOY& swap,
+                                 const market_data& base_market) {
+    
+    std::cout << "=== CPXTEMU Inflation Curve Stability Testing ===" << std::endl;
+    
+    for (int shock_bp = -100; shock_bp <= 100; shock_bp += 25) {
+        double shock = shock_bp * 1e-4;
+        
+        // Application du choc d'inflation
+        auto shocked_market = apply_cpxtemu_curve_shock(base_market, shock);
+        
+        // Calcul des métriques
+        double pv = swap.calculate_pv(shocked_market);
+        auto sensitivities = calculate_sensitivities(swap, shocked_market);
+        
+        std::cout << "CPXTEMU Shock: " << shock_bp << "bp, "
+                  << "PV: " << pv << ", "
+                  << "CPXTEMU Delta: " << sensitivities.cpxtemu_flat_delta << std::endl;
+        
+        // Validation de la relation positive PV vs inflation
+        if (shock > 0) {
+            // Choc positif d'inflation doit augmenter le PV
+            // (car le receive leg bénéficie de l'inflation plus élevée)
+            double base_pv = swap.calculate_pv(base_market);
+            EXPECT_GT(pv, base_pv);
+        }
+    }
+    
+    std::cout << "Avec l'augmentation des shifts dans les taux zero d'inflation," << std::endl;
+    std::cout << "les forwards d'inflation augmentent, d'où l'augmentation du coupon" << std::endl;
+    std::cout << "dans le receive leg du trade. Cela conduit à l'augmentation du PV comme attendu." << std::endl;
+}
+```
+
+#### **🔍 4.3.1.5 Taylor Expansion Consistency Testing**
+
+##### **Tests de Cohérence d'Expansion de Taylor**
+```cpp
+// Tests de cohérence Taylor pour InflSwapYOY
+class yoy_taylor_consistency_tester {
+public:
+    void test_taylor_consistency(const InflSwapYOY& swap,
+                                const market_data& market) {
+        
+        // Sensibilités de base
+        auto base_sensitivities = calculate_sensitivities(swap, market);
+        double base_pv = swap.calculate_pv(market);
+        
+        // Tests séparés pour EUR et CPXTEMU
+        test_eur_taylor_consistency(swap, market, base_pv, base_sensitivities);
+        test_cpxtemu_taylor_consistency(swap, market, base_pv, base_sensitivities);
+        
+        // Tests simultanés (3D)
+        test_simultaneous_shifts_taylor(swap, market, base_pv, base_sensitivities);
+    }
+    
+private:
+    void test_eur_taylor_consistency(const InflSwapYOY& swap,
+                                    const market_data& market,
+                                    double base_pv,
+                                    const sensitivity_results& base_sens) {
+        
+        std::cout << "=== EUR Curve Taylor Consistency ===" << std::endl;
+        
+        for (double shock = -50e-4; shock <= 50e-4; shock += 10e-4) {
+            auto shocked_market = apply_eur_curve_shock(market, shock);
+            double pv_dba = swap.calculate_pv(shocked_market);
+            
+            // Approximation Taylor
+            double pv_taylor = base_pv + base_sens.eur_flat_delta * shock +
+                              0.5 * base_sens.eur_flat_gamma * shock * shock;
+            
+            double relative_error = std::abs(pv_dba - pv_taylor) / std::abs(base_pv);
+            
+            std::cout << "Shock: " << (shock * 10000) << "bp, "
+                      << "DBA PV: " << pv_dba << ", "
+                      << "Taylor PV: " << pv_taylor << ", "
+                      << "Rel Error: " << (relative_error * 100) << "%" << std::endl;
+            
+            // Validation de la précision Taylor
+            EXPECT_LT(relative_error, 0.01); // < 1% pour chocs modérés
+        }
+    }
+    
+    void test_simultaneous_shifts_taylor(const InflSwapYOY& swap,
+                                        const market_data& market,
+                                        double base_pv,
+                                        const sensitivity_results& base_sens) {
+        
+        std::cout << "=== Simultaneous Shifts 3D Taylor Analysis ===" << std::endl;
+        
+        // Grille de chocs simultanés
+        std::vector<double> eur_shocks = {-25e-4, 0, 25e-4};
+        std::vector<double> cpxtemu_shocks = {-25e-4, 0, 25e-4};
+        
+        for (double eur_shock : eur_shocks) {
+            for (double cpxtemu_shock : cpxtemu_shocks) {
+                auto shocked_market = apply_simultaneous_shocks(
+                    market, eur_shock, cpxtemu_shock);
+                
+                double pv_dba = swap.calculate_pv(shocked_market);
+                
+                // Approximation Taylor multivariée
+                double pv_taylor = base_pv + 
+                                  base_sens.eur_flat_delta * eur_shock +
+                                  base_sens.cpxtemu_flat_delta * cpxtemu_shock +
+                                  0.5 * base_sens.eur_flat_gamma * eur_shock * eur_shock +
+                                  0.5 * base_sens.cpxtemu_flat_gamma * cpxtemu_shock * cpxtemu_shock;
+                
+                double relative_error = std::abs(pv_dba - pv_taylor) / std::abs(base_pv);
+                
+                // Documentation pour surface plot 3D
+                document_3d_surface_point(eur_shock, cpxtemu_shock, pv_dba, 
+                                         pv_taylor, relative_error);
+                
+                // Validation
+                EXPECT_LT(relative_error, 0.02); // < 2% pour chocs simultanés
+            }
+        }
+        
+        std::cout << "Le plot de surface 3D montre que le PV change de manière lisse" << std::endl;
+        std::cout << "sous les shifts de courbes sous-jacentes. Le plot de contour des erreurs" << std::endl;
+        std::cout << "relatives montre la correspondance étroite entre les nombres DBA et" << std::endl;
+        std::cout << "Taylor approximés, avec des différences significatives seulement pour" << std::endl;
+        std::cout << "de gros mouvements dans les facteurs de risque." << std::endl;
+    }
+};
+```
+
+---
+
+## 🏛️ **4.3.2 CCAR Testing**
+
+### **Tests sous Scénarios CCAR 2023**
+
+#### **🔍 Stability Testing sous CCAR**
+```cpp
+// Tests de stabilité InflSwapYOY sous CCAR
+void test_inflswapyoy_ccar_stability(const InflSwapYOY& swap) {
+    ccar_scenario_manager manager;
+    auto scenarios = manager.load_ccar_2023_scenarios();
+    
+    for (const auto& scenario : scenarios) {
+        std::cout << "Testing InflSwapYOY under: " << scenario.description << std::endl;
+        
+        for (int quarter = 1; quarter <= 9; ++quarter) {
+            const auto& market_data = scenario.quarterly_snapshots[quarter-1];
+            
+            // Tests de stabilité avec chocs additionnels EUR
+            test_eur_stability_under_ccar(swap, market_data, scenario.scenario, quarter);
+            
+            // Tests de stabilité avec chocs additionnels CPXTEMU
+            test_cpxtemu_stability_under_ccar(swap, market_data, scenario.scenario, quarter);
+        }
+    }
+}
+```
+
+---
+
+## 📊 **4.3.3 IRRBB Testing**
+
+### **Tests sous Framework IRRBB**
+
+#### **🔍 Tests de Stabilité IRRBB**
+```cpp
+// Tests IRRBB pour InflSwapYOY
+void test_inflswapyoy_irrbb(const InflSwapYOY& swap, const market_data& base_market) {
+    // Scénarios IRRBB pour EUR
+    std::vector<irrbb_scenario> eur_scenarios = create_eur_irrbb_scenarios();
+    
+    double base_eve = calculate_economic_value_equity(swap, base_market);
+    
+    for (const auto& scenario : eur_scenarios) {
+        auto stressed_market = apply_irrbb_scenario(base_market, scenario);
+        double stressed_eve = calculate_economic_value_equity(swap, stressed_market);
+        
+        double delta_eve = stressed_eve - base_eve;
+        
+        // Validation et documentation
+        validate_irrbb_eve_limits(scenario.name, delta_eve, base_eve);
+        document_irrbb_results(scenario.name, delta_eve);
+    }
+}
+```
+
+---
+
+*Cette section fournit une documentation complète des tests de produit pour InflSwapYOY, intégrant les implémentations C++ de Our project avec des méthodologies de validation rigoureuses incluant les effets de convexité et les tests sous frameworks réglementaires.*

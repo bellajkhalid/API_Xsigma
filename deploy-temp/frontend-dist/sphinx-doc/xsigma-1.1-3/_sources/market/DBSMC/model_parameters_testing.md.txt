@@ -1,0 +1,1023 @@
+# Model Parameters Testing
+
+## 📊 **Vue d'Ensemble des Tests de Paramètres**
+
+### **Objectif des Tests**
+Cette section présente les tests détaillés des paramètres du modèle **DBSMC-RateDeterministic_FXMarket**, incluant la validation des surfaces de volatilité, la calibration PIV (Pillar Implied Volatility), et les tests de stabilité des paramètres sous différents scénarios de marché.
+
+### **Paramètres Couverts**
+- **Surfaces de Volatilité** (Non-paramétrique, SA4, LABGD)
+- **Courbes de Taux** déterministes
+- **Paramètres de Corrélation** FX
+- **Calibration PIV** automatique
+- **Configuration AUTO** vs Standard
+
+---
+
+## 🔧 **Volatility Surface Testing**
+
+### **Tests de Surfaces de Volatilité**
+
+#### **🔍 Non-Parametric Surface Testing**
+
+##### **Tests de Surface Non-Paramétrique**
+```cpp
+// Tests de validation pour surfaces de volatilité non-paramétriques dans Our project
+class non_parametric_surface_tester {
+public:
+    struct surface_validation_results {
+        std::map<std::string, double> interpolation_errors;
+        std::map<std::string, double> extrapolation_errors;
+        bool arbitrage_free;
+        bool monotonicity_preserved;
+        double max_interpolation_error;
+        std::string problematic_region;
+    };
+
+    surface_validation_results test_non_parametric_surface_validation(
+        const fx_volatility_surface_interpolated& surface) {
+
+        surface_validation_results results;
+
+        // Tests d'interpolation
+        test_interpolation_accuracy(surface, results);
+
+        // Tests d'extrapolation
+        test_extrapolation_behavior(surface, results);
+
+        // Tests d'absence d'arbitrage
+        results.arbitrage_free = test_arbitrage_freedom(surface);
+
+        // Tests de monotonie
+        results.monotonicity_preserved = test_monotonicity_properties(surface);
+
+        // Analyse des erreurs
+        results.max_interpolation_error = find_max_error(results.interpolation_errors);
+        results.problematic_region = identify_problematic_region(results);
+
+        return results;
+    }
+
+private:
+    void test_interpolation_accuracy(const fx_volatility_surface_interpolated& surface,
+                                    surface_validation_results& results) {
+
+        auto grid = surface.get_grid();
+
+        // Tests aux points de grille (doivent être exacts)
+        for (size_t i = 0; i < grid.strikes.size(); ++i) {
+            for (size_t j = 0; j < grid.expiries.size(); ++j) {
+                double strike = grid.strikes[i];
+                double expiry = grid.expiries[j];
+
+                double interpolated_vol = surface.get_volatility(strike, expiry);
+                double grid_vol = grid.volatilities(i, j);
+
+                double error = std::abs(interpolated_vol - grid_vol);
+
+                std::string point_name = "GRID_" + std::to_string(i) + "_" + std::to_string(j);
+                results.interpolation_errors[point_name] = error;
+
+                // Validation de précision machine aux points de grille
+                EXPECT_LT(error, 1e-15);
+            }
+        }
+
+        // Tests entre points de grille
+        test_between_grid_interpolation(surface, results);
+    }
+
+    void test_between_grid_interpolation(const fx_volatility_surface_interpolated& surface,
+                                        surface_validation_results& results) {
+
+        auto grid = surface.get_grid();
+
+        // Tests aux points milieux
+        for (size_t i = 0; i < grid.strikes.size() - 1; ++i) {
+            for (size_t j = 0; j < grid.expiries.size() - 1; ++j) {
+                // Point milieu
+                double mid_strike = (grid.strikes[i] + grid.strikes[i+1]) / 2.0;
+                double mid_expiry = (grid.expiries[j] + grid.expiries[j+1]) / 2.0;
+
+                double interpolated_vol = surface.get_volatility(mid_strike, mid_expiry);
+
+                // Validation que la volatilité interpolée est raisonnable
+                double min_corner_vol = std::min({
+                    grid.volatilities(i, j),
+                    grid.volatilities(i+1, j),
+                    grid.volatilities(i, j+1),
+                    grid.volatilities(i+1, j+1)
+                });
+
+                double max_corner_vol = std::max({
+                    grid.volatilities(i, j),
+                    grid.volatilities(i+1, j),
+                    grid.volatilities(i, j+1),
+                    grid.volatilities(i+1, j+1)
+                });
+
+                // L'interpolation doit être dans les bornes
+                EXPECT_GE(interpolated_vol, min_corner_vol - 1e-10);
+                EXPECT_LE(interpolated_vol, max_corner_vol + 1e-10);
+
+                std::string point_name = "MID_" + std::to_string(i) + "_" + std::to_string(j);
+                results.interpolation_errors[point_name] = 0.0; // Pas d'erreur de référence
+            }
+        }
+    }
+
+    bool test_arbitrage_freedom(const fx_volatility_surface_interpolated& surface) {
+        // Tests d'absence d'arbitrage via conditions de Dupire
+
+        auto grid = surface.get_grid();
+
+        // Test de convexité en strike (condition nécessaire)
+        for (size_t j = 0; j < grid.expiries.size(); ++j) {
+            double expiry = grid.expiries[j];
+
+            for (size_t i = 1; i < grid.strikes.size() - 1; ++i) {
+                double k_minus = grid.strikes[i-1];
+                double k = grid.strikes[i];
+                double k_plus = grid.strikes[i+1];
+
+                double vol_minus = surface.get_volatility(k_minus, expiry);
+                double vol_center = surface.get_volatility(k, expiry);
+                double vol_plus = surface.get_volatility(k_plus, expiry);
+
+                // Test de convexité locale
+                double second_derivative = (vol_plus - 2.0 * vol_center + vol_minus) /
+                                         std::pow((k_plus - k_minus) / 2.0, 2);
+
+                // Convexité excessive indique un arbitrage potentiel
+                if (second_derivative < -10.0) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    bool test_monotonicity_properties(const fx_volatility_surface_interpolated& surface) {
+        // Tests de propriétés de monotonie raisonnables
+
+        auto grid = surface.get_grid();
+
+        // Test que la volatilité ne varie pas trop brutalement
+        for (size_t i = 0; i < grid.strikes.size() - 1; ++i) {
+            for (size_t j = 0; j < grid.expiries.size(); ++j) {
+                double vol_1 = surface.get_volatility(grid.strikes[i], grid.expiries[j]);
+                double vol_2 = surface.get_volatility(grid.strikes[i+1], grid.expiries[j]);
+
+                double relative_change = std::abs(vol_2 - vol_1) / vol_1;
+
+                // Changement de volatilité ne doit pas être excessif entre points adjacents
+                if (relative_change > 0.5) { // 50% de changement max
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+};
+```
+
+#### **🔍 SA4 Parametric Model Testing**
+
+##### **Tests du Modèle SA4**
+```cpp
+// Tests de validation pour le modèle SA4 dans Our project
+class sa4_parametric_model_tester {
+public:
+    struct sa4_validation_results {
+        std::map<std::string, double> parameter_sensitivities;
+        std::map<std::string, double> calibration_errors;
+        double smile_consistency_score;
+        double skew_consistency_score;
+        bool model_validated;
+        std::string validation_issues;
+    };
+
+    sa4_validation_results test_sa4_model_validation(
+        const sa4_volatility_model& model,
+        const std::vector<market_quote>& market_data) {
+
+        sa4_validation_results results;
+
+        // Tests de sensibilité aux paramètres
+        test_sa4_parameter_sensitivities(model, results);
+
+        // Tests de calibration
+        test_sa4_calibration_quality(model, market_data, results);
+
+        // Tests de cohérence du smile
+        results.smile_consistency_score = test_smile_consistency(model);
+
+        // Tests de cohérence du skew
+        results.skew_consistency_score = test_skew_consistency(model);
+
+        // Validation globale
+        results.model_validated = validate_sa4_model_overall(results);
+
+        return results;
+    }
+
+private:
+    void test_sa4_parameter_sensitivities(const sa4_volatility_model& model,
+                                         sa4_validation_results& results) {
+
+        // Paramètres de test
+        double forward = 1.0;
+        double strike = 1.1; // OTM call
+        double expiry = 1.0;
+
+        double base_vol = model.calculate_volatility(forward, strike, expiry);
+
+        // Tests de sensibilité à chaque paramètre SA4
+        std::vector<std::string> param_names = {"vol", "smile", "skew", "power", "vol_atm"};
+
+        for (const auto& param_name : param_names) {
+            double sensitivity = calculate_sa4_parameter_sensitivity(
+                model, param_name, forward, strike, expiry);
+
+            results.parameter_sensitivities[param_name] = sensitivity;
+
+            // Validation que les sensibilités sont finies et raisonnables
+            EXPECT_TRUE(std::isfinite(sensitivity));
+
+            // Validation du signe des sensibilités
+            validate_sa4_parameter_sensitivity_sign(param_name, sensitivity, strike, forward);
+        }
+    }
+
+    double calculate_sa4_parameter_sensitivity(const sa4_volatility_model& model,
+                                              const std::string& param_name,
+                                              double forward, double strike, double expiry) {
+
+        const double param_shock = 1e-6;
+
+        // Volatilité de base
+        double base_vol = model.calculate_volatility(forward, strike, expiry);
+
+        // Création d'un modèle avec paramètre choqué
+        auto shocked_model = create_sa4_with_shocked_parameter(model, param_name, param_shock);
+        double shocked_vol = shocked_model.calculate_volatility(forward, strike, expiry);
+
+        // Sensibilité par différences finies
+        return (shocked_vol - base_vol) / param_shock;
+    }
+
+    sa4_volatility_model create_sa4_with_shocked_parameter(
+        const sa4_volatility_model& original_model,
+        const std::string& param_name,
+        double shock) {
+
+        auto params = original_model.get_parameters();
+
+        if (param_name == "vol") {
+            params.vol += shock;
+        } else if (param_name == "smile") {
+            params.smile += shock;
+        } else if (param_name == "skew") {
+            params.skew += shock;
+        } else if (param_name == "power") {
+            params.power += shock;
+        } else if (param_name == "vol_atm") {
+            params.vol_atm += shock;
+        }
+
+        return sa4_volatility_model(params);
+    }
+
+    void validate_sa4_parameter_sensitivity_sign(const std::string& param_name,
+                                                 double sensitivity,
+                                                 double strike, double forward) {
+
+        // Validation des signes attendus pour les sensibilités SA4
+
+        if (param_name == "vol" || param_name == "vol_atm") {
+            // Sensibilité positive au niveau de volatilité
+            EXPECT_GT(sensitivity, 0.0);
+        }
+
+        if (param_name == "smile" && strike != forward) {
+            // Sensibilité au smile dépend de la moneyness
+            // Pour OTM, smile positif augmente la volatilité
+            if (std::abs(strike - forward) > 0.05) {
+                EXPECT_GT(sensitivity, 0.0);
+            }
+        }
+
+        if (param_name == "skew") {
+            // Sensibilité au skew dépend du signe de (strike - forward)
+            double moneyness_effect = (strike > forward) ? 1.0 : -1.0;
+            // Le signe de la sensibilité doit être cohérent avec l'effet de moneyness
+            // (validation approximative)
+        }
+    }
+
+    double test_smile_consistency(const sa4_volatility_model& model) {
+        // Test de cohérence du smile SA4
+
+        double forward = 1.0;
+        double expiry = 1.0;
+
+        // Points de test symétriques autour de ATM
+        std::vector<double> strikes = {0.9, 0.95, 1.0, 1.05, 1.1};
+        std::vector<double> volatilities;
+
+        for (double strike : strikes) {
+            double vol = model.calculate_volatility(forward, strike, expiry);
+            volatilities.push_back(vol);
+        }
+
+        // Validation de la symétrie du smile
+        double atm_vol = volatilities[2]; // ATM
+
+        double smile_consistency = 0.0;
+        for (size_t i = 0; i < strikes.size(); ++i) {
+            if (i != 2) { // Skip ATM
+                double distance_from_atm = std::abs(strikes[i] - forward);
+                double vol_increase = volatilities[i] - atm_vol;
+
+                // Le smile doit augmenter avec la distance à ATM
+                if (distance_from_atm > 0.01) {
+                    smile_consistency += (vol_increase > 0) ? 1.0 : 0.0;
+                }
+            }
+        }
+
+        return smile_consistency / (strikes.size() - 1);
+    }
+
+    double test_skew_consistency(const sa4_volatility_model& model) {
+        // Test de cohérence du skew SA4
+
+        double forward = 1.0;
+        double expiry = 1.0;
+
+        // Points de test pour mesurer le skew
+        double otm_put_strike = 0.9;
+        double otm_call_strike = 1.1;
+
+        double otm_put_vol = model.calculate_volatility(forward, otm_put_strike, expiry);
+        double otm_call_vol = model.calculate_volatility(forward, otm_call_strike, expiry);
+
+        // Mesure du skew
+        double skew_measure = otm_put_vol - otm_call_vol;
+
+        // Validation que le skew est dans une plage raisonnable
+        double skew_consistency = (std::abs(skew_measure) < 0.2) ? 1.0 : 0.0;
+
+        return skew_consistency;
+    }
+};
+```
+
+#### **🔍 LABGD Parametric Model Testing**
+
+##### **Tests du Modèle LABGD**
+```cpp
+// Tests de validation pour le modèle LABGD dans Our project
+class labgd_parametric_model_tester {
+public:
+    struct labgd_validation_results {
+        std::map<std::string, double> extended_parameter_sensitivities;
+        double alpha_call_effect;
+        double alpha_put_effect;
+        double labgd_vs_sa4_difference;
+        bool extended_model_validated;
+    };
+
+    labgd_validation_results test_labgd_model_validation(
+        const labgd_volatility_model& labgd_model,
+        const sa4_volatility_model& sa4_model) {
+
+        labgd_validation_results results;
+
+        // Tests des paramètres étendus LABGD
+        test_labgd_extended_parameters(labgd_model, results);
+
+        // Tests de l'effet des paramètres alpha
+        test_alpha_parameters_effect(labgd_model, results);
+
+        // Comparaison avec SA4
+        results.labgd_vs_sa4_difference = compare_labgd_vs_sa4(labgd_model, sa4_model);
+
+        // Validation globale
+        results.extended_model_validated = validate_labgd_extensions(results);
+
+        return results;
+    }
+
+private:
+    void test_labgd_extended_parameters(const labgd_volatility_model& model,
+                                       labgd_validation_results& results) {
+
+        // Tests spécifiques aux paramètres LABGD étendus
+        double forward = 1.0;
+        double expiry = 1.0;
+
+        // Tests pour calls OTM
+        double otm_call_strike = 1.2;
+        double call_sensitivity_ac = calculate_labgd_parameter_sensitivity(
+            model, "ac", forward, otm_call_strike, expiry);
+
+        // Tests pour puts OTM
+        double otm_put_strike = 0.8;
+        double put_sensitivity_ap = calculate_labgd_parameter_sensitivity(
+            model, "ap", forward, otm_put_strike, expiry);
+
+        results.extended_parameter_sensitivities["AC_CALL_SENSITIVITY"] = call_sensitivity_ac;
+        results.extended_parameter_sensitivities["AP_PUT_SENSITIVITY"] = put_sensitivity_ap;
+
+        // Validation que les paramètres alpha ont l'effet attendu
+        EXPECT_TRUE(std::isfinite(call_sensitivity_ac));
+        EXPECT_TRUE(std::isfinite(put_sensitivity_ap));
+    }
+
+    void test_alpha_parameters_effect(const labgd_volatility_model& model,
+                                     labgd_validation_results& results) {
+
+        double forward = 1.0;
+        double expiry = 1.0;
+
+        // Test de l'effet du paramètre alpha call
+        double call_strike = 1.15;
+        results.alpha_call_effect = test_alpha_call_effect(model, forward, call_strike, expiry);
+
+        // Test de l'effet du paramètre alpha put
+        double put_strike = 0.85;
+        results.alpha_put_effect = test_alpha_put_effect(model, forward, put_strike, expiry);
+
+        // Validation que les effets alpha sont mesurables
+        EXPECT_GT(std::abs(results.alpha_call_effect), 1e-6);
+        EXPECT_GT(std::abs(results.alpha_put_effect), 1e-6);
+    }
+
+    double test_alpha_call_effect(const labgd_volatility_model& model,
+                                 double forward, double call_strike, double expiry) {
+
+        // Comparaison avec alpha_call = 0
+        auto params = model.get_parameters();
+        double original_ac = params.ac;
+
+        // Modèle avec alpha_call = 0
+        auto params_no_ac = params;
+        params_no_ac.ac = 0.0;
+        labgd_volatility_model model_no_ac(params_no_ac);
+
+        double vol_with_ac = model.calculate_volatility(forward, call_strike, expiry);
+        double vol_without_ac = model_no_ac.calculate_volatility(forward, call_strike, expiry);
+
+        return vol_with_ac - vol_without_ac;
+    }
+
+    double compare_labgd_vs_sa4(const labgd_volatility_model& labgd_model,
+                               const sa4_volatility_model& sa4_model) {
+
+        // Comparaison systématique LABGD vs SA4
+        double forward = 1.0;
+        double expiry = 1.0;
+
+        std::vector<double> test_strikes = {0.8, 0.9, 1.0, 1.1, 1.2};
+        double total_difference = 0.0;
+
+        for (double strike : test_strikes) {
+            double labgd_vol = labgd_model.calculate_volatility(forward, strike, expiry);
+            double sa4_vol = sa4_model.calculate_volatility(forward, strike, expiry);
+
+            double relative_diff = std::abs(labgd_vol - sa4_vol) / sa4_vol;
+            total_difference += relative_diff;
+        }
+
+        return total_difference / test_strikes.size();
+    }
+};
+```
+
+---
+
+## 📈 **PIV Calibration Testing**
+
+### **Tests de Calibration PIV**
+
+#### **🔍 Pillar Implied Volatility Calibration**
+
+##### **Tests de Calibration PIV Automatique**
+```cpp
+// Tests de calibration PIV pour DBSMC dans Our project
+class piv_calibration_tester {
+public:
+    struct piv_calibration_results {
+        std::map<std::string, double> pillar_calibration_errors;
+        std::map<std::string, double> interpolated_point_errors;
+        double max_calibration_error;
+        double avg_calibration_error;
+        bool calibration_successful;
+        std::string calibration_method_used;
+    };
+
+    piv_calibration_results test_piv_calibration_quality(
+        const std::vector<piv_market_quote>& market_quotes,
+        const fx_volatility_surface_manager& surface_manager) {
+
+        piv_calibration_results results;
+
+        // Test de calibration aux piliers
+        test_pillar_calibration_accuracy(market_quotes, surface_manager, results);
+
+        // Test de qualité d'interpolation
+        test_interpolation_quality_post_calibration(market_quotes, surface_manager, results);
+
+        // Test de stabilité de calibration
+        test_calibration_stability(market_quotes, surface_manager, results);
+
+        // Analyse des résultats
+        analyze_calibration_results(results);
+
+        return results;
+    }
+
+private:
+    struct piv_market_quote {
+        std::string currency_pair;
+        double strike;
+        double expiry;
+        double market_volatility;
+        double bid_vol;
+        double ask_vol;
+        double quote_quality;
+        bool is_pillar;
+    };
+
+    void test_pillar_calibration_accuracy(
+        const std::vector<piv_market_quote>& market_quotes,
+        const fx_volatility_surface_manager& surface_manager,
+        piv_calibration_results& results) {
+
+        // Extraction des quotes piliers
+        std::vector<piv_market_quote> pillar_quotes;
+        std::copy_if(market_quotes.begin(), market_quotes.end(),
+                    std::back_inserter(pillar_quotes),
+                    [](const piv_market_quote& quote) { return quote.is_pillar; });
+
+        for (const auto& pillar_quote : pillar_quotes) {
+            // Récupération de la surface calibrée
+            auto calibrated_surface = surface_manager.get_or_create_surface(
+                pillar_quote.currency_pair,
+                convert_to_market_data(market_quotes),
+                fx_volatility_surface_manager::calibration_method::AUTO_SELECT);
+
+            // Volatilité modèle au pilier
+            double model_volatility = calibrated_surface->get_volatility(
+                pillar_quote.strike, pillar_quote.expiry);
+
+            // Erreur de calibration
+            double calibration_error = std::abs(model_volatility - pillar_quote.market_volatility);
+
+            std::string pillar_name = pillar_quote.currency_pair + "_" +
+                                    std::to_string(pillar_quote.strike) + "_" +
+                                    std::to_string(pillar_quote.expiry);
+
+            results.pillar_calibration_errors[pillar_name] = calibration_error;
+
+            // Validation de précision de calibration
+            EXPECT_LT(calibration_error, 1e-4); // 1bp de tolérance
+        }
+    }
+
+    void test_interpolation_quality_post_calibration(
+        const std::vector<piv_market_quote>& market_quotes,
+        const fx_volatility_surface_manager& surface_manager,
+        piv_calibration_results& results) {
+
+        // Test de qualité aux points non-piliers
+        std::vector<piv_market_quote> non_pillar_quotes;
+        std::copy_if(market_quotes.begin(), market_quotes.end(),
+                    std::back_inserter(non_pillar_quotes),
+                    [](const piv_market_quote& quote) { return !quote.is_pillar; });
+
+        for (const auto& quote : non_pillar_quotes) {
+            auto calibrated_surface = surface_manager.get_or_create_surface(
+                quote.currency_pair,
+                convert_to_market_data(market_quotes),
+                fx_volatility_surface_manager::calibration_method::AUTO_SELECT);
+
+            double model_volatility = calibrated_surface->get_volatility(
+                quote.strike, quote.expiry);
+
+            // Erreur d'interpolation
+            double interpolation_error = std::abs(model_volatility - quote.market_volatility);
+
+            std::string point_name = quote.currency_pair + "_INTERP_" +
+                                   std::to_string(quote.strike) + "_" +
+                                   std::to_string(quote.expiry);
+
+            results.interpolated_point_errors[point_name] = interpolation_error;
+
+            // Validation de qualité d'interpolation
+            EXPECT_LT(interpolation_error, 5e-4); // 5bp de tolérance pour interpolation
+        }
+    }
+
+    void test_calibration_stability(
+        const std::vector<piv_market_quote>& market_quotes,
+        const fx_volatility_surface_manager& surface_manager,
+        piv_calibration_results& results) {
+
+        // Test de stabilité avec perturbations des quotes
+        const double quote_perturbation = 1e-4; // 1bp de perturbation
+
+        for (size_t i = 0; i < market_quotes.size(); ++i) {
+            // Perturbation d'une quote
+            auto perturbed_quotes = market_quotes;
+            perturbed_quotes[i].market_volatility += quote_perturbation;
+
+            // Calibration avec quotes perturbées
+            auto original_surface = surface_manager.get_or_create_surface(
+                market_quotes[0].currency_pair,
+                convert_to_market_data(market_quotes),
+                fx_volatility_surface_manager::calibration_method::AUTO_SELECT);
+
+            auto perturbed_surface = surface_manager.get_or_create_surface(
+                market_quotes[0].currency_pair,
+                convert_to_market_data(perturbed_quotes),
+                fx_volatility_surface_manager::calibration_method::AUTO_SELECT);
+
+            // Mesure de la stabilité
+            double stability_measure = measure_surface_difference(original_surface, perturbed_surface);
+
+            // Validation de stabilité
+            EXPECT_LT(stability_measure, 10.0 * quote_perturbation); // Amplification < 10x
+        }
+    }
+
+    double measure_surface_difference(
+        std::shared_ptr<fx_volatility_surface> surface1,
+        std::shared_ptr<fx_volatility_surface> surface2) {
+
+        // Grille de test pour mesurer la différence
+        std::vector<double> test_strikes = {0.8, 0.9, 1.0, 1.1, 1.2};
+        std::vector<double> test_expiries = {0.25, 0.5, 1.0, 2.0};
+
+        double total_difference = 0.0;
+        int point_count = 0;
+
+        for (double strike : test_strikes) {
+            for (double expiry : test_expiries) {
+                double vol1 = surface1->get_volatility(strike, expiry);
+                double vol2 = surface2->get_volatility(strike, expiry);
+
+                total_difference += std::abs(vol1 - vol2);
+                point_count++;
+            }
+        }
+
+        return total_difference / point_count;
+    }
+
+    void analyze_calibration_results(piv_calibration_results& results) {
+        // Analyse des erreurs de calibration
+        if (!results.pillar_calibration_errors.empty()) {
+            auto max_error_it = std::max_element(
+                results.pillar_calibration_errors.begin(),
+                results.pillar_calibration_errors.end(),
+                [](const auto& a, const auto& b) { return a.second < b.second; });
+
+            results.max_calibration_error = max_error_it->second;
+
+            double total_error = 0.0;
+            for (const auto& [name, error] : results.pillar_calibration_errors) {
+                total_error += error;
+            }
+            results.avg_calibration_error = total_error / results.pillar_calibration_errors.size();
+        }
+
+        // Validation globale
+        results.calibration_successful =
+            (results.max_calibration_error < 1e-3) && // < 10bp max
+            (results.avg_calibration_error < 1e-4);   // < 1bp moyenne
+    }
+};
+```
+
+---
+
+## 🔧 **Rate Curve Testing**
+
+### **Tests de Courbes de Taux**
+
+#### **🔍 Deterministic Rate Curve Validation**
+
+##### **Tests de Courbes Déterministes**
+```cpp
+// Tests de validation pour courbes de taux déterministes dans Our project
+class deterministic_rate_curve_tester {
+public:
+    struct rate_curve_validation_results {
+        std::map<std::string, double> interpolation_errors;
+        std::map<std::string, double> forward_rate_consistency;
+        bool curve_monotonicity_preserved;
+        bool forward_rate_positivity;
+        double max_interpolation_error;
+    };
+
+    rate_curve_validation_results test_deterministic_rate_curves(
+        const deterministic_rate_curve& domestic_curve,
+        const deterministic_rate_curve& foreign_curve) {
+
+        rate_curve_validation_results results;
+
+        // Tests d'interpolation
+        test_rate_curve_interpolation(domestic_curve, "DOMESTIC", results);
+        test_rate_curve_interpolation(foreign_curve, "FOREIGN", results);
+
+        // Tests de cohérence des forwards
+        test_forward_rate_consistency(domestic_curve, "DOMESTIC", results);
+        test_forward_rate_consistency(foreign_curve, "FOREIGN", results);
+
+        // Tests de propriétés économiques
+        results.curve_monotonicity_preserved = test_curve_monotonicity(domestic_curve, foreign_curve);
+        results.forward_rate_positivity = test_forward_rate_positivity(domestic_curve, foreign_curve);
+
+        // Analyse des résultats
+        analyze_rate_curve_results(results);
+
+        return results;
+    }
+
+private:
+    void test_rate_curve_interpolation(const deterministic_rate_curve& curve,
+                                      const std::string& curve_name,
+                                      rate_curve_validation_results& results) {
+
+        // Tests d'interpolation aux points de pilier
+        auto pillar_points = curve.get_pillar_points();
+
+        for (const auto& pillar : pillar_points) {
+            double interpolated_rate = curve.get_rate(pillar.maturity);
+            double pillar_rate = pillar.rate;
+
+            double interpolation_error = std::abs(interpolated_rate - pillar_rate);
+
+            std::string point_name = curve_name + "_PILLAR_" + std::to_string(pillar.maturity);
+            results.interpolation_errors[point_name] = interpolation_error;
+
+            // Validation de précision aux piliers
+            EXPECT_LT(interpolation_error, 1e-15); // Précision machine
+        }
+
+        // Tests d'interpolation entre piliers
+        test_between_pillar_interpolation(curve, curve_name, results);
+    }
+
+    void test_between_pillar_interpolation(const deterministic_rate_curve& curve,
+                                          const std::string& curve_name,
+                                          rate_curve_validation_results& results) {
+
+        auto pillar_points = curve.get_pillar_points();
+
+        // Tests aux points milieux entre piliers
+        for (size_t i = 0; i < pillar_points.size() - 1; ++i) {
+            double t1 = pillar_points[i].maturity;
+            double t2 = pillar_points[i+1].maturity;
+            double t_mid = (t1 + t2) / 2.0;
+
+            double interpolated_rate = curve.get_rate(t_mid);
+
+            // Validation que l'interpolation est dans les bornes
+            double min_rate = std::min(pillar_points[i].rate, pillar_points[i+1].rate);
+            double max_rate = std::max(pillar_points[i].rate, pillar_points[i+1].rate);
+
+            EXPECT_GE(interpolated_rate, min_rate - 1e-10);
+            EXPECT_LE(interpolated_rate, max_rate + 1e-10);
+
+            std::string point_name = curve_name + "_MID_" + std::to_string(i);
+            results.interpolation_errors[point_name] = 0.0; // Pas d'erreur de référence
+        }
+    }
+
+    void test_forward_rate_consistency(const deterministic_rate_curve& curve,
+                                      const std::string& curve_name,
+                                      rate_curve_validation_results& results) {
+
+        // Tests de cohérence des taux forwards
+        std::vector<double> test_maturities = {0.25, 0.5, 1.0, 2.0, 5.0, 10.0};
+
+        for (size_t i = 0; i < test_maturities.size() - 1; ++i) {
+            double t1 = test_maturities[i];
+            double t2 = test_maturities[i+1];
+
+            // Calcul du forward rate
+            double r1 = curve.get_rate(t1);
+            double r2 = curve.get_rate(t2);
+
+            double forward_rate = (r2 * t2 - r1 * t1) / (t2 - t1);
+
+            // Calcul direct du forward
+            double direct_forward = curve.get_forward_rate(t1, t2);
+
+            double consistency_error = std::abs(forward_rate - direct_forward);
+
+            std::string forward_name = curve_name + "_FORWARD_" +
+                                     std::to_string(t1) + "_" + std::to_string(t2);
+            results.forward_rate_consistency[forward_name] = consistency_error;
+
+            // Validation de cohérence
+            EXPECT_LT(consistency_error, 1e-12);
+        }
+    }
+
+    bool test_curve_monotonicity(const deterministic_rate_curve& domestic_curve,
+                                const deterministic_rate_curve& foreign_curve) {
+
+        // Test de monotonie raisonnable (pas nécessairement stricte)
+        std::vector<double> test_maturities = {0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 30.0};
+
+        for (const auto& curve : {domestic_curve, foreign_curve}) {
+            for (size_t i = 0; i < test_maturities.size() - 1; ++i) {
+                double r1 = curve.get_rate(test_maturities[i]);
+                double r2 = curve.get_rate(test_maturities[i+1]);
+
+                // Validation que les taux ne varient pas de façon excessive
+                double rate_change = std::abs(r2 - r1);
+                if (rate_change > 0.1) { // 10% de changement max entre maturités
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    bool test_forward_rate_positivity(const deterministic_rate_curve& domestic_curve,
+                                     const deterministic_rate_curve& foreign_curve) {
+
+        // Test que les taux forwards restent positifs
+        std::vector<double> test_maturities = {0.25, 0.5, 1.0, 2.0, 5.0, 10.0};
+
+        for (const auto& curve : {domestic_curve, foreign_curve}) {
+            for (size_t i = 0; i < test_maturities.size() - 1; ++i) {
+                double t1 = test_maturities[i];
+                double t2 = test_maturities[i+1];
+
+                double forward_rate = curve.get_forward_rate(t1, t2);
+
+                // Validation de positivité
+                if (forward_rate < -0.01) { // Tolérance pour taux négatifs modérés
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+};
+```
+
+---
+
+## 🏛️ **Configuration Testing**
+
+### **Tests de Configuration**
+
+#### **🔍 AUTO vs Standard Configuration Testing**
+
+##### **Tests de Configuration AUTO**
+```cpp
+// Tests de comparaison AUTO vs Standard dans Our project
+class configuration_comparison_tester {
+public:
+    struct configuration_test_results {
+        std::map<std::string, double> auto_vs_standard_pricing_differences;
+        std::map<std::string, double> auto_vs_standard_sensitivity_differences;
+        std::string auto_method_selected;
+        std::string standard_method_used;
+        bool configurations_consistent;
+        double max_pricing_difference;
+    };
+
+    configuration_test_results test_auto_vs_standard_configuration(
+        const std::vector<fx_derivative_base*>& test_portfolio,
+        const fx_market_data& market_data) {
+
+        configuration_test_results results;
+
+        // Configuration AUTO
+        dbsmc_auto_config auto_config;
+        auto_config.auto_volatility_surface_selection = true;
+        auto_config.enable_auto_validation = true;
+
+        // Configuration Standard
+        dbsmc_standard_config standard_config;
+        standard_config.vol_config.surface_type = "SA4";
+        standard_config.vol_config.interpolation_method = "BILINEAR";
+
+        // Tests de pricing
+        test_pricing_consistency_across_configurations(
+            test_portfolio, market_data, auto_config, standard_config, results);
+
+        // Tests de sensibilités
+        test_sensitivity_consistency_across_configurations(
+            test_portfolio, market_data, auto_config, standard_config, results);
+
+        // Analyse des différences
+        analyze_configuration_differences(results);
+
+        return results;
+    }
+
+private:
+    void test_pricing_consistency_across_configurations(
+        const std::vector<fx_derivative_base*>& portfolio,
+        const fx_market_data& market_data,
+        const dbsmc_auto_config& auto_config,
+        const dbsmc_standard_config& standard_config,
+        configuration_test_results& results) {
+
+        for (size_t i = 0; i < portfolio.size(); ++i) {
+            auto derivative = portfolio[i];
+
+            // Pricing avec configuration AUTO
+            auto auto_model = create_dbsmc_model_with_auto_config(auto_config, market_data);
+            double auto_pv = derivative->calculate_pv_with_model(auto_model, market_data);
+
+            // Pricing avec configuration Standard
+            auto standard_model = create_dbsmc_model_with_standard_config(standard_config, market_data);
+            double standard_pv = derivative->calculate_pv_with_model(standard_model, market_data);
+
+            // Calcul de la différence
+            double pricing_difference = std::abs(auto_pv - standard_pv);
+            double relative_difference = pricing_difference / std::abs(standard_pv);
+
+            std::string derivative_name = "DERIVATIVE_" + std::to_string(i);
+            results.auto_vs_standard_pricing_differences[derivative_name] = relative_difference;
+
+            // Validation de cohérence
+            EXPECT_LT(relative_difference, 0.01); // 1% de tolérance
+        }
+    }
+
+    void test_sensitivity_consistency_across_configurations(
+        const std::vector<fx_derivative_base*>& portfolio,
+        const fx_market_data& market_data,
+        const dbsmc_auto_config& auto_config,
+        const dbsmc_standard_config& standard_config,
+        configuration_test_results& results) {
+
+        for (size_t i = 0; i < portfolio.size(); ++i) {
+            auto derivative = portfolio[i];
+
+            // Sensibilités avec configuration AUTO
+            auto auto_model = create_dbsmc_model_with_auto_config(auto_config, market_data);
+            auto auto_sensitivities = derivative->calculate_sensitivities_with_model(auto_model, market_data);
+
+            // Sensibilités avec configuration Standard
+            auto standard_model = create_dbsmc_model_with_standard_config(standard_config, market_data);
+            auto standard_sensitivities = derivative->calculate_sensitivities_with_model(standard_model, market_data);
+
+            // Comparaison des sensibilités principales
+            double delta_difference = std::abs(auto_sensitivities.fx_delta - standard_sensitivities.fx_delta);
+            double vega_difference = std::abs(auto_sensitivities.vega - standard_sensitivities.vega);
+
+            std::string delta_name = "DELTA_DIFF_" + std::to_string(i);
+            std::string vega_name = "VEGA_DIFF_" + std::to_string(i);
+
+            results.auto_vs_standard_sensitivity_differences[delta_name] = delta_difference;
+            results.auto_vs_standard_sensitivity_differences[vega_name] = vega_difference;
+
+            // Validation de cohérence des sensibilités
+            EXPECT_LT(delta_difference, 0.05); // Tolérance pour Delta
+            EXPECT_LT(vega_difference, 0.05);  // Tolérance pour Vega
+        }
+    }
+
+    void analyze_configuration_differences(configuration_test_results& results) {
+        // Analyse des différences entre configurations
+
+        if (!results.auto_vs_standard_pricing_differences.empty()) {
+            auto max_pricing_it = std::max_element(
+                results.auto_vs_standard_pricing_differences.begin(),
+                results.auto_vs_standard_pricing_differences.end(),
+                [](const auto& a, const auto& b) { return a.second < b.second; });
+
+            results.max_pricing_difference = max_pricing_it->second;
+        }
+
+        // Validation de cohérence globale
+        results.configurations_consistent =
+            (results.max_pricing_difference < 0.02); // 2% de tolérance globale
+
+        // Documentation des méthodes sélectionnées
+        results.auto_method_selected = "AUTO_SELECTED_SA4"; // Exemple
+        results.standard_method_used = "MANUAL_SA4";
+    }
+};
+```
+
+---
+
+*Cette section fournit une documentation complète des tests de paramètres de modèle pour DBSMC-RateDeterministic_FXMarket, intégrant les implémentations C++ de Our project avec des méthodologies de validation spécialisées pour les surfaces de volatilité, calibration PIV, courbes de taux déterministes et configurations de modèle.*
+```

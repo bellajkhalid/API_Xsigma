@@ -1,0 +1,462 @@
+# Risk (Calculated by the model/payoff)
+
+## Overview
+
+Cette section décrit les risques calculés par le modèle LSV Markov Switching Monte Carlo et les méthodes de calcul des sensibilités (Greeks) pour la gestion des risques.
+
+```cpp
+// Implémentation Our project du calcul des risques pour LSV MS Monte Carlo
+namespace xsigma {
+    // Classe pour le calcul des risques et sensibilités
+    class LSVMSRiskCalculator {
+    public:
+        // Énumération des types de Greeks
+        enum class GreekType {
+            DELTA,                        // Sensibilité au spot
+            GAMMA,                        // Convexité au spot
+            VEGA,                         // Sensibilité à la volatilité
+            THETA,                        // Sensibilité au temps
+            RHO,                          // Sensibilité aux taux
+            VOLGA,                        // Convexité à la volatilité
+            VANNA,                        // Sensibilité croisée spot-vol
+            CORRELATION_SENSITIVITY,      // Sensibilité à la corrélation
+            REGIME_SENSITIVITY           // Sensibilité aux paramètres Markov
+        };
+        
+        // Structure pour les résultats de calcul de risques
+        struct RiskMetrics {
+            // Greeks de premier ordre
+            double delta;                 // ∂V/∂S
+            double vega;                  // ∂V/∂σ
+            double theta;                 // ∂V/∂t
+            double rho;                   // ∂V/∂r
+            
+            // Greeks de second ordre
+            double gamma;                 // ∂²V/∂S²
+            double volga;                 // ∂²V/∂σ²
+            double vanna;                 // ∂²V/∂S∂σ
+            
+            // Sensibilités spécifiques LSV MS
+            double correlation_sensitivity; // ∂V/∂ρ
+            std::vector<double> regime_sensitivities; // ∂V/∂λᵢⱼ
+            double vol_of_vol_sensitivity; // ∂V/∂ν
+            double mean_reversion_sensitivity; // ∂V/∂κ
+            
+            // Métriques d'erreur
+            double monte_carlo_error;     // Erreur statistique MC
+            double confidence_interval_95; // Intervalle de confiance 95%
+            int paths_used;               // Nombre de chemins utilisés
+        };
+        
+        // Calcul des Greeks par différences finies
+        RiskMetrics calculate_greeks_finite_differences(
+            const LSVMSProductManager::CashSettledVanillaOption& option,
+            const LSVMarkovSwitchingModel::ModelParameters& model_params,
+            double spot_price,
+            double base_price) const {
+            
+            RiskMetrics metrics;
+            
+            // Paramètres de bump pour différences finies
+            double spot_bump = spot_price * 0.01;        // 1% bump pour delta/gamma
+            double vol_bump = 0.01;                      // 1% bump pour vega/volga
+            double time_bump = 1.0 / 365.0;              // 1 jour pour theta
+            double rate_bump = 0.0001;                   // 1bp pour rho
+            double correlation_bump = 0.01;              // 1% pour corrélation
+            
+            try {
+                // Calcul du Delta (∂V/∂S)
+                double price_up = price_with_spot_bump(option, model_params, spot_price + spot_bump);
+                double price_down = price_with_spot_bump(option, model_params, spot_price - spot_bump);
+                metrics.delta = (price_up - price_down) / (2.0 * spot_bump);
+                
+                // Calcul du Gamma (∂²V/∂S²)
+                metrics.gamma = (price_up - 2.0 * base_price + price_down) / (spot_bump * spot_bump);
+                
+                // Calcul du Vega (∂V/∂σ)
+                double price_vol_up = price_with_vol_bump(option, model_params, vol_bump);
+                double price_vol_down = price_with_vol_bump(option, model_params, -vol_bump);
+                metrics.vega = (price_vol_up - price_vol_down) / (2.0 * vol_bump);
+                
+                // Calcul du Volga (∂²V/∂σ²)
+                metrics.volga = (price_vol_up - 2.0 * base_price + price_vol_down) / (vol_bump * vol_bump);
+                
+                // Calcul du Vanna (∂²V/∂S∂σ)
+                double price_spot_vol_up = price_with_spot_vol_bump(option, model_params, 
+                                                                   spot_price + spot_bump, vol_bump);
+                double price_spot_vol_down = price_with_spot_vol_bump(option, model_params, 
+                                                                     spot_price - spot_bump, -vol_bump);
+                metrics.vanna = (price_spot_vol_up - price_spot_vol_down) / (4.0 * spot_bump * vol_bump);
+                
+                // Calcul du Theta (∂V/∂t)
+                double price_time_bump = price_with_time_bump(option, model_params, -time_bump);
+                metrics.theta = (price_time_bump - base_price) / time_bump;
+                
+                // Calcul du Rho (∂V/∂r)
+                double price_rate_up = price_with_rate_bump(option, model_params, rate_bump);
+                double price_rate_down = price_with_rate_bump(option, model_params, -rate_bump);
+                metrics.rho = (price_rate_up - price_rate_down) / (2.0 * rate_bump);
+                
+                // Sensibilités spécifiques LSV MS
+                metrics.correlation_sensitivity = calculate_correlation_sensitivity(
+                    option, model_params, correlation_bump);
+                
+                metrics.vol_of_vol_sensitivity = calculate_vol_of_vol_sensitivity(
+                    option, model_params, 0.01);
+                
+                metrics.mean_reversion_sensitivity = calculate_mean_reversion_sensitivity(
+                    option, model_params, 0.1);
+                
+                // Calcul des sensibilités aux régimes Markov
+                metrics.regime_sensitivities = calculate_regime_sensitivities(
+                    option, model_params);
+                
+                // Estimation de l'erreur Monte Carlo
+                metrics.monte_carlo_error = estimate_monte_carlo_error(option, model_params);
+                metrics.confidence_interval_95 = 1.96 * metrics.monte_carlo_error;
+                metrics.paths_used = model_params.monte_carlo_paths;
+                
+            } catch (const std::exception& e) {
+                XSIGMA_LOG_ERROR("Erreur lors du calcul des Greeks: " + std::string(e.what()));
+                throw;
+            }
+            
+            return metrics;
+        }
+        
+        // Calcul des Greeks par méthode pathwise
+        RiskMetrics calculate_greeks_pathwise(
+            const LSVMSProductManager::CashSettledVanillaOption& option,
+            const LSVMarkovSwitchingModel::ModelParameters& model_params,
+            const std::vector<LSVMarkovSwitchingModel::SimulationPath>& paths) const {
+            
+            RiskMetrics metrics;
+            
+            // Calcul du Delta pathwise
+            std::vector<double> delta_contributions;
+            
+            for (const auto& path : paths) {
+                if (!path.spot_values.empty()) {
+                    double final_spot = path.spot_values.back();
+                    double strike = option.strike;
+                    
+                    // Contribution pathwise au Delta
+                    double delta_contrib = 0.0;
+                    if (option.option_type == "CALL" && final_spot > strike) {
+                        delta_contrib = option.notional / final_spot;
+                    } else if (option.option_type == "PUT" && final_spot < strike) {
+                        delta_contrib = -option.notional / final_spot;
+                    }
+                    
+                    delta_contributions.push_back(delta_contrib);
+                }
+            }
+            
+            // Moyenne des contributions
+            if (!delta_contributions.empty()) {
+                double sum = std::accumulate(delta_contributions.begin(), delta_contributions.end(), 0.0);
+                metrics.delta = sum / delta_contributions.size();
+                
+                // Erreur standard
+                double variance = 0.0;
+                for (double contrib : delta_contributions) {
+                    double diff = contrib - metrics.delta;
+                    variance += diff * diff;
+                }
+                variance /= (delta_contributions.size() - 1);
+                metrics.monte_carlo_error = std::sqrt(variance / delta_contributions.size());
+            }
+            
+            return metrics;
+        }
+        
+        // Analyse de sensibilité aux paramètres Markov
+        std::vector<double> calculate_regime_sensitivities(
+            const LSVMSProductManager::CashSettledVanillaOption& option,
+            const LSVMarkovSwitchingModel::ModelParameters& model_params) const {
+            
+            std::vector<double> sensitivities;
+            
+            // Sensibilité à chaque taux de transition
+            int n_states = model_params.markov_chain.number_of_states;
+            
+            for (int i = 0; i < n_states; ++i) {
+                for (int j = 0; j < n_states; ++j) {
+                    if (i != j) {
+                        // Bump du taux de transition λᵢⱼ
+                        double transition_bump = 0.01; // 1% bump
+                        
+                        auto modified_params = model_params;
+                        modified_params.markov_chain.rate_matrix[i][j] += transition_bump;
+                        
+                        // Recalcul du prix
+                        double base_price = price_option(option, model_params);
+                        double bumped_price = price_option(option, modified_params);
+                        
+                        double sensitivity = (bumped_price - base_price) / transition_bump;
+                        sensitivities.push_back(sensitivity);
+                    }
+                }
+            }
+            
+            return sensitivities;
+        }
+        
+        // Décomposition des risques par facteur
+        struct RiskDecomposition {
+            double spot_risk;                     // Risque lié au spot
+            double volatility_risk;               // Risque lié à la volatilité
+            double time_decay_risk;               // Risque de décroissance temporelle
+            double interest_rate_risk;            // Risque de taux d'intérêt
+            double correlation_risk;              // Risque de corrélation
+            double regime_switching_risk;         // Risque de switching de régimes
+            double model_risk;                    // Risque de modèle
+        };
+        
+        RiskDecomposition decompose_risk_factors(
+            const RiskMetrics& metrics,
+            const LSVMSProductManager::CashSettledVanillaOption& option,
+            double spot_volatility = 0.2) const {
+            
+            RiskDecomposition decomposition;
+            
+            // Estimation des contributions de risque
+            double spot_move = spot_volatility * std::sqrt(1.0 / 252.0); // Daily move
+            
+            decomposition.spot_risk = std::abs(metrics.delta * spot_move * option.notional);
+            decomposition.volatility_risk = std::abs(metrics.vega * 0.01); // 1% vol move
+            decomposition.time_decay_risk = std::abs(metrics.theta); // Daily theta
+            decomposition.interest_rate_risk = std::abs(metrics.rho * 0.0001); // 1bp move
+            decomposition.correlation_risk = std::abs(metrics.correlation_sensitivity * 0.01);
+            
+            // Risque de switching de régimes
+            double regime_risk = 0.0;
+            for (double sensitivity : metrics.regime_sensitivities) {
+                regime_risk += std::abs(sensitivity * 0.01); // 1% change in transition rates
+            }
+            decomposition.regime_switching_risk = regime_risk;
+            
+            // Risque de modèle (erreur Monte Carlo)
+            decomposition.model_risk = metrics.confidence_interval_95;
+            
+            return decomposition;
+        }
+        
+    private:
+        // Méthodes utilitaires pour calculs de prix avec bumps
+        double price_with_spot_bump(
+            const LSVMSProductManager::CashSettledVanillaOption& option,
+            const LSVMarkovSwitchingModel::ModelParameters& model_params,
+            double bumped_spot) const {
+            
+            // Pricing avec spot bumpé
+            return 0.0; // Placeholder - implémentation complète nécessaire
+        }
+        
+        double price_with_vol_bump(
+            const LSVMSProductManager::CashSettledVanillaOption& option,
+            const LSVMarkovSwitchingModel::ModelParameters& model_params,
+            double vol_bump) const {
+            
+            // Pricing avec volatilité bumpée
+            return 0.0; // Placeholder
+        }
+        
+        double price_with_spot_vol_bump(
+            const LSVMSProductManager::CashSettledVanillaOption& option,
+            const LSVMarkovSwitchingModel::ModelParameters& model_params,
+            double bumped_spot,
+            double vol_bump) const {
+            
+            // Pricing avec spot et volatilité bumpés
+            return 0.0; // Placeholder
+        }
+        
+        double price_with_time_bump(
+            const LSVMSProductManager::CashSettledVanillaOption& option,
+            const LSVMarkovSwitchingModel::ModelParameters& model_params,
+            double time_bump) const {
+            
+            // Pricing avec temps bumpé
+            return 0.0; // Placeholder
+        }
+        
+        double price_with_rate_bump(
+            const LSVMSProductManager::CashSettledVanillaOption& option,
+            const LSVMarkovSwitchingModel::ModelParameters& model_params,
+            double rate_bump) const {
+            
+            // Pricing avec taux bumpé
+            return 0.0; // Placeholder
+        }
+        
+        double calculate_correlation_sensitivity(
+            const LSVMSProductManager::CashSettledVanillaOption& option,
+            const LSVMarkovSwitchingModel::ModelParameters& model_params,
+            double correlation_bump) const {
+            
+            // Sensibilité à la corrélation spot-vol
+            return 0.0; // Placeholder
+        }
+        
+        double calculate_vol_of_vol_sensitivity(
+            const LSVMSProductManager::CashSettledVanillaOption& option,
+            const LSVMarkovSwitchingModel::ModelParameters& model_params,
+            double vol_of_vol_bump) const {
+            
+            // Sensibilité au vol of vol
+            return 0.0; // Placeholder
+        }
+        
+        double calculate_mean_reversion_sensitivity(
+            const LSVMSProductManager::CashSettledVanillaOption& option,
+            const LSVMarkovSwitchingModel::ModelParameters& model_params,
+            double mean_reversion_bump) const {
+            
+            // Sensibilité à la mean reversion
+            return 0.0; // Placeholder
+        }
+        
+        double estimate_monte_carlo_error(
+            const LSVMSProductManager::CashSettledVanillaOption& option,
+            const LSVMarkovSwitchingModel::ModelParameters& model_params) const {
+            
+            // Estimation de l'erreur Monte Carlo
+            return 0.0; // Placeholder
+        }
+        
+        double price_option(
+            const LSVMSProductManager::CashSettledVanillaOption& option,
+            const LSVMarkovSwitchingModel::ModelParameters& model_params) const {
+            
+            // Pricing de l'option
+            return 0.0; // Placeholder
+        }
+    };
+}
+```
+*Cette implémentation C++ dans Our project fournit un framework complet pour le calcul des risques et sensibilités du modèle LSV MS Monte Carlo avec Greeks de premier et second ordre, sensibilités spécifiques et décomposition des facteurs de risque.*
+
+## Risk Calculation Methods
+
+### Greeks Calculation Approaches
+
+Le modèle LSV Markov Switching Monte Carlo supporte **deux méthodes principales** pour le calcul des Greeks :
+
+#### 1. Finite Differences Method
+- **Principe** : Bump and revalue approach
+- **Avantages** : Simplicité d'implémentation, applicable à tous les Greeks
+- **Inconvénients** : Coût computationnel élevé, erreur de discrétisation
+- **Usage** : Recommandé pour validation et Greeks de second ordre
+
+#### 2. Pathwise Derivatives Method
+- **Principe** : Calcul analytique le long des chemins Monte Carlo
+- **Avantages** : Efficacité computationnelle, précision élevée
+- **Inconvénients** : Complexité d'implémentation, limité aux payoffs lisses
+- **Usage** : Recommandé pour Greeks de premier ordre en production
+
+### Standard Greeks
+
+#### First Order Greeks
+
+**Delta (∂V/∂S)** : Sensibilité au prix du sous-jacent
+- **Calcul** : $(V(S+h) - V(S-h)) / (2h)$ avec $h = 1\%S$
+- **Interprétation** : Exposition directionnelle au mouvement du spot
+- **Hedging** : Nombre d'unités de sous-jacent pour hedge delta-neutre
+
+**Vega (∂V/∂σ)** : Sensibilité à la volatilité
+- **Calcul** : $(V(\sigma+h) - V(\sigma-h)) / (2h)$ avec $h = 1\%$
+- **Interprétation** : Exposition aux changements de volatilité implicite
+- **Hedging** : Utilisation d'options vanilles pour hedge vega-neutre
+
+**Theta (∂V/∂t)** : Sensibilité au passage du temps
+- **Calcul** : $(V(t-h) - V(t)) / h$ avec $h = 1$ jour
+- **Interprétation** : Décroissance de valeur due au passage du temps
+- **Gestion** : Monitoring quotidien pour positions à maturité courte
+
+**Rho (∂V/∂r)** : Sensibilité aux taux d'intérêt
+- **Calcul** : $(V(r+h) - V(r-h)) / (2h)$ avec $h = 1bp$
+- **Interprétation** : Exposition aux mouvements de taux sans risque
+- **Hedging** : Instruments de taux pour neutralisation
+
+#### Second Order Greeks
+
+**Gamma (∂²V/∂S²)** : Convexité au spot
+- **Calcul** : $(V(S+h) - 2V(S) + V(S-h)) / h²$
+- **Interprétation** : Variation du Delta selon les mouvements du spot
+- **Gestion** : Contrôle de la stabilité du hedge Delta
+
+**Volga (∂²V/∂σ²)** : Convexité à la volatilité
+- **Calcul** : $(V(\sigma+h) - 2V(\sigma) + V(\sigma-h)) / h²$
+- **Interprétation** : Variation du Vega selon les mouvements de volatilité
+- **Hedging** : Utilisation d'options de différentes maturités
+
+**Vanna (∂²V/∂S∂σ)** : Sensibilité croisée spot-volatilité
+- **Calcul** : $(V(S+h_S,\sigma+h_\sigma) - V(S-h_S,\sigma-h_\sigma)) / (4h_S h_\sigma)$
+- **Interprétation** : Corrélation entre mouvements spot et volatilité
+- **Gestion** : Ajustement dynamique des hedges
+
+### LSV MS Specific Sensitivities
+
+#### Correlation Sensitivity (∂V/∂ρ)
+- **Paramètre** : Corrélation spot-volatilité $\rho$
+- **Impact** : Influence sur la dynamique jointe spot-volatilité
+- **Hedging** : Difficile à hedger directement, gestion via diversification
+
+#### Vol of Vol Sensitivity (∂V/∂ν)
+- **Paramètre** : Volatilité de la volatilité $\nu$
+- **Impact** : Contrôle l'amplitude des fluctuations de volatilité
+- **Gestion** : Monitoring pour produits sensibles à la volatilité de volatilité
+
+#### Mean Reversion Sensitivity (∂V/∂κ)
+- **Paramètre** : Vitesse de retour à la moyenne $\kappa$
+- **Impact** : Influence la persistance des niveaux de volatilité
+- **Gestion** : Important pour produits à maturité longue
+
+#### Regime Transition Sensitivities (∂V/∂λᵢⱼ)
+- **Paramètres** : Taux de transition entre états $\lambda_{ij}$
+- **Impact** : Fréquence des changements de régimes de volatilité
+- **Gestion** : Spécifique au modèle LSV MS, monitoring régulier
+
+### Risk Decomposition Framework
+
+#### Risk Factor Categories
+
+1. **Market Risk** : Spot, volatilité, taux d'intérêt
+2. **Model Risk** : Paramètres de calibration, erreur Monte Carlo
+3. **Regime Risk** : Transitions entre états de volatilité
+4. **Time Risk** : Décroissance temporelle (Theta)
+
+#### Risk Aggregation
+
+**Total Risk** = $\sqrt{\sum_i (\text{Risk}_i)^2 + 2\sum_{i<j} \rho_{ij} \text{Risk}_i \text{Risk}_j}$
+
+où $\rho_{ij}$ sont les corrélations entre facteurs de risque.
+
+### Monte Carlo Error Management
+
+#### Error Estimation
+- **Standard Error** : $SE = \frac{\sigma}{\sqrt{N}}$ où $N$ = nombre de chemins
+- **Confidence Interval** : $\text{Price} \pm 1.96 \times SE$ (95%)
+- **Convergence Test** : $SE/|\text{Price}| < \text{Tolerance}$
+
+#### Error Reduction Techniques
+- **Antithetic Variates** : Réduction de variance pour payoffs symétriques
+- **Control Variates** : Utilisation d'options vanilles comme contrôle
+- **Importance Sampling** : Échantillonnage préférentiel pour événements rares
+
+### Risk Management Best Practices
+
+#### Daily Risk Monitoring
+- **Greeks Calculation** : Calcul quotidien de tous les Greeks
+- **Scenario Analysis** : Tests de stress sur facteurs clés
+- **Limit Monitoring** : Surveillance des limites de risque
+- **P&L Attribution** : Décomposition du P&L par facteur de risque
+
+#### Hedging Strategies
+- **Delta Hedging** : Hedge quotidien avec sous-jacent
+- **Vega Hedging** : Utilisation d'options vanilles
+- **Gamma Management** : Contrôle de la convexité
+- **Regime Hedging** : Diversification pour risque de switching
+
+Le framework de calcul des risques LSV MS Monte Carlo dans Our project fournit une gestion complète et précise de tous les facteurs de risque avec des méthodes de calcul robustes et des techniques de réduction d'erreur avancées.

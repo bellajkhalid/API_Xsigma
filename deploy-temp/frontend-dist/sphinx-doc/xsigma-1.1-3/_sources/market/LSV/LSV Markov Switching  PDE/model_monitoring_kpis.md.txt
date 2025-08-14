@@ -1,0 +1,279 @@
+# Model Monitoring – KPIs
+
+## Overview
+
+Cette section définit les indicateurs clés de performance (KPIs) pour le monitoring continu du modèle **LSV Markov Switching PDE** en environnement de production.
+
+## Key Performance Indicators (KPIs)
+
+### 1. Calibration Quality KPIs
+
+#### Calibration RMSE
+- **Métrique** : RMSE entre volatilités implicites de marché et modèle
+- **Formule** : $\sqrt{\frac{1}{N}\sum_{i=1}^N (\sigma_{market,i} - \sigma_{model,i})^2}$
+- **Seuil Warning** : 1%
+- **Seuil Critical** : 2%
+- **Fréquence** : Quotidienne
+- **Action** : Vérifier qualité des données de marché et recalibrer
+
+#### Maximum Calibration Error
+- **Métrique** : Erreur maximale sur tous les instruments de calibration
+- **Formule** : $\max_i |\sigma_{market,i} - \sigma_{model,i}|$
+- **Seuil Warning** : 3%
+- **Seuil Critical** : 5%
+- **Fréquence** : Quotidienne
+- **Action** : Investiguer instruments problématiques
+
+#### Calibration Convergence Time
+- **Métrique** : Temps de convergence de la calibration
+- **Seuil Warning** : 60 secondes
+- **Seuil Critical** : 120 secondes
+- **Fréquence** : Quotidienne
+- **Action** : Optimiser paramètres de calibration
+
+### 2. Pricing Accuracy KPIs
+
+#### PDE Grid Convergence Error
+- **Métrique** : Erreur de convergence de la grille PDE
+- **Formule** : $|V_{fine} - V_{coarse}| / |V_{fine}|$
+- **Seuil Warning** : 0.1%
+- **Seuil Critical** : 0.5%
+- **Fréquence** : Échantillon quotidien
+- **Action** : Raffiner la grille ou ajuster paramètres
+
+#### Greeks Stability
+- **Métrique** : Stabilité des Greeks entre calculs successifs
+- **Formule** : $\text{std}(\text{Greeks}) / |\text{mean}(\text{Greeks})|$
+- **Seuil Warning** : 2%
+- **Seuil Critical** : 5%
+- **Fréquence** : Échantillon quotidien
+- **Action** : Vérifier stabilité numérique
+
+#### Cross-Model Validation Error
+- **Métrique** : Différence avec pricer Monte Carlo de référence
+- **Formule** : $|P_{PDE} - P_{MC}| / |P_{MC}|$
+- **Seuil Warning** : 0.2%
+- **Seuil Critical** : 1%
+- **Fréquence** : Échantillon quotidien
+- **Action** : Investiguer divergences
+
+### 3. Performance KPIs
+
+#### Average Pricing Time
+- **Métrique** : Temps de pricing moyen par trade
+- **Seuil Warning** : 200ms
+- **Seuil Critical** : 500ms
+- **Fréquence** : Continue
+- **Action** : Optimiser algorithmes ou infrastructure
+
+#### Memory Usage
+- **Métrique** : Utilisation mémoire maximale
+- **Seuil Warning** : 500MB
+- **Seuil Critical** : 1GB
+- **Fréquence** : Continue
+- **Action** : Optimiser gestion mémoire
+
+#### System Throughput
+- **Métrique** : Nombre de pricings par seconde
+- **Seuil Warning** : < 10 trades/sec
+- **Seuil Critical** : < 5 trades/sec
+- **Fréquence** : Continue
+- **Action** : Analyser goulots d'étranglement
+
+### 4. Numerical Stability KPIs
+
+#### Matrix Condition Number
+- **Métrique** : Conditionnement des systèmes linéaires PDE
+- **Seuil Warning** : 1e12
+- **Seuil Critical** : 1e15
+- **Fréquence** : Par calcul
+- **Action** : Améliorer préconditionnement
+
+#### Solver Convergence Rate
+- **Métrique** : Nombre d'itérations pour convergence du solveur
+- **Seuil Warning** : 100 itérations
+- **Seuil Critical** : 500 itérations
+- **Fréquence** : Par calcul
+- **Action** : Ajuster paramètres de solveur
+
+#### Boundary Condition Error
+- **Métrique** : Erreur aux conditions aux limites
+- **Seuil Warning** : 0.01%
+- **Seuil Critical** : 0.1%
+- **Fréquence** : Échantillon quotidien
+- **Action** : Vérifier implémentation des conditions
+
+### 5. Operational KPIs
+
+#### Calibration Success Rate
+- **Métrique** : Taux de succès de calibration quotidienne
+- **Seuil Warning** : < 95%
+- **Seuil Critical** : < 90%
+- **Fréquence** : Quotidienne
+- **Action** : Investiguer échecs de calibration
+
+#### Pricing Success Rate
+- **Métrique** : Taux de succès de pricing
+- **Seuil Warning** : < 98%
+- **Seuil Critical** : < 95%
+- **Fréquence** : Quotidienne
+- **Action** : Analyser causes d'échec
+
+#### System Availability
+- **Métrique** : Disponibilité du système de pricing
+- **Seuil Warning** : < 99.5%
+- **Seuil Critical** : < 99%
+- **Fréquence** : Continue
+- **Action** : Investiguer causes d'indisponibilité
+
+### 6. Risk Management KPIs
+
+#### Greeks Accuracy vs Finite Differences
+- **Métrique** : Précision des Greeks PDE vs différences finies
+- **Formule** : $|\text{Greek}_{PDE} - \text{Greek}_{FD}| / |\text{Greek}_{FD}|$
+- **Seuil Warning** : 2%
+- **Seuil Critical** : 5%
+- **Fréquence** : Échantillon quotidien
+- **Action** : Vérifier calcul des Greeks
+
+#### Scenario Analysis Stability
+- **Métrique** : Stabilité sous scénarios de stress
+- **Seuil Warning** : Échec de convergence > 5%
+- **Seuil Critical** : Échec de convergence > 10%
+- **Fréquence** : Quotidienne
+- **Action** : Renforcer robustesse numérique
+
+#### Portfolio Greeks Consistency
+- **Métrique** : Cohérence des Greeks au niveau portfolio
+- **Seuil Warning** : Écart > 3%
+- **Seuil Critical** : Écart > 10%
+- **Fréquence** : Quotidienne
+- **Action** : Vérifier agrégation des risques
+
+## Monitoring Framework Implementation
+
+### Automated Data Collection
+
+```cpp
+class LSVMSPDEMonitoring {
+public:
+    struct KPIMetrics {
+        // Calibration Quality
+        double calibration_rmse;
+        double max_calibration_error;
+        double calibration_time_seconds;
+        
+        // Pricing Accuracy
+        double grid_convergence_error;
+        double greeks_stability;
+        double cross_model_error;
+        
+        // Performance
+        double avg_pricing_time_ms;
+        double memory_usage_mb;
+        double system_throughput;
+        
+        // Numerical Stability
+        double matrix_condition_number;
+        int solver_iterations;
+        double boundary_error;
+        
+        // Operational
+        double calibration_success_rate;
+        double pricing_success_rate;
+        double system_availability;
+        
+        // Risk Management
+        double greeks_accuracy;
+        double scenario_stability;
+        double portfolio_consistency;
+    };
+    
+    KPIMetrics collect_daily_metrics() {
+        KPIMetrics metrics;
+        
+        // Collection automatique des métriques
+        metrics.calibration_rmse = calculate_calibration_rmse();
+        metrics.max_calibration_error = calculate_max_calibration_error();
+        metrics.avg_pricing_time_ms = calculate_avg_pricing_time();
+        // ... autres métriques
+        
+        return metrics;
+    }
+    
+    void generate_alerts(const KPIMetrics& metrics) {
+        // Génération d'alertes basées sur les seuils
+        if (metrics.calibration_rmse > 0.02) {
+            send_critical_alert("Calibration RMSE exceeded critical threshold");
+        } else if (metrics.calibration_rmse > 0.01) {
+            send_warning_alert("Calibration RMSE exceeded warning threshold");
+        }
+        
+        // Autres vérifications d'alertes...
+    }
+};
+```
+
+### Real-Time Dashboard
+
+#### Key Metrics Display
+- **Traffic Light System** : Vert/Orange/Rouge pour chaque KPI
+- **Trend Charts** : Évolution temporelle des métriques
+- **Alert Summary** : Résumé des alertes actives
+- **Performance Heatmap** : Visualisation des performances par produit
+
+#### Drill-Down Capabilities
+- **Detailed Analysis** : Analyse détaillée par KPI
+- **Historical Trends** : Tendances historiques
+- **Comparative Analysis** : Comparaison avec périodes précédentes
+- **Root Cause Analysis** : Outils d'analyse des causes
+
+### Automated Reporting
+
+#### Daily Reports
+- **Executive Summary** : Résumé pour management
+- **Technical Details** : Détails techniques pour équipes
+- **Trend Analysis** : Analyse des tendances
+- **Action Items** : Actions recommandées
+
+#### Weekly/Monthly Reports
+- **Performance Review** : Revue de performance périodique
+- **Model Validation** : Validation continue du modèle
+- **Improvement Recommendations** : Recommandations d'amélioration
+- **Regulatory Compliance** : Conformité réglementaire
+
+### Alert Management System
+
+#### Alert Levels
+- **INFO** : Information générale
+- **WARNING** : Attention requise
+- **CRITICAL** : Action immédiate requise
+- **EMERGENCY** : Escalation automatique
+
+#### Notification Channels
+- **Email** : Notifications par email
+- **SMS** : Alertes critiques par SMS
+- **Dashboard** : Affichage temps réel
+- **API** : Intégration avec systèmes externes
+
+#### Escalation Procedures
+- **Level 1** : Équipe de support technique
+- **Level 2** : Équipe quantitative
+- **Level 3** : Management et risk management
+- **Emergency** : Procédures d'urgence
+
+### Quality Assurance Integration
+
+#### Continuous Validation
+- **Model Performance** : Validation continue de la performance
+- **Data Quality** : Contrôle qualité des données
+- **System Health** : Santé du système
+- **User Feedback** : Retours des utilisateurs
+
+#### Improvement Process
+- **Issue Tracking** : Suivi des problèmes
+- **Root Cause Analysis** : Analyse des causes racines
+- **Solution Implementation** : Implémentation des solutions
+- **Effectiveness Monitoring** : Monitoring de l'efficacité
+
+Le système de monitoring LSV MS PDE dans Our project assure une surveillance complète et proactive de la qualité, performance et stabilité du modèle avec des KPIs précis, des alertes automatisées et des procédures d'escalation appropriées pour maintenir l'excellence opérationnelle.

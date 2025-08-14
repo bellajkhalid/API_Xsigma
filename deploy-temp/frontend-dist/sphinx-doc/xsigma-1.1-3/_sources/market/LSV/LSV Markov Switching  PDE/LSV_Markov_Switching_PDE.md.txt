@@ -1,0 +1,1544 @@
+# LSV Markov Switching : PDE
+
+## 1. Executive Summary
+
+Existing stochastic volatility models in QA library (Hybrid, TDHeston) model the volatility by using a continuous diffusion process. In Markov Switching model, the instantaneous volatility is allowed to take one of n possible discrete values. The model captures the randomness of the volatility using a continuous-time markov chain.
+
+An LV correction is incorporated in the model to be able to re-price the vanilla market, leading to a local stochastic volatility markov switching model (LSV Markov Switching).
+
+The main attractiveness of LSV Markov Switching model consists in its ability to have a discrete number of volatility states instead of a continuous volatility process. This has a clear speed advantage and would allow not only pricing but also risk management of the trading exotic books.
+
+LSV Markov Switching is intended to be used as the pricing and risk management model for first generation exotics trading books.
+More analysis will be required for an extension to other complex products.
+
+The model has been implemented in QA within the UMIFX framework. The calibration routine involves a forward-induction PDE procedure and the pricing is done using finite difference method.
+
+Testing shows a very good performance of the model, being able to value exotic path dependent trades such as barriers inline with the market and delivering a substantial speed gain when compared to a full 2-dimensional local stochastic volatility model.
+
+This document will outline the model specification as well as the calibration and pricing methodology. Testing results are presented as well.
+
+We recommend to use a QA version from QA2221.00 onwards.
+
+## 2. Context
+
+Local Stochastic Volatility attempts to address the main drawbacks of local volatility models and stochastic volatility models by providing a consistent way of pricing and hedging exotic path dependent trades while matching today's vanilla market.
+
+Currently the path dependent trade population is run on the Local volatility model in production. The aim is to move towards a local stochastic volatility model. The model has to be fast enough to enable the trading desk to look at their risk exposures in a reasonable amount of time.
+
+LSV Markov Switching is a local stochastic volatility model with a superior speed performance when compared to other LSV models due to the discrete nature of the volatility states within the model. It has been implemented recently in the QA library in order to enable running and risk-managing the exotic trade population on a local stochastic volatility model.
+
+## 3. Product / Payoff
+
+This document is intended for a model review and wouldn't focus on the description of products and payoffs subject to a review.
+
+The products that we will look at as part of the model review are:
+
+- Cash settled European vanilla options. They are instrumental in assessing the accuracy and numerical convergence of the model. As mentioned in the previous sections, the local vol correction component in the model ensures that the vanilla market is matched.
+
+- Examples of path dependent trades to check the consistency of the model when compared to local volatility model. In particular, we will look at double no touches (DNTs), continuous knock out single barriers and one touches.
+
+### 3.1. Description
+
+#### 3.1.1. Cash settled european vanilla
+
+The cash settled European vanilla option has a pay-off, at a specified payment date $T_p$ and settlement currency, given by:
+
+- European call option pay-off: $N * (S_T - K)_+$
+
+- European Put option pay-off: $N * (K - S_T)_+$
+
+where $S_T$ is the market settled FX Spot level at expiry time $T$, K is the option strike level and $N$ the notional amount.
+
+For more details about vanilla representation in CTR, you can refer to [5].
+
+#### 3.1.2. Double No touch
+
+A Double No touch (DNT) gives the investor an agreed upon payout at expiry if the price of the underlying FX rate does not reach or surpass one of the predetermined barrier levels between the barrier start $T_s$ and expiry date $T$.
+
+We denote $S^{min}$ and $S^{max}$ respectively the running minimum and running maximum of the FX spot process between the barrier start date and expiry date. They are defined as follows:
+
+$$S^{min} = \inf_{T_s \leq u \leq T} S_u \tag{3.1}$$
+
+$$S^{max} = \sup_{T_s \leq u \leq T} S_u \tag{3.2}$$
+
+The Payoff of a double no touch, at expiry date $T$ in a specified currency is :
+
+$$N * 1_{\{S^{min} > L, S^{max} < U\}} \tag{3.3}$$
+
+where $L$ and $U$ are respectively the lower and upper barrier levels and $N$ is the notional/rebate amount.
+
+We look in this document at continuous double no touches where barrier start date coincides with valuation date and delivery date equals the option expiry. The payment currency is set to be the domestic currency.
+
+#### 3.1.3. One Touch option
+
+A one touch option gives an investor a fixed amount once a specified barrier level is breached between valuation date and expiry date.
+
+There are two main variations: "lower one touch" and "upper one touch" options depending on the barrier level position with respect to spot at the valuation date. The corresponding payoffs are defined as follows at expiry date in a specified currency:
+
+- Upper one touch:
+  $$N * 1_{S^{max} > U} \tag{3.4}$$
+
+- Lower one touch:
+  $$N * 1_{S^{min} < L} \tag{3.5}$$
+
+with :
+
+- $S^{min}$ and $S^{max}$ respectively the running minimum and running maximum of the fx spot rate as defined in 3.1.
+
+- $U$ and $L$ refer to the barrier level depending on the barrier type (Upper or Lower).
+
+We look in this document at one touches paying in domestic currency.
+
+#### 3.1.4. FX single knock-out barrier
+
+We will look here at continuous cash settled european single knock out barrier. A continuous knock out single barrier option is to expire worthless, should a specified barrier level be breached between valuation date and expiry date. If the barrier is not breached, the holder receives the european cash settled vanilla call/put payoff at expiry date.
+
+There are two main variations: "down and out" and "up and out" options depending on the barrier level position with respect to spot at the valuation date. The corresponding payoffs are defined as follows at expiry date:
+
+- Up and out options:
+  $$N * 1_{S^{max} < U} * (ε(S - K))^+ \tag{3.6}$$
+
+- Down and out options:
+  $$N * 1_{S^{min} > L} * (ε(S - K))^+ \tag{3.7}$$
+
+with :
+
+- $S^{min}$ and $S^{max}$ respectively the running minimum and running maximum of the fx spot rate as defined in 3.1.
+
+- $ε$ is either $+1$ or $-1$ depending if the underlying vanilla is a call or a put.
+
+- K strike of the vanilla option.
+
+- $U$ and $L$ refer to the barrier level depending on the barrier type (Upper or Lower).
+
+### 3.2. Relationship to other approved payoffs
+
+N/A
+
+### 3.3. Inputs
+
+The products we look at in this document, are represented in CTR. The official CTR schema version which is agreed with BARX Trade Services is 3.3.
+Please refer to http://qa.barcapint.com:8080/wiki/CTR3 for full details.
+
+Below, we summarize the main inputs for the FX vanilla and double no touch products under CTR 3.3 schemas:
+
+#### 3.3.1. Cash settled European vanilla
+
+Table 3.1: Fx vanilla main inputs summary under CTR 3.3
+
+| Name | Type | Comment |
+|------|------|---------|
+| Currency1 | ctr:Currency | Set to be foreign currency |
+| Currency2 | ctr:Currency | Set to be domestic currency |
+| Currency1Amount | ctr:Amount | refers to the notional amount in currency 1 which is set to foreign currency above. |
+| Strike | ctr:Strike | Strike is quoted as CCY1CCY2 |
+| Currency1CallPut | ctr:CallPut | CALL or PUT |
+| ExpiryDate | xsd:date | |
+| DeliveryDate | xsd:date | set to be equal to expiry date |
+| SettlementStyle | ctr:SettlementStyle | set to be CASH |
+
+#### 3.3.2. Double No touch
+
+Table 3.2: Double no touch main inputs summary under CTR 3.3
+
+| Name | Type | Comment |
+|------|------|---------|
+| Currency1 | ctr:Currency | Set to be foreign currency |
+| Currency2 | ctr:Currency | Set to be domestic currency |
+| RebateAmount | ctr:Amount | refers to the notional amount |
+| RebateCurrency | ctr:Currency | refers to the notional currency. Set to be domestic currency |
+| ExpiryDate | xsd:date | |
+| DeliveryDate | xsd:date | set to be equal to expiry date |
+| TouchBarrierStartDate | xsd:date | set to be equal to valuation date |
+| UpperTouchBarrierLevel | ctr:Strike | Upper barrier level is quoted as CCY1CCY2 |
+| LowerTouchBarrierLevel | ctr:Strike | Lower barrier level is quoted as CCY1CCY2 |
+
+#### 3.3.3. One touch
+
+Table 3.3: One touch main inputs summary under CTR 3.3
+
+| Name | Type | Comment |
+|------|------|---------|
+| Currency1 | ctr:Currency | Set to be foreign currency |
+| Currency2 | ctr:Currency | Set to be domestic currency |
+| RebateAmount | ctr:Amount | Refers to the notional amount |
+| RebateCurrency | ctr:Currency | Refers to the notional currency. Set to be domestic currency |
+| ExpiryDate | xsd:date | |
+| TouchBarrierStartDate | xsd:date | Set to be equal to valuation date |
+| TouchBarrierLevel | ctr:Strike | Barrier level is quoted as CCY1CCY2 |
+
+#### 3.3.4. cash settled FX Single knock-out barrier
+
+Table 3.4: FX single barrier main inputs summary under CTR 3.3
+
+| Name | Type | Comment |
+|------|------|---------|
+| Currency1 | ctr:Currency | Set to be foreign currency |
+| Currency2 | ctr:Currency | Set to be domestic currency |
+| Currency1Amount | ctr:Amount | refers to the notional amount in Currency 1 |
+| Strike | ctr:Strike | Strike is quoted as CCY1CCY2 |
+| Currency1CallPut | ctr:CallPut | CALL or PUT |
+| ExpiryDate | xsd:date | |
+| DeliveryDate | xsd:date | set to be equal to expiry date |
+| BarrierStartDate | xsd:date | set to be equal to valuation date |
+| BarrierEndDate | xsd:date | set to be equal to expiry date |
+| BarrierLevel | ctr:Strike | Barrier level is quoted as CCY1CCY2 |
+| BarrierSide | ctr:BarrierSide | UPPER or LOWER |
+| BarrierAction | ctr:BarrierAction | Set to KNOCKOUT |
+
+### 3.4. Outputs
+
+N/A
+
+### 3.5. Payoff Analysis
+
+N/A
+
+### 3.6. Model(s) used
+
+N/A
+
+## 4. Model / Methodology
+
+### 4.1. Description
+
+In LSV Markov switching model, the FX spot rate follows a stochastic process where the instantaneous volatility has a stochastic volatility component in combination with a local volatility one.
+
+We begin by describing how the stochastic volatility is specified within the model.
+
+#### 4.1.1. Stochastic Volatility
+
+The stochastic instantaneous volatility is allowed to take one of $n$ possible values. Random transitions are allowed between the volatility states at any time, in other words they are described by a continuous time Markov chain process.
+
+A continuous time Markov Chain is a stochastic process $\{\xi(t) : t \geq 0\}$ where $\xi(t)$ takes values only in $\{1,...,n\}$ where $n \in \mathbb{N}$ is the number of states. To define a continuous time Markov Chain we need to specify its $n \times n$ transition rate matrix $Q$, with elements $q_{ij}, i, j \in \{1,...,n\}$. For the transition matrix to be valid, it must fulfill the following conditions:
+
+- $n \times n$ matrix with $n$ being the number of states.
+
+- $q_{ii} \leq 0$ for all $i$. $q_i = -q_{ii}$ is the rate at which the process leaves the state $i$.
+
+- $q_{ij} \geq 0$ for all $i \neq j$. $q_{ij}$ being the instantaneous rate the process moves from state $i$ to state $j$.
+
+- $\sum_j q_{ij} = 0$ for all $i$.
+
+Given that we are in state $i$ at time $s$, the conditional probability $p_{ij}(s,t)$ of being in state $j$ at time $t$, is given by:
+
+$$p_{ij}(s,t) = \mathbb{P}[\xi(t) = j|\xi(s) = i] \tag{4.1}$$
+
+Where $p_{ij}(s,t)$ is an element of $n \times n$ matrix $P(s,t)$ which we define via the matrix exponential of $Q(s,t)$, that is,
+
+$$P(s,t) = \exp(Q(s,t)) \tag{4.2}$$
+
+$$P(s,t) = \exp\left(Q \int_s^t q(u)du\right) \tag{4.3}$$
+
+where the transition generator matrix $Q$ is represented using a constant $n \times n$ matrix $\tilde{Q}$ and a time dependent scalar function $q(u)$.
+
+The time dependent function $q(u)$ will be assumed to be piecewise constant. This has been implemented recently following the analysis of BARX risk runs results. For more details, see [2].
+
+In summary the stochastic instantaneous volatility in Markov Switching follows the following process:
+
+$$\Sigma(t) = \sigma_{\xi(t)}(t) \tag{4.4}$$
+
+where
+
+- $\xi(t) : [0,\infty) \Rightarrow 1 \ldots n$ a continuous time stochastic Markov chain.
+
+- $n \in \mathbb{N}$ being the number of volatility states with $n > 1$.
+
+- $\sigma_i : [0, \infty) \Rightarrow \mathbb{R}^+$ where $i \in 1 \ldots n$ a discrete set of deterministic functions.
+
+- $Q$ Transition probability matrix of the markov chain $\{\xi(t) : t \geq 0\}$
+
+Each discrete volatility $\sigma_i$ is a function of the volatility of volatility parameter $\alpha(t)$ defined as follows:
+
+$$\sigma_i(t) = \gamma_0(t) \exp^{(i-1-[\frac{n}{2}])\alpha(t)}. \tag{4.5}$$
+
+Please note that we focus in this document on the model variation with an odd number of states. For $n = 2k + 1, k \in \mathbb{N}$, the initial volatility state will be the middle state $\sigma_{k+1}(t)$.
+
+E.g. For three volatility states, we have the following:
+
+$$\sigma_3(t) = \gamma_0(t) \exp^{1*\alpha(t)}. \tag{4.6}$$
+$$\sigma_2(t) = \gamma_0(t). \tag{4.7}$$
+$$\sigma_1(t) = \gamma_0(t) \exp^{-\alpha(t)}. \tag{4.8}$$
+
+We will assume throughout the document that the number of volatility states is 3 unless stated otherwise. Extension to any other odd number of volatility states $(n = 2k + 1 > 1, k \in \mathbb{N})$ follows easily.
+
+#### 4.1.2. Local Stochastic Volatility
+
+A local volatility correction is incorporated in the FX spot diffusion term in order to be able to recover the vanilla prices in the market.
+
+The model dynamics of LSV Markov Switching are specified then by the following Stochastic Differential Equation (SDE),
+
+$$\frac{dS(t)}{S(t)} = r_{d,f}(t)dt + \Sigma(t)A(S(t),t)dW(t) \tag{4.9}$$
+$$\Sigma(t) = \sigma_{\xi(t)}(t) \tag{4.10}$$
+
+where :
+
+- $S(t)$ is the spot FX (units of domestic currency per foreign).
+
+- $r_{d,f}(t)$ FX rate drift.
+
+- $W(t)$ is a brownian motion under the risk-neutral measure. $W(t)$ is independent of $\xi(t)$.
+
+- $A(S(t),t)$ deterministic local volatility correction.
+
+- $\xi(t) : [0,\infty) \Rightarrow 1 \ldots n$ a continuous time stochastic markov chain.
+
+- $n \in \mathbb{N}$ being the number of volatility states
+
+- $\sigma_i : [0, \infty) \Rightarrow \mathbb{R}^+$ where $i \in 1 \ldots n$ a discrete set of deterministic functions as specified in the previous subsection.
+
+- $Q$ Transition probability matrix of the Markov chain $\{\xi(t) : t \geq 0\}$
+
+### 4.2. Assumptions and Limitations
+
+The model has the following assumptions and limitations:
+
+- It's a single-asset model where spot is assumed to move continuously without jumps. Jumps may have a significant impact on the pricing of certain path-dependent products, such as very short dated barriers.
+
+- The instantaneous volatility follows a continuous time stochastic markov chain. Transitions between volatility states are allowed at any time.
+
+- The stochastic markov chain is independent of the Brownian motion driving the FX spot rate. Hence, care needs to be taken when valuing trades strongly dependent on the correlation between spot and volatility.
+
+- Both the domestic and foreign interest rates are assumed to be deterministic in the current version of the model. Therefore, when valuing long dated structures, the stochastic interest rate effect is not taken into account.
+  An extension of the model to handle stochastic interest rates is possible but is not yet supported.
+
+- The vol of volatility parameter is piecewise constant in time.
+
+- The transition matrix q parameter $q(u)$ is piecewise constant in time.
+
+### 4.3. Justification against alternative approaches
+
+The trades are valued in the trading books currently under local volatility (LV). The local volatility model is notoriously known for its main drawback to generate an unrealistic forward vol dynamics and hence provides a valuation for first gen exotics which doesn't match the prices seen in the market.
+
+In addition to that, there has been an inconsistency between the models used for quoting prices and for valuing and risk managing the first gen exotics book. Prices were quoted using LSV Hybrid whereas the risk management is done on local volatility. For details on LSV Hybrid model, please refer to [9].
+
+LSV Hybrid ¹ wasn't a suitable candidate for risk management due to its speed performance. It takes considerable time to run the whole barrier books. In addition to that, some blow-ups were noticed in the model as well as some instability issues in the calibration process.
+
+### 4.4. Conditions of Use
+
+As mentioned in section 4.2, there are limitations in capturing some of the exposures where care needs to be taken.
+
+### 4.5. Model Parameters
+
+The model parameters are specified in the table below :
+
+| Parameter Name | Description | Type (market data / Input / Calibration |
+|----------------|-------------|----------------------------------------|
+| $n$ | Number of volatility states | Input |
+| FX spot $S(0)$ | Spot FX rate quoted as units of domestic currency per foreign at valuation date | Market data |
+| $r_{d,f}$ | FX drift rate | Market data |
+| Local volatility correction $A(S(t),t)$ | Dupire deterministic local volatility function of time $t$ and spot $S$ | Calibration |
+| Vol factor parameter $\gamma_0(t)$ | Piecewise constant parameter scaling the different discrete volatility values ² | Input |
+| Vol of volatility $\alpha(t)$ | Piecewise constant vol of volatility parameters controlling the separation between states | Market data-like |
+| Transition parameter $q(t)$ | Piecewise constant parameter controlling the transitions between the different volatility states | Market data-like |
+| Transition matrix $\tilde{Q}$ | A $n \times n$ matrix which is used with the transition parameter $q(t)$ to define the transition rate matrix of the markov chain defining the volatility states | Input |
+
+The qualitative analysis of the main model parameters can be found in [1].
+
+## 5. Implementation / Numerical Schema Description
+
+### 5.1. Description
+
+The pricing is done using finite-difference method to solve the partial differential equations "PDE".
+
+#### 5.1.1. Numerical PDE solution
+
+The QA Generic PDE solver developed in QA is the engine used to solve the PDE. The planes method is used in pricing. Indeed, the plane levels are used to represent the different volatility states of the stochastic spot instantaneous volatility within the model.
+
+We denote $V_i(S,t)$ the value at time $t$ of a derivative when the volatility is in state $i$, i.e. $\Sigma(t) = \sigma_i(t)$.
+
+Through Feynman-Kac theorem:
+
+$$\frac{\partial V_i}{\partial t} + \left(r_{d,f}(t) - \frac{1}{2}A(S,t)^2\Sigma(t)^2\right)\frac{\partial V_i}{\partial x} + \frac{1}{2}A(S,t)^2\Sigma(t)^2\frac{\partial^2 V_i}{\partial x^2} - f_{d,c}V_i = 0 \tag{5.1}$$
+$$+ \frac{1}{2}A(S,t)^2\Sigma(t)^2\frac{\partial^2 V_i}{\partial x^2} - f_{d,c}V_i = 0 \tag{5.2}$$
+
+with X being the state variable representing $logS$ the logarithm transform of the FX spot rate and $f_{d,c}$ deterministic short rate as derived from the domestic discounting curve with collateral type c.
+
+To take into account the fact that transitions are allowed between different volatility states, interfacing is done between the PDE solutions at the different planes as follows.
+
+Let's suppose that we rolled the PDE backwards from time $t$ to time $(t - \delta t)^+$. At time $(t - \delta t)^-$, we have the following :
+
+$$V_i((t - \delta t)^-) = \sum_j p_{ij} V_j((t - \delta t)^+)$$
+$$(5.3)$$
+
+$$= \sum_j \left( \delta_{ij} + \dot{Q}_{ij} \int_{t-\delta t}^t q(s)ds \right) V_j((t - \delta t)^+)$$
+$$(5.4)$$
+
+$$= V_i((t - \delta t)^+) + \sum_j \left( \dot{Q}_{ij} \int_{t-\delta t}^t q(s)ds \right) V_j((t - \delta t)^+)$$
+$$(5.5)$$
+
+The discretisation scheme used is Crank Nicholson scheme which achieves a fast convergence.
+
+For details of the numerical pde scheme and discretisation method, see [10].
+
+Many improvements and techniques are available within the UMIFX PDE framework where the present model is connected to. Examples are:
+
+- Smoothing discontinuities. we call a discontinuity date any date where we apply an event (e.g. modify the values on PDE grid on trade expiry date), or where the PDE grid domain changes (e.g. barrier start/end date). We tackle discontinuities in three ways:
+  - Having denser grids around the discontinuities by adding them as points of interest.
+  - Adding rannacher (implicit PDE stepping) steps before the time discontinuities. If we denote the total number of discontinuities as numDiscontinuities and total number of rannacher steps specified in the pricer config as total_number_rannacher_steps. The number of rannachers steps is computes per discontinuity, n, as,
+
+$$n = int \left( Double :: roundUp \left( \frac{Int :: toDouble(total\_number\_rannacher\_steps)}{Int :: toDouble(numDiscontinuities)} \right) \right)$$
+$$(5.6)$$
+
+  - Using fuzzy logic (e.g. box smoothing):
+    If the payout is $f(x)$, with a discontinuity at $D$. In other terms, the payout $f(x)$ would have an indicator function with a level equal to $D$.
+    We find the consecutive grid points $x_{i-1}, x_i, x_{i+1}$ such that $D$ is in $[0.5 * (x_{i-1} + x_i), 0.5 * (x_i + x_{i+1})] = [L, U]$. Then instead of using $f(x_i)$ for grid point $x_i$ we instead use $\frac{1}{U-L} \int_L^U f(x)dx$.
+    This has the effect of making the grid point's value depend upon its distance from the discontinuity in a smooth way which is why it improves stability.
+
+- Time grid include market and model dates to improve the quality of term structure risk.
+
+- Minimum number of steps in the time grid : we had a problem in the past where the number of steps in the time grid was so low between events leading to a poor time convergence. in FXPDE, a number of rannacher steps is added before each event of the trade.
+
+- Intelligent standard deviation grid size : in building the grid, we use an asymmetric grid in order to take into account the asymmetry that the vol surface might have and cover an appropriate amount of the distribution.
+The PDE spatial grid widths are calculated from an input standard deviation using the default method: FXGridStyle="AsymmetricUsingMaxSqrtVariance". The calculation works as follows:
+  - The input number of standard deviations is used at the end date of the trade (or trades) to calculate the grid width.
+  - Initial lower and upper boundaries are first calculated from the standard deviation using the at-the-money-forward variance.
+  - Then the variances at strikes equal to the lower and upper boundaries are queried from the volatility surface, and used to replace the original at the money variance if they are greater.
+  - Finally boundaries are then calculated using the modified variances.
+This method ensures that the grid is appropriately widened when there is a big smile or skew.
+
+- Adaptive rannacher time steps before time points of interest : the size of rannacher steps is chosen so that the number of rannacher steps to be added before a time point of interest all lie between two original PDE time points.
+
+- Advanced time grid : in addition to the total number of time steps, we can have the time schedule which allows to have a minimum frequency or number of steps for the specified periods. This is especially useful when having risk exposure in the short end. It can help having more time points around the short end for example and therefore improving the accuracy of risk. For more details on that, please refer to [4]
+
+Further documentation is available on the QA wiki:
+
+- http://qa:8080/wiki/FX_PDE
+
+### 5.2. Inputs
+
+There are three main sections within the PDE pricer settings:
+
+- PDE solver generic settings such as PDE solver type, PDE implicit order and a flag to use PDE smoothing. Most of the settings have suitable defaults and do not need to be set explicitly in the property page.
+
+- Time grid settings FXPDEDateOptionsPP. To specify the PDE time grid, we specify the total number of time steps that will be used "TotalNumberOfTimeSteps". Another parameter worth highlighting is the total number of Rannacher steps "TotalNumberOfRannacherSteps" which is used internally to have implicit PDE steps around discontinuities aiming to improve the accuracy as outlined in the previous section.
+In addition to the total number of time steps, we can set a time step schedule which would be used to define a minimum frequency or number of steps that need to be satisfied for certain time periods.
+
+- Spatial grid settings FXPDEGridSettingsPP. As the stochastic volatility have discrete values and are not driven by a continuous diffusion factor, the PDEs we solve are one dimensional PDEs corresponding to the different volatility states. Therefore only one dimension needs to be specified in the spatial grid settings which is the spot dimension. Properties such as the number of space steps, standard deviations and also the use of non uniform grid are set. We recommend to use a non uniform spatial grid in the FX spot direction to improve the convergence.
+
+The inputs for the PDE numerical technique are summarized below:
+
+| FXPDEPricingInstructionsPP                    |                                    |                               |                                 |                                                                                             |
+|-----------------------------------------------|---------------------------------------|----------------------------------|-------------------------------------|--------------------------------------------------------------------------------------------------------|
+| Name                                          | Type                                  | Default                          | Recommended Value                  | Comment                                                                                             |
+| NumeraireCcy                                  | String                                |                                  | (Domestic Currency)                | The numeraire currency.                                                                             |
+| CTRTPH                                        | FXCTRTPHPP                            |                                  |                                   | Settings for trade pricing helper                                                                   |
+| PointsOfInterestType                          | String                                | ModelPOIOnly                     | ModelAndPayoutPOI                  | Point of interest allow having more density in the spatial grid around the points of interest specified.                           |
+| PDEGridSettings                               | FXPDEGridSettingsCollectionPP         |                                  |                                   | Settings for the different directions in the PDE spatial Grid                                      |
+| PDESolverType                                 | String                                |                                  |                                   | PDE Solver type: for possible values look for QAEnum.GenericPDESolverType. If not specified, it is resolved within the QA FXPDE code according to the number of factors in the model used                                        |
+| UsePredictorCorrector                         | Boolean                               | TRUE                             |                                   | PDE solver to use predictor corrector or not                                                      |
+| PDEImplicitOrder                              | String                                | PDEOrderDefault                  |                                   | PDE Implicit Order: for possible values look for QAEnum.GenericPDEImplicitOrder                                  |
+| ApplyPDESmoothing                             | Boolean                               | TRUE                             |                                   | Indicates whether we smooth discontinuities if the corresponding TPH supports it.                   |
+| FixGrid                                       | Boolean                               | TRUE                             |                                   | Fix grid for greek calculation                                                                    |
+| FXGridStyle                                   | String                                | AsymmetricUsingMaxSqrtVariance   |                                   | The fx grid style to be used in finite difference                                                  |
+| PDECrossDerivativeDiscretisation              | String                                | DefaultCrossDerivative           |                                   | Cross-derivative discretisation: for possible values look for QAEnum.GenericPDECrossDerivativeDiscretisation                         |
+| DumpCubeToFile                                | String                                |                                  |                                   | Write Solution Cube to a VTK file                                                                  |
+| GridGenerationModification                    | String                                | NoGridModification               |                                   | Instructions for modifying PDE grid                                                                |
+| ExcludeCashOnValuationDate                    | Boolean                               | FALSE                            |                                   | Exclude cashflows that occur on the valuation date.                                                |
+| UseExactPlaneLevelsForDiscreteIndex           | Boolean                               | TRUE                             |                                   | Indicates whether we use exact plane levels when auxiliary variable only takes discrete values. As an example, it is used for TARN trades.                                                                                        |
+
+| FXPDEDateOptionsPP                            |                                    |                               |                                 |                                                                                             |
+|-----------------------------------------------|---------------------------------------|----------------------------------|-------------------------------------|--------------------------------------------------------------------------------------------------------|
+| Name                                          | Type                                  | Default                          | Recommended Value                  | Comment                                                                                             |
+| MinimumStepsPerYear                           | Integer                               | 4                                |                                   | At least this number of time steps per year; zero means use only the trade dates, negative means use all available dates from the calibration.                                                                              |
+| TotalNumberOfTimeSteps                        | Integer                               |                                  | 200-400                           | The total number of time steps.                                                                    |
+| TotalNumberOfRannacherSteps                   | Integer                               | 0                                | 10                                | Number of rannacher steps in the PDE                                                              |
+| ThetaCalculationDate                          | Date                                  |                                  |                                   | The date used for theta calculations -- it defaults to one calendar day after the valuation date   |
+| TimeStepToleranceFractionForRequiredDates     | Double                                | 0.1                              |                                   | The fraction in [0,1] of the local time step considered to be too close when adding required dates (e.g. mandatory dates, trade dates and theta date)                                                                     |
+
+| FXPDEGridSettingsCollectionPP                 |                                    |                               |                                 |                                                                                             |
+|-----------------------------------------------|---------------------------------------|----------------------------------|-------------------------------------|--------------------------------------------------------------------------------------------------------|
+| Name                                          | Type                                  | Default                          | Recommended Value                  | Comment                                                                                             |
+| NumberOfSpaceSteps                            | Integer                               |                                  | 200 (FX)                          | The number of space steps.                                                                         |
+| NumberOfSpaceStdDevs                          | Double                                |                                  | 6 (FX)                            | The number of space standard deviations.                                                           |
+| UseCone                                       | Boolean                               | FALSE                            |                                   | Whether or not to use a cone-like grid. Defaults to false.                                        |
+| UseNonUniformGrid                             | Boolean                               | FALSE                            | TRUE                              | Whether to use a non uniform grid or not                                                          |
+| MinGridWidthRelativeSize                      | Double                                | 0.05 for FX (default in code), IR not used |                        | Minimal grid width relative to model FX spot: Lower Boundary = Min(spot*(1-MinGridWidthRelativeSize, initial Lower Boundary)), Upper Boundary = Max(spot*(1+MinGridWidthRelativeSize, initial Upper Boundary)) This entry is used only for FX spot spatial grid in the calculation of the lower and upper boundaries. If not set, 0.1 relative size is used.                                                |
+
+![Figure 5.1: PDE settings](./Fig/1.png)
+
+| FXDateOptionsStepSchedulePP                   |                                    |                               |                                 |                                                                                             |
+|-----------------------------------------------|---------------------------------------|----------------------------------|-------------------------------------|--------------------------------------------------------------------------------------------------------|
+| Name                                          | Type                                  | Default                          | Recommended Value                  | Comment                                                                                             |
+| StepSchedule[0].PeriodLength                  | String                                |                                  | 2W                                | Tenor length from the end of the previous period to which the step size applies -- do not set for the last period                                   |
+| StepSchedule[0].RequestedAverageStepSize      | String                                |                                  | D                                 | Amount (optional, assumed 1 if missing) and units of the requested step size                      |
+| StepSchedule[0].NumberOfTimeSteps             | Integer                               |                                  |                                   | Number of time steps to use for the specified period                                              |
+| StepSchedule[0].UseForTheRemainder            | Boolean                               | FALSE                            | FALSE                             | Whether this time step applies after the last tenor defined, can only be the last period, if this is true the tenor should be unset                  |
+| StepSchedule[0].UseAllStepsFromCalibration    | Boolean                               | FALSE                            |                                   | Whether to use all steps defined in the calibration, if any                                      |
+| StepSchedule[0].ToleranceFractionOfTimeStep   | Integer                               | 7                                |                                   | A calibration step within that fraction of the time step size will be accepted rather than adding a new step                                       |
+| StepSchedule[1].PeriodLength                  | String                                |                                  | 2M                                | Tenor length from the end of the previous period to which the step size applies -- do not set for the last period                                   |
+| StepSchedule[1].RequestedAverageStepSize      | String                                |                                  | W                                 | Amount (optional, assumed 1 if missing) and units of the requested step size                      |
+| StepSchedule[1].NumberOfTimeSteps             | Integer                               |                                  |                                   | Number of time steps to use for the specified period                                              |
+| StepSchedule[1].UseForTheRemainder            | Boolean                               | FALSE                            | FALSE                             | Whether this time step applies after the last tenor defined, can only be the last period, if this is true the tenor should be unset                  |
+| StepSchedule[1].UseAllStepsFromCalibration    | Boolean                               | FALSE                            |                                   | Whether to use all steps defined in the calibration, if any                                      |
+| StepSchedule[1].ToleranceFractionOfTimeStep   | Integer                               | 7                                |                                   | A calibration step within that fraction of the time step size will be accepted rather than adding a new step                                       |
+| StepSchedule[2].PeriodLength                  | String                                |                                  | 2Y                                | Tenor length from the end of the previous period to which the step size applies -- do not set for the last period                                  |
+| StepSchedule[2].RequestedAverageStepSize      | String                                |                                  | M                                 | Amount (optional, assumed 1 if missing) and units of the requested step size                      |
+| StepSchedule[2].NumberOfTimeSteps             | Integer                               |                                  |                                   | Number of time steps to use for the specified period                                              |
+| StepSchedule[2].UseForTheRemainder            | Boolean                               | FALSE                            | FALSE                             | Whether this time step applies after the last tenor defined, can only be the last period, if this is true the tenor should be unset                 |
+| StepSchedule[2].UseAllStepsFromCalibration    | Boolean                               | FALSE                            |                                   | Whether to use all steps defined in the calibration, if any                                      |
+| StepSchedule[2].ToleranceFractionOfTimeStep   | Integer                               | 7                                |                                   | A calibration step within that fraction of the time step size will be accepted rather than adding a new step                                       |
+
+![Figure 5.2: PDE settings cont.](./Fig/2.png)
+
+QA testing has shown that a good convergence versus speed balance is obtained with these settings outlined above for trades up to 2Y. For longer maturities, the number of FX steps and time steps needs to be increased (300 FX steps, 600 time steps).
+
+### 5.3. Quality control
+
+The PDE numerical scheme is used heavily in production. Several books have been migrated to UMIFX using the FX PDE framework. Results show excellent convergence and stability. Standard IVC price testing will be appropriate for quality control.
+
+### 5.4. Limitations
+
+The current PDE implementation for the model is limited to single asset trades. An extension to multi-asset trades is possible but not yet supported in the QA library.
+
+## 6. Calibration
+
+### 6.1. Description
+
+The Local Stochastic Volatility (LSV) calibration routine is done in two main steps. The first step consists of calibrating the stochastic volatility (SV) model parameters to a set of options in the market. Then the local volatility (LV) term correction is calibrated using a forward induction PDE procedure.
+
+The Stochastic volatility parameters can be either :
+
+- Marked by Trading to match directly to market observable prices of path-dependent options such as double no touches$^1$.
+
+- Calibrated to vanillas and namely ATM options and 25 delta strangles internally inside QA. Then a mixing weight/a scaling factor is applied to scale the vol of volatility parameters;
+
+For completeness, we include a brief description of the SV calibration algorithm to vanillas: when SV parameters are calibrated to vanillas, it is done by bootstrapping the $\gamma_0$ and $\alpha$ parameters as follows.
+Let $T_i$ be the calibration dates where $i \in \{1, \ldots, m\}$. The calibration algorithm loops over the calibration dates.
+
+1. Set the initial hints for the volatility factor $\gamma_0(T_j)$ and the vol of volatility $\alpha(T_j)$ parameters.$^2$
+
+2. Given the fixed value of $\alpha(T_j)$, a search routine using Brent Root finder $^3$ is done on the parameter $\gamma_0(T_j)$ to match the implied ATM volatility $^4$ in the market.
+
+3. Once $\gamma_0(T_j)$ is fixed, the 25 delta strangle volatility is calculated.
+
+4. The ordinate of the Brent Root finder for $\alpha(T_j)$ is updated with the value of the strangle volatility found in 3.
+
+5. Steps 2 to 4 are repeated until both 25 delta strangle and ATM volatilities are matched against the market.
+
+Trading prefers marking the stochastic volatility parameters as it provides more transparency with the ability to see in particular the actual vol of vol values used directly. In addition to that, it doesn't rely on the internal calibration algorithm.
+For the purpose of this model review application, we assume that the stochastic volatility parameters are marked.
+
+Please note that a term structure of stochastic volatility model parameters is used.
+
+Once the stochastic volatility parameters are specified, the calibration of the local volatility factor is done using a forward induction method, solving a PDE forward in time, as described below. The local volatility is then sampled on a spot-maturity grid.
+
+The local volatility calibration relies on Gyongy's theorem [13]:
+
+For a given asset price process $S(t)$ with an arbitrary adapted stochastic volatility $\sigma(t)$, there exists a Markovian asset price process $\tilde{S}(t)$ with a deterministic local volatility having the same marginal distributions if the corresponding local volatility equals a conditional expectation of the stochastic volatility, i.e.
+
+$$\sigma_{loc}^2(t,x) = E[\sigma(t)^2 \times A(t,S(t))^2|S(t) = x]$$
+$$(6.1)$$
+
+Dupire(1994) and Derman and Kani(1994) have shown that the deterministic local volatility $\sigma_{loc}(t,x)$ can be uniquely determined from the vanilla market prices.
+
+$$\sigma_{loc}^2(t,x) = 2\frac{\frac{\partial C}{\partial T} + r_{d,f}K\frac{\partial C}{\partial K} + f_{f,c}C}{K^2 \times \frac{\partial^2 C}{\partial K^2}}$$
+$$(6.2)$$
+
+where $C(K,T)$ is the current market value of an option with strike $K$ and maturity $T$ and $f_{f,c}$ being the deterministic short rate as derived from the foreign discounting curve with collateral type c.
+
+In practice, the local volatility is computed in terms of the implied variance in the QA library. For more details on the local volatility implementation, please refer to [8].
+
+The calibration algorithm is described below:
+
+1. Apply mixing $mw$ which consists of scaling the vol of volatility by $(1-mw)$. As we use vol of vol marked directly within the model, the mixing would be equal to zero and hence it would be just an effective multiplication by 1. Hence no change will be done on the vol of vol values.
+
+2. Start with an initial local volatility correction $A(t_0,s)$. It is set to the Dupire local volatility divided by the initial volatility $^5$.
+
+3. Given $A(t_k,s)$, solve the Forward Fokker Planck PDE from time $t_k$ to $t_{k+1}$ which gives the probability density function at time $t_{k+1}$
+
+$$\frac{\partial p_i}{\partial t} + \frac{\partial}{\partial x}\left[\left(r_{d,f} - \frac{1}{2}A(t,x)^2\sigma_i^2\right) p_i\right]$$
+$$(6.3)$$
+
+$$- \frac{1}{2}\frac{\partial^2}{\partial x^2}\left[A(t,x)^2\sigma_i^2 p_i\right] = 0$$
+$$(6.4)$$
+
+The transition between states is applied such that:
+
+$$p_i(t_{k+1}^+, x) = \sum_j p_{ji} * p_j(t_{k+1}^-, x)$$
+$$(6.5)$$
+
+$$= \sum_j \left(\delta_{ji} + \tilde{Q}_{ji} \int_{t_k}^{t_{k+1}} q(s)ds \right) p_j(t_{k+1}^-, x)$$
+$$(6.6)$$
+
+$$= p_i(t_{k+1}^-, x) + \sum_j \left(\tilde{Q}_{ji} \int_{t_k}^{t_{k+1}} q(s)ds \right) p_j(t_{k+1}^-, x))$$
+$$(6.7)$$
+
+4. Given the calculated probability density function, calculate:
+
+$$E[\Sigma(t_{k+1})^2|S(t_{k+1}) = s] = \frac{\sum_{i=1}^n p_i(t_{k+1},s)\sigma_i^2}{\sum_{i=1}^n p_i(t_{k+1},s)}$$
+$$(6.8)$$
+
+5. Deduce using Gyongy's theorem:
+
+$$A(t_{k+1},s) = \frac{\sigma_{Dupire}^2(t_{k+1},s)}{E[\Sigma(t_{k+1})^2|S(t_{k+1}) = s]}$$
+$$(6.9)$$
+
+6. Continue until the end ...
+
+The forward PDEs during the calibration are solved using an implicit PDE scheme to achieve a robust stability. For more details, please refer to [3].
+
+### 6.2. Inputs
+
+### 6.2.1. Market Data Inputs
+
+The following market data is required for the calibration:
+
+- Yield Curves for the interest rates.
+
+- FX spot object.
+
+- FX Volatility surface
+
+In addition to that, we have the following market data-like parameters:
+
+- Transition q term structure parameters.
+
+- Vol of volatility term structure parameters.
+
+As outlined in 6.1, the stochastic volatility parameters are marked such that exotic trades (e.g. double no touches) prices in the market are matched.
+
+### 6.2.2. Calibration Algorithm Inputs
+
+There are three main sections in the model calibration instructions.
+
+SV calibration settings
+
+In the stochastic volatility calibration section, the different calibration tenors/dates are specified. For each calibration date/tenor, we set the corresponding vol of vol parameter.
+Please note than when the vol of volatility is set, there is no need to calibrate the vol factor ($\gamma_0$) parameter as the latter will be compensated by the local volatility correction term in the local volatility calibration stage to recover the vanilla market. Therefore, the vol factor ($\gamma_0$) is recommended to be fixed to a value of 1.0.
+
+We specify in this section as well the transition rate matrix $Q$. As described in 4.1, we parameterize the transition rate matrix for the markov chain using two components:
+
+- A $n \times n$ constant matrix $\tilde{Q}$ with $n$ number of volatility states. The latter is defaulted inside the QA library to have diagonals equal to -1 and allow transitions to adjacent states with equal rates.
+For example for three volatility states, the constant transition matrix will be by default:
+$$\begin{pmatrix} -1 & 1 & 0 \\ 1/2 & -1 & 1/2 \\ 0 & 1 & -1 \end{pmatrix}$$
+We can also provide the ability to set a more generic matrix if required.
+
+- A time dependent scalar function $q(u)$. The latter, we recommend it to a be piecewise constant. This is set in the entry property page SVMSModel.TransitionMatrixScaling which should be "piecewiseConstant".
+
+To fully determine the piece wise constant q function, we set the term structure of q parameters. This consists of setting the different dates/tenors and the corresponding transition q parameters. For example: $\begin{pmatrix} T_1, & q_1; \\ T_2, & q_2; \\ T_3, & q_3. \end{pmatrix}$
+
+Other input parameters are set as well such as the number of volatility states.
+
+The input parameters of the stochastic volatility calibration instructions are summarized in the following table 6.1.
+
+| AEFXLSVMarkovSwitchingCalibrationBuilder_*.SVCalibration | | | |
+|---|---|---|---|
+| Name | Default | Recommended Value | Comment |
+| Delta | 0.25 | | Used only when the SV calibrated are marked to vanillas. It's the delta of the strangle with the dates/tenors for the stoch vol params ("i" represents the index in the collection) e.g. 3M, 6M, 1Y, 2Y |
+| SVParameters[i].Date | | e.g. 1M | |
+| SVParameters[i].Skew | | 1 | Only skew of 1.0 is supported |
+| SVParameters[i].VolFactor | | 1 (when vol of vols are marked to match exotic options) | when vol of vols are marked to match exotic options, the vol factor is merely a starter to the local vol correction so we set it to 1.0 |
+| SVParameters[i].VolOfVol | | e.g. 0.75 | Here we set the different vol of vol params marked for the corresponding tenors |
+| SVMSModel | | SVMarkovSwitchingExponential_PP | Enum corresponding to LSV Markov switching model name in the library. |
+| SVMSModel.NumberOfVolatilityStates | | 3 | |
+| SVMSModel.TransitionMatrixScaling | | PieceWiseConstant | Defines the type of scaling q as a function of time (it can be "Constant", "PieceWiseConstant" or "TimeDecay") |
+| SVMSModel.TransitionQParameters[0].Date | | e.g. 2Y | Here is the collection of calibration dates/tenors for the transition q params ("i" represents the index in the collection) |
+| SVMSModel.TransitionQParameters[0].TransitionQ | | e.g. 0.8 | the transition q parameter corresponding to the specified tenor that is used to define the full term structure of the piece-wise constant function q. |
+| SVMSModel.TransitionMatrixConstant | $\tilde{Q}$ by n matrix with diagonals equal to -1 with $\tilde{Q}$(0, 1)=$\tilde{Q}$(n-1, n-2)=0 and $\tilde{Q}$(i, i+1)=$\tilde{Q}$(i, i-1)=0.5 when 0<i<n-1 with n number of volatility states. E.g. for n=3: $\begin{pmatrix} -1 & 1 & 0 \\ 0.5 & -1 & 0.5 \\ 0 & 1 & -1 \end{pmatrix}$ | | The transition matrix constant component which gets multiplied by the q parameters specified above to give the transition rate matrix of the continuous markov chain representing the different volatility states |
+
+Figure 6.1: SV Calibration settings
+
+LSV mixing settings
+
+Vol of volatility parameters when marked to match the market observable exotic path dependent trades prices, there is no benefit in scaling them using the mixing parameters (scaling factor is $1 - mw$ with $mw$ mixing) before the local volatility term calibration stage. Hence, the mixing is set to zero to reflect a scaling of 1.
+
+Below table shows how it is specified in UMIFX calibration property page.
+
+| AEFXLSVMarkovSwitchingCalibrationBuilder_*.LSVMixing | | | |
+|---|---|---|---|
+| Name | Default | Recommended Value | Comment |
+| LSVMixingTimeDependent[0].MaturityDate | | $LastTradePaymentDate | This is the collection of tenors where we apply a scaling to the vol of vol params. Please note that when the Vol. of Vol params are calibrated to DNTs, there is no need to scale them down so we need just one entry beyonf or after the last trade date. |
+| LSVMixingTimeDependent[0].Mixing | | 0 | Mixing weights corresponding to the different maturity dates above. when the Vov are calibrated to DNT's, there is no need to scale them down so we need just one entry to represent no scaling i.e. a constant mixing of 0.0. |
+
+Figure 6.2: LSV Mixing settings
+
+LV calibration settings
+
+The local volatility calibration settings section is used primarily to define the instructions needed for the forward PDE induction such as the last calibration date or the specification of the PDE time grid and spatial grids.
+
+With deterministic interest rates, similarly to the pricing PDEs, the forward partial differential equations solved in the calibration are one dimensional as well. The different volatility states are represented using planes. Hence we need to specify the PDE grid settings used to construct the spatial PDE grid in the FX spot direction only. Number of space steps as well as the number of standard deviations are specified within the FXPDEGridSettings property page.
+
+With respect to the time grid, we would have the total number of time steps set.
+As the calibration PDE is done using an implicit PDE scheme, it makes little sense to have rannacher stepping. We recommend to set the total number of rannacher steps to zero in the calibration PDE.
+
+The table below summarizes the local vol calibration input settings:
+
+| AEFXLSVMarkovSwitchingCalibrationBuilder_*.LVCorrection | | | |
+|---|---|---|---|
+| Name | Default | Recommended Value | Comment |
+| CalibrationEndDate | | $LastTradePaymentDate | Last calibration date for the LV correction component |
+| DateOptions.TotalNumberOfTimeSteps | | 300-400 | Number of time steps for the Forward induction PDE |
+| DateOptions.TotalNumberOfRannacherSteps | | 0 | |
+| PDEGridSettings[0].PDEGridName | | SpotFX | |
+| PDEGridSettings[0].PDEGridDomCurrency | | | Domestic currency of the FX Spot rate |
+| PDEGridSettings[0].PDEGridForCurrency | | | Foreign currency of the FX Spot rate |
+| PDEGridSettings[0].NumberOfSpaceSteps | | 200 | Number of spatial grid steps in the spatial direction specified above ("SpotFX") |
+| PDEGridSettings[0].NumberOfSpaceStdDevs | | 6 | Number of standard deviations in the spatial direction specified above ("SpotFX") |
+| PDEGridSettings[0].UseNonUniformGrid | | TRUE | Whether to use a non uniform grid points distribution for the PDE spatial grid specified. |
+
+Figure 6.3: Local Vol Correction calibration settings
+
+### 6.2.3. Other Inputs
+
+It is worth expanding in this section on the vol of vol and transition q parameters.
+The vol of vol parameters and q parameters are market-data like. Therefore, they can be specified as part of the market data instead of being part of the stochastic volatility calibration instructions.
+
+### 6.3. Justification
+
+The calibration steps for the local volatility calibration are quite standard for a model combining local and stochastic volatility. It is based on the application of Gyongy's theorem along with Dupire's formulae for the local volatility function. As the stochastic volatility can take one of the discrete volatility state values and is not driven by a full Brownian motion, we don't need a full 2 dimensional forward PDE. A one dimensional PDE with planes to represent the different volatility states can be used and would give a substantial speed advantage.
+
+### 6.4. Quality control
+
+Within UMIFX, QA deals with the local volatility calibration failures in a common and standard way between the different models involving a local volatility component. In case of a failure to find the local vol correction at certain spot points and certain time, we allow first that the values at the failed points can be interpolated or extrapolated using the successful calibrated points. If none are found, then a floor volatility level is applied. The latter is defaulted to 0.0%.
+
+### 6.5. Limitations
+
+As the local volatility correction is calibrated to the smile volatility surface, there is a direct dependence on the quality of the input market data. If the volatility surface has noisy local vols, this will feed directly to the local volatility correction parameters in the model.
+
+## 7. Risk
+
+Usual QARisk2 risk measures with respect to the Market data are required for running the model. In particular, smile risk measures such as FX Delta, FX Gamma, FXVega, Near/Far Rega and Sega are relevant.
+
+In addition to the above, it is good to calculate the sensitivities to the model parameters. Namely sensitivities with respect to the vol of volatility and transition q parameters.
+
+### 7.1. Description
+
+Risk (Greeks) are calculated using market data perturbations and recalculation of PV. In the PDE, we keep the pricing PDE grid fixed in order to reduce the numerical noise.
+Risk calculations in QA are achieved using the QARisk2 framework which is described in detail in the following wiki page:
+
+- http://qa:8080/wiki/QARisk_2
+
+### 7.2. Inputs
+
+QARisk2 metric can be configured with a set of inputs, including bump size, bump style, etc. Full details for the different metrics can be found in:
+
+- http://qa/QAWeb/Framework/Release.2200.00/QALib/Topics/AEMetricsTopics.html
+
+In particular, we will highlight the recommended inputs for smile risk: Rega and Sega. There was a parameter introduced in order to make the risk more stable which is the safe bumping ratio choice. The latter is recommended to be set to "KeepConvex".
+
+The bump size chosen should be appropriate to the market data bumped. This can vary between different currency pairs. As a rule of thumb, for small strangles in the market (less than 0.50%), a 1 basis point bump would be good. For Rega risk, when the risk reversal values are of the order of few percents 2-3%, 10 basis point would be appropriate.
+
+| Near/FarSega | Near/FarSega_(1) | | |
+|---|---|---|---|
+| NumericalParameters.Differencing | string | Above | |
+| Scaling | double | | 0.01 |
+| NumericalParameters.BumpSize | double | | 0.0001 |
+| StripParameters.VolatilityBumpingType | String | e.g. NearStrangle or FarStrangle | |
+| Style | String | Strip | |
+| StripParameters.SafeBumpingRatioChoice | String | KeepConvex | |
+
+| Near/FarRega | Near/FarRega_(2) | | |
+|---|---|---|---|
+| NumericalParameters.Differencing | string | Above | |
+| Scaling | double | | 0.01 |
+| NumericalParameters.BumpSize | double | | e.g. range 0.001 - 0.0001 |
+| StripParameters.VolatilityBumpingType | String | e.g. NearRiskReversal or FarRiskReversal | |
+| Style | String | Strip | |
+| StripParameters.SafeBumpingRatioChoice | String | KeepConvex | |
+
+### 7.3. Limitations
+
+No limitations specific to the model per-se.
+
+As in all models involving a smile volatility surface, failures can occur in risk if the original FX volatility surface is on the verge of breaking. This means that although the non-bumped volatility surface builds, a small change in the market data input can cause it to break in the bumped state. The desk has a validation put in place before publishing the volatility surface in order to prevent and minimize the occurrence of these failures. See section 6.4.
+
+## 8. Tests & Analyses performed on Payoff / Model
+
+### 8.1. Back-testing
+
+We performed several back tests on trades across different currency pairs and maturities $^1$. The back testing works by simulating using historical market data risk management of the trade over its lifetime. At each simulation date, different Greeks are calculated which are then used to calculate the amounts of hedging instruments to be held in the hedging portfolio.
+
+We recall briefly the hedging procedure. Near/Far Rega and Sega risks are hedged using a combination of 10 and 25 delta vanilla (call and put) options. Vega is hedged with at the money options whereas FX Delta is hedged using forward contracts at the same maturity as the original trade. FX Gamma when used, is hedged using overnight ATM options. Any residual cash will be invested in a bond to earn interest.
+The hedging portfolio is re-balanced accordingly, and a record of the P&L is reported.
+
+We present below the hedging simulations results for different currency pairs. We plot the hedging performance of LSV Markov Switching along with the hedging performance of Local volatility model and LSV Hybrid model $^2$.The hedging simulations are done on a daily basis and ignore bid/offer spreads. The plot shows as well how the FX spot rate changed over the simulation period.
+The risks hedged are specified below each graph.
+
+### EURUSD
+
+Here we look at a EURUSD trade reverse knock out call with strike 1.27 and upper barrier at 1.45 maturing on 01 July 2011.
+The simulation period starts on 01 July 2010. The barrier knocks out on 19th April 2011.
+
+![Figure 8.1: Back testing EURUSD RKO in LSV Markov Switching, hedged with Vega, Rega, Sega term structure along with FX Gamma and Delta](./Fig/8.1.png)
+
+A good model will have small variation in P&L over its lifetime. We can see from the graph above that LSV Markov Switching performs well and is impacted much less by large market moves than LSV hybrid model.
+
+We look as well at one of the trades from the actual short dated trading book from the business. The trade ID is 26530958. It's a EURUSD knock out put with strike 1.15 and an upper barrier at 1.375. The trade expiry date is 26 October 2012. The continuous flat barrier starts on 26 January 2012.
+
+The simulation period will run from 26 January 2012 till 10 July 2012.
+
+![Figure 8.2: Back testing EURUSD 9M KO in LSV Markov Switching, hedged with Vega, Rega, Sega term structure along with Delta](./Fig/8.2.png)
+
+We can see from the graph above that LSV Markov switching outperforms other models such as LSV hybrid (and local volatility in that case) by having a smaller P&L variation closer to zero.
+
+### GBPUSD
+
+The trade used here is a one year GBPUSD reverse knock out call with strike at 1.5 and an upper barrier level at 1.8. The barrier starts on 01 July 2010 and ends on 01 July 2011 which coincides with the trade expiry date.
+
+![Figure 8.3: Back testing GBPUSD 1Y RKO in LSV Markov Switching, hedged with Vega, Rega, Sega term structure along with Delta and Gamma](./Fig/8.3.png)
+
+### USDJPY
+
+We look at a trade from the short dated book. The trade ID is 27609072. It's a 3M reverse knock out call struck at 83 with an upper barrier at 86.3. The barrier starts on 09 April 2012 and ends three months later on 09 July 2012 which is the trade expiry date.
+
+![Figure 8.4: Back testing USDJPY 3M RKO in LSV Markov Switching, hedged with Vega, Rega, Sega term structure along with Delta](./Fig/8.4.png)
+
+Here, it's worth noting that all models show very small P&L less than 2 basis points of notional over the 3 months period.
+
+### AUDUSD
+
+We look at a one year AUDUSD reverse knock out call with strike at 0.83 and an upper barrier level at 1.2. The barrier starts on 01 July 2010 and ends on 01 July 2011 which coincides with the trade expiry date.
+
+![Figure 8.5: Back testing AUDUSD 1Y RKO in LSV Markov Switching, hedged with Vega, Rega, Sega term structure along with Delta and Gamma](./Fig/8.5.png)
+
+### Conclusion
+
+The back tests on different currency pairs show that LSV Markov switching model performs well and has consistently smaller P&L variations when compared to LSV hybrid model.
+
+### 8.2. Stress-testing
+
+We use here a stressed market data of November 2008 and look at the hedging simulation results of a one month reverse knock out during that period.
+
+The trade is a one month reverse knock out put stuck at 98 with a lower barrier at 85. The barrier starts on 31 October 2008 and ends one month later on 01 December 2008.
+
+![Figure 8.6: Back testing USDJPY 1M RKO in LSV Markov Switching during November 2008, hedged with Vega, Rega, Sega term structure along with Delta and Gamma](./Fig/8.6.png)
+
+Despite the stressed market conditions of November 2008, the above hedging simulation runs show that LSV Markov Switching is performing well.
+
+### 8.3.    Impact of Assumptions
+
+The model assumptions are detailed in the section 4.2.
+
+The back-tests outlined in 8.1 and 8.2 as well as testing performed in the following sections in the document demonstrates that these assumptions lead to a good model performance.
+
+### 8.4.    Accuracy, convergence and stability
+
+We test the quality of the calibration fit of LSV Markov switching model. We present here the results for vanillas re-pricing with short-dated expiries up to 2Y and then look at more long dated options.
+
+### 8.4.1.    Short dated Vanillas
+
+We price vanilla options with maturities ranging from 1W to 2Y and strikes corresponding to ATM, 25D/10D points, namely At the money , 25 delta call, 10 delta call, 25 delta put and 10 delta put options. We also vary the LSV Markov switching model parameters and examine the accuracy in repricing vanillas.
+
+For each vanilla option, we compute the price from the LSV markov switching model along with the analytic on-smile price. We also compute the implied volatilities from the model vanilla prices and compare them against the implied volatilities from the analytic prices. The error in implied volatility is a standard measure for accuracy in Foreign exchange.The maximum of the absolute price differences is examined for different LSV Markov switching model parameters. We apply a parallel relative shift to the term structure of model parameters (vol of vol and transition q) and examine the accuracy of vanilla pricing.
+
+Market data: Close of business EURUSD market data as of 09 July 2012.
+
+#### Table 8.1: Market data summary
+| Tenor | ATM | RR10 | RR25 | ST25 | ST10 |
+|-------|-----|------|------|------|------|
+| 1W | 9.70% | -0.58% | -0.31% | 0.12% | 0.44% |
+| 1M | 10.29% | -1.80% | -0.96% | 0.17% | 0.64% |
+| 2M | 10.46% | -2.57% | -1.38% | 0.23% | 0.88% |
+| 3M | 10.69% | -3.17% | -1.70% | 0.26% | 1.02% |
+| 6M | 11.34% | -4.43% | -2.37% | 0.33% | 1.35% |
+| 1Y | 12.19% | -5.21% | -2.79% | 0.36% | 1.63% |
+| 2Y | 12.62% | -5.33% | -2.85% | 0.26% | 1.45% |
+
+#### Table 8.2: LSV MS base model parameters
+| Parameters | Values |
+|------------|--------|
+| Vol of volatility term structure | 1W,0.9; 2W,0.9; 1M,0.75; 3M,0.6; 6M,0.6; 1Y,0.6; 2Y,0.55; |
+| Q parameters term structure | 1W,3.8; 2W,3.8; 1M,2; 2Y,0.8; 5Y,0.4; 10Y,0.2; 20Y,0.2 |
+
+PDE settings:
+
+#### Table 8.3: PDE settings
+| Settings | Values |
+|----------|--------|
+| Number of time steps | 200 |
+| Number of FX space steps | 200 |
+| Number of FX standard deviations | 6 |
+
+The latter are used for both calibration and pricing. Other PDE settings are set to the values outlined in 5.2 and 6.2.2 unless specified otherwise.
+
+Below, we summarize the vanilla pricing results for different model parameters scenarios.
+
+Variation of vol of volatility
+
+1. **Vol of vol close to zero:**
+
+We set here the vol of volatility parameters to a value close to zero, namely 0.001 across different maturities. As a reference, we compare that to local volatility model.
+
+![Figure 8.7: Accuracy in terms of implied volatility error for LSV Markov Switching with a vol of](./Fig/7.png)
+
+![Figure 8.8: Accuracy in terms of implied volatility error for Local Vol](./Fig/8.png)
+
+As we can see from the two plots above, we get an excellent fit to vanillas in LSV Markov Switching with very low vol of volatility. The errors in implied volatilities are compared to the errors found in a local volatility model and remain within 1 basis point.
+
+2. **Base LSV MS model parameters - shift -40%:**
+
+![Figure 8.9: Accuracy in terms of implied volatility error for LSV Markov Switching with vol of vol parameters with a -40% relative shift](./Fig/9.png)
+
+#### Table 8.4: LSV MS model parameters shifted
+| Parameters | Values |
+|------------|--------|
+| Vol of volatility term structure | 1W,0.54;2W,0.54;1M,0.45;3M,0.36;6M,0.36;1Y,0.36;2Y,0.33; |
+
+3. **Base LSV MS model parameters - shift -20%:**
+
+![Figure 8.10: Accuracy in terms of implied volatility error for LSV Markov Switching with vol of vol parameters with a -20% relative shift](./Fig/11.png)
+
+#### Table 8.5: LSV MS model parameters shifted
+| Parameters | Values |
+|------------|--------|
+| Vol of volatility term structure | 1W,0.72;2W,0.72;1M,0.6;3M,0.48;6M,0.48;1Y,0.48;2Y,0.44; |
+
+4. **Base LSV MS model parameters - shift 0%:**
+
+Here we use the LSV Model parameters as specified in the settings section and examine what is the error that we get in terms of implied volatilities when pricing vanillas.
+
+![Figure 8.11: Accuracy in terms of implied volatility error for LSV Markov Switching with base parameters](./Fig/13.png)
+
+#### Table 8.6: LSV MS base model parameters
+| Parameters | Values |
+|------------|--------|
+| Vol of volatility term structure | 1W,0.9;2W,0.9;1M,0.75;3M,0.6;6M,0.6;1Y,0.6;2Y,0.55; |
+
+5. **Base LSV MS model parameters - shift 20%:**
+
+![Figure 8.12: Accuracy in terms of implied volatility error for LSV Markov Switching with vol of vol parameters with a +20% relative shift](./Fig/15.png)
+
+#### Table 8.7: LSV MS model parameters shifted
+| Parameters | Values |
+|------------|--------|
+| Vol of volatility term structure | 1W,1.08;2W,1.08;1M,0.9;3M,0.72;6M,0.72;1Y,0.72;2Y,0.66; |
+
+6. **Base LSV MS model parameters - shift 40%:**
+
+![Figure 8.13: Accuracy in terms of implied volatility error for LSV Markov Switching with vol of vol parameters with a +40% relative shift](./Fig/17.png)
+
+#### Table 8.8: LSV MS model parameters shifted
+| Parameters | Values |
+|------------|--------|
+| Vol of volatility term structure | 1W,1.26;2W,1.26;1M,1.05;3M,0.84;6M,0.84;1Y,0.84;2Y,0.77; |
+
+7. **Base LSV MS model parameters - shift 60%:**
+
+![Accuracy in terms of implied vol LSV MS - VoV relative shift +60%](./Fig/19.png)
+
+8. **Base LSV MS model parameters - shift 80%:**
+
+![Accuracy in terms of implied vol LSV MS - VoV relative shift +80%](./Fig/20.png)
+
+
+### Conclusion
+
+For the different vol of volatility parameters (cases 1 - 5), we get a very good agreement between the model vanilla prices and the analytic vanilla prices. When the vol of volatility becomes high (cases 6,7), the pricing numerical error increases as the maturity increase. This is illustrated by the graph below where we plot the maximum error in implied volatility for different relative shifts applied to the vol of volatility parameters.
+
+![Implied volatility error as function of vol of vol shift](./Fig/1.png)
+
+Figure 8.16: Accuracy in terms of implied volatility error for LSV Markov Switching for different vol of volatility shift parameters
+
+Let's take a closer look at the biggest error that we get above which 6 basis point for a 2Y 10 delta put vanilla when a high vol of volatility (case 7 ; 80% shift from the base vol of vol parameters outlined above) is used in LSV Markov switching. We calculate the error in implied volatility between LSV Markov switching model with high vol of vol and the Local vol model while varying the number of PDE settings.
+
+Let's examine first the spatial convergence in the FX direction. We set the number of time steps to 400 and vary the number of FX steps and calculate the implied volatility from the vanilla price under LSV MS.
+
+![FX Convergence - LSV MS](./Fig/3.png)
+
+Figure 8.17: FX spatial convergence of 2Y 10 delta Put under LSV Markov switching with high vol of volatility. Time steps set to 400.
+
+We see that 200 FX steps we reach the converged price. We fix then the number of FX steps to be 200 and vary the number of time steps and compute the implied volatility error for various time steps.
+
+![Error in Implied volatility](./Fig/5.png)
+
+Figure 8.18: Time convergence of 2Y 10 delta Put under LSV Markov switching with high vol of volatility
+
+As the graph above shows, the error decreases as we increase the number of steps which shows that the problem is purely numerical and can be tackled with an increased number of PDE settings.
+
+### Variation of transition q parameters
+
+We vary now the transition q parameters and apply a parallel relative shift with different sizes to the term structure of parameters. The vol of vol parameters are set to the base values specified in 8.4.1.
+
+### 1. Base LSV MS q parameters - shift 10%:
+
+![Accuracy in terms of Implied vol error LSV MS - q params with relative shift 10%](./Fig/7.png)
+
+Figure 8.19: Accuracy in terms of implied volatility error for LSV Markov Switching with q parameters with a +10% relative shift
+
+#### Table 8.11: LSV MS q parameters shifted
+| Parameters | Values |
+|------------|--------|
+| q term structure | 1W,4.18; 2W,4.18; 1M,2.2; 2Y,0.88; 5Y,0.44; 10Y,0.22; 20Y,0.22; |
+
+### 2. Base LSV MS q parameters - shift 20%:
+
+![Accuracy in terms of Implied vol error LSV MS - q params with relative shift 20%](./Fig/9.png)
+
+Figure 8.20: Accuracy in terms of implied volatility error for LSV Markov Switching with q parameters with a +20% relative shift
+
+#### Table 8.12: LSV MS q parameters shifted
+| Parameters | Values |
+|------------|--------|
+| q term structure | 1W,4.56; 2W,4.56; 1M,2.4; 2Y,0.96; 5Y,0.48; 10Y,0.24; 20Y,0.24; |
+
+### 3. Base LSV MS q parameters - shift 40%:
+
+![Accuracy in terms of Implied vol error LSV MS - q params with relative shift 40%](./Fig/11.png)
+
+Figure 8.21: Accuracy in terms of implied volatility error for LSV Markov Switching with q parameters with a +40% relative shift
+
+#### Table 8.13: LSV MS q parameters shifted
+| Parameters | Values |
+|------------|--------|
+| q term structure | 1W,5.32; 2W,5.32; 1M,2.8; 2Y,1.12; 5Y,0.56; 10Y,0.28; 20Y,0.28; |
+
+### 4. Base LSV MS q parameters - shift 60%:
+
+![Accuracy in terms of Implied vol error LSV MS - q params with relative shift 60%](./Fig/13.png)
+
+### Conclusion
+
+We can see from above that we get a good agreement when repricing the vanillas for the different q parameters variations. The error stays within 2 basis points. This shows that the accuracy of vanilla repricing within the model is not very sensitive to the transition q parameters.
+
+This is illustrated by the graph 8.24 where we see that the maximum error in implied volatility doesn't change significantly for different relative shifts applied to the q parameters.
+
+![Implied volatility error as a function of q parameters shift](./Fig/14.png)
+
+### 8.4.2.    Long dated Vanillas
+
+We focus here on the long dated options. The prices of vanilla options with maturities ranging from 3Y, 5Y .. to 20Y for At the money, 25 delta /10 delta call and put strikes are computed. Similarly to the previous sub section, we examine the accuracy in vanilla repricing for different model parameters.
+
+For each vanilla option, we compute the price from the LSV markov switching model along with the analytic on-smile price. We also compute the implied volatilities from the model vanilla prices and compare them against the implied volatilities from the analytic prices. The error in implied volatility is reported and the maximum of the absolute price differences is examined for LSV Markov switching with different model parameters scenarios. Similarly to the short dated vanillas analysis, we apply a relative parallel shift with different sizes to the term structure of vol of volatility parameters (VoV TS) and transition q parameters to examine the vanilla pricing accuracy in each case.
+
+Market data: Close of business EURUSD market data as of 09 July 2012.
+
+#### Table 8.16: Market data summary
+| Tenor | ATM | RR10 | RR25 | ST25 | ST10 |
+|-------|-----|------|------|------|------|
+| 3Y | 12.66% | -5.27% | -2.82% | 0.23% | 1.32% |
+| 4Y | 12.69% | -5.09% | -2.77% | 0.17% | 1.06% |
+| 5Y | 12.73% | -5.26% | -2.87% | 0.11% | 0.96% |
+| 7Y | 12.81% | -5.51% | -3.02% | 0.09% | 0.81% |
+| 10Y | 12.90% | -5.44% | -2.98% | 0.09% | 0.81% |
+| 15Y | 13.72% | -5.30% | -2.97% | 0.15% | 0.88% |
+| 20Y | 14.51% | -5.10% | -2.68% | 0.24% | 1.50% |
+
+Base Model parameters:
+
+#### Table 8.17: LSV MS base model parameters
+| Parameters | Values |
+|------------|--------|
+| VoV TS | 1W,0.9; 2W,0.9; 1M,0.75; 3M,0.6; 6M,0.6; 1Y,0.6; 2Y,0.55; 3Y,0.5;5Y,0.5;10Y,0.6;20Y,0.6 |
+| Q parameters TS | 1W,3.8; 2W,3.8; 1M,2; 2Y,0.8; 5Y,0.4; 10Y,0.2; 20Y,0.2 |
+
+PDE settings:
+The PDE settings for long dated trades need to be increased. They are set as follows:
+
+#### Table 8.18: PDE settings
+| Settings | Values |
+|----------|--------|
+| Number of time steps | 600 |
+| Number of FX space steps | 300 |
+| Number of FX standard deviations | 6 |
+
+The latter are used for both calibration and pricing. Other PDE settings are set to the values outlined in 5.2 and 6.2.2 unless specified otherwise.
+
+Below, we summarize the vanilla pricing results for different model parameters.
+
+### Variation of vol of vol parameters
+
+#### 1. Vol of vol close to zero:
+
+First, we set the vol of volatilities to a small value close to zero, namely 0.001.
+
+![Accuracy in terms of implied vols LSV MS - VoV set to 0.001](./Fig/20.png)
+
+Figure 8.25: Accuracy in terms of implied volatility error for LSV Markov Switching with a vol of volatility close to zero (0.001)
+
+Figure 8.26: Accuracy in terms of implied volatility error for Local Vol
+
+As we can see from the two plots above, we get an excellent fit to vanillas in LSV Markov Switching with very low vol of volatility. The errors in implied volatilities are compared to the errors found in a local volatility model and remain within 1 basis point.
+
+### 2. Base LSV MS model parameters - shift -40%:
+
+![Accuracy in terms of implied vol LSV MS - VoV relative shift -40%](./Fig/3.png)
+
+### 3. Base LSV MS model parameters - shift -20%:
+
+![Accuracy in terms of implied vol LSV MS - VoV relative shift -20%](./Fig/4.png)
+
+### 4. Base LSV MS model parameters - shift 0%:
+
+Here we use the LSV Model parameters as specified in the settings section and examine what is the error that we get in terms of implied volatilities when pricing vanillas.
+
+![Accuracy in terms of implied vol LSV MS - base params](./Fig/5.png)
+
+### 5. Base LSV MS model parameters - shift 20%:
+
+![Accuracy in terms of implied vol LSV MS - VoV relative shift +20%](./Fig/6.png)
+
+### 6. Base LSV MS model parameters - shift 40%:
+
+![Accuracy in terms of implied vol LSV MS - VoV relative shift +40%](./Fig/7.png)
+
+### 8. Base LSV MS model parameters - shift 80%:
+
+![Accuracy in terms of implied vol LSV MS - VoV relative shift +80%](./Fig/8.png)
+
+### Conclusion
+
+For the different vol of volatility parameters (cases 1 - 5), we get a very good agreement between the model vanilla prices and the analytic vanilla prices. When the vol of volatility becomes high (cases 6,7), the pricing numerical error increases. This is illustrated by the graph below where we plot the maximum error in implied volatility for different relative shifts applied to the vol of volatility parameters.
+
+![Implied volatility error as function of vol of vol shift](./Fig/9.png)
+
+### FX convergence for LSV MS Long dated vanilla - 20Y
+
+![FX convergence for LSV MS Long dated vanilla - 20Y](./Fig/10.png)
+
+### Time convergence for LSV MS Long dated vanilla - 20Y
+
+![Time convergence for LSV MS Long dated vanilla - 20Y](./Fig/11.png)
+
+### Variation of transition q parameters
+
+Similarly to the short dated options, we look at the impact of transition q parameters on the quality of the calibration. We vary the transition q parameters and apply a parallel relative shift with different sizes to the term structure of parameters. The vol of vol parameters are set to the base values specified in 8.4.2.
+
+### 1. Base LSV MS q parameters - shift 10%:
+
+![Accuracy in terms of implied vol LSV MS - q params with relative shift 10%](./Fig/12.png)
+
+### 2. Base LSV MS q parameters - shift 20%:
+
+![Accuracy in terms of implied vol LSV MS - q params with relative shift 20%](./Fig/13.png)
+
+### 3. Base LSV MS q parameters - shift 40%:
+
+![Accuracy in terms of implied vol LSV MS - q params with relative shift 40%](./Fig/14.png)
+
+### 4. Base LSV MS q parameters - shift 60%:
+
+![Accuracy in terms of implied vol LSV MS - q params with relative shift 60%](./Fig/15.png)
+
+### 5. Base LSV MS q parameters - shift 80%:
+
+![Accuracy in terms of implied vol LSV MS - q params with relative shift 80%](./Fig/16.png)
+
+### Conclusion
+
+We have a good agreement when repricing the long dated vanillas as well for the different q parameters variations. The graph 8.42 shows that the maximum error in implied volatility doesn't change significantly when varying the q parameters.
+
+![Implied volatility error as function of vol of vol shift](./Fig/17.png)
+
+scaled to the PV impact of 100% relative spot shift.
+
+We also look at FX Vega risk. It's calculated by central differences using a parallel style and scaled to the impact of a 1% absolute vol shift. Near Sega and Rega risks are computed using upward differences using a parallel style and a scaling of 1%.
+
+The analytic values for greeks of the Vanilla are obtained using the analytic model with "SingleVol" FX dynamic in UMIFX. We use USDJPY market data close of business as of 09 July 2012.
+
+Here we assess the stability of the risk with respect to bump sizes. We calculate delta, gamma, vega, near rega and sega for At the money, 25 and 10 delta call and put vanilla options with maturities ranging from 1W, 1M ...to 2Y.
+We compare the risk values between LSV Markov switching to the analytic ones ³ for different bump sizes. For delta, gamma and vega we compute the relative difference between the model risk values and the analytic values. Results are outlined in the tables, and below.
+
+![Risk comparison table with bump sizes](./Fig/20.png)
+
+### BumpSize0.0001
+
+| OptionType | strike | expiry | Model risk | Analytic risk | Rel. Diff | Model risk | Analytic risk | Rel. Diff | Model risk |
+|------------|--------|--------|------------|---------------|-----------|------------|---------------|-----------|------------|
+| CALL | 80.87 | 1W | 1,347 | 1,346 | -0.08% | 134,100 | 134,668 | 0.42% | 142,581 |
+| CALL | 80.22 | 1W | 292,174 | 289,780 | -0.83% | 290,456 | 290,046 | -0.14% | 311,023 |
+| CALL | 79.59 | 1W | 564,959 | 560,996 | -0.71% | 559,903 | 559,423 | -0.09% | 469,763 |
+| PUT | 79.00 | 1W | 348,130 | 345,642 | -0.72% | 346,447 | 345,905 | -0.16% | 358,020 |
+| PUT | 78.43 | 1W | 168,682 | 168,755 | 0.04% | 168,134 | 168,867 | 0.43% | 180,347 |
+| CALL | 82.23 | 1M | 71,733 | 71,646 | -0.12% | 71,354 | 71,652 | 0.42% | 72,164 |
+| CALL | 80.89 | 1M | 144,857 | 143,624 | -0.86% | 143,830 | 143,650 | -0.13% | 146,331 |
+| CALL | 79.56 | 1M | 260,279 | 258,521 | -0.68% | 258,558 | 258,361 | -0.08% | 244,848 |
+| PUT | 78.29 | 1M | 154,140 | 152,993 | -0.75% | 153,227 | 153,021 | -0.13% | 155,914 |
+| PUT | 77.10 | 1M | 78,358 | 78,316 | -0.05% | 78,043 | 78,325 | 0.36% | 79,086 |
+| CALL | 83.40 | 2M | 47,907 | 48,048 | 0.29% | 47,881 | 48,051 | 0.35% | 48,249 |
+| CALL | 81.42 | 2M | 103,820 | 103,610 | -0.20% | 103,742 | 103,617 | -0.12% | 104,467 |
+| CALL | 79.53 | 2M | 181,491 | 181,441 | -0.03% | 181,423 | 181,391 | -0.02% | 176,640 |
+| PUT | 77.72 | 2M | 108,293 | 108,214 | -0.07% | 108,360 | 108,223 | -0.13% | 109,206 |
+
+### BumpSize0.001
+
+| OptionType | strike | expiry | Model risk | Analytic risk | Rel. Diff | Model risk | Analytic risk | Rel. Diff | Model risk |
+|------------|--------|--------|------------|---------------|-----------|------------|---------------|-----------|------------|
+| CALL | 80.87 | 1W | 17,032 | 17,040 | 0.04% | 17,032 | 17,039 | 0.04% | 16,953 |
+| CALL | 80.22 | 1W | 32,542 | 32,576 | 0.11% | 32,541 | 32,575 | 0.10% | 32,432 |
+| CALL | 79.59 | 1W | 43,934 | 43,970 | 0.08% | 43,934 | 43,970 | 0.08% | 43,924 |
+| PUT | 79.00 | 1W | 33,727 | 33,768 | 0.12% | 33,726 | 33,767 | 0.12% | 33,597 |
+| PUT | 78.43 | 1W | 17,951 | 17,969 | 0.10% | 17,950 | 17,969 | 0.10% | 17,842 |
+| CALL | 82.23 | 1M | 37,487 | 37,655 | 0.45% | 37,486 | 37,654 | 0.45% | 37,360 |
+| CALL | 80.89 | 1M | 70,006 | 70,221 | 0.31% | 70,004 | 70,219 | 0.31% | 69,827 |
+| CALL | 79.56 | 1M | 92,319 | 92,497 | 0.19% | 92,319 | 92,497 | 0.19% | 92,323 |
+| PUT | 78.29 | 1M | 70,297 | 70,509 | 0.30% | 70,295 | 70,508 | 0.30% | 70,105 |
+| PUT | 77.10 | 1M | 37,986 | 38,158 | 0.45% | 37,984 | 38,156 | 0.45% | 37,824 |
+| CALL | 83.40 | 2M | 50,793 | 51,006 | 0.42% | 50,791 | 51,005 | 0.42% | 50,658 |
+| CALL | 81.42 | 2M | 97,224 | 97,508 | 0.29% | 97,221 | 97,505 | 0.29% | 96,969 |
+| CALL | 79.53 | 2M | 128,380 | 128,627 | 0.19% | 128,380 | 128,627 | 0.19% | 128,383 |
+| PUT | 77.72 | 2M | 96,664 | 96,940 | 0.28% | 96,662 | 96,937 | 0.28% | 96,397 |
+| PUT | 76.00 | 2M | 50,794 | 51,010 | 0.42% | 50,792 | 51,008 | 0.42% | 50,626 |
+
+Near Rega and Sega risks represent the sensitivities with respect to near delta risk reversals and strangles respectively. We recall that near delta is set to 0.25 in our FX vol surfaces. Hence we expect the risks to be quite small for 10 delta and at the money call and put options as most of the exposure will be for 25 call/put vanillas.
+We calculate the difference as a percentage of the notional $^4$ for near rega/sega risks between LSV Markov Switching and analytic. We report as well the average error across different instruments calculated as follows:
+
+$$avg\_error = \sqrt{\frac{1}{N}\sum_{i=1}^{N}(Err_i^{LSVMS-Ana})^2}$$
+
+With $N$ being the number of instruments we calculate the risk for, $Err_i^{LSVMS-Ana}$ the error of each instrument $i$.
+
+### Diff as % ntl
+
+| OptionType | strike | expiry | Model risk | Analytic risk | Diff as % ntl | Model risk | Analytic risk | Diff as % ntl | Model risk |
+|------------|--------|--------|------------|---------------|---------------|------------|---------------|---------------|------------|
+| CALL | 80.87 | 1W | 778 | -183 | 0.00% | -1,744 | -1,782 | 0.00% | -6,711 |
+| CALL | 80.22 | 1W | 32,145 | 32,502 | 0.00% | 31,405 | 31,896 | 0.00% | 28,843 |
+| CALL | 79.59 | 1W | -844 | 0 | 0.00% | -328 | 0 | 0.00% | -684 |
+| PUT | 79.00 | 1W | 33,281 | 33,683 | 0.00% | 32,399 | 32,980 | 0.00% | 29,440 |
+| PUT | 78.43 | 1W | 417 | -241 | 0.00% | -2,272 | -2,216 | 0.00% | -7,404 |
+| CALL | 82.23 | 1M | -3,905 | -434 | 0.00% | -5,708 | -4,352 | 0.00% | -16,330 |
+| CALL | 80.89 | 1M | 66,657 | 70,050 | 0.00% | 66,907 | 68,682 | 0.00% | 61,832 |
+| CALL | 79.56 | 1M | -2,502 | 0 | 0.00% | -1,464 | 0 | 0.00% | -1,968 |
+| PUT | 78.29 | 1M | 66,678 | 70,327 | 0.00% | 66,799 | 68,870 | 0.00% | 61,316 |
+| PUT | 77.10 | 1M | -4,192 | -499 | 0.00% | -6,673 | -4,839 | 0.00% | -17,578 |
+| CALL | 83.40 | 2M | -440 | -564 | 0.00% | -6,526 | -5,372 | 0.00% | -20,982 |
+| CALL | 81.42 | 2M | 95,973 | 97,292 | 0.00% | 93,282 | 95,512 | 0.00% | 85,397 |
+| CALL | 79.53 | 2M | -1,432 | 0 | 0.00% | -1,668 | 0 | 0.00% | -3,102 |
+| PUT | 77.72 | 2M | 95,060 | 96,712 | 0.00% | 92,135 | 94,837 | 0.00% | 83,797 |
+| PUT | 76.00 | 2M | -1,114 | -627 | 0.00% | -7,778 | -5,854 | 0.00% | -22,634 |
+| CALL | 84.60 | 3M | 2,295 | -591 | 0.00% | -7,406 | -5,480 | 0.00% | -24,893 |
+| CALL | 81.94 | 3M | 121,233 | 120,135 | 0.00% | 114,448 | 118,118 | 0.00% | 103,337 |
+| CALL | 79.49 | 3M | 1,285 | 0 | 0.00% | -2,328 | 0 | 0.00% | -5,422 |
+| PUT | 77.16 | 3M | 118,606 | 117,935 | 0.00% | 111,694 | 115,863 | -0.01% | 100,217 |
+| PUT | 74.87 | 3M | 1,437 | -633 | 0.00% | -8,398 | -5,809 | 0.00% | -26,259 |
+| CALL | 87.62 | 6M | -1,663 | -653 | 0.00% | -15,177 | -6,069 | -0.01% | -33,519 |
+| CALL | 83.20 | 6M | 165,968 | 169,499 | 0.00% | 154,660 | 166,961 | -0.01% | 143,009 |
+| CALL | 79.37 | 6M | -1,386 | 0 | 0.00% | -8,765 | 0 | -0.01% | -11,189 |
+| PUT | 75.74 | 6M | 157,910 | 162,057 | -0.01% | 147,217 | 159,566 | -0.02% | 135,117 |
+| PUT | 72.10 | 6M | -2,458 | -668 | 0.00% | -14,912 | -6,191 | -0.01% | -34,289 |
+| CALL | 92.86 | 1Y | -6,985 | -705 | -0.01% | -8,944 | -6,606 | 0.00% | -34,940 |
+| CALL | 85.22 | 1Y | 330,872 | 347,656 | -0.01% | 322,249 | 341,853 | -0.01% | 313,618 |
+| CALL | 78.19 | 2Y | -5,371 | 0 | -0.01% | -2,017 | 0 | 0.00% | -9,240 |
+| PUT | 69.53 | 2Y | 292,849 | 303,898 | -0.02% | 292,380 | 300,308 | -0.01% | 270,523 |
+| PUT | 61.34 | 2Y | -4,940 | -904 | -0.01% | -9,812 | -8,516 | 0.00% | -40,724 |
+|  |  |  |  | avg_error | 0.0062% |  | avg_error | 0.0065% |  |
+
+Figure 8.46: Near Sega risk for vanilla options in LSV Markov switching compared to Analytic risk for different bump sizes
+
+### BumpSize0.0001, BumpSize0.001, BumpSize0.05
+
+| OptionType | strike | expiry | Model risk | Analytic risk | Diff as % ntl | Model risk | Analytic risk | Diff as % ntl | Model risk | Analytic risk | Diff as % ntl |
+|------------|--------|--------|------------|---------------|---------------|------------|---------------|---------------|------------|---------------|---------------|
+| CALL | 80.87 | 1W | 2,551 | -92 | 0.00% | -1,161 | -891 | 0.00% | -3,670 | -3,517 | 0.00% |
+| CALL | 80.22 | 1W | 17,652 | 16,251 | 0.00% | 15,699 | 15,948 | 0.00% | 13,892 | 14,106 | 0.00% |
+| CALL | 79.59 | 1W | 341 | 0 | 0.00% | -61 | 0 | 0.00% | 39 | 0 | 0.00% |
+| PUT | 79.00 | 1W | -15,239 | -16,841 | 0.00% | -16,588 | -16,490 | 0.00% | -14,027 | -14,348 | 0.00% |
+| PUT | 78.43 | 1W | 2,808 | 121 | 0.00% | 876 | 1,108 | 0.00% | 3,786 | 3,586 | 0.00% |
+| CALL | 82.23 | 1M | 3,093 | -217 | 0.00% | -2,334 | -2,176 | 0.00% | -7,714 | -7,257 | 0.00% |
+| CALL | 80.89 | 1M | 37,444 | 35,025 | 0.00% | 34,221 | 34,341 | 0.00% | 29,903 | 30,316 | 0.00% |
+| CALL | 79.56 | 1M | 1,384 | 0 | 0.00% | 132 | 0 | 0.00% | 194 | 0 | 0.00% |
+| PUT | 78.29 | 1M | -32,307 | -35,164 | 0.00% | -34,107 | -34,435 | 0.00% | -29,210 | -30,142 | 0.00% |
+| PUT | 77.10 | 1M | 3,918 | 249 | 0.00% | 2,843 | 2,420 | 0.00% | 8,331 | 7,320 | 0.00% |
+| CALL | 83.40 | 2M | 5,647 | -282 | -0.01% | -2,441 | -2,686 | 0.00% | -10,726 | -9,979 | 0.00% |
+| CALL | 81.42 | 2M | 53,744 | 48,646 | -0.01% | 46,029 | 47,756 | 0.00% | 41,616 | 42,207 | 0.00% |
+| CALL | 79.53 | 2M | 3,545 | 0 | 0.00% | 517 | 0 | 0.00% | 294 | 0 | 0.00% |
+| PUT | 77.72 | 2M | -42,839 | -48,356 | -0.01% | -46,376 | -47,419 | 0.00% | -40,292 | -41,587 | 0.00% |
+| PUT | 76.00 | 2M | 6,232 | 314 | -0.01% | 4,105 | 2,927 | 0.00% | 11,531 | 10,115 | 0.00% |
+| CALL | 84.60 | 3M | -6,921 | -296 | 0.01% | -2,529 | -2,740 | 0.00% | -12,513 | -11,413 | 0.00% |
+| CALL | 81.94 | 3M | 54,552 | 60,068 | 0.01% | 59,354 | 59,059 | 0.00% | 51,571 | 52,342 | 0.00% |
+| CALL | 79.49 | 3M | -2,907 | 0 | 0.00% | 711 | 0 | 0.00% | 335 | 0 | 0.00% |
+| PUT | 77.16 | 3M | -63,365 | -58,968 | 0.01% | -56,444 | -57,932 | 0.00% | -49,610 | -51,049 | 0.00% |
+| PUT | 74.87 | 3M | -4,536 | 317 | 0.01% | 4,482 | 2,904 | 0.00% | 13,027 | 11,472 | 0.00% |
+| CALL | 87.62 | 6M | -4,598 | -327 | 0.00% | -3,398 | -3,034 | 0.00% | -16,638 | -14,813 | 0.00% |
+| CALL | 83.20 | 6M | 81,160 | 84,749 | 0.00% | 83,391 | 83,481 | 0.00% | 73,618 | 74,574 | 0.00% |
+| CALL | 79.37 | 6M | -1,446 | 0 | 0.00% | 935 | 0 | 0.00% | 785 | 0 | 0.00% |
+| PUT | 75.74 | 6M | -82,759 | -81,028 | 0.00% | -77,818 | -79,783 | 0.00% | -68,571 | -71,053 | 0.00% |
+| PUT | 72.10 | 6M | -1,637 | 334 | 0.00% | 4,995 | 3,096 | 0.00% | 17,626 | 14,675 | 0.00% |
+| CALL | 92.86 | 1Y | 36 | -353 | 0.00% | -1,849 | -3,303 | 0.00% | -20,417 | -18,242 | 0.00% |
+| CALL | 85.22 | 1Y | 119,960 | 119,809 | 0.00% | 119,544 | 118,255 | 0.00% | 105,311 | 106,767 | 0.00% |
+| CALL | 79.05 | 1Y | 921 | 0 | 0.00% | 2,028 | 0 | 0.00% | 560 | 0 | 0.00% |
+| PUT | 73.33 | 1Y | -108,526 | -110,405 | 0.00% | -105,799 | -108,949 | 0.00% | -95,940 | -98,201 | 0.00% |
+| PUT | 67.60 | 1Y | 1,873 | 351 | 0.00% | 5,846 | 3,290 | 0.00% | 20,313 | 17,902 | 0.00% |
+| CALL | 100.49 | 2Y | -543 | -483 | 0.00% | -3,434 | -4,534 | 0.00% | -27,284 | -25,868 | 0.00% |
+| CALL | 87.93 | 2Y | 172,960 | 173,515 | 0.00% | 172,170 | 171,455 | 0.00% | 154,666 | 155,918 | 0.00% |
+| CALL | 78.19 | 2Y | 890 | 0 | 0.00% | 2,123 | 0 | 0.00% | 1,271 | 0 | 0.00% |
+| PUT | 69.53 | 2Y | -150,333 | -151,949 | 0.00% | -147,198 | -150,154 | 0.00% | -133,307 | -136,584 | 0.00% |
+| PUT | 61.34 | 2Y | 1,349 | 452 | 0.00% | 6,196 | 4,258 | 0.00% | 26,424 | 23,725 | 0.00% |
+|  |  |  |  | avg_error | 0.0041% |  | avg_error | 0.0018% |  | avg_error | 0.0020% |
+
+Figure 8.47: Near Rega risk for vanilla options in LSV Markov switching compared to Analytic risk for different bump sizes
+
+### 8.6. Comparison to Other Models
+
+### 8.6.1. Exotic prices
+
+QA testing shows that we can match DNT prices for different strikes and maturities given by LSV Hybrid which is the model currently used by the desk for pricing.
+We calibrate the vol of vol so that we match a liquid DNT at the relevant maturity. Then the transition q parameter is adjusted such that we get a good fit to DNTs with other barrier levels at the same maturity.
+For example, we give in 8.51 and 8.52 DNT Valuations for GBPUSD currency pair under :
+
+- Local Volatility (LV)
+
+- LSV Hybrid
+
+- LSV Markov Switching (LSV MS)
+
+The DNTs which are liquid on the market are the ones with low TV typically less than 10-15%.
+TV stands for "Theoretical Value" and represents the value under the Black Scholes model assumptions using the implied volatility for at-the-money vanilla options. It is quoted as a percentage of the notional.
+
+From above, we can see that :
+
+- We get a good agreement between LSV Markov switching delta and vega greeks compared to the analytic risk. The relative error stays below 1%.
+
+- Gamma is sensitive to the bump size. The accuracy increases with bigger bump sizes. 1% relative bump size seems to be appropriate.
+
+- Delta and Vega are stable across different bump sizes.
+
+- The average error increases for Near Sega risk when bump size increases. A value of 1 basis point for Near sega additive bump size is appropriate.
+
+- Near Rega can have a larger overall error when the bump size is too small (e.g. 1 apsis point). 10 basis point as an additive bump size is more suitable.
+
+### Risk Spot Scenarios
+
+We take one of the trades in the short dated book. The trade ID is 28676171.
+The trade is an upper EURUSD one touch barrier at 1.385 $^5$ on -2,000,000 notional, expiring on 18th June 2013.
+
+The market data was loaded with valuation date 22 June 2012. Initial spot is 1.2539. The risk runs have been done in BARX Risk using the default QAVersion 219900.
+
+The following plots, in figures 8.48-8.49, show a spot scenario with the EURUSD spot being moved between -20% and +20% relative shift for the following metrics:
+
+- PV $^6$
+
+- Delta
+
+- Gamma
+
+- FX Vega
+
+![PV Spot Ladder](./Fig/1.png)
+
+Figure 8.48: 1Y one touch EURUSD PV and FX delta spot scenario.
+
+![FX Gamma spot ladder](./Fig/2.png)
+
+![FX Vega spot ladder](./Fig/3.png)
+
+Figure 8.49: 1Y one touch EURUSD FX gamma and vega spot scenario.
+
+The plots for LSV markov switching and Local vol are smooth indicating that the risk is stable with respect to changes in spot.
+
+| Exotic Type | Maturity | barrier1 | barrier2 | Strike | TV | LV | LSVMS - ZeroVoV | LSVMS |
+|-------------|----------|----------|----------|--------|-----|------------|----------------|---------|
+| DNT | 1M | 1.2 | 1.25 |  | 5.726% | 4.528% | 4.535% | 7.366% |
+| DNT | 1M | 1.21 | 1.25 |  | 1.453% | 1.263% | 1.268% | 3.206% |
+| DNT | 1M | 1.21 | 1.27 |  | 18.730% | 20.063% | 20.072% | 24.642% |
+| DNT | 6M | 1.18 | 1.28 |  | 1.107% | 1.051% | 1.052% | 4.118% |
+| DNT | 6M | 1.17 | 1.30 |  | 7.652% | 8.129% | 8.130% | 13.663% |
+| DNT | 6M | 1.15 | 1.30 |  | 15.077% | 13.802% | 13.803% | 19.542% |
+| DNT | 1Y | 1.15 | 1.30 |  | 1.096% | 0.919% | 0.920% | 4.267% |
+| DNT | 1Y | 1.11 | 1.35 |  | 19.558% | 19.176% | 19.179% | 25.624% |
+| DNT | 1Y | 1.11 | 1.32 |  | 10.872% | 8.788% | 8.791% | 14.910% |
+| KI | 1Y |  | 1.3 | 1.26 | 4.179% | 4.141% | 4.140% | 4.131% |
+| KI | 1Y |  | 1.60 | 1.26 | 0.839% | 0.680% | 0.681% | 0.658% |
+| KI | 6M |  | 1.35 | 1.23 | 2.690% | 2.339% | 2.339% | 2.244% |
+| KI | 1M |  | 1.30 | 1.23 | 0.579% | 0.516% | 0.516% | 0.483% |
+| KO | 1M | 1.18 |  | 1.23 | 1.565% | 1.584% | 1.584% | 1.572% |
+| KO | 1M | 1.17 |  | 1.239 | 1.171% | 1.171% | 1.171% | 1.165% |
+| KO | 6M | 1.17 |  | 1.25 | 2.763% | 2.648% | 2.648% | 2.570% |
+| KO | 1Y | 1.13 |  | 1.25 | 4.138% | 3.942% | 3.942% | 3.817% |
+
+
+### Maturity barrier1 barrier2 TV LV LSV Hybrid LSV MS
+
+| 1W | 1.546 | 1.57 | 5.7% | 7.2% | 9.1% | 9.1% |
+| 1W | 1.546 | 1.565 | 1.3% | 1.9% | 3.0% | 3.0% |
+| 1W | 1.54 | 1.565 | 9.6% | 10.7% | 12.8% | 12.8% |
+| 1W | 1.54 | 1.57 | 20.5% | 22.5% | 24.4% | 24.6% |
+| 1W | 1.53 | 1.57 | 45.4% | 44.8% | 46.0% | 46.4% |
+| 2W | 1.546 | 1.57 | 0.3% | 0.6% | 1.4% | 1.5% |
+| 2W | 1.53 | 1.57 | 16.30% | 16.7% | 19.7% | 19.9% |
+| 2W | 1.53 | 1.565 | 8.10% | 7.7% | 10.4% | 10.4% |
+| 2W | 1.525 | 1.565 | 13.90% | 12.5% | 15.3% | 15.4% |
+| 2W | 1.52 | 1.57 | 29.70% | 28.0% | 30.6% | 30.9% |
+| 2W | 1.525 | 1.565 | 12.90% | 11.6% | 14.5% | 14.4% |
+| 1M | 1.525 | 1.565 | 1.30% | 1.0% | 2.4% | 2.4% |
+| 1M | 1.525 | 1.57 | 3.60% | 3.5% | 5.8% | 5.8% |
+| 1M | 1.525 | 1.58 | 12.10% | 13.4% | 16.4% | 16.6% |
+| 1M | 1.52 | 1.57 | 6.70% | 5.9% | 8.7% | 8.6% |
+| 1M | 1.51 | 1.57 | 14.10% | 11.5% | 14.7% | 14.4% |
+| 1M | 1.5 | 1.57 | 21.20% | 16.9% | 20.0% | 19.7% |
+| 1M | 1.497 | 1.57 | 23.00% | 18.3% | 21.4% | 21.1% |
+| 3M | 1.497 | 1.565 | 0.30% | 0.1% | 0.7% | 0.8% |
+| 3M | 1.497 | 1.57 | 0.70% | 0.4% | 1.5% | 1.6% |
+| 3M | 1.497 | 1.58 | 2.70% | 2.0% | 4.6% | 4.6% |
+| 3M | 1.497 | 1.6 | 11.00% | 11.6% | 16.1% | 15.8% |
+| 3M | 1.497 | 1.62 | 22.50% | 25.7% | 29.8% | 29.7% |
+| 3M | 1.497 | 1.57 | 3.40% | 1.6% | 3.6% | 3.6% |
+| 3M | 1.468 | 1.57 | 5.70% | 2.8% | 5.1% | 5.0% |
+| 3M | 1.455 | 1.57 | 8.70% | 4.3% | 6.8% | 6.7% |
+| 3M | 1.42 | 1.57 | 14.70% | 8.4% | 10.7% | 10.7% |
+| 3M | 1.41 | 1.57 | 15.70% | 9.3% | 11.5% | 11.6% |
+| 3M | 1.36 | 1.57 | 18.10% | 12.6% | 14.4% | 14.5% |
+| 3M | 1.36 | 1.59 | 37.90% | 32.6% | 34.9% | 34.9% |
+| 6M | 1.36 | 1.59 | 20.90% | 12.9% | 16.6% | 16.6% |
+| 6M | 1.42 | 1.61 | 20.80% | 16.0% | 21.1% | 21.0% |
+| 6M | 1.45 | 1.61 | 11.80% | 10.0% | 15.2% | 15.1% |
+| 6M | 1.48 | 1.61 | 3.80% | 4.10% | 8.6% | 8.6% |
+| 6M | 1.497 | 1.61 | 1.30% | 1.9% | 5.3% | 5.4% |
+| 6M | 1.48 | 1.596 | 1.60% | 1.4% | 4.4% | 4.6% |
+| 6M | 1.48 | 1.65 | 16.10% | 20.3% | 25.7% | 25.7% |
+| 6M | 1.497 | 1.668 | 14.10% | 19.8% | 24.8% | 24.8% |
+
+Figure 8.51: Double no touch trades on GBPUSD on different models. Market data as of 13th June 2012. Spot Reference 1.5527.
+
+### Maturity barrier1 barrier2 TV LV LSV Hybrid LSV MS
+
+| 1Y | 1.438 | 1.668 | 10.50% | 12.4% | 17.6% | 17.7% |
+| 1Y | 1.438 | 1.686 | 14.50% | 17.8% | 22.9% | 23.0% |
+| 1Y | 1.438 | 1.695 | 16.60% | 20.5% | 25.5% | 25.6% |
+| 1Y | 1.438 | 1.72 | 22.40% | 27.6% | 32.1% | 32.2% |
+| 1Y | 1.35 | 1.72 | 47.80% | 47.4% | 50.7% | 50.4% |
+| 1Y | 1.35 | 1.686 | 37.80% | 35.4% | 39.7% | 39.3% |
+| 1Y | 1.39 | 1.686 | 28.10% | 28.3% | 33.1% | 32.9% |
+| 1Y | 1.41 | 1.686 | 22.50% | 24.2% | 29.1% | 29.1% |
+| 1Y | 1.449 | 1.686 | 11.50% | 15.2% | 20.3% | 20.4% |
+| 1Y | 1.46 | 1.71 | 13.40% | 18.7% | 23.5% | 23.7% |
+| 2Y | 1.46 | 1.71 | 1.00% | 2.1% | 4.5% | 5.0% |
+| 2Y | 1.41 | 1.71 | 5.00% | 6.5% | 10.3% | 10.7% |
+| 2Y | 1.39 | 1.71 | 7.60% | 8.8% | 13.0% | 13.1% |
+| 2Y | 1.31 | 1.71 | 20.80% | 18.4% | 23.1% | 22.5% |
+| 2Y | 1.29 | 1.71 | 24.00% | 20.6% | 25.3% | 24.6% |
+| 2Y | 1.29 | 1.73 | 28.20% | 25.7% | 30.2% | 29.5% |
+| 2Y | 1.36 | 1.73 | 15.60% | 16.6% | 21.1% | 20.9% |
+| 2Y | 1.36 | 1.75 | 18.90% | 20.9% | 25.2% | 25.1% |
+| 2Y | 1.36 | 1.794 | 26.30% | 30.1% | 33.7% | 33.7% |
+| 2Y | 1.31 | 1.794 | 36.80% | 38.2% | 41.6% | 41.2% |
+| 3Y | 1.31 | 1.749 | 11.90% | 11.5% | 14.2% | 14.2% |
+| 3Y | 1.31 | 1.794 | 17.50% | 18.5% | 20.9% | 21.0% |
+| 3Y | 1.35 | 1.794 | 11.50% | 13.6% | 15.9% | 16.3% |
+| 3Y | 1.31 | 1.72 | 8.50% | 7.5% | 10.1% | 10.1% |
+| 3Y | 1.31 | 1.7 | 6.40% | 5.2% | 7.6% | 7.5% |
+| 3Y | 1.29 | 1.72 | 10.80% | 9.1% | 11.9% | 11.7% |
+| 3Y | 1.29 | 1.7 | 8.40% | 6.5% | 9.1% | 8.9% |
+| 5Y | 1.29 | 1.794 | 3.10% | 3.2% | 5.9% | 6.0% |
+| 5Y | 1.29 | 1.85 | 5.80% | 6.5% | 9.8% | 9.8% |
+| 5Y | 1.2 | 1.85 | 13.80% | 12.6% | 16.0% | 16.0% |
+| 5Y | 1.29 | 1.7 | 0.60% | 0.4% | 1.4% | 1.5% |
+| 5Y | 1.1 | 1.9 | 28.60% | 25.5% | 28.5% | 28.3% |
+| 5Y | 1.2 | 1.9 | 18.10% | 17.5% | 21.0% | 20.8% |
+| 5Y | 1.2 | 1.95 | 22.40% | 22.4% | 25.8% | 25.6% |
+| 10Y | 1.2 | 1.95 | 2.30% | 2.5% | 5.1% | 5.1% |
+| 10Y | 1.1 | 1.95 | 6.30% | 5.5% | 8.7% | 8.6% |
+| 10Y | 1 | 1.95 | 11.70% | 9.4% | 12.6% | 12.5% |
+| 10Y | 0.9 | 2 | 20.10% | 16.5% | 19.5% | 19.3% |
+
+Figure 8.52: Continued Double no touch trades on GBPUSD on different models. Market data
+
+### 8.5. Boundary Cases
+
+When setting the vol of volatility to a value close to zero, the stochasticity of the instantaneous spot volatility is reduced significantly. Therefore the model will be close to a local volatility model.
+
+Please note that entering exactly the value zero will cause an error as it will make all the volatility states equal. However, the code assumes having $n$ distinct volatility states when calibrating and pricing using the method of planes in PDE.
+Hence to get closer to local vol, it's recommended to set the vol of vol to be a very small non-zero value.
+
+We include below Double No touch plots where we plot the difference between the model PV and the TV for different TVs (corresponding to different barrier levels). We look at other currency pairs such as USDJPY and EURUSD.
+
+![Double no touch plots](./Fig/4.png)
+
+Figure 8.53: 1Y Double no touch trades on USDJPY. Market data as of 20th March 2011.
+
+![Double no touch plots](./Fig/5.png)
+
+Figure 8.54: 1Y Double no touch trades on EURUSD. Market data as of 20th March 2011.
+
+As the above graphs show, we can get a good agreement for double no touch prices between LSV Markov switching and LSV hybrid.
+
+Another way to look at the valuation of Exotic prices under LSV Markov Switching versus LSV Hybrid is to plot a scatter of the PV difference of each model and Local Vol. We would expect a scatter around the axis $y = x$ once the vol of vol is calibrated to match LSV hybrid double no touch prices.
+
+![Regular KOs Model PVs](./Fig/6.png)
+
+Figure 8.55: KO trades on USDJPY across different strikes and maturities.
+
+### 8.6.2. Stability
+
+As mentioned before, we use LSV Markov switching with marked stochastic volatility (SV) parameters instead of using an internal calibration to vanillas as done in LSV hybrid. This makes the actual vol of volatility parameters used in LSV Markov Switching, which impact directly exotic path dependent trade prices, completely transparent to Trading.
+
+In LSV Hybrid however, they can't be set explicitly currently and are calibrated internally to match a set of vanillas. The internal calibration algorithm in LSV Hybrid can be unstable causing a change in the SV parameters when market data hardly changes. The user can be unaware of such unexpected changes.
+
+We give in the table below an example for EURUSD of the resulting calibrated SV hybrid parameters for two consecutive dates. The major and minor date are set respectively to 25 February 2013 and 22 November 2013.
+The EURUSD market data for the two dates 31 May and 01 June 2012 didn't change significantly as can be seen from the corresponding monikers:
+
+- official@20120531/volsurface.fx/ldnclose/EURUSD/longdate/cob
+
+- official@20120601/volsurface.fx/ldnclose/EURUSD/longdate/cob
+
+Table 8.31: SV Hybrid calibrated parameters - EURUSD Market
+| Valuation date | 31/05/2012 | 01/06/2012 |
+|----------------|------------|------------|
+| Initial vol | 13.87% | 13.98% |
+| Reversion Level | 14.17% | 14.31% |
+| Reversion Rate | 4.68 | 3.12 |
+| Vol of Vol | 215.45% | 178.56% |
+| Correlation | -60.24% | -59.52% |
+
+The other point worth highlighting when comparing LSV Markov Switching to LSV Hybrid is the bucketing of risk.
+We look at one of the trades in the book which is a Down and Out EURUSD barrier call option with strike 1.4 and barrier level set at 1.15, expiring on 20 Nov 2013 on 60,000,000 USD notional.
+The PV of the trade under the two models are comparable, however we focus here more on the term structure distribution of Near Sega risk. In the below table 8.32, we have the term structure Near Sega risk for LSV Hybrid as of 01 June 2012. The mixing weights are set to 0.33 whereas the minor and major dates are set to 9M and 18M respectively.
+
+Table 8.32: TS Near Sega for down and out EURUSD barrier in LSV hybrid with 9M, 18M minor/major dates as of 01 June 2012
+| Dates | Risk LSVHybrid | LSV MS |
+|--------------|--------------|---------|
+| Fri 08-Jun-12 | -517 | -1,063 |
+| Fri 15-Jun-12 | -476 | -731 |
+| Fri 15-Jun-12 | -197 | -1,098 |
+| Tue 03-Jul-12 | 601 | -276 |
+| Thu 02-Aug-12 | 676 | 428 |
+| Mon 03-Sep-12 | -1,644 | -632 |
+| Mon 03-Dec-12 | -1,507 | -606 |
+| Fri 01-Mar-13 | 342,481 | 278 |
+| Mon 03-Jun-13 | -50,379 | 73,756 |
+| Tue 03-Jun-14 | -69,137 | 61,126 |
+
+We observe from the above that LSV hybrid is showing an exposure on the 9M bucket. To demonstrate that the latter is an artefact of the calibration minor and major dates, we change the minor date to be 6M and then 3M and examine the risk.
+
+You can see from the above that the bucketing of risk changes completely between the different settings for the minor date. This confirms that the risk bucketing in LSV hybrid is merely an artefact of the major/minor settings which can be dangerous as there isn't a fundamental rationale underlying the choice of these settings. Not only that but even the overall exposure calculated by summing the risks over the different tenors goes from being positive to negative when changing the minor date.
+In addition to that, this creates an inconsistency between different trades in the book using different minor and major dates.
+
+The minor and major dates are introduced since we don't have a full term structure supported in LSV Hybrid.
+In LSV Markov switching, the term structure of stochastic volatility parameters is fully supported and the vol of vol parameters are set explicitly, making the model free from the problems outlined above for hybrid.
+
+We take the market data as of 06 July 2012 with a spot reference of 1.2381. The PDE settings used are the default one in BARX Option dealer which are 300 time steps and 300 FX steps for up to 9M and 300 FX steps and 400 time steps up to 2Y.
+
+We look at exotic path dependent trades and compare in 8.50 the prices from LSV Markov Switching with a vol of vol set to 0.001 to the prices from local volatility model. We add as well the price of LSV markov switching with non-zero vol of vol as a reference.
+
+### 8.6.3. Performance
+
+LSV Markov Switching supersedes LSV Hybrid in terms of performance. It has a significant speed advantage due to the fact that we solve $n \times 1D$ PDEs in LSV Markov switching ($n$ being the number of volatility states) instead of a full 2D PDE in LSV Hybrid.
+
+Both models ran on a daily basis during the assessment phase on BARX Risk. The screen-shot below shows the timing spent by each run. We look in particular at the grid time which is the total time spent processing on the grid.
+
+We can see in 8.56 that LSV Markov Switching can be more than 25 times faster than LSV Hybrid.
+
+![Model timings in BARX Risk End of Day model runs](./Fig/7.png)
+
+Figure 8.56: Model timings in BARX Risk End of Day model runs.
+
+### 8.7. Other Testing
+
+N/A
+
+## 9. General Limitations
+
+Any model is an approximation to reality.
+
+As with most of the models of mathematical finance, a number of idealized assumptions have been made including, but not limited to:
+
+- Assumption of no arbitrage
+
+- Assumption of frictionless trading
+
+- No limits on positions long nor short
+
+Numerical methods, as a rule, provide only an approximation to the true model price or risks.
+
+Calibration routines, especially those relying on non-linear optimization, reproduce market inputs only approximately.
+
+For any model there may exist market conditions for which this model is inappropriate.
+
+## 10. Model Monitoring – KPIs
+
+(Only applicable to statistical models)
+Detailed list with justification of the model monitoring requirements and expectations
+
+## 11. Summary of Feedback Received During Development
+
+We have integrated LSV Markov switching model in a number of IT systems : BARX Risk, Sparta and BARX Option Dealer. This has been valuable as using the models within the systems has

@@ -1,0 +1,293 @@
+# DBX-ShortRate and FX Skew Stochastic Volatility Models
+
+## 📋 **Vue d'Ensemble**
+
+Le modèle **DBX-ShortRate_FXSkewStochVol** est un framework Monte Carlo sophistiqué pour le pricing et la gestion des risques de dérivés FX long terme. Il combine des taux d'intérêt stochastiques (Hull-White) avec une volatilité FX locale stochastique, permettant de capturer le smile de volatilité FX et le forward smile pour des produits multi-devises complexes.
+
+---
+
+## 🎯 **Caractéristiques Principales**
+
+### **Modèles Couverts**
+- **DBX-ShortRateNormal[LVMRAUTO]_FXSkewStochVol[DLVAUTO]**
+
+### **Composants du Modèle**
+- **Taux Stochastiques** : Processus Hull-White avec coefficients dépendants du temps
+- **Volatilité FX Locale** : Processus lognormal avec volatilité locale stochastique
+- **Moteur Monte Carlo** : Implémentation DBX avec techniques de réduction de variance
+- **Calibration Automatique** : PIV AutoFit et DLVIR correction
+
+### **Produits Supportés**
+- **Long-Term FX** : LTFX, LTFXDigital, LTFXConvexity, LTFXParForward
+- **PRDC Swaps** : PRDCSwap, PRDCSwapCallable, PRDCSwapTarn
+- **IR-FX Hybrids** : IRFXDualDigitalOpt, IRFXSwapFXOpt, IRSwapQuanto
+- **Exotic Options** : FXAmerOpt, FXOneBarrierOpt, FXVolSwap, FXVarSwap
+
+### **Usages Approuvés**
+- ✅ **End of Day (EOD)** - Évaluation et gestion des risques
+- ✅ **HistSim** - Simulations historiques
+- ✅ **CCAR** - Tests de stress réglementaires
+- ✅ **IRRBB** - Interest Rate Risk in Banking Book
+
+---
+
+## 🏗️ **Architecture du Framework**
+
+### **Modélisation Multi-Facteurs**
+Le framework utilise une approche sophistiquée combinant :
+- **Processus Hull-White** pour taux domestiques et étrangers
+- **Volatilité locale stochastique** pour le taux FX
+- **Corrélations** entre facteurs de risque
+- **Calibration automatique** aux données de marché
+
+### **Composants Techniques**
+```cpp
+// Exemple d'implémentation Hull-White dans Our project
+class hull_white_short_rate_model : public ir_model_base {
+private:
+    struct hull_white_parameters {
+        vector<double> mean_reversion_speeds;
+        vector<double> volatilities;
+        matrix<double> correlation_matrix;
+        std::function<double(double)> theta_function;
+    };
+
+    hull_white_parameters params_;
+
+public:
+    hull_white_short_rate_model(const hull_white_parameters& params)
+        : params_(params) {
+        validate_hull_white_parameters();
+    }
+
+    vector<double> evolve_short_rates(double dt,
+                                     const vector<double>& current_rates,
+                                     const matrix<double>& random_shocks) const override {
+
+        vector<double> next_rates(current_rates.size());
+
+        for (size_t i = 0; i < current_rates.size(); ++i) {
+            // Processus Hull-White : dr = (theta(t) - a*r)*dt + sigma*dW
+            double mean_reversion = params_.mean_reversion_speeds[i];
+            double volatility = params_.volatilities[i];
+            double theta = params_.theta_function(get_current_time());
+
+            double drift = (theta - mean_reversion * current_rates[i]) * dt;
+            double diffusion = volatility * std::sqrt(dt) * random_shocks(i, 0);
+
+            next_rates[i] = current_rates[i] + drift + diffusion;
+        }
+
+        return next_rates;
+    }
+
+    matrix<double> calculate_bond_prices(const vector<double>& maturities,
+                                        const vector<double>& current_rates) const {
+
+        matrix<double> bond_prices(current_rates.size(), maturities.size());
+
+        for (size_t i = 0; i < current_rates.size(); ++i) {
+            for (size_t j = 0; j < maturities.size(); ++j) {
+                // Prix d'obligation Hull-White analytique
+                double maturity = maturities[j];
+                double rate = current_rates[i];
+                double mean_reversion = params_.mean_reversion_speeds[i];
+                double volatility = params_.volatilities[i];
+
+                // Formule analytique Hull-White
+                double B = (1.0 - std::exp(-mean_reversion * maturity)) / mean_reversion;
+                double A = calculate_hull_white_A_factor(maturity, mean_reversion, volatility);
+
+                bond_prices(i, j) = A * std::exp(-B * rate);
+            }
+        }
+
+        return bond_prices;
+    }
+
+private:
+    double calculate_hull_white_A_factor(double maturity, double mean_reversion,
+                                        double volatility) const {
+        // Calcul du facteur A dans la formule Hull-White
+        double B = (1.0 - std::exp(-mean_reversion * maturity)) / mean_reversion;
+        double variance_integral = calculate_variance_integral(maturity, mean_reversion, volatility);
+
+        return std::exp(-0.5 * B * B * variance_integral);
+    }
+
+    void validate_hull_white_parameters() const {
+        XSIGMA_CHECK(!params_.mean_reversion_speeds.empty(), "Mean reversion speeds required");
+        XSIGMA_CHECK(!params_.volatilities.empty(), "Volatilities required");
+        XSIGMA_CHECK(params_.mean_reversion_speeds.size() == params_.volatilities.size(),
+                    "Parameter sizes must match");
+
+        for (double speed : params_.mean_reversion_speeds) {
+            XSIGMA_CHECK(speed > 0, "Mean reversion speed must be positive");
+        }
+
+        for (double vol : params_.volatilities) {
+            XSIGMA_CHECK(vol > 0, "Volatility must be positive");
+        }
+    }
+};
+```
+*Cette implémentation C++ dans Our project montre le modèle Hull-White avec évolution des taux courts et pricing analytique d'obligations.*
+
+---
+
+## 📊 **Évaluation des Risques**
+
+### **Global Model Risk Assessment**
+
+| Critère | Rating | Justification |
+|---------|--------|---------------|
+| **Complexité** | HIGH | Jugement SME du validateur |
+| **Incertitude** | HIGH | Nombre élevé de trades vs limitations P-M |
+| **Dépendance** | HIGH | Les modèles de pricing ont une dépendance élevée |
+
+**Justifications :**
+- **Complexité HIGH** : Modèle multi-facteurs avec taux stochastiques et volatilité locale stochastique
+- **Incertitude HIGH** : Calibration complexe avec nombreux paramètres et corrélations
+- **Dépendance HIGH** : Les outputs définissent les métriques officiellement reportées
+
+---
+
+## 📚 **Documentation Détaillée**
+
+```{toctree}
+:maxdepth: 2
+:caption: Documentation DBX-ShortRate FX Skew Stochastic Volatility
+
+executive_summary
+introduction_model_validation
+theoretical_overview
+calibration_methodology
+independent_validation_testing
+product_testing_ltfx
+product_testing_prdc
+product_testing_irfx_hybrids
+model_parameters_testing
+```
+
+### **Sections Principales**
+
+#### **📋 Documentation Fondamentale**
+- **[Executive Summary](executive_summary.md)** - Résumé exécutif et évaluation globale des risques
+- **[Introduction & Model Validation](introduction_model_validation.md)** - Scope, description des produits et méthodologie
+- **[Theoretical Overview](theoretical_overview.md)** - Vue d'ensemble théorique et dynamiques stochastiques
+
+#### **🔧 Calibration et Méthodologie**
+- **[Calibration Methodology](calibration_methodology.md)** - PIV AutoFit, DLVIR correction et calibration automatique
+
+#### **🔬 Tests et Validation**
+- **[Independent Validation Testing](independent_validation_testing.md)** - Tests de validation indépendants et frameworks réglementaires
+
+#### **📊 Tests de Produits Spécifiques**
+- **[Product Testing: LTFX](product_testing_ltfx.md)** - Tests complets pour dérivés FX long terme
+- **[Product Testing: PRDC](product_testing_prdc.md)** - Tests complets pour PRDC Swaps
+- **[Product Testing: IR-FX Hybrids](product_testing_irfx_hybrids.md)** - Tests complets pour produits hybrides IR-FX
+
+#### **🔧 Tests de Paramètres**
+- **[Model Parameters Testing](model_parameters_testing.md)** - Tests détaillés des paramètres de modèle
+
+---
+
+## 🎯 **Avantages Techniques du Framework DBX**
+
+### **✅ Modélisation Multi-Facteurs Avancée**
+- **Taux stochastiques** Hull-White avec calibration automatique
+- **Volatilité FX locale** calibrée via PIV AutoFit
+- **Volatilité FX stochastique** avec processus CIR
+- **Corrélations complètes** entre tous les facteurs de risque
+
+### **✅ Calibration Automatique Sophistiquée**
+- **PIV AutoFit** avec optimisation Levenberg-Marquardt
+- **DLVIR correction** pour taux stochastiques
+- **Régularisation** pour lissage des surfaces
+- **Validation automatique** de qualité de calibration
+
+### **✅ Performance Monte Carlo Optimisée**
+- **Techniques de réduction de variance** (antithetic, control variates)
+- **Parallélisation** multi-thread native
+- **Convergence accélérée** pour dérivés complexes
+- **Gestion mémoire** optimisée pour long terme
+
+### **✅ Validation Exhaustive**
+- **Tests de convergence** Monte Carlo rigoureux
+- **Validation croisée** avec modèles alternatifs
+- **Tests réglementaires** CCAR et IRRBB spécialisés
+- **Monitoring continu** des paramètres
+
+---
+
+## 📈 **Cas d'Usage Spécialisés**
+
+### **Dérivés FX Long Terme**
+```cpp
+// Exemple d'usage pour LTFX avec convexité dans Our project
+class ltfx_convexity_adjuster {
+public:
+    double calculate_convexity_adjusted_forward(
+        const ltfx_specification& spec,
+        const dbx_model_parameters& params) {
+
+        // Calcul de l'ajustement de convexité pour FX long terme
+        double base_forward = calculate_base_forward(spec);
+
+        // Ajustement dû aux taux stochastiques
+        double ir_convexity_adjustment = calculate_ir_convexity_adjustment(spec, params);
+
+        // Ajustement dû à la volatilité FX stochastique
+        double fx_vol_convexity_adjustment = calculate_fx_vol_convexity_adjustment(spec, params);
+
+        // Ajustement dû aux corrélations
+        double correlation_adjustment = calculate_correlation_adjustment(spec, params);
+
+        return base_forward + ir_convexity_adjustment +
+               fx_vol_convexity_adjustment + correlation_adjustment;
+    }
+
+private:
+    double calculate_ir_convexity_adjustment(
+        const ltfx_specification& spec,
+        const dbx_model_parameters& params) {
+
+        // Ajustement analytique approximatif pour taux stochastiques
+        double domestic_vol = params.domestic_hw.volatilities[0];
+        double foreign_vol = params.foreign_hw.volatilities[0];
+        double expiry = spec.expiry;
+
+        // Formule d'ajustement de convexité
+        double adjustment = 0.5 * (domestic_vol * domestic_vol - foreign_vol * foreign_vol) *
+                           expiry * expiry;
+
+        return adjustment;
+    }
+};
+```
+
+### **Gestion des Risques Multi-Devises**
+- **Delta hedging** automatique avec corrélations FX-IR
+- **Vega hedging** local et stochastique
+- **Rho hedging** multi-devises avec Hull-White
+- **Stress testing** réglementaire avancé
+
+---
+
+## 🔍 **Surveillance et Contrôle Qualité**
+
+### **Model Parameter Monitoring Avancé**
+- **Surveillance automatisée** des paramètres Hull-White via MARS
+- **Alertes** sur déviations de calibration PIV significatives
+- **Monitoring** de la stabilité des corrélations FX-IR
+- **Validation continue** des surfaces de volatilité locale
+
+### **Contrôles de Cohérence Spécialisés**
+- **Tests de réplication** quotidiens pour dérivés FX long terme
+- **Validation croisée** avec modèles Black-Scholes étendus
+- **Monitoring des écarts** de pricing vs benchmarks externes
+- **Analyse des tendances** de volatilité FX locale vs stochastique
+
+---
+
+*Cette documentation complète du framework DBX-ShortRate_FXSkewStochVol intègre les meilleures pratiques de Our project avec une validation rigoureuse et des implémentations techniques avancées pour le pricing Monte Carlo de dérivés FX long terme avec taux stochastiques et volatilité locale stochastique.*

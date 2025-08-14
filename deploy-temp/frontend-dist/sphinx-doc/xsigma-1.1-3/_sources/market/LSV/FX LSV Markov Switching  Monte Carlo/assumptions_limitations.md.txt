@@ -1,0 +1,254 @@
+# Assumptions and Limitations
+
+## Overview
+
+Cette section décrit les hypothèses fondamentales et les limitations du modèle **FX LSV Markov Switching Monte Carlo**, incluant les contraintes théoriques, pratiques et opérationnelles.
+
+## Model Assumptions
+
+### Fundamental Mathematical Assumptions
+
+#### 1. Risk-Neutral Valuation
+**Assumption** : Existence d'une mesure de probabilité risk-neutral unique
+- **Implication** : Pricing par actualisation de l'espérance sous mesure Q
+- **Validity** : Valide sous absence d'arbitrage et complétude de marché
+- **Limitation** : Marchés FX peuvent présenter des frictions et incompletude
+
+#### 2. Continuous Trading
+**Assumption** : Possibilité de trading continu sans coûts de transaction
+- **Implication** : Hedging parfait théoriquement possible
+- **Reality** : Spreads bid-ask, coûts de transaction, gaps de marché
+- **Impact** : Sous-estimation des coûts de hedging réels
+
+#### 3. Constant Interest Rates
+**Assumption** : Taux d'intérêt domestique et étranger constants
+- **Simplification** : Facilite la calibration et le pricing
+- **Reality** : Taux fluctuent et présentent une structure de terme
+- **Mitigation** : Utilisation de forwards pour approximation
+
+#### 4. Markov Property
+**Assumption** : États de volatilité suivent une propriété de Markov
+- **Implication** : État futur dépend seulement de l'état présent
+- **Limitation** : Mémoire limitée des conditions passées
+- **Validation** : Tests statistiques sur données historiques
+
+### FX-Specific Assumptions
+
+#### 5. Garman-Kohlhagen Framework
+**Assumption** : Dynamique FX suit le modèle Garman-Kohlhagen étendu
+- **Base Theory** : Extension de Black-Scholes pour FX
+- **Assumptions** :
+  - Taux d'intérêt constants
+  - Pas de dividendes sur devises
+  - Liquidité parfaite
+- **Limitations** : Néglige les primes de risque et frictions de marché
+
+#### 6. Volatility Structure
+**Assumption** : Volatilité effective = Local Vol × √Variance × State Multiplier
+- **Multiplicative Structure** : Indépendance des composants
+- **Reality** : Interactions complexes entre composants
+- **Validation** : Tests empiriques sur données de marché
+
+#### 7. Correlation Stability
+**Assumption** : Corrélation spot-variance constante dans le temps
+- **Simplification** : Facilite la calibration
+- **Reality** : Corrélations varient avec les conditions de marché
+- **Risk** : Model risk en périodes de stress
+
+## Technical Limitations
+
+### Monte Carlo Limitations
+
+#### 1. Convergence Rate
+**Limitation** : Convergence en O(1/√N) - lente pour haute précision
+- **Impact** : Besoins computationnels élevés pour précision fine
+- **Mitigation** : Techniques de réduction de variance
+- **Trade-off** : Précision vs temps de calcul
+
+#### 2. Discrete Time Simulation
+**Limitation** : Discrétisation temporelle introduit des erreurs
+- **Bias** : Sous-estimation de la probabilité d'événements rares
+- **Barrier Options** : Problème particulier pour barrières
+- **Mitigation** : Pas de temps fins, correction de continuité
+
+#### 3. Random Number Quality
+**Limitation** : Qualité du générateur de nombres aléatoires
+- **Impact** : Corrélations spurieuses, périodicité
+- **Requirements** : Générateurs cryptographiquement sûrs
+- **Testing** : Tests statistiques réguliers
+
+### Numerical Limitations
+
+#### 4. Floating Point Precision
+**Limitation** : Précision limitée de l'arithmétique flottante
+- **Accumulation** : Erreurs d'arrondi cumulatives
+- **Extreme Values** : Instabilité pour paramètres extrêmes
+- **Mitigation** : Précision double, algorithmes stables
+
+#### 5. CIR Process Implementation
+**Limitation** : Processus CIR peut devenir négatif
+- **Feller Condition** : 2κθ ≥ ν² pour éviter zéro
+- **Reality** : Condition souvent violée en pratique
+- **Solutions** : Absorption, réflexion, ou troncature
+
+## Market Data Limitations
+
+### Data Quality Issues
+
+#### 6. Implied Volatility Surface Quality
+**Limitation** : Qualité variable des données de volatilité implicite
+- **Liquidity** : Volatilités moins fiables pour strikes/maturités illiquides
+- **Stale Quotes** : Cotations non mises à jour
+- **Arbitrage** : Violations occasionnelles des contraintes d'arbitrage
+
+#### 7. Historical Data Limitations
+**Limitation** : Données historiques limitées ou de qualité variable
+- **Regime Changes** : Changements structurels non capturés
+- **Crisis Periods** : Données atypiques ou manquantes
+- **Survivorship Bias** : Biais de survie dans les données
+
+#### 8. Real-Time Data Latency
+**Limitation** : Latence dans la réception des données de marché
+- **Impact** : Pricing basé sur données obsolètes
+- **Risk** : Exposition au risque de marché non hedgé
+- **Mitigation** : Systèmes de données haute fréquence
+
+## Product Scope Limitations
+
+### Supported Products
+
+#### 9. Single-Asset Focus
+**Limitation** : Optimisé pour options FX single-asset
+- **Multi-Asset** : Extension non-triviale
+- **Basket Options** : Approximations nécessaires
+- **Correlation Risk** : Modélisation simplifiée
+
+#### 10. Path Dependency Complexity
+**Limitation** : Complexité limitée pour dépendance de chemin
+- **Simple Barriers** : Bien supporté
+- **Complex Barriers** : Limitations pour barrières multiples
+- **Lookback/Asian** : Support basique
+
+#### 11. American Exercise
+**Limitation** : Support limité pour exercice anticipé
+- **European Focus** : Optimisé pour options européennes
+- **American Options** : Approximations ou méthodes alternatives
+- **Bermudan Options** : Complexité additionnelle
+
+## Operational Limitations
+
+### System Constraints
+
+#### 12. Computational Resources
+**Limitation** : Besoins computationnels significatifs
+- **Memory** : Stockage des chemins Monte Carlo
+- **CPU** : Calculs intensifs pour gros portfolios
+- **Scalability** : Limitations pour très gros volumes
+
+#### 13. Real-Time Constraints
+**Limitation** : Temps de calcul incompatible avec certaines applications
+- **High-Frequency Trading** : Latence trop élevée
+- **Market Making** : Vitesse insuffisante pour cotation continue
+- **Intraday Risk** : Délais pour monitoring temps réel
+
+#### 14. Calibration Frequency
+**Limitation** : Fréquence de recalibration limitée
+- **Daily Calibration** : Standard mais peut être insuffisant
+- **Intraday Updates** : Coûteux computationnellement
+- **Market Stress** : Besoin de recalibration plus fréquente
+
+### Integration Limitations
+
+#### 15. Legacy System Integration
+**Limitation** : Complexité d'intégration avec systèmes existants
+- **Data Formats** : Incompatibilités de formats
+- **APIs** : Interfaces non standardisées
+- **Performance** : Goulots d'étranglement système
+
+#### 16. Risk System Integration
+**Limitation** : Intégration complexe avec systèmes de risque
+- **Greeks Aggregation** : Méthodes d'agrégation différentes
+- **Scenario Analysis** : Formats de scénarios incompatibles
+- **Reporting** : Standards de reporting variables
+
+## Regulatory and Compliance Limitations
+
+### Model Validation Requirements
+
+#### 17. Regulatory Approval
+**Limitation** : Processus d'approbation réglementaire long
+- **Documentation** : Exigences documentaires extensives
+- **Independent Validation** : Validation par tiers requise
+- **Ongoing Monitoring** : Surveillance continue obligatoire
+
+#### 18. Capital Requirements
+**Limitation** : Impact sur les exigences de capital réglementaire
+- **Model Risk** : Capital additionnel pour risque de modèle
+- **Validation Quality** : Impact sur les charges de capital
+- **Stress Testing** : Exigences de stress testing spécifiques
+
+## Risk Management Limitations
+
+### Model Risk
+
+#### 19. Parameter Uncertainty
+**Limitation** : Incertitude sur les paramètres calibrés
+- **Estimation Error** : Erreurs d'estimation des paramètres
+- **Stability** : Instabilité temporelle des paramètres
+- **Confidence Intervals** : Intervalles de confiance larges
+
+#### 20. Model Specification Risk
+**Limitation** : Risque de mauvaise spécification du modèle
+- **Regime Changes** : Changements non capturés par le modèle
+- **Structural Breaks** : Ruptures structurelles du marché
+- **Alternative Models** : Existence de modèles alternatifs
+
+#### 21. Calibration Risk
+**Limitation** : Risque lié à la qualité de calibration
+- **Local Minima** : Optimisation peut converger vers minima locaux
+- **Overfitting** : Sur-ajustement aux données de calibration
+- **Out-of-Sample** : Performance dégradée hors échantillon
+
+## Mitigation Strategies
+
+### Risk Controls
+
+#### 1. Model Validation Framework
+- **Independent Validation** : Validation par équipe indépendante
+- **Benchmarking** : Comparaison avec modèles alternatifs
+- **Backtesting** : Tests sur données historiques
+- **Stress Testing** : Tests sous conditions extrêmes
+
+#### 2. Operational Controls
+- **Limit Monitoring** : Surveillance des limites d'usage
+- **Quality Metrics** : KPIs de qualité de modèle
+- **Escalation Procedures** : Procédures d'escalation
+- **Fallback Models** : Modèles de secours
+
+#### 3. Continuous Improvement
+- **Regular Review** : Revue périodique du modèle
+- **Enhancement Program** : Programme d'amélioration continue
+- **Research & Development** : R&D pour nouvelles fonctionnalités
+- **User Feedback** : Intégration des retours utilisateurs
+
+## Usage Guidelines
+
+### Recommended Applications
+- **Liquid FX Pairs** : G10 currencies avec liquidité élevée
+- **Standard Maturities** : 1 semaine à 2 ans
+- **Simple Exotics** : Barrières simples, digitals
+- **Portfolio Valuation** : Valorisation de portfolios diversifiés
+
+### Cautionary Applications
+- **Illiquid Pairs** : Paires exotiques avec spreads larges
+- **Long Maturities** : > 2 ans avec validation additionnelle
+- **Complex Exotics** : Produits avec dépendances complexes
+- **Crisis Periods** : Périodes de stress de marché
+
+### Prohibited Applications
+- **High-Frequency Trading** : Latence incompatible
+- **Regulatory Capital** : Sans validation réglementaire appropriée
+- **Unsupported Products** : Produits hors scope défini
+- **Extreme Parameters** : Paramètres hors limites validées
+
+Le modèle FX LSV Markov Switching Monte Carlo dans Our project, malgré ces limitations, reste un outil puissant et approprié pour une large gamme d'applications FX, à condition d'être utilisé dans le cadre de ses limitations et avec les contrôles appropriés.

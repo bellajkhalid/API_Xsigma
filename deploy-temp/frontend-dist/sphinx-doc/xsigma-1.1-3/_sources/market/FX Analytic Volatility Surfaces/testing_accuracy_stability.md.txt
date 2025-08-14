@@ -1,0 +1,391 @@
+# Accuracy & Stability Testing
+
+## 📊 **Accuracy and Stability Testing Overview**
+
+### **Testing Objectives**
+Accuracy and stability tests evaluate the numerical quality of FX volatility surfaces, their convergence and robustness against perturbations. These tests are crucial to ensure reliability of pricing and risk calculations.
+
+### **Testing Domains**
+- **Numerical Accuracy**: Precision of numerical calculations
+- **Convergence Testing**: Algorithm convergence tests
+- **Stability Analysis**: Stability analysis under perturbations
+- **Consistency Validation**: Cross-model consistency validation
+
+---
+
+## 🔧 **Numerical Accuracy Tests**
+
+### **Accuracy Benchmarks**
+
+#### **🔍 Analytical Reference Tests**
+Comparison with known analytical solutions to validate implementation precision.
+
+### **Implementation in Our Project**
+
+#### **🔧 Accuracy Testing Framework**
+```cpp
+// Accuracy testing framework for FX surfaces in Our project
+class fx_accuracy_testing_framework {
+public:
+    enum class accuracy_test_type {
+        ANALYTICAL_BENCHMARK,    // Comparison with analytical solutions
+        CROSS_MODEL_VALIDATION, // Cross-validation between models
+        MONTE_CARLO_VALIDATION, // Monte Carlo validation
+        FINITE_DIFFERENCE_TEST  // Finite difference tests
+    };
+    
+    struct accuracy_test_specification {
+        std::string test_name;
+        accuracy_test_type type;
+        double tolerance;
+        std::vector<double> test_strikes;
+        std::vector<double> test_maturities;
+        std::string reference_model;
+        int num_monte_carlo_paths;
+    };
+    
+    struct accuracy_test_result {
+        std::string test_name;
+        bool passed;
+        double max_absolute_error;
+        double max_relative_error;
+        double rmse;
+        std::map<std::string, double> detailed_metrics;
+        std::vector<std::pair<double, double>> error_distribution;
+    };
+    
+    class numerical_accuracy_tester {
+    public:
+        accuracy_test_result run_analytical_benchmark_test(
+            const fx_volatility_surface_base& surface,
+            const accuracy_test_specification& spec) {
+            
+            accuracy_test_result result;
+            result.test_name = spec.test_name;
+            
+            std::vector<double> absolute_errors;
+            std::vector<double> relative_errors;
+            
+            // Tests on strikes and maturities grid
+            for (double maturity : spec.test_maturities) {
+                for (double strike : spec.test_strikes) {
+
+                    // Calculation via surface
+                    double surface_vol = surface.get_implied_volatility(strike, maturity);
+
+                    // Analytical reference calculation
+                    double analytical_vol = calculate_analytical_reference(strike, maturity);
+
+                    // Error calculations
+                    double abs_error = std::abs(surface_vol - analytical_vol);
+                    double rel_error = abs_error / std::abs(analytical_vol);
+                    
+                    absolute_errors.push_back(abs_error);
+                    relative_errors.push_back(rel_error);
+                }
+            }
+            
+            // Metrics calculation
+            result.max_absolute_error = *std::max_element(absolute_errors.begin(),
+                                                        absolute_errors.end());
+            result.max_relative_error = *std::max_element(relative_errors.begin(),
+                                                        relative_errors.end());
+            result.rmse = calculate_rmse(absolute_errors);
+
+            // Success evaluation
+            result.passed = (result.max_absolute_error < spec.tolerance);
+
+            // Detailed metrics
+            result.detailed_metrics["MEAN_ABS_ERROR"] = calculate_mean(absolute_errors);
+            result.detailed_metrics["STD_ABS_ERROR"] = calculate_std(absolute_errors);
+            result.detailed_metrics["MEAN_REL_ERROR"] = calculate_mean(relative_errors);
+            result.detailed_metrics["STD_REL_ERROR"] = calculate_std(relative_errors);
+            
+            return result;
+        }
+        
+        accuracy_test_result run_cross_model_validation(
+            const fx_volatility_surface_base& surface1,
+            const fx_volatility_surface_base& surface2,
+            const accuracy_test_specification& spec) {
+            
+            accuracy_test_result result;
+            result.test_name = spec.test_name;
+            
+            std::vector<double> differences;
+            
+            // Comparison on test grid
+            for (double maturity : spec.test_maturities) {
+                for (double strike : spec.test_strikes) {
+                    
+                    double vol1 = surface1.get_implied_volatility(strike, maturity);
+                    double vol2 = surface2.get_implied_volatility(strike, maturity);
+                    
+                    double diff = std::abs(vol1 - vol2);
+                    differences.push_back(diff);
+                }
+            }
+            
+            result.max_absolute_error = *std::max_element(differences.begin(), differences.end());
+            result.rmse = calculate_rmse(differences);
+            result.passed = (result.max_absolute_error < spec.tolerance);
+            
+            return result;
+        }
+        
+        accuracy_test_result run_monte_carlo_validation(
+            const fx_volatility_surface_base& surface,
+            const accuracy_test_specification& spec) {
+            
+            accuracy_test_result result;
+            result.test_name = spec.test_name;
+            
+            // Monte Carlo validation for vanilla options
+            std::vector<double> mc_errors;
+            
+            for (double maturity : spec.test_maturities) {
+                for (double strike : spec.test_strikes) {
+                    
+                    // Black-Scholes price via surface
+                    double bs_price = calculate_black_scholes_price(surface, strike, maturity);
+
+                    // Reference Monte Carlo price
+                    double mc_price = calculate_monte_carlo_price(strike, maturity,
+                                                                spec.num_monte_carlo_paths);
+                    
+                    double error = std::abs(bs_price - mc_price);
+                    mc_errors.push_back(error);
+                }
+            }
+            
+            result.max_absolute_error = *std::max_element(mc_errors.begin(), mc_errors.end());
+            result.rmse = calculate_rmse(mc_errors);
+            result.passed = (result.max_absolute_error < spec.tolerance);
+            
+            return result;
+        }
+        
+    private:
+        double calculate_analytical_reference(double strike, double maturity) {
+            // Analytical reference calculation for simple cases
+            // (e.g.: flat smile, pure Black-Scholes model)
+
+            if (std::abs(strike - 1.0) < 1e-6) { // ATM
+                return 0.15; // 15% reference volatility
+            } else {
+                // Simple analytical smile
+                double moneyness = std::log(strike);
+                return 0.15 + 0.1 * moneyness * moneyness; // Quadratic smile
+            }
+        }
+        
+        double calculate_rmse(const std::vector<double>& errors) {
+            double sum_squared = 0.0;
+            for (double error : errors) {
+                sum_squared += error * error;
+            }
+            return std::sqrt(sum_squared / errors.size());
+        }
+    };
+    
+    class convergence_tester {
+    public:
+        struct convergence_test_result {
+            std::string test_name;
+            bool converged;
+            int iterations_to_convergence;
+            double final_residual;
+            std::vector<double> convergence_history;
+            double convergence_rate;
+        };
+        
+        convergence_test_result test_calibration_convergence(
+            const market_data& market_data,
+            const calibration_inputs& calib_inputs) {
+            
+            convergence_test_result result;
+            result.test_name = "CALIBRATION_CONVERGENCE";
+            
+            // Calibration convergence test
+            auto calibrator = create_surface_calibrator();
+
+            // Calibration with convergence monitoring
+            auto calib_result = calibrator.calibrate_with_convergence_monitoring(
+                market_data, calib_inputs);
+
+            result.converged = calib_result.calibration_successful;
+            result.iterations_to_convergence = calib_result.iterations_used;
+            result.final_residual = calib_result.total_objective_value;
+            result.convergence_history = calib_result.objective_history;
+
+            // Convergence rate calculation
+            result.convergence_rate = calculate_convergence_rate(result.convergence_history);
+            
+            return result;
+        }
+        
+        convergence_test_result test_interpolation_convergence(
+            const fx_volatility_surface_base& surface) {
+            
+            convergence_test_result result;
+            result.test_name = "INTERPOLATION_CONVERGENCE";
+            
+            // Interpolation convergence test with grid refinement
+            std::vector<int> grid_sizes = {10, 20, 50, 100, 200};
+            std::vector<double> interpolation_errors;
+
+            for (int grid_size : grid_sizes) {
+                double error = test_interpolation_with_grid_size(surface, grid_size);
+                interpolation_errors.push_back(error);
+            }
+            
+            // Analyse de convergence
+            result.convergence_rate = analyze_convergence_rate(interpolation_errors);
+            result.converged = (interpolation_errors.back() < 1e-6);
+            
+            return result;
+        }
+        
+    private:
+        double calculate_convergence_rate(const std::vector<double>& history) {
+            if (history.size() < 3) return 0.0;
+            
+            // Convergence rate estimation by regression
+            std::vector<double> log_errors;
+            for (size_t i = 1; i < history.size(); ++i) {
+                if (history[i] > 0) {
+                    log_errors.push_back(std::log(history[i]));
+                }
+            }
+
+            // Linear regression to estimate rate
+            return estimate_linear_slope(log_errors);
+        }
+    };
+    
+    class stability_analyzer {
+    public:
+        struct stability_test_result {
+            std::string test_name;
+            bool stable;
+            double max_perturbation_impact;
+            double stability_margin;
+            std::map<std::string, double> sensitivity_metrics;
+        };
+        
+        stability_test_result test_input_perturbation_stability(
+            const fx_volatility_surface_base& base_surface,
+            double perturbation_size) {
+            
+            stability_test_result result;
+            result.test_name = "INPUT_PERTURBATION_STABILITY";
+            
+            // Stability test under input perturbations
+            auto base_market_data = extract_market_data(base_surface);
+
+            std::vector<double> perturbation_impacts;
+
+            // Perturbation of each input
+            for (const auto& [instrument, base_value] : base_market_data) {
+
+                // Positive perturbation
+                auto perturbed_data = base_market_data;
+                perturbed_data[instrument] = base_value * (1.0 + perturbation_size);
+
+                auto perturbed_surface = calibrate_surface(perturbed_data);
+                double impact = measure_surface_difference(base_surface, perturbed_surface);
+
+                perturbation_impacts.push_back(impact);
+            }
+
+            result.max_perturbation_impact = *std::max_element(
+                perturbation_impacts.begin(), perturbation_impacts.end());
+
+            // Stability criterion: impact < 10x perturbation
+            double stability_threshold = 10.0 * perturbation_size;
+            result.stable = (result.max_perturbation_impact < stability_threshold);
+            result.stability_margin = stability_threshold - result.max_perturbation_impact;
+            
+            return result;
+        }
+        
+        stability_test_result test_numerical_stability(
+            const fx_volatility_surface_base& surface) {
+            
+            stability_test_result result;
+            result.test_name = "NUMERICAL_STABILITY";
+            
+            // Numerical stability tests
+            bool finite_differences_stable = test_finite_differences_stability(surface);
+            bool interpolation_stable = test_interpolation_stability(surface);
+            bool bumping_stable = test_bumping_stability(surface);
+
+            result.stable = finite_differences_stable && interpolation_stable && bumping_stable;
+
+            // Detailed metrics
+            result.sensitivity_metrics["FINITE_DIFF_STABLE"] = finite_differences_stable ? 1.0 : 0.0;
+            result.sensitivity_metrics["INTERPOLATION_STABLE"] = interpolation_stable ? 1.0 : 0.0;
+            result.sensitivity_metrics["BUMPING_STABLE"] = bumping_stable ? 1.0 : 0.0;
+            
+            return result;
+        }
+        
+    private:
+        double measure_surface_difference(const fx_volatility_surface_base& surface1,
+                                        const fx_volatility_surface_base& surface2) {
+            
+            // Measure difference between surfaces
+            std::vector<double> test_strikes = {0.8, 0.9, 1.0, 1.1, 1.2};
+            std::vector<double> test_maturities = {0.25, 0.5, 1.0, 2.0, 5.0};
+
+            double max_diff = 0.0;
+
+            for (double maturity : test_maturities) {
+                for (double strike : test_strikes) {
+                    double vol1 = surface1.get_implied_volatility(strike, maturity);
+                    double vol2 = surface2.get_implied_volatility(strike, maturity);
+
+                    double diff = std::abs(vol1 - vol2);
+                    max_diff = std::max(max_diff, diff);
+                }
+            }
+            
+            return max_diff;
+        }
+    };
+};
+```
+*This C++ implementation in Our project shows the complete accuracy and stability testing framework with analytical validation, convergence and perturbation analysis.*
+
+---
+
+## 📈 **Convergence Tests**
+
+### **Calibration Convergence**
+- **Objective Function**: Objective function convergence
+- **Parameter Stability**: Stability of calibrated parameters
+- **Iteration Count**: Number of iterations required
+- **Convergence Rate**: Convergence rate (linear/quadratic)
+
+### **Interpolation Convergence**
+- **Grid Refinement**: Convergence with grid refinement
+- **Method Comparison**: Comparison of interpolation methods
+- **Extrapolation Stability**: Stability in extrapolation
+
+---
+
+## 🎯 **Stability Tests**
+
+### **Perturbation Stability**
+- **Input Sensitivity**: Sensitivity to input perturbations
+- **Parameter Robustness**: Parameter robustness
+- **Numerical Conditioning**: Numerical conditioning
+
+### **Temporal Stability**
+- **Intraday Stability**: Intraday stability
+- **Cross-Session Consistency**: Cross-session consistency
+- **Historical Stability**: Historical stability
+
+---
+
+*This section details the complete accuracy and stability tests for FX volatility surfaces, integrating Our project best practices with rigorous numerical validation methods and convergence analysis.*

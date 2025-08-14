@@ -1,0 +1,256 @@
+# Executive Summary
+
+## 📊 **Global Model Risk Assessment**
+
+Le **Global Model Risk Assessment** pour les modèles DBOPT-CorrelationSkew présente les évaluations suivantes pour les trois configurations principales :
+
+### **Évaluation des Risques par Modèle**
+
+#### **DBOPT-RateDeterministic_FXMarket_AssetMarket_CorrelationSkew**
+| Critère | Rating | Justification |
+|---------|--------|---------------|
+| **Complexité** | HIGH | Le modèle a plus d'un actif avec skew |
+| **Incertitude** | LOW | Le modèle n'a pas de trades live |
+| **Dépendance** | HIGH | Les modèles de pricing ont une dépendance élevée |
+
+#### **DBOPT-RateDeterministic_EquityBlackScholes_AssetMarket_CorrelationSkew**
+| Critère | Rating | Justification |
+|---------|--------|---------------|
+| **Complexité** | HIGH | Le modèle a plus d'un actif avec skew |
+| **Incertitude** | LOW | Le modèle n'a pas de trades live |
+| **Dépendance** | HIGH | Les modèles de pricing ont une dépendance élevée |
+
+#### **DBOPT-RatesMarketAFSABR_FXMarket_EquityBlackScholes_CorrelationSkew**
+| Critère | Rating | Justification |
+|---------|--------|---------------|
+| **Complexité** | HIGH | Le modèle a plus d'un actif avec skew |
+| **Incertitude** | LOW | Le modèle n'a pas de trades live |
+| **Dépendance** | HIGH | Les modèles de pricing ont une dépendance élevée |
+
+---
+
+## 🎯 **Méthodologie d'Évaluation**
+
+### **Rating de Complexité - HIGH**
+Le rating de complexité élevé est justifié par :
+- **Modélisation multi-actifs** avec skew de corrélation
+- **Copule de corrélation sophistiquée** (TermSkew)
+- **Interactions complexes** entre sous-jacents IR/EQ/FX/Asset
+- **Calibration avancée** aux digitaux duaux
+
+### **Rating d'Incertitude - LOW**
+Le rating d'incertitude faible s'explique par :
+- **Absence de trades live** réduisant l'exposition au risque
+- **Méthodologie éprouvée** basée sur des modèles établis
+- **Validation extensive** avec tests Monte Carlo
+- **Framework DBAnalytics** mature et testé
+
+### **Rating de Dépendance - HIGH**
+La dépendance élevée est due au fait que :
+- Les **outputs du modèle définissent** les métriques officiellement reportées
+- **Réduction inappropriée** de la dépendance aux outputs de pricing
+- **Utilisation critique** pour valorisation et gestion des risques
+
+---
+
+## ✅ **Résumé des Principaux Résultats de Validation**
+
+### **Objectifs des Modèles**
+Le modèle **DBOPT-CorrelationSkew** est utilisé pour les objectifs suivants :
+
+#### **📈 Évaluation et Reporting**
+- Génération de **mesures de fair value** d'actifs et passifs
+- Génération de **sensibilités de risque** pour gestion End of Day
+- Alimentation des calculs de **Risk and Capital**
+
+#### **🔄 Tests de Stress**
+- Re-pricing sous **scénarios de stress** comme modèle servicer
+- Tests de stress réglementaires (**CCAR**)
+- Calculs **Interest Rate Risk in Banking Book (IRRBB)** Delta EVE
+- **Simulations historiques** (HistSim) et Value at Risk
+
+### **Développement et Maintenance**
+Le modèle est développé et maintenu par **DBAnalytics** et fourni via :
+- **DLLs** pour utilisation dans Microsoft Excel
+- **Python** et **Perl**
+- Disponible dans **Kannon** et **Risk Engine**
+
+---
+
+## 🏗️ **Scope des Produits et Configurations**
+
+### **Modèles et Configurations Approuvés**
+
+#### **Configuration 1 : RateDeterministic_FXMarket_AssetMarket**
+```cpp
+// Configuration dans Our project
+struct correlation_skew_config_1 {
+    std::string model_name = "DBOPT-RatesMarketDeterministic_FXMarket_AssetMarket_CorrelationSkew";
+    std::string correlation_method = "TermSkew";
+    
+    std::vector<std::string> supported_products = {
+        "HybMultiDigital",
+        "HybContingentOptMultiAssetBasket"
+    };
+    
+    // Paramètres de corrélation
+    struct correlation_params {
+        std::string copula_method = "SIMCOPULA";
+        int term_skew_max_iter = 1000;
+        bool term_skew_smoothing = true;
+        std::string interp_type = "LINEAR";
+    } correlation_config;
+};
+```
+*Cette configuration C++ dans Our project montre les paramètres pour le modèle RateDeterministic avec FX et Asset markets.*
+
+#### **Configuration 2 : RateDeterministic_EquityBlackScholes_AssetMarket**
+```cpp
+// Configuration Equity Black-Scholes dans Our project
+struct correlation_skew_config_2 {
+    std::string model_name = "DBOPT-RatesMarketDeterministic_Equity[BSANALYTIC]_AssetMarket_CorrelationSkew";
+    std::string equity_model = "BSANALYTIC";
+    std::string correlation_method = "TermSkew";
+    
+    // Validation des paramètres Equity
+    bool validate_equity_parameters() const {
+        return !equity_model.empty() && 
+               (equity_model == "BSANALYTIC" || equity_model == "BSMC");
+    }
+};
+```
+
+#### **Configuration 3 : RatesMarketAFSABR_FXMarket_EquityBlackScholes**
+```cpp
+// Configuration AFSABR complète dans Our project
+struct correlation_skew_config_3 {
+    std::string model_name = "DBOPT-RatesMarketAFSABR_FXMarket[AUTO]_Equity[BSANALYTIC]_CorrelationSkew";
+    std::string rates_model = "AFSABR";
+    std::string fx_model = "AUTO";
+    std::string equity_model = "BSANALYTIC";
+    std::string correlation_method = "TERMSKEW";
+    
+    // Produits avec priorité
+    std::map<std::string, bool> products_priority = {
+        {"HybMultiDigital", true},  // Primary model
+        {"HybContingentOptMultiAssetBasket", false}
+    };
+};
+```
+
+### **Produits Supportés**
+- **HybMultiDigital*** - Digitaux hybrides multi-actifs (modèle primaire)
+- **HybContingentOptMultiAssetBasket** - Options contingentes sur panier multi-actifs
+
+*Les produits marqués avec "*" indiquent que le modèle approuvé est primaire.*
+
+---
+
+## 🎯 **Framework Théorique**
+
+### **Modèle DBOPT-CorrelationSkew**
+Le modèle DBOPT est une implémentation analytique et Monte Carlo single horizon qui peut être utilisée pour pricer des dérivés sur un ou deux sous-jacents qui se fixent à la même date.
+
+#### **Composants du Modèle**
+- **AFSABR** pour la volatilité IR
+- **PIV** pour les volatilités FX, EQ et Asset
+- **Copule de skew de corrélation** pour la distribution jointe
+
+#### **Objectif du CorrelationSkew**
+```cpp
+// Objectif de modélisation dans Our project
+class correlation_skew_objective {
+public:
+    enum class pricing_target {
+        DUAL_DIGITALS,           // Digitaux duaux
+        CONTINGENT_OPTIONS,      // Options contingentes
+        MULTI_ASSET_BASKETS     // Paniers multi-actifs
+    };
+    
+    struct model_purpose {
+        std::string description = "Price accurately 2D payoffs and capture correlation skew";
+        std::vector<pricing_target> targets;
+        bool sticky_strike_correlation = true;
+        
+        // Justification du modèle
+        std::string rationale = 
+            "Simple copula models (Gaussian, Gumbel) cannot capture "
+            "correlation skew evidenced by dual digitals at different strikes. "
+            "Rich non-parametric correlation model necessary.";
+    };
+    
+    // Validation de l'applicabilité
+    bool is_applicable_for_product(const std::string& product_type) const {
+        return product_type == "HybMultiDigital" || 
+               product_type == "HybContingentOptMultiAssetBasket";
+    }
+};
+```
+*Cette classe C++ dans Our project définit les objectifs et l'applicabilité du modèle CorrelationSkew pour différents types de produits.*
+
+---
+
+## 📋 **Usages Recommandés et Validation**
+
+### **Usages Approuvés**
+
+| Usage | Recommandé pour Utilisation (RFU) |
+|-------|-----------------------------------|
+| **EOD** | ✅ YES |
+| **HistSim** | ✅ YES |
+| **CCAR** | ✅ YES |
+| **IRRBB** | ✅ YES |
+
+### **Résultats de Validation**
+La revue entreprise n'a révélé **aucun défaut** dans la théorie ou les implémentations pertinentes.
+
+#### **Points Clés de Validation**
+- ✅ **Méthodologie théorique** validée
+- ✅ **Implémentation technique** vérifiée
+- ✅ **Tests de convergence** Monte Carlo réussis
+- ✅ **Stabilité des risques** confirmée
+- ✅ **Conformité réglementaire** établie
+
+---
+
+## 🔍 **Limitations et Findings**
+
+### **Limitations du Modèle**
+Pour les trois configurations de modèles :
+- **DBOPT-RateDeterministic_FXMarket_AssetMarket_CorrelationSkew**
+- **DBOPT-RateDeterministic_EquityBlackScholes_AssetMarket_CorrelationSkew**
+- **DBOPT-RatesMarketAFSABR_FXMarket_EquityBlackScholes_CorrelationSkew**
+
+Les limitations sont documentées et gérées via le processus de **Model Parameter Monitoring**.
+
+### **Validation Findings**
+Aucun finding de validation nécessitant d'être adressé n'a été identifié.
+
+### **Contrôles et Surveillance**
+- **Conditions d'utilisation** classées comme Model Rule
+- **Surveillance automatisée** via Model Parameter Monitoring
+- **Enregistrement** dans MARS de toutes les conditions d'utilisation
+
+---
+
+## 🎯 **Conclusion Générale**
+
+### **Recommandation d'Utilisation**
+Le framework DBOPT-CorrelationSkew est **recommandé pour utilisation** dans tous les usages définis, avec :
+
+- **Validation complète** des trois configurations
+- **Tests exhaustifs** sous différents scénarios
+- **Contrôles appropriés** en place
+- **Surveillance continue** des paramètres
+
+### **Avantages Clés**
+- **Modélisation riche** de la corrélation non-paramétrique
+- **Capture du skew de corrélation** pour digitaux duaux
+- **Flexibilité** pour surface de corrélation complexe
+- **Sticky strike correlation** selon les exigences business
+
+Le modèle représente une solution avancée et validée pour le pricing de produits 2D avec corrélation sophistiquée, répondant aux exigences de précision et de robustesse pour les applications de trading et de gestion des risques.
+
+---
+
+*Cette section fournit un résumé exécutif complet du framework DBOPT-CorrelationSkew, intégrant les standards de documentation de Our project avec les détails techniques et les résultats de validation.*

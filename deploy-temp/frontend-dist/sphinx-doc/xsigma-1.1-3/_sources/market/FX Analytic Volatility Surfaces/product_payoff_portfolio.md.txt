@@ -1,0 +1,405 @@
+# Product / Payoff / Portfolio
+
+## 📊 **FX Products Overview**
+
+### **Section Objective**
+This section presents fundamental FX conventions and various FX option products. The products discussed here are essential as their prices, expressed via Black-Scholes implied volatilities, serve as inputs for the FX volatility surface model.
+
+### **Description Scope**
+The descriptions provided are sufficient to interpret market quotes and populate the internal state of the FX volatility object. This section does not aim to be a complete guide for booked trades of similar types; separate documents will cover these products for pricing purposes.
+
+---
+
+## 🔧 **Standard FX Definitions and Conventions**
+
+### **Currency Pair FORDOM**
+
+#### **🔍 Currency Pair Structure**
+A currency pair consists of two currencies linked by a spot rate $S$. The spot rate $S$ represents the value of one unit of foreign currency (FOR) in terms of domestic currency (DOM).
+
+#### **🔍 Display Convention**
+The standard convention for displaying spot rates on platforms like Reuters is **FORDOM**, such as USDJPY:
+- **Domestic currency**: JPY
+- **Foreign currency**: USD
+- **Spot rate**: Value of 1 USD in JPY terms
+
+### **Implementation in Our Project**
+
+#### **🔧 Currency Pairs Framework**
+```cpp
+// Currency pairs management framework in Our project
+class fx_currency_pair_framework {
+public:
+    struct currency_pair_specification {
+        std::string foreign_currency;  // FOR
+        std::string domestic_currency; // DOM
+        std::string pair_name;         // FORDOM format
+        double spot_rate;
+        std::string market_convention;
+    };
+    
+    enum class option_type {
+        CALL,  // Option to buy foreign currency
+        PUT    // Option to sell foreign currency
+    };
+    
+    class currency_pair_manager {
+    public:
+        currency_pair_specification parse_currency_pair(const std::string& pair_name) {
+            currency_pair_specification spec;
+            
+            if (pair_name == "USDJPY") {
+                spec.foreign_currency = "USD";
+                spec.domestic_currency = "JPY";
+                spec.pair_name = "USDJPY";
+                spec.market_convention = "USD value in JPY terms";
+            } else if (pair_name == "GBPUSD") {
+                spec.foreign_currency = "GBP";
+                spec.domestic_currency = "USD";
+                spec.pair_name = "GBPUSD";
+                spec.market_convention = "GBP value in USD terms (Cable)";
+            } else if (pair_name == "EURUSD") {
+                spec.foreign_currency = "EUR";
+                spec.domestic_currency = "USD";
+                spec.pair_name = "EURUSD";
+                spec.market_convention = "EUR value in USD terms";
+            }
+            
+            return spec;
+        }
+        
+        std::string interpret_option_direction(const std::string& pair_name, 
+                                             option_type type) {
+            auto spec = parse_currency_pair(pair_name);
+            
+            if (type == option_type::CALL) {
+                return "Option to buy " + spec.foreign_currency + 
+                       " and sell " + spec.domestic_currency + 
+                       " at predetermined strike";
+            } else {
+                return "Option to sell " + spec.foreign_currency + 
+                       " and buy " + spec.domestic_currency + 
+                       " at predetermined strike";
+            }
+        }
+    };
+};
+```
+*This C++ implementation in Our project shows currency pair conventions management and option direction interpretation.*
+
+**Example:** For GBPUSD (Cable), the domestic currency is USD and the foreign currency is GBP. Calls and puts refer to the foreign currency, so a USDJPY call is an option to buy USD and sell JPY at a predetermined strike.
+
+---
+
+## 🎯 **At-the-Money (ATM) Definitions**
+
+### **Three ATM Definitions**
+The at-the-money (ATM) strike can be defined in three ways:
+
+#### **🔧 ATM Spot**
+- **Definition**: The ATM strike is today's FX spot rate
+- **Usage**: Simple but does not account for carry cost
+
+#### **🔧 ATM Forward**
+- **Definition**: The ATM strike is the forward rate observed today for the maturity
+- **Usage**: Accounts for interest rate differentials
+
+#### **🔧 ATM Zero-Delta-Straddle (ZDS)**
+- **Definition**: The strike is set such that the straddle has zero delta
+- **Usage**: Perfect delta neutrality
+
+### **Delta Interpretation**
+The ATM ZDS definition depends on the interpretation of "delta":
+
+#### **🔍 Spot Delta**
+- **Definition**: Amount of FX spot required to delta-hedge the FX option
+- **Calculation**: $\Delta_{spot} = \frac{\partial V}{\partial S}$
+
+#### **🔍 Forward Delta**
+- **Definition**: Amount of FX forward contracts needed to delta-hedge the FX option
+- **Calculation**: $\Delta_{forward} = \frac{\partial V}{\partial F}$
+
+### **Implementation in Our Project**
+
+#### **🔧 ATM Framework**
+```cpp
+// ATM calculation framework in Our project
+class fx_atm_calculation_framework {
+public:
+    enum class atm_type {
+        SPOT,           // ATM = Spot rate
+        FORWARD,        // ATM = Forward rate
+        ZERO_DELTA_STRADDLE  // ATM = ZDS strike
+    };
+    
+    enum class delta_type {
+        SPOT_DELTA,     // Spot delta hedging
+        FORWARD_DELTA   // Forward delta hedging
+    };
+    
+    struct atm_calculation_inputs {
+        double spot_rate;
+        double domestic_rate;
+        double foreign_rate;
+        double time_to_expiry;
+        double volatility;
+        std::string premium_currency;
+        std::string face_currency;
+    };
+    
+    class atm_calculator {
+    public:
+        double calculate_atm_strike(atm_type type, 
+                                  const atm_calculation_inputs& inputs) {
+            switch (type) {
+                case atm_type::SPOT:
+                    return calculate_atm_spot(inputs);
+                case atm_type::FORWARD:
+                    return calculate_atm_forward(inputs);
+                case atm_type::ZERO_DELTA_STRADDLE:
+                    return calculate_atm_zds(inputs);
+                default:
+                    throw std::invalid_argument("Unknown ATM type");
+            }
+        }
+        
+    private:
+        double calculate_atm_spot(const atm_calculation_inputs& inputs) {
+            return inputs.spot_rate;
+        }
+        
+        double calculate_atm_forward(const atm_calculation_inputs& inputs) {
+            double forward_rate = inputs.spot_rate * 
+                std::exp((inputs.domestic_rate - inputs.foreign_rate) * inputs.time_to_expiry);
+            return forward_rate;
+        }
+        
+        double calculate_atm_zds(const atm_calculation_inputs& inputs) {
+            // Numerical resolution to find strike where delta_call + delta_put = 0
+            return solve_zero_delta_straddle(inputs);
+        }
+        
+        double solve_zero_delta_straddle(const atm_calculation_inputs& inputs) {
+            // Newton-Raphson method to solve delta_straddle = 0
+            double strike_guess = calculate_atm_forward(inputs);
+            const double tolerance = 1e-10;
+            const int max_iterations = 100;
+            
+            for (int i = 0; i < max_iterations; ++i) {
+                double delta_straddle = calculate_straddle_delta(strike_guess, inputs);
+                double vega_straddle = calculate_straddle_vega(strike_guess, inputs);
+                
+                if (std::abs(delta_straddle) < tolerance) {
+                    return strike_guess;
+                }
+                
+                strike_guess -= delta_straddle / vega_straddle;
+            }
+            
+            throw std::runtime_error("ZDS calculation did not converge");
+        }
+        
+        double calculate_straddle_delta(double strike, const atm_calculation_inputs& inputs) {
+            // Straddle delta = delta_call + delta_put
+            double call_delta = calculate_call_delta(strike, inputs);
+            double put_delta = calculate_put_delta(strike, inputs);
+            return call_delta + put_delta;
+        }
+    };
+};
+```
+
+### **Reference Currencies**
+Two currencies must be specified:
+
+#### **🔍 Premium Currency (Booking Currency)**
+- **Definition**: Currency in which the FX option is valued
+- **Example**: A USD call-JPY put is typically valued in yen, but can also be valued in dollars
+
+#### **🔍 Face Currency**
+- **Definition**: Currency in which the notional amount of the FX option is expressed
+- **Example**: A USDJPY option is generally specified in USD notional but can also be expressed in JPY notional
+
+**Impact:** The choice of premium and face currencies affects the delta definition.
+
+---
+
+## 📊 **Product Description**
+
+### **Call/Put Options**
+
+#### **🔧 Basic Option Products**
+The basic option products are vanilla call and put options.
+
+#### **🔍 Payoffs**
+The payoff for call and put options with expiration $T$, strike $K$, and notional $A$ is:
+
+**Call Option:**
+$$Call(K,T) = A(S_T - K)^+ \tag{4.1}$$
+
+**Put Option:**
+$$Put(K,T) = A(K - S_T)^+ \tag{4.2}$$
+
+This payoff is settled at time $T$ (or shortly after, following FX market conventions).
+
+#### **🔍 Quoting Convention**
+When quoting the price of a call or put option, market convention specifies the volatility value $\Theta(K,T)$ which, when integrated into the Black-Scholes formula, gives the present value (PV) of the option:
+
+$$PV(Call(K,T)) = C(K,T,\Theta(K,T)) \tag{4.3}$$
+
+### **Implementation in Our Project**
+
+#### **🔧 Vanilla Products Framework**
+```cpp
+// Vanilla options products framework in Our project
+class fx_vanilla_option_framework {
+public:
+    enum class option_type {
+        CALL,
+        PUT
+    };
+    
+    struct vanilla_option_specification {
+        option_type type;
+        double strike;
+        double expiry;
+        double notional;
+        std::string currency_pair;
+        std::string premium_currency;
+        std::string face_currency;
+    };
+    
+    class vanilla_option_pricer {
+    public:
+        double calculate_payoff(const vanilla_option_specification& spec,
+                              double spot_at_expiry) {
+            switch (spec.type) {
+                case option_type::CALL:
+                    return spec.notional * std::max(spot_at_expiry - spec.strike, 0.0);
+                case option_type::PUT:
+                    return spec.notional * std::max(spec.strike - spot_at_expiry, 0.0);
+                default:
+                    return 0.0;
+            }
+        }
+        
+        double calculate_black_scholes_pv(const vanilla_option_specification& spec,
+                                        double spot_rate,
+                                        double domestic_rate,
+                                        double foreign_rate,
+                                        double implied_volatility) {
+            
+            // Black-Scholes parameters
+            double S = spot_rate;
+            double K = spec.strike;
+            double T = spec.expiry;
+            double r_d = domestic_rate;
+            double r_f = foreign_rate;
+            double sigma = implied_volatility;
+            
+            // Calculate d1 and d2
+            double d1 = (std::log(S/K) + (r_d - r_f + 0.5*sigma*sigma)*T) / (sigma*std::sqrt(T));
+            double d2 = d1 - sigma*std::sqrt(T);
+            
+            // Normal distribution functions
+            double N_d1 = normal_cdf(d1);
+            double N_d2 = normal_cdf(d2);
+            double N_minus_d1 = normal_cdf(-d1);
+            double N_minus_d2 = normal_cdf(-d2);
+            
+            // Discount factors
+            double df_domestic = std::exp(-r_d * T);
+            double df_foreign = std::exp(-r_f * T);
+            
+            double pv = 0.0;
+            
+            switch (spec.type) {
+                case option_type::CALL:
+                    pv = spec.notional * (S * df_foreign * N_d1 - K * df_domestic * N_d2);
+                    break;
+                case option_type::PUT:
+                    pv = spec.notional * (K * df_domestic * N_minus_d2 - S * df_foreign * N_minus_d1);
+                    break;
+            }
+            
+            return pv;
+        }
+        
+        double calculate_implied_volatility(const vanilla_option_specification& spec,
+                                          double market_price,
+                                          double spot_rate,
+                                          double domestic_rate,
+                                          double foreign_rate) {
+            
+            // Numerical resolution for implied volatility
+            return solve_implied_volatility_newton_raphson(
+                spec, market_price, spot_rate, domestic_rate, foreign_rate);
+        }
+        
+    private:
+        double normal_cdf(double x) {
+            // Implementation of normal cumulative distribution function
+            return 0.5 * (1.0 + std::erf(x / std::sqrt(2.0)));
+        }
+        
+        double solve_implied_volatility_newton_raphson(
+            const vanilla_option_specification& spec,
+            double target_price,
+            double spot_rate,
+            double domestic_rate,
+            double foreign_rate) {
+            
+            double vol_guess = 0.2; // Initial guess of 20%
+            const double tolerance = 1e-8;
+            const int max_iterations = 100;
+            
+            for (int i = 0; i < max_iterations; ++i) {
+                double price = calculate_black_scholes_pv(spec, spot_rate, domestic_rate, 
+                                                        foreign_rate, vol_guess);
+                double vega = calculate_vega(spec, spot_rate, domestic_rate, 
+                                           foreign_rate, vol_guess);
+                
+                double price_diff = price - target_price;
+                
+                if (std::abs(price_diff) < tolerance) {
+                    return vol_guess;
+                }
+                
+                vol_guess -= price_diff / vega;
+                
+                // Volatility constraints
+                vol_guess = std::max(0.001, std::min(vol_guess, 5.0));
+            }
+            
+            throw std::runtime_error("Implied volatility calculation did not converge");
+        }
+        
+        double calculate_vega(const vanilla_option_specification& spec,
+                            double spot_rate,
+                            double domestic_rate,
+                            double foreign_rate,
+                            double volatility) {
+            
+            double S = spot_rate;
+            double K = spec.strike;
+            double T = spec.expiry;
+            double r_d = domestic_rate;
+            double r_f = foreign_rate;
+            double sigma = volatility;
+            
+            double d1 = (std::log(S/K) + (r_d - r_f + 0.5*sigma*sigma)*T) / (sigma*std::sqrt(T));
+            double df_foreign = std::exp(-r_f * T);
+            
+            // Vega = S * exp(-r_f * T) * sqrt(T) * phi(d1)
+            double phi_d1 = (1.0 / std::sqrt(2.0 * M_PI)) * std::exp(-0.5 * d1 * d1);
+            
+            return spec.notional * S * df_foreign * std::sqrt(T) * phi_d1;
+        }
+    };
+};
+```
+*This C++ implementation in Our project shows the complete FX vanilla options pricing framework with implied volatility calculation.*
+
+---
+
+*This section establishes the foundations of FX conventions and basic products, providing the necessary basis for understanding market inputs used in FX volatility surface construction.*

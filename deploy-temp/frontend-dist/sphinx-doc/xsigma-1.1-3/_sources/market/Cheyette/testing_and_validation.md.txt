@@ -1,0 +1,499 @@
+# Testing and Validation
+
+## Overview
+
+Comprehensive testing and validation of the Cheyette Local Vol model ensures its accuracy, stability, and reliability for production use. The testing framework covers multiple aspects including numerical accuracy, calibration performance, risk calculation validation, and stress testing under various market conditions.
+
+## Test Categories
+
+### 1. Unit Tests
+
+**Objective**: Validate individual model components in isolation.
+
+**Coverage**:
+- Zero bond reconstruction formulas
+- Analytical approximations for swaption volatility and skew
+- PDE solver components and discretization schemes
+- Calibration algorithms and convergence
+- Risk calculation methodologies
+
+**Key Tests**:
+- Verification of zero bond reconstruction against analytical solutions
+- Validation of swaption pricing against Black-Scholes benchmarks
+- PDE solver convergence tests with known analytical solutions
+- Calibration accuracy tests with synthetic market data
+
+## Testing Implementation in Our Project
+
+The testing framework described above is implemented through a comprehensive test infrastructure that validates all aspects of the Cheyette model.
+
+**Core Testing Infrastructure**:
+```cpp
+namespace xsigma {
+    // Main test class for Cheyette model validation
+    class cheyette_model_tester {
+    public:
+        // Constructor
+        cheyette_model_tester(
+            const ptr_const<model_cheyette>& model,
+            const ptr_const<discount_curve>& curve,
+            const datetime& valuation_date
+        );
+
+        // Unit tests for core functionality
+        bool test_zero_bond_reconstruction() const;
+        bool test_swaption_pricing_accuracy() const;
+        bool test_calibration_convergence() const;
+        bool test_pde_solver_stability() const;
+        bool test_monte_carlo_convergence() const;
+
+        // Integration tests
+        bool test_calibration_pricing_consistency() const;
+        bool test_risk_calculation_accuracy() const;
+        bool test_multi_currency_integration() const;
+
+        // Generate comprehensive test report
+        test_report generate_full_report() const;
+
+    private:
+        ptr_const<model_cheyette> model_;
+        ptr_const<discount_curve> curve_;
+        datetime valuation_date_;
+
+        // Helper functions for test validation
+        bool compare_with_tolerance(double actual, double expected, double tolerance) const;
+        std::vector<test_result> run_test_suite(const std::string& suite_name) const;
+    };
+}
+```
+
+*This testing infrastructure implements the comprehensive validation framework described above. The unit tests validate individual components like zero bond reconstruction and swaption pricing, while integration tests ensure proper interaction between calibration and pricing components. Each test method returns detailed results that can be aggregated into comprehensive reports.*
+
+### 2. Integration Tests
+
+**Objective**: Validate the interaction between different model components.
+
+**Coverage**:
+- End-to-end pricing workflow
+- Calibration to pricing consistency
+- Risk calculation accuracy
+- Feeder model integration
+
+**Key Tests**:
+- Pricing consistency between calibration instruments and model prices
+- Risk calculation validation through bump-and-revalue methods
+- Integration with yield curve and volatility surface feeder models
+- Multi-trade portfolio pricing and risk aggregation
+
+## Zero Bond Reconstruction Test Implementation
+
+One of the most critical tests is verifying that the Cheyette model correctly reconstructs zero bond prices from the input discount curve. This ensures the model is arbitrage-free and consistent with market data.
+
+```cpp
+namespace xsigma {
+    // Implementation of zero bond reconstruction test
+    bool cheyette_model_tester::test_zero_bond_reconstruction() const {
+        const double tolerance = 1e-8;  // Very tight tolerance for zero bonds
+        bool all_passed = true;
+
+        // Test various maturities from 3 months to 10 years
+        std::vector<double> maturities = {0.25, 0.5, 1.0, 2.0, 5.0, 10.0};
+
+        for (double maturity : maturities) {
+            datetime maturity_date = valuation_date_.add_years(maturity);
+
+            // Initialize state variables at zero (risk-neutral measure)
+            matrix<double> initial_state(2, 1);
+            initial_state(0, 0) = 0.0; // x_0 = 0 (short rate factor)
+            initial_state(1, 0) = 0.0; // y_0 = 0 (volatility factor)
+
+            // Calculate zero bond price using Cheyette model
+            vector<double> log_df_output(1);
+            model_->conditional_price(initial_state, valuation_date_, maturity_date, log_df_output);
+            double model_zb_price = std::exp(log_df_output[0]);
+
+            // Get market zero bond price from input discount curve
+            double market_zb_price = curve_->df(valuation_date_, maturity_date);
+
+            // Verify prices match within tolerance
+            if (!compare_with_tolerance(model_zb_price, market_zb_price, tolerance)) {
+                all_passed = false;
+                XSIGMA_WARN("Zero bond reconstruction failed for maturity " + std::to_string(maturity));
+            }
+        }
+
+        return all_passed;
+    }
+}
+```
+
+*Cette implémentation teste la reconstruction des obligations zéro-coupon en comparant les prix calculés par le modèle Cheyette avec les prix du marché. Le test utilise des états initiaux nuls (mesure risque-neutre) et vérifie que le modèle reproduit exactement la courbe de taux d'entrée. Une tolérance très stricte (1e-8) est utilisée car cette propriété est fondamentale pour l'absence d'arbitrage.*
+
+### 3. Benchmark Tests
+
+**Objective**: Compare CLV model results against established benchmarks and alternative models.
+
+**Benchmarks**:
+- Analytical solutions for simple payoffs
+- Monte Carlo simulations for complex derivatives
+- Alternative model implementations (HJM1, QG2, LMM)
+- Market standard pricing models
+
+**Key Comparisons**:
+- European swaption pricing vs Black-Scholes
+- Bermudan swaption pricing vs Monte Carlo LMM
+- Risk sensitivities vs finite difference methods
+- Calibration quality vs alternative short rate models
+
+## Numerical Validation
+
+### PDE Solver Validation
+
+**Convergence Testing**:
+- Grid refinement studies to demonstrate convergence
+- Time step sensitivity analysis
+- Spatial grid density optimization
+- Boundary condition accuracy verification
+
+## PDE Solver Convergence Test Implementation
+
+The PDE solver validation ensures numerical stability and convergence of the finite difference scheme used for pricing complex derivatives.
+
+```cpp
+namespace xsigma {
+    // Implementation of PDE solver convergence test
+    bool cheyette_model_tester::test_pde_solver_convergence() const {
+        const double convergence_tolerance = 0.01; // 1% relative tolerance
+
+        // Test with different grid resolutions
+        std::vector<size_t> grid_sizes = {50, 100, 200, 400};
+        std::vector<size_t> time_steps = {50, 100, 200, 400};
+
+        // Create a test European swaption for validation
+        datetime expiry = valuation_date_.add_years(2);
+        datetime start = expiry;
+        datetime end = start.add_years(5);
+        double strike = 0.03; // 3% strike rate
+
+        auto test_swaption = util::make_ptr_const<european_swaption>(
+            expiry, start, end, strike, true); // payer swaption
+
+        std::vector<double> prices;
+
+        // Calculate prices with increasing grid resolution
+        for (size_t i = 0; i < grid_sizes.size(); ++i) {
+            // Configure PDE solver with specific grid parameters
+            auto pde_config = util::make_ptr_const<pde_solver_config>(
+                grid_sizes[i],    // spatial grid points
+                time_steps[i],    // time discretization steps
+                5.0,              // spatial domain size (in standard deviations)
+                true              // use adaptive time stepping
+            );
+
+            // Price swaption using PDE method
+            double price = test_swaption->price_pde(model_, pde_config);
+            prices.push_back(price);
+
+            // Check convergence for refined grids
+            if (i > 0) {
+                double relative_change = std::abs(prices[i] - prices[i-1]) / prices[i-1];
+
+                // Prices should converge as grid is refined
+                if (i > 1 && relative_change > convergence_tolerance) {
+                    XSIGMA_WARN("PDE solver convergence issue: relative change = " +
+                               std::to_string(relative_change));
+                    return false;
+                }
+            }
+        }
+
+        // Final convergence check: last two prices should be very close
+        double final_convergence = std::abs(prices.back() - prices[prices.size()-2]) / prices.back();
+        return final_convergence < convergence_tolerance / 10.0; // Stricter tolerance for final check
+    }
+}
+```
+
+*Cette implémentation teste la convergence du solveur PDE en raffinant progressivement la grille spatiale et temporelle. Le test utilise une swaption européenne comme instrument de référence et vérifie que les prix convergent lorsque la résolution augmente. La convergence est mesurée par le changement relatif entre les prix calculés avec différentes résolutions de grille.*
+
+**Performance Metrics**:
+- Convergence rate measurement
+- Computational efficiency benchmarks
+- Memory usage optimization
+- Numerical stability under extreme conditions
+
+**Grid Configuration Tests**:
+We justify the choice of 201 (41) for number of PDE nodes along X (Y) dimension by examining the convergence rate of the PV of Bermudan/CIF portfolio. We determine the convergence is achieved by measuring, in Vega terms, the PV difference to benchmark grid.
+
+### Calibration Validation
+
+**Accuracy Tests**:
+- Calibration error measurement against market targets
+- Convergence speed and stability analysis
+- Parameter sensitivity and stability testing
+- Cross-validation with out-of-sample instruments
+
+**Robustness Tests**:
+- Calibration performance under various market conditions
+- Stability with missing or inconsistent market data
+- Performance with extreme volatility and skew levels
+- Sensitivity to initial parameter guesses
+
+## Market Data Testing
+
+### Historical Backtesting
+
+**Methodology**:
+- Daily recalibration using historical market data
+- P&L attribution analysis
+- Risk factor explanation testing
+- Model stability over time
+
+**Performance Metrics**:
+- Calibration quality metrics over time
+- P&L prediction accuracy
+- Risk sensitivity accuracy
+- Model parameter stability
+
+### Stress Testing
+
+**Market Scenarios**:
+- Extreme volatility environments
+- High skew market conditions
+- Interest rate regime changes
+- Crisis period performance
+
+**Stress Conditions**:
+- Parallel yield curve shifts (±500bp)
+- Volatility surface shifts (±50% relative)
+- Extreme skew scenarios
+- Correlation breakdown scenarios
+
+## Product-Specific Testing
+
+### Bermudan Swaptions
+
+**Test Cases**:
+- Various exercise schedules and frequencies
+- Different underlying swap structures
+- Multiple currencies and indices
+- Callable and puttable variations
+
+**Validation Methods**:
+- Comparison with Monte Carlo LMM pricing
+- Exercise boundary analysis
+- Greeks calculation accuracy
+- Early exercise premium validation
+
+### Callable Inverse Floaters (CIF)
+
+**Test Scenarios**:
+- Various cap and floor levels
+- Different gearing factors
+- Multiple reset frequencies
+- Complex coupon structures
+
+**Validation Approaches**:
+- Underlying adjustment effectiveness
+- Vanilla instrument repricing accuracy
+- Option value decomposition
+- Sensitivity analysis validation
+
+### Callable Capped Floaters (CCF)
+
+**Test Coverage**:
+- Different cap levels and structures
+- Various underlying indices
+- Multiple call schedules
+- Amortizing and accreting notionals
+
+## Risk Testing
+
+### Delta Testing
+
+**Validation Methods**:
+- Bump-and-revalue verification
+- Cross-model comparison
+- Historical P&L attribution
+- Bucket delta accuracy
+
+## Delta Calculation Test Implementation
+
+Risk testing validates the accuracy of sensitivity calculations, particularly delta (interest rate sensitivity), which is crucial for hedging and risk management.
+
+```cpp
+namespace xsigma {
+    // Implementation of delta accuracy test
+    bool cheyette_model_tester::test_delta_calculation_accuracy() const {
+        const double bump_size = 0.0001; // 1 basis point bump
+        const double tolerance = 0.05;   // 5% relative tolerance for delta
+
+        // Create test portfolio with various instruments
+        std::vector<ptr_const<instrument>> test_instruments;
+
+        // Add European swaption
+        datetime expiry = valuation_date_.add_years(2);
+        auto swaption = util::make_ptr_const<european_swaption>(
+            expiry, expiry, expiry.add_years(5), 0.03, true);
+        test_instruments.push_back(swaption);
+
+        // Add Bermudan swaption
+        std::vector<datetime> exercise_dates;
+        for (int i = 1; i <= 5; ++i) {
+            exercise_dates.push_back(valuation_date_.add_years(i));
+        }
+        auto bermudan = util::make_ptr_const<bermudan_swaption>(
+            exercise_dates, exercise_dates.back().add_years(5), 0.03, true);
+        test_instruments.push_back(bermudan);
+
+        bool all_tests_passed = true;
+
+        for (const auto& instrument : test_instruments) {
+            // Calculate analytical delta using model's built-in method
+            double analytical_delta = instrument->calculate_delta(model_);
+
+            // Calculate numerical delta using bump-and-revalue
+            double base_price = instrument->price_with_model(model_);
+
+            // Create bumped discount curve (parallel shift)
+            auto bumped_curve = curve_->parallel_shift(bump_size);
+            auto bumped_model = util::make_ptr_const<model_cheyette>(
+                model_->parameters(), valuation_date_,
+                model_->volatility_dates(), false, bumped_curve);
+
+            double bumped_price = instrument->price_with_model(bumped_model);
+            double numerical_delta = (bumped_price - base_price) / bump_size;
+
+            // Compare analytical vs numerical delta
+            double relative_error = std::abs(analytical_delta - numerical_delta) /
+                                   std::max(std::abs(analytical_delta), 1e-6);
+
+            if (relative_error > tolerance) {
+                XSIGMA_WARN("Delta test failed for instrument: relative error = " +
+                           std::to_string(relative_error));
+                all_tests_passed = false;
+            }
+        }
+
+        return all_tests_passed;
+    }
+}
+```
+
+*Cette implémentation teste la précision du calcul des deltas en comparant les méthodes analytiques et numériques (bump-and-revalue). Le test utilise un portefeuille d'instruments variés incluant des swaptions européennes et bermudéennes. La méthode numérique applique un choc de 1 point de base à la courbe de taux et compare le résultat avec le delta analytique calculé par le modèle. Une tolérance de 5% est appliquée pour tenir compte des erreurs de discrétisation.*
+
+**Test Scenarios**:
+- Parallel and non-parallel curve shifts
+- Individual maturity bucket shocks
+- Cross-currency exposures
+- Extreme rate environments
+
+### Vega Testing
+
+**Validation Approaches**:
+- Volatility surface bump testing
+- SABR parameter sensitivity validation
+- Forward volatility sensitivity testing
+- Skew sensitivity verification
+
+**Test Cases**:
+- Term structure volatility shocks
+- Volatility skew modifications
+- Forward volatility changes
+- Extreme volatility scenarios
+
+### Higher-Order Risks
+
+**Gamma Testing**:
+- Second-order rate sensitivity validation
+- Convexity measurement accuracy
+- Cross-gamma effects verification
+
+**Vanna and Volga Testing**:
+- Mixed rate-volatility sensitivities
+- Volatility convexity effects
+- Cross-derivative validation
+
+## Performance Testing
+
+### Computational Efficiency
+
+**Benchmarks**:
+- Pricing speed vs alternative models
+- Calibration time requirements
+- Memory usage optimization
+- Scalability with portfolio size
+
+**Optimization Targets**:
+- Sub-second pricing for standard trades
+- Efficient calibration convergence
+- Minimal memory footprint
+- Linear scaling with portfolio size
+
+### Production Readiness
+
+**Reliability Tests**:
+- Continuous operation stability
+- Error handling and recovery
+- Data quality validation
+- System integration testing
+
+**Scalability Tests**:
+- Large portfolio processing
+- Concurrent user access
+- Peak load handling
+- Resource utilization optimization
+
+## Regulatory and Compliance Testing
+
+### Model Validation Requirements
+
+**Documentation**:
+- Complete test result documentation
+- Validation methodology description
+- Benchmark comparison results
+- Performance metric tracking
+
+**Approval Process**:
+- Independent validation review
+- Regulatory compliance verification
+- Risk committee approval
+- Ongoing monitoring requirements
+
+### Audit Trail
+
+**Requirements**:
+- Complete test execution logs
+- Result reproducibility verification
+- Version control and change tracking
+- Performance monitoring over time
+
+## Continuous Monitoring
+
+### Production Monitoring
+
+**Daily Checks**:
+- Calibration quality monitoring
+- Pricing accuracy verification
+- Risk calculation validation
+- Performance metric tracking
+
+**Alert Systems**:
+- Calibration failure detection
+- Unusual risk sensitivity alerts
+- Performance degradation warnings
+- Data quality issue identification
+
+### Model Performance Review
+
+**Regular Reviews**:
+- Monthly performance assessment
+- Quarterly validation updates
+- Annual comprehensive review
+- Ad-hoc investigation procedures
+
+**Key Performance Indicators**:
+- Calibration error metrics
+- Pricing accuracy measures
+- Risk sensitivity stability
+- Computational performance trends

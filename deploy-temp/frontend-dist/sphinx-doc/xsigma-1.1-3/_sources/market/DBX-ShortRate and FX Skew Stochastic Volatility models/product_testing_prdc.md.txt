@@ -1,0 +1,632 @@
+# Product Testing: PRDC Swaps
+
+## 📊 **Vue d'Ensemble des Produits PRDC**
+
+### **Description des Trades**
+Nous considérons les trades **PRDC (Power Reverse Dual Currency)** dans le framework DBX-ShortRate_FXSkewStochVol avec les caractéristiques suivantes :
+
+#### **Structure des Produits PRDC**
+- **PRDCSwap** : Swap PRDC vanille avec coupons FX-liés
+- **PRDCSwapCallable** : PRDC avec option de remboursement anticipé
+- **PRDCSwapTarn** : PRDC avec mécanisme Target Accrual Redemption Note
+
+### **Spécificités PRDC**
+- **Coupons FX-liés** : Paiements dépendant du taux de change
+- **Optionalité intégrée** : Calls, puts, barrières
+- **Corrélations critiques** : IR-FX sur longues maturités
+- **Risque de change** : Exposition multi-devises complexe
+
+### **Implémentation dans Our project**
+
+#### **🔧 Classe PRDCSwap**
+```cpp
+// Implémentation du produit PRDCSwap dans Our project
+class PRDCSwap : public ir_fx_hybrid_derivative_base {
+private:
+    struct prdc_specification {
+        std::string domestic_currency;
+        std::string foreign_currency;
+        double notional;
+        std::vector<double> coupon_dates;
+        std::vector<double> fx_fixing_dates;
+        double fx_leverage;
+        double coupon_floor;
+        double coupon_cap;
+        bool is_callable;
+        std::vector<double> call_dates;
+        prdc_type type; // VANILLA, CALLABLE, TARN
+    };
+    
+    prdc_specification spec_;
+    
+public:
+    PRDCSwap(const prdc_specification& spec) : spec_(spec) {
+        validate_prdc_specification();
+    }
+    
+    double calculate_pv(const market_data& market) const override {
+        return calculate_prdc_pv_monte_carlo(market);
+    }
+    
+    ir_fx_sensitivities calculate_sensitivities(const market_data& market) const override {
+        ir_fx_sensitivities sens;
+        
+        // Sensibilités FX
+        sens.fx_delta = calculate_prdc_fx_delta(market);
+        sens.fx_gamma = calculate_prdc_fx_gamma(market);
+        sens.fx_vega = calculate_prdc_fx_vega(market);
+        
+        // Sensibilités IR (critiques pour PRDC)
+        sens.domestic_ir_delta_vector = calculate_domestic_ir_delta_vector(market);
+        sens.foreign_ir_delta_vector = calculate_foreign_ir_delta_vector(market);
+        sens.domestic_ir_vega_vector = calculate_domestic_ir_vega_vector(market);
+        sens.foreign_ir_vega_vector = calculate_foreign_ir_vega_vector(market);
+        
+        // Sensibilités aux corrélations (très importantes)
+        sens.fx_domestic_ir_correlation_sensitivity = calculate_fx_dom_ir_corr_sens(market);
+        sens.fx_foreign_ir_correlation_sensitivity = calculate_fx_for_ir_corr_sens(market);
+        
+        // Sensibilités d'optionalité
+        if (spec_.is_callable) {
+            sens.call_option_delta = calculate_call_option_delta(market);
+            sens.call_option_vega = calculate_call_option_vega(market);
+        }
+        
+        return sens;
+    }
+    
+private:
+    double calculate_prdc_pv_monte_carlo(const market_data& market) const {
+        const int num_simulations = 200000; // Plus de simulations pour PRDC
+        
+        monte_carlo_engine mc_engine(num_simulations);
+        
+        // Modèles corrélés
+        auto models = create_correlated_ir_fx_models(market);
+        
+        double pv_sum = 0.0;
+        
+        for (int sim = 0; sim < num_simulations; ++sim) {
+            // Génération de path multi-facteurs
+            auto path = mc_engine.generate_correlated_ir_fx_path(models);
+            
+            // Calcul du payoff PRDC
+            double payoff = calculate_prdc_payoff(path);
+            pv_sum += payoff;
+        }
+        
+        return pv_sum / num_simulations;
+    }
+    
+    double calculate_prdc_payoff(const monte_carlo_ir_fx_path& path) const {
+        double total_pv = 0.0;
+        
+        // Calcul des coupons FX-liés
+        for (size_t i = 0; i < spec_.coupon_dates.size(); ++i) {
+            double coupon_date = spec_.coupon_dates[i];
+            double fx_fixing_date = spec_.fx_fixing_dates[i];
+            
+            // FX rate au fixing
+            double fx_rate = path.get_fx_rate_at_time(fx_fixing_date);
+            
+            // Coupon FX-lié avec leverage
+            double fx_coupon = spec_.fx_leverage * fx_rate;
+            
+            // Application des caps/floors
+            fx_coupon = std::max(fx_coupon, spec_.coupon_floor);
+            fx_coupon = std::min(fx_coupon, spec_.coupon_cap);
+            
+            // Actualisation
+            double discount_factor = path.get_domestic_discount_factor(coupon_date);
+            total_pv += fx_coupon * discount_factor;
+        }
+        
+        // Gestion de l'optionalité callable
+        if (spec_.is_callable) {
+            total_pv = apply_callable_feature(total_pv, path);
+        }
+        
+        // Gestion TARN
+        if (spec_.type == prdc_type::TARN) {
+            total_pv = apply_tarn_mechanism(total_pv, path);
+        }
+        
+        return spec_.notional * total_pv;
+    }
+    
+    double apply_callable_feature(double base_pv, const monte_carlo_ir_fx_path& path) const {
+        // Évaluation de l'option de call
+        double callable_pv = base_pv;
+        
+        for (double call_date : spec_.call_dates) {
+            // Valeur de continuation vs valeur d'exercice
+            double continuation_value = calculate_continuation_value(path, call_date);
+            double exercise_value = calculate_exercise_value(path, call_date);
+            
+            // Décision d'exercice optimal (perspective émetteur)
+            if (exercise_value < continuation_value) {
+                callable_pv = exercise_value;
+                break; // Exercice anticipé
+            }
+        }
+        
+        return callable_pv;
+    }
+    
+    void validate_prdc_specification() const {
+        XSIGMA_CHECK(spec_.notional > 0, "Notional must be positive");
+        XSIGMA_CHECK(!spec_.coupon_dates.empty(), "Coupon dates required");
+        XSIGMA_CHECK(spec_.coupon_dates.size() == spec_.fx_fixing_dates.size(),
+                    "Coupon dates and FX fixing dates must match");
+        XSIGMA_CHECK(spec_.fx_leverage > 0, "FX leverage must be positive");
+        XSIGMA_CHECK(spec_.coupon_floor <= spec_.coupon_cap, "Floor must be <= Cap");
+        
+        // Validation des dates de call
+        if (spec_.is_callable) {
+            XSIGMA_CHECK(!spec_.call_dates.empty(), "Call dates required for callable PRDC");
+            for (double call_date : spec_.call_dates) {
+                XSIGMA_CHECK(call_date > 0, "Call dates must be positive");
+            }
+        }
+    }
+};
+```
+*Cette implémentation C++ dans Our project montre la structure complète d'un swap PRDC avec pricing Monte Carlo, gestion de l'optionalité et calcul de sensibilités IR-FX.*
+
+---
+
+## 🧪 **EOD Testing**
+
+### **Tests de Fin de Journée**
+
+#### **🔍 PRDC Payoff Validation**
+
+##### **Validation des Payoffs PRDC**
+```cpp
+// Tests de validation des payoffs pour PRDCSwap dans Our project
+class prdc_payoff_validation_tester {
+public:
+    struct prdc_test_case {
+        std::vector<double> fx_path;
+        std::vector<double> domestic_rates_path;
+        std::vector<double> foreign_rates_path;
+        std::vector<double> coupon_dates;
+        std::vector<double> fx_fixing_dates;
+        double fx_leverage;
+        double coupon_floor;
+        double coupon_cap;
+        double expected_pv;
+        std::string description;
+    };
+    
+    struct validation_results {
+        std::vector<double> payoff_errors;
+        std::vector<double> coupon_calculation_errors;
+        bool fx_linkage_validated;
+        bool optionality_validated;
+    };
+    
+    validation_results test_prdc_payoff_calculation() {
+        validation_results results;
+        
+        // Cas de test avec paths déterministes
+        std::vector<prdc_test_case> test_cases = {
+            create_simple_prdc_test_case(),
+            create_capped_prdc_test_case(),
+            create_floored_prdc_test_case(),
+            create_volatile_fx_test_case()
+        };
+        
+        for (const auto& test_case : test_cases) {
+            // Configuration du PRDC
+            PRDCSwap::prdc_specification spec;
+            spec.domestic_currency = "USD";
+            spec.foreign_currency = "JPY";
+            spec.notional = 1000000.0;
+            spec.coupon_dates = test_case.coupon_dates;
+            spec.fx_fixing_dates = test_case.fx_fixing_dates;
+            spec.fx_leverage = test_case.fx_leverage;
+            spec.coupon_floor = test_case.coupon_floor;
+            spec.coupon_cap = test_case.coupon_cap;
+            spec.is_callable = false;
+            spec.type = prdc_type::VANILLA;
+            
+            PRDCSwap prdc_swap(spec);
+            
+            // Création du path déterministe
+            monte_carlo_ir_fx_path deterministic_path = create_deterministic_path(test_case);
+            
+            // Calcul du payoff
+            double calculated_payoff = prdc_swap.calculate_prdc_payoff(deterministic_path);
+            
+            // Calcul manuel de référence
+            double reference_payoff = calculate_reference_prdc_payoff(test_case);
+            
+            double payoff_error = std::abs(calculated_payoff - reference_payoff);
+            double relative_error = payoff_error / std::abs(reference_payoff);
+            
+            results.payoff_errors.push_back(relative_error);
+            
+            // Validation avec tolérance
+            EXPECT_LT(relative_error, 1e-10); // Précision analytique pour cas déterministes
+            
+            // Tests spécifiques aux coupons FX-liés
+            test_fx_linked_coupon_calculation(test_case, results);
+        }
+        
+        // Validation globale
+        results.fx_linkage_validated = validate_fx_linkage_mechanism(test_cases);
+        results.optionality_validated = validate_caps_floors_mechanism(test_cases);
+        
+        return results;
+    }
+    
+private:
+    prdc_test_case create_simple_prdc_test_case() {
+        prdc_test_case test_case;
+        test_case.description = "Simple PRDC with constant FX";
+        
+        // FX constant à 100
+        test_case.fx_path = {100.0, 100.0, 100.0, 100.0};
+        
+        // Taux constants
+        test_case.domestic_rates_path = {0.03, 0.03, 0.03, 0.03};
+        test_case.foreign_rates_path = {0.01, 0.01, 0.01, 0.01};
+        
+        // Dates trimestrielles
+        test_case.coupon_dates = {0.25, 0.5, 0.75, 1.0};
+        test_case.fx_fixing_dates = {0.22, 0.47, 0.72, 0.97}; // 3 jours avant
+        
+        // Paramètres PRDC
+        test_case.fx_leverage = 0.01; // 1%
+        test_case.coupon_floor = 0.0;
+        test_case.coupon_cap = 0.05; // 5%
+        
+        // Calcul attendu : 4 coupons de 1% actualisés
+        test_case.expected_pv = calculate_expected_simple_prdc_pv();
+        
+        return test_case;
+    }
+    
+    void test_fx_linked_coupon_calculation(const prdc_test_case& test_case,
+                                          validation_results& results) {
+        
+        // Test détaillé du mécanisme de coupon FX-lié
+        for (size_t i = 0; i < test_case.coupon_dates.size(); ++i) {
+            double fx_rate = test_case.fx_path[i];
+            
+            // Coupon brut
+            double gross_coupon = test_case.fx_leverage * fx_rate;
+            
+            // Application caps/floors
+            double net_coupon = std::max(gross_coupon, test_case.coupon_floor);
+            net_coupon = std::min(net_coupon, test_case.coupon_cap);
+            
+            // Validation que le mécanisme fonctionne correctement
+            if (gross_coupon < test_case.coupon_floor) {
+                EXPECT_DOUBLE_EQ(net_coupon, test_case.coupon_floor);
+            } else if (gross_coupon > test_case.coupon_cap) {
+                EXPECT_DOUBLE_EQ(net_coupon, test_case.coupon_cap);
+            } else {
+                EXPECT_DOUBLE_EQ(net_coupon, gross_coupon);
+            }
+        }
+    }
+};
+```
+
+#### **🔍 Callable Feature Testing**
+
+##### **Tests de l'Optionalité Callable**
+```cpp
+// Tests de l'optionalité callable pour PRDCSwap dans Our project
+class prdc_callable_feature_tester {
+public:
+    struct callable_test_results {
+        std::map<std::string, double> exercise_probabilities;
+        std::map<std::string, double> option_values;
+        double callable_vs_vanilla_difference;
+        bool early_exercise_logic_validated;
+    };
+    
+    callable_test_results test_callable_prdc_features(
+        const PRDCSwap& callable_prdc,
+        const PRDCSwap& vanilla_prdc,
+        const market_data& market) {
+        
+        callable_test_results results;
+        
+        // Tests de probabilité d'exercice
+        test_exercise_probabilities(callable_prdc, market, results);
+        
+        // Tests de valeur d'option
+        test_option_value_calculation(callable_prdc, vanilla_prdc, market, results);
+        
+        // Tests de logique d'exercice optimal
+        test_optimal_exercise_logic(callable_prdc, market, results);
+        
+        // Analyse comparative
+        analyze_callable_vs_vanilla_differences(callable_prdc, vanilla_prdc, market, results);
+        
+        return results;
+    }
+    
+private:
+    void test_exercise_probabilities(const PRDCSwap& callable_prdc,
+                                    const market_data& market,
+                                    callable_test_results& results) {
+        
+        const int num_simulations = 100000;
+        monte_carlo_engine mc_engine(num_simulations);
+        
+        auto spec = callable_prdc.get_specification();
+        std::map<double, int> exercise_counts;
+        
+        // Initialisation des compteurs
+        for (double call_date : spec.call_dates) {
+            exercise_counts[call_date] = 0;
+        }
+        int no_exercise_count = 0;
+        
+        for (int sim = 0; sim < num_simulations; ++sim) {
+            // Génération de path
+            auto path = mc_engine.generate_correlated_ir_fx_path(market);
+            
+            // Simulation de la décision d'exercice
+            double exercise_date = simulate_exercise_decision(callable_prdc, path);
+            
+            if (exercise_date > 0) {
+                exercise_counts[exercise_date]++;
+            } else {
+                no_exercise_count++;
+            }
+        }
+        
+        // Calcul des probabilités
+        for (const auto& [call_date, count] : exercise_counts) {
+            double probability = static_cast<double>(count) / num_simulations;
+            std::string date_key = "CALL_" + std::to_string(call_date);
+            results.exercise_probabilities[date_key] = probability;
+        }
+        
+        double no_exercise_prob = static_cast<double>(no_exercise_count) / num_simulations;
+        results.exercise_probabilities["NO_EXERCISE"] = no_exercise_prob;
+        
+        // Validation que les probabilités somment à 1
+        double total_prob = no_exercise_prob;
+        for (const auto& [date_key, prob] : results.exercise_probabilities) {
+            if (date_key != "NO_EXERCISE") {
+                total_prob += prob;
+            }
+        }
+        EXPECT_NEAR(total_prob, 1.0, 1e-3);
+    }
+    
+    double simulate_exercise_decision(const PRDCSwap& callable_prdc,
+                                     const monte_carlo_ir_fx_path& path) {
+        
+        auto spec = callable_prdc.get_specification();
+        
+        for (double call_date : spec.call_dates) {
+            // Valeur de continuation
+            double continuation_value = calculate_continuation_value_at_date(
+                callable_prdc, path, call_date);
+            
+            // Valeur d'exercice
+            double exercise_value = calculate_exercise_value_at_date(
+                callable_prdc, path, call_date);
+            
+            // Décision d'exercice (perspective émetteur)
+            if (exercise_value < continuation_value) {
+                return call_date; // Exercice optimal
+            }
+        }
+        
+        return -1.0; // Pas d'exercice
+    }
+    
+    void test_optimal_exercise_logic(const PRDCSwap& callable_prdc,
+                                    const market_data& market,
+                                    callable_test_results& results) {
+        
+        // Tests de cohérence de la logique d'exercice
+        
+        // Scénario 1 : Taux élevés -> exercice plus probable
+        auto high_rates_market = create_high_rates_scenario(market);
+        double high_rates_exercise_prob = calculate_average_exercise_probability(
+            callable_prdc, high_rates_market);
+        
+        // Scénario 2 : Taux faibles -> exercice moins probable
+        auto low_rates_market = create_low_rates_scenario(market);
+        double low_rates_exercise_prob = calculate_average_exercise_probability(
+            callable_prdc, low_rates_market);
+        
+        // Validation de la logique économique
+        EXPECT_GT(high_rates_exercise_prob, low_rates_exercise_prob);
+        
+        results.exercise_probabilities["HIGH_RATES_SCENARIO"] = high_rates_exercise_prob;
+        results.exercise_probabilities["LOW_RATES_SCENARIO"] = low_rates_exercise_prob;
+        
+        results.early_exercise_logic_validated = 
+            (high_rates_exercise_prob > low_rates_exercise_prob);
+    }
+};
+```
+
+---
+
+## 🏛️ **Stability Testing**
+
+### **Tests de Stabilité sous Stress**
+
+#### **🔍 IR-FX Correlation Stress Testing**
+
+##### **Tests de Stress des Corrélations IR-FX**
+```cpp
+// Tests de stress des corrélations pour PRDCSwap dans Our project
+class prdc_correlation_stress_tester {
+public:
+    void test_ir_fx_correlation_stress(const PRDCSwap& prdc_swap,
+                                      const market_data& base_market) {
+        
+        // Tests de stress spécifiques aux corrélations PRDC
+        test_fx_domestic_ir_correlation_stress(prdc_swap, base_market);
+        test_fx_foreign_ir_correlation_stress(prdc_swap, base_market);
+        test_correlation_breakdown_scenarios(prdc_swap, base_market);
+        test_correlation_regime_changes(prdc_swap, base_market);
+    }
+    
+private:
+    void test_fx_domestic_ir_correlation_stress(const PRDCSwap& prdc_swap,
+                                               const market_data& base_market) {
+        
+        std::cout << "=== FX-Domestic IR Correlation Stress Testing ===" << std::endl;
+        
+        // Plage de corrélations de -0.9 à +0.9
+        for (double correlation = -0.9; correlation <= 0.9; correlation += 0.2) {
+            auto stressed_market = set_fx_domestic_ir_correlation(base_market, correlation);
+            
+            // Calcul des métriques sous stress
+            double pv = prdc_swap.calculate_pv(stressed_market);
+            auto sensitivities = prdc_swap.calculate_sensitivities(stressed_market);
+            
+            // Validation de stabilité
+            EXPECT_TRUE(std::isfinite(pv));
+            EXPECT_TRUE(std::isfinite(sensitivities.fx_domestic_ir_correlation_sensitivity));
+            
+            // Analyse de l'impact de corrélation
+            analyze_correlation_impact_on_prdc(prdc_swap, stressed_market, correlation);
+            
+            std::cout << "FX-Dom IR Correlation: " << correlation 
+                      << ", PV: " << pv 
+                      << ", Corr Sensitivity: " << sensitivities.fx_domestic_ir_correlation_sensitivity 
+                      << std::endl;
+        }
+    }
+    
+    void test_correlation_breakdown_scenarios(const PRDCSwap& prdc_swap,
+                                             const market_data& base_market) {
+        
+        std::cout << "=== Correlation Breakdown Scenarios Testing ===" << std::endl;
+        
+        // Scénarios de rupture de corrélation
+        std::vector<correlation_breakdown_scenario> scenarios = {
+            {"FINANCIAL_CRISIS", create_crisis_correlation_scenario()},
+            {"CENTRAL_BANK_INTERVENTION", create_cb_intervention_scenario()},
+            {"MARKET_DISLOCATION", create_market_dislocation_scenario()}
+        };
+        
+        for (const auto& scenario : scenarios) {
+            auto stressed_market = apply_correlation_breakdown(base_market, scenario);
+            
+            double pv = prdc_swap.calculate_pv(stressed_market);
+            auto sensitivities = prdc_swap.calculate_sensitivities(stressed_market);
+            
+            // Validation de robustesse
+            EXPECT_TRUE(std::isfinite(pv));
+            
+            // Tests de cohérence sous rupture de corrélation
+            validate_prdc_behavior_under_correlation_breakdown(
+                prdc_swap, stressed_market, scenario);
+            
+            std::cout << "Correlation Breakdown: " << scenario.name 
+                      << ", PV: " << pv << std::endl;
+        }
+    }
+    
+    void analyze_correlation_impact_on_prdc(const PRDCSwap& prdc_swap,
+                                           const market_data& market,
+                                           double correlation) {
+        
+        // Analyse de l'impact spécifique de la corrélation sur PRDC
+        auto sensitivities = prdc_swap.calculate_sensitivities(market);
+        
+        // Pour PRDC, corrélation positive FX-IR domestique généralement défavorable
+        // (FX up + rates up = double impact négatif sur PV)
+        
+        // Validation que la sensibilité à la corrélation est mesurable
+        EXPECT_GT(std::abs(sensitivities.fx_domestic_ir_correlation_sensitivity), 1e-6);
+        
+        // Validation de cohérence économique
+        if (std::abs(correlation) > 0.5) {
+            // Corrélations fortes doivent avoir impact significatif
+            EXPECT_GT(std::abs(sensitivities.fx_domestic_ir_correlation_sensitivity), 1e-4);
+        }
+    }
+};
+```
+
+#### **🔍 Multi-Currency Stress Testing**
+
+##### **Tests de Stress Multi-Devises**
+```cpp
+// Tests de stress multi-devises pour PRDCSwap dans Our project
+class prdc_multicurrency_stress_tester {
+public:
+    void test_multicurrency_stress_scenarios(const PRDCSwap& prdc_swap,
+                                            const market_data& base_market) {
+        
+        // Tests de stress spécifiques aux expositions multi-devises
+        test_currency_crisis_scenarios(prdc_swap, base_market);
+        test_central_bank_policy_divergence(prdc_swap, base_market);
+        test_carry_trade_unwind_scenarios(prdc_swap, base_market);
+    }
+    
+private:
+    void test_currency_crisis_scenarios(const PRDCSwap& prdc_swap,
+                                       const market_data& base_market) {
+        
+        std::cout << "=== Currency Crisis Scenarios Testing ===" << std::endl;
+        
+        // Scénarios de crise de change
+        std::vector<currency_crisis_scenario> scenarios = {
+            {"EMERGING_MARKET_CRISIS", create_em_crisis_scenario()},
+            {"DEVELOPED_MARKET_STRESS", create_dm_stress_scenario()},
+            {"GLOBAL_RISK_OFF", create_global_risk_off_scenario()}
+        };
+        
+        for (const auto& scenario : scenarios) {
+            auto stressed_market = apply_currency_crisis(base_market, scenario);
+            
+            double pv = prdc_swap.calculate_pv(stressed_market);
+            auto sensitivities = prdc_swap.calculate_sensitivities(stressed_market);
+            
+            // Validation de stabilité sous crise
+            EXPECT_TRUE(std::isfinite(pv));
+            
+            // Tests spécifiques aux PRDC sous crise de change
+            validate_prdc_behavior_under_currency_crisis(prdc_swap, stressed_market, scenario);
+            
+            std::cout << "Currency Crisis: " << scenario.name 
+                      << ", PV: " << pv 
+                      << ", FX Delta: " << sensitivities.fx_delta << std::endl;
+        }
+    }
+    
+    void validate_prdc_behavior_under_currency_crisis(
+        const PRDCSwap& prdc_swap,
+        const market_data& stressed_market,
+        const currency_crisis_scenario& scenario) {
+        
+        auto sensitivities = prdc_swap.calculate_sensitivities(stressed_market);
+        
+        // Validation que les sensibilités restent cohérentes sous stress
+        EXPECT_TRUE(std::isfinite(sensitivities.fx_delta));
+        EXPECT_TRUE(std::isfinite(sensitivities.fx_gamma));
+        
+        // Pour PRDC, sensibilité FX doit être significative
+        EXPECT_GT(std::abs(sensitivities.fx_delta), 1e-6);
+        
+        // Validation que les caps/floors offrent protection
+        auto spec = prdc_swap.get_specification();
+        if (spec.coupon_cap < 0.1) { // Cap à 10%
+            // Avec cap, exposition FX limitée en cas de crise
+            validate_cap_protection_under_stress(prdc_swap, stressed_market);
+        }
+    }
+};
+```
+
+---
+
+*Cette section fournit une documentation complète des tests de produit pour PRDC Swaps, intégrant les implémentations C++ de Our project avec des méthodologies de validation spécialisées pour les swaps PRDC, incluant les tests de payoffs FX-liés, optionalité callable, et stabilité sous stress des corrélations IR-FX.*

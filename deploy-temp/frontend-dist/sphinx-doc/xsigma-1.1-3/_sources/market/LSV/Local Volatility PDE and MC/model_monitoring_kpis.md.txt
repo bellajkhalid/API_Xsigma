@@ -1,0 +1,444 @@
+# Model Monitoring – KPIs
+
+## Overview
+
+Cette section définit les indicateurs clés de performance (KPIs) pour le monitoring continu du modèle **Local Volatility PDE and MC**, incluant les métriques de qualité, performance et stabilité opérationnelle.
+
+## Core Performance KPIs
+
+### Method Selection Efficiency
+
+#### Automatic Method Selection Accuracy
+```cpp
+// KPIs de monitoring Our project pour Local Volatility PDE and MC
+namespace xsigma::local_vol_monitoring {
+    
+    class LocalVolatilityKPIMonitor {
+    public:
+        struct MethodSelectionKPIs {
+            double selection_accuracy_pct;          // % de sélections correctes
+            double performance_improvement_pct;     // Amélioration performance vs méthode fixe
+            double accuracy_improvement_pct;        // Amélioration précision vs méthode fixe
+            std::map<std::string, double> accuracy_by_product_type;
+            std::map<PricingMethod, double> usage_distribution_pct;
+            double avg_selection_time_ms;           // Temps de sélection de méthode
+        };
+        
+        struct PricingPerformanceKPIs {
+            // Temps de calcul par méthode
+            std::map<PricingMethod, double> avg_pricing_time_ms;
+            std::map<PricingMethod, double> p95_pricing_time_ms;
+            std::map<PricingMethod, double> p99_pricing_time_ms;
+            
+            // Utilisation mémoire
+            std::map<PricingMethod, double> avg_memory_usage_mb;
+            std::map<PricingMethod, double> peak_memory_usage_mb;
+            
+            // Throughput
+            double options_priced_per_second;
+            double portfolios_processed_per_hour;
+            
+            // Efficacité
+            double cpu_utilization_pct;
+            double memory_utilization_pct;
+            double cache_hit_rate_pct;
+        };
+        
+        struct AccuracyQualityKPIs {
+            // Précision de pricing
+            double avg_pricing_error_pct;
+            double max_pricing_error_pct;
+            double pricing_error_std_dev;
+            
+            // Qualité des Greeks
+            double avg_greeks_error_pct;
+            double max_greeks_error_pct;
+            std::map<std::string, double> greeks_error_by_type;
+            
+            // Validation croisée
+            double cross_validation_coverage_pct;
+            double avg_pde_mc_difference_pct;
+            double max_pde_mc_difference_pct;
+            
+            // Convergence
+            double pde_convergence_rate_pct;
+            double mc_convergence_rate_pct;
+            double hybrid_convergence_rate_pct;
+        };
+        
+        // Collecte des KPIs en temps réel
+        void collect_real_time_kpis() {
+            auto current_time = std::chrono::system_clock::now();
+            
+            // Collection des métriques de sélection de méthode
+            auto method_kpis = collect_method_selection_kpis();
+            
+            // Collection des métriques de performance
+            auto performance_kpis = collect_performance_kpis();
+            
+            // Collection des métriques de qualité
+            auto quality_kpis = collect_quality_kpis();
+            
+            // Stockage dans base de données de monitoring
+            store_kpis_to_database(current_time, method_kpis, performance_kpis, quality_kpis);
+            
+            // Vérification des seuils d'alerte
+            check_kpi_thresholds(method_kpis, performance_kpis, quality_kpis);
+        }
+        
+        // KPIs de sélection de méthode
+        MethodSelectionKPIs collect_method_selection_kpis() {
+            MethodSelectionKPIs kpis;
+            
+            // Récupération des données des dernières 24h
+            auto selection_data = get_method_selection_data_24h();
+            
+            // Calcul de la précision de sélection
+            int correct_selections = 0;
+            int total_selections = selection_data.size();
+            
+            std::map<std::string, std::vector<bool>> results_by_product;
+            std::map<PricingMethod, int> method_usage_count;
+            
+            double total_performance_improvement = 0.0;
+            double total_accuracy_improvement = 0.0;
+            
+            for (const auto& data : selection_data) {
+                if (data.selection_was_optimal) {
+                    correct_selections++;
+                }
+                
+                results_by_product[data.product_type].push_back(data.selection_was_optimal);
+                method_usage_count[data.selected_method]++;
+                
+                total_performance_improvement += data.performance_improvement_pct;
+                total_accuracy_improvement += data.accuracy_improvement_pct;
+            }
+            
+            kpis.selection_accuracy_pct = static_cast<double>(correct_selections) / total_selections * 100.0;
+            kpis.performance_improvement_pct = total_performance_improvement / total_selections;
+            kpis.accuracy_improvement_pct = total_accuracy_improvement / total_selections;
+            
+            // Précision par type de produit
+            for (const auto& [product_type, results] : results_by_product) {
+                int correct = std::count(results.begin(), results.end(), true);
+                kpis.accuracy_by_product_type[product_type] = 
+                    static_cast<double>(correct) / results.size() * 100.0;
+            }
+            
+            // Distribution d'usage des méthodes
+            for (const auto& [method, count] : method_usage_count) {
+                kpis.usage_distribution_pct[method] = static_cast<double>(count) / total_selections * 100.0;
+            }
+            
+            // Temps moyen de sélection
+            kpis.avg_selection_time_ms = calculate_avg_selection_time();
+            
+            return kpis;
+        }
+        
+        // KPIs de performance
+        PricingPerformanceKPIs collect_performance_kpis() {
+            PricingPerformanceKPIs kpis;
+            
+            // Récupération des données de performance
+            auto performance_data = get_performance_data_24h();
+            
+            // Calcul des métriques par méthode
+            std::map<PricingMethod, std::vector<double>> timing_by_method;
+            std::map<PricingMethod, std::vector<double>> memory_by_method;
+            
+            for (const auto& data : performance_data) {
+                timing_by_method[data.method].push_back(data.pricing_time_ms);
+                memory_by_method[data.method].push_back(data.memory_usage_mb);
+            }
+            
+            // Calcul des statistiques
+            for (const auto& [method, timings] : timing_by_method) {
+                kpis.avg_pricing_time_ms[method] = calculate_average(timings);
+                kpis.p95_pricing_time_ms[method] = calculate_percentile(timings, 95);
+                kpis.p99_pricing_time_ms[method] = calculate_percentile(timings, 99);
+            }
+            
+            for (const auto& [method, memory_usage] : memory_by_method) {
+                kpis.avg_memory_usage_mb[method] = calculate_average(memory_usage);
+                kpis.peak_memory_usage_mb[method] = *std::max_element(memory_usage.begin(), memory_usage.end());
+            }
+            
+            // Métriques de throughput
+            kpis.options_priced_per_second = calculate_options_throughput();
+            kpis.portfolios_processed_per_hour = calculate_portfolio_throughput();
+            
+            // Utilisation des ressources
+            kpis.cpu_utilization_pct = get_cpu_utilization();
+            kpis.memory_utilization_pct = get_memory_utilization();
+            kpis.cache_hit_rate_pct = get_cache_hit_rate();
+            
+            return kpis;
+        }
+        
+        // KPIs de qualité et précision
+        AccuracyQualityKPIs collect_quality_kpis() {
+            AccuracyQualityKPIs kpis;
+            
+            // Récupération des données de qualité
+            auto quality_data = get_quality_data_24h();
+            
+            // Calcul des erreurs de pricing
+            std::vector<double> pricing_errors;
+            std::vector<double> greeks_errors;
+            std::vector<double> pde_mc_differences;
+            
+            std::map<std::string, std::vector<double>> greeks_errors_by_type;
+            
+            int cross_validated_count = 0;
+            int pde_converged_count = 0;
+            int mc_converged_count = 0;
+            int hybrid_converged_count = 0;
+            
+            for (const auto& data : quality_data) {
+                pricing_errors.push_back(data.pricing_error_pct);
+                greeks_errors.push_back(data.greeks_error_pct);
+                
+                if (data.cross_validation_performed) {
+                    cross_validated_count++;
+                    pde_mc_differences.push_back(data.pde_mc_difference_pct);
+                }
+                
+                // Erreurs par type de Greek
+                greeks_errors_by_type["delta"].push_back(data.delta_error_pct);
+                greeks_errors_by_type["gamma"].push_back(data.gamma_error_pct);
+                greeks_errors_by_type["vega"].push_back(data.vega_error_pct);
+                greeks_errors_by_type["theta"].push_back(data.theta_error_pct);
+                
+                // Convergence par méthode
+                if (data.method == PricingMethod::PDE_ONLY && data.converged) pde_converged_count++;
+                if (data.method == PricingMethod::MONTE_CARLO_ONLY && data.converged) mc_converged_count++;
+                if (data.method == PricingMethod::HYBRID_ADAPTIVE && data.converged) hybrid_converged_count++;
+            }
+            
+            // Calcul des métriques de pricing
+            kpis.avg_pricing_error_pct = calculate_average(pricing_errors);
+            kpis.max_pricing_error_pct = *std::max_element(pricing_errors.begin(), pricing_errors.end());
+            kpis.pricing_error_std_dev = calculate_standard_deviation(pricing_errors);
+            
+            // Calcul des métriques de Greeks
+            kpis.avg_greeks_error_pct = calculate_average(greeks_errors);
+            kpis.max_greeks_error_pct = *std::max_element(greeks_errors.begin(), greeks_errors.end());
+            
+            for (const auto& [greek_type, errors] : greeks_errors_by_type) {
+                kpis.greeks_error_by_type[greek_type] = calculate_average(errors);
+            }
+            
+            // Métriques de validation croisée
+            kpis.cross_validation_coverage_pct = 
+                static_cast<double>(cross_validated_count) / quality_data.size() * 100.0;
+            
+            if (!pde_mc_differences.empty()) {
+                kpis.avg_pde_mc_difference_pct = calculate_average(pde_mc_differences);
+                kpis.max_pde_mc_difference_pct = *std::max_element(pde_mc_differences.begin(), pde_mc_differences.end());
+            }
+            
+            // Taux de convergence
+            int total_pde = count_method_usage(quality_data, PricingMethod::PDE_ONLY);
+            int total_mc = count_method_usage(quality_data, PricingMethod::MONTE_CARLO_ONLY);
+            int total_hybrid = count_method_usage(quality_data, PricingMethod::HYBRID_ADAPTIVE);
+            
+            kpis.pde_convergence_rate_pct = total_pde > 0 ? static_cast<double>(pde_converged_count) / total_pde * 100.0 : 100.0;
+            kpis.mc_convergence_rate_pct = total_mc > 0 ? static_cast<double>(mc_converged_count) / total_mc * 100.0 : 100.0;
+            kpis.hybrid_convergence_rate_pct = total_hybrid > 0 ? static_cast<double>(hybrid_converged_count) / total_hybrid * 100.0 : 100.0;
+            
+            return kpis;
+        }
+        
+    private:
+        // Structures de données pour monitoring
+        struct MethodSelectionData {
+            std::string product_type;
+            PricingMethod selected_method;
+            bool selection_was_optimal;
+            double performance_improvement_pct;
+            double accuracy_improvement_pct;
+            std::chrono::system_clock::time_point timestamp;
+        };
+        
+        struct PerformanceData {
+            PricingMethod method;
+            double pricing_time_ms;
+            double memory_usage_mb;
+            std::chrono::system_clock::time_point timestamp;
+        };
+        
+        struct QualityData {
+            PricingMethod method;
+            double pricing_error_pct;
+            double greeks_error_pct;
+            double delta_error_pct;
+            double gamma_error_pct;
+            double vega_error_pct;
+            double theta_error_pct;
+            bool cross_validation_performed;
+            double pde_mc_difference_pct;
+            bool converged;
+            std::chrono::system_clock::time_point timestamp;
+        };
+        
+        // Méthodes utilitaires (placeholders)
+        std::vector<MethodSelectionData> get_method_selection_data_24h() {
+            return {}; // Placeholder - récupération depuis base de données
+        }
+        
+        std::vector<PerformanceData> get_performance_data_24h() {
+            return {}; // Placeholder
+        }
+        
+        std::vector<QualityData> get_quality_data_24h() {
+            return {}; // Placeholder
+        }
+        
+        double calculate_avg_selection_time() {
+            return 2.5; // Placeholder - 2.5ms moyenne
+        }
+        
+        double calculate_average(const std::vector<double>& values) {
+            if (values.empty()) return 0.0;
+            return std::accumulate(values.begin(), values.end(), 0.0) / values.size();
+        }
+        
+        double calculate_percentile(const std::vector<double>& values, int percentile) {
+            if (values.empty()) return 0.0;
+            auto sorted_values = values;
+            std::sort(sorted_values.begin(), sorted_values.end());
+            size_t index = (percentile * sorted_values.size()) / 100;
+            return sorted_values[std::min(index, sorted_values.size() - 1)];
+        }
+        
+        double calculate_standard_deviation(const std::vector<double>& values) {
+            if (values.size() < 2) return 0.0;
+            double mean = calculate_average(values);
+            double variance = 0.0;
+            for (double value : values) {
+                variance += (value - mean) * (value - mean);
+            }
+            return std::sqrt(variance / (values.size() - 1));
+        }
+        
+        double calculate_options_throughput() {
+            return 125.0; // Placeholder - 125 options/seconde
+        }
+        
+        double calculate_portfolio_throughput() {
+            return 45.0; // Placeholder - 45 portfolios/heure
+        }
+        
+        double get_cpu_utilization() {
+            return 65.0; // Placeholder - 65% utilisation CPU
+        }
+        
+        double get_memory_utilization() {
+            return 72.0; // Placeholder - 72% utilisation mémoire
+        }
+        
+        double get_cache_hit_rate() {
+            return 88.0; // Placeholder - 88% cache hit rate
+        }
+        
+        int count_method_usage(const std::vector<QualityData>& data, PricingMethod method) {
+            return std::count_if(data.begin(), data.end(),
+                [method](const QualityData& d) { return d.method == method; });
+        }
+        
+        void store_kpis_to_database(
+            std::chrono::system_clock::time_point timestamp,
+            const MethodSelectionKPIs& method_kpis,
+            const PricingPerformanceKPIs& performance_kpis,
+            const AccuracyQualityKPIs& quality_kpis) {
+            // Stockage en base de données
+        }
+        
+        void check_kpi_thresholds(
+            const MethodSelectionKPIs& method_kpis,
+            const PricingPerformanceKPIs& performance_kpis,
+            const AccuracyQualityKPIs& quality_kpis) {
+            
+            // Vérification des seuils d'alerte
+            if (method_kpis.selection_accuracy_pct < 75.0) {
+                XSIGMA_LOG_ALERT("Précision de sélection de méthode faible: " + 
+                                std::to_string(method_kpis.selection_accuracy_pct) + "%");
+            }
+            
+            if (quality_kpis.avg_pricing_error_pct > 2.0) {
+                XSIGMA_LOG_ALERT("Erreur de pricing élevée: " + 
+                                std::to_string(quality_kpis.avg_pricing_error_pct) + "%");
+            }
+            
+            if (performance_kpis.cpu_utilization_pct > 90.0) {
+                XSIGMA_LOG_WARNING("Utilisation CPU élevée: " + 
+                                  std::to_string(performance_kpis.cpu_utilization_pct) + "%");
+            }
+        }
+    };
+}
+```
+
+## KPI Thresholds and Alerts
+
+### Performance Thresholds
+
+| KPI Category | Metric | Green Zone | Yellow Zone | Red Zone | Alert Action |
+|--------------|--------|------------|-------------|----------|--------------|
+| **Method Selection** | Accuracy | > 80% | 70-80% | < 70% | Immediate review |
+| **Pricing Speed** | Avg Time | < 100ms | 100-200ms | > 200ms | Performance tuning |
+| **Memory Usage** | Peak Usage | < 2GB | 2-4GB | > 4GB | Memory optimization |
+| **Accuracy** | Pricing Error | < 1% | 1-2% | > 2% | Model validation |
+| **Greeks Quality** | Greeks Error | < 2% | 2-5% | > 5% | Greeks recalibration |
+
+### Operational KPIs
+
+#### System Health Metrics
+- **Uptime** : > 99.9%
+- **Response Time** : < 50ms (95th percentile)
+- **Error Rate** : < 0.1%
+- **Throughput** : > 100 options/second
+
+#### Model Quality Metrics
+- **Calibration Success Rate** : > 98%
+- **Convergence Rate** : > 95%
+- **Cross-Validation Coverage** : > 80%
+- **Data Quality Score** : > 8.5/10
+
+## Reporting and Dashboards
+
+### Real-Time Dashboard
+- **Method Selection Efficiency** : Graphique en temps réel
+- **Performance Metrics** : Temps de calcul par méthode
+- **Quality Indicators** : Erreurs et convergence
+- **System Health** : CPU, mémoire, throughput
+
+### Daily Reports
+- **KPI Summary** : Résumé quotidien des métriques clés
+- **Trend Analysis** : Évolution des performances
+- **Quality Assessment** : Analyse de la qualité du modèle
+- **Operational Issues** : Incidents et résolutions
+
+### Weekly Analysis
+- **Performance Benchmarks** : Comparaison avec objectifs
+- **Model Validation** : Tests de validation périodiques
+- **Capacity Planning** : Analyse de capacité
+- **Improvement Recommendations** : Suggestions d'optimisation
+
+## Continuous Improvement
+
+### KPI Evolution Tracking
+- **Baseline Establishment** : Métriques de référence
+- **Trend Monitoring** : Surveillance des tendances
+- **Performance Regression** : Détection de dégradations
+- **Improvement Validation** : Validation des améliorations
+
+### Feedback Loop Integration
+- **User Feedback** : Intégration des retours utilisateurs
+- **Market Conditions** : Adaptation aux conditions de marché
+- **Technology Updates** : Impact des mises à jour
+- **Regulatory Changes** : Adaptation aux changements réglementaires
+
+Le système de monitoring KPI Local Volatility PDE and MC dans Our project assure une surveillance continue et proactive de la performance, qualité et stabilité du modèle, avec des alertes automatiques et des rapports détaillés pour maintenir l'excellence opérationnelle.

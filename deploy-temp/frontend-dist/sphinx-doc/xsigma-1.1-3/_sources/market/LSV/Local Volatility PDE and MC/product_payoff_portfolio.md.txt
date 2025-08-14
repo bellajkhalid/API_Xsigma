@@ -1,0 +1,762 @@
+# Product / Payoff / Portfolio
+
+## Overview
+
+Cette section décrit les produits, structures de payoff et capacités de gestion de portfolio du modèle **Local Volatility PDE and MC**, incluant la sélection optimale de méthode selon le type de produit.
+
+## Product Coverage
+
+### Vanilla Options
+
+#### European Options
+Options européennes avec volatilité locale optimisées selon la méthode :
+
+```cpp
+// Implémentation Our project pour options vanilles avec sélection de méthode
+namespace xsigma::local_vol_products {
+    
+    class VanillaOptionPricer {
+    public:
+        struct VanillaOptionSpec {
+            std::string option_type;        // "CALL" ou "PUT"
+            double strike;                  // Strike de l'option
+            double maturity;                // Maturité en années
+            double notional;                // Notionnel
+            bool requires_high_precision;   // Haute précision requise
+            bool requires_fast_greeks;      // Greeks rapides requis
+        };
+        
+        // Pricing avec sélection automatique de méthode
+        HybridPricingResult price_vanilla_option(
+            const VanillaOptionSpec& option,
+            const LocalVolatilityParameters& lv_params) {
+            
+            HybridPricingResult result;
+            
+            // Analyse de la complexité pour options vanilles
+            if (is_near_expiry(option.maturity) && requires_high_gamma_precision(option)) {
+                // Près de l'expiration : PDE pour précision du Gamma
+                result = price_via_pde_method(option, lv_params);
+                result.method_used = PricingMethod::PDE_ONLY;
+                
+            } else if (option.requires_fast_greeks) {
+                // Greeks rapides : PDE optimal
+                result = price_via_pde_method(option, lv_params);
+                result.method_used = PricingMethod::PDE_ONLY;
+                
+            } else if (option.requires_high_precision) {
+                // Haute précision : Validation croisée
+                result = price_with_cross_validation(option, lv_params);
+                result.method_used = PricingMethod::DUAL_VALIDATION;
+                
+            } else {
+                // Standard : PDE pour efficacité
+                result = price_via_pde_method(option, lv_params);
+                result.method_used = PricingMethod::PDE_ONLY;
+            }
+            
+            return result;
+        }
+        
+    private:
+        bool is_near_expiry(double maturity) const {
+            return maturity < 0.1; // Moins de 5 semaines
+        }
+        
+        bool requires_high_gamma_precision(const VanillaOptionSpec& option) const {
+            // Vérification si près de l'ATM où Gamma est maximal
+            return std::abs(std::log(option.strike / current_spot_)) < 0.05;
+        }
+        
+        HybridPricingResult price_via_pde_method(
+            const VanillaOptionSpec& option,
+            const LocalVolatilityParameters& lv_params) {
+            
+            // Construction de la grille PDE optimisée pour vanilles
+            auto pde_grid = build_vanilla_optimized_grid(option, lv_params);
+            
+            // Résolution de l'EDP de Black-Scholes avec volatilité locale
+            auto pde_solution = solve_local_vol_pde_vanilla(option, pde_grid, lv_params);
+            
+            HybridPricingResult result;
+            result.present_value = extract_vanilla_price(pde_solution, lv_params.spot_price);
+            
+            // Greeks calculés directement sur la grille PDE
+            result.delta = calculate_delta_from_grid(pde_solution, lv_params.spot_price);
+            result.gamma = calculate_gamma_from_grid(pde_solution, lv_params.spot_price);
+            result.theta = calculate_theta_from_grid(pde_solution, lv_params.spot_price);
+            result.vega = calculate_vega_via_surface_bump(option, lv_params);
+            result.rho = calculate_rho_via_rate_bump(option, lv_params);
+            
+            return result;
+        }
+        
+        HybridPricingResult price_with_cross_validation(
+            const VanillaOptionSpec& option,
+            const LocalVolatilityParameters& lv_params) {
+            
+            // Prix PDE
+            auto pde_result = price_via_pde_method(option, lv_params);
+            
+            // Prix Monte Carlo pour validation
+            auto mc_result = price_via_monte_carlo_method(option, lv_params);
+            
+            HybridPricingResult result = pde_result; // PDE comme référence pour vanilles
+            result.cross_validation_performed = true;
+            result.pde_price = pde_result.present_value;
+            result.mc_price = mc_result.present_value;
+            result.price_difference = std::abs(pde_result.present_value - mc_result.present_value);
+            
+            // Validation de cohérence
+            double relative_diff = result.price_difference / pde_result.present_value;
+            if (relative_diff > 0.005) { // 0.5%
+                result.warnings.push_back("Différence PDE/MC significative pour vanille: " + 
+                                         std::to_string(relative_diff * 100) + "%");
+            }
+            
+            return result;
+        }
+        
+        // Méthodes utilitaires (placeholders)
+        double current_spot_ = 100.0;
+        
+        struct PDEGrid {
+            std::vector<double> spot_points;
+            std::vector<double> time_points;
+        };
+        
+        PDEGrid build_vanilla_optimized_grid(const VanillaOptionSpec& option,
+                                            const LocalVolatilityParameters& lv_params) {
+            return PDEGrid{}; // Placeholder
+        }
+        
+        struct PDESolution {
+            std::vector<std::vector<double>> solution_matrix;
+        };
+        
+        PDESolution solve_local_vol_pde_vanilla(const VanillaOptionSpec& option,
+                                               const PDEGrid& grid,
+                                               const LocalVolatilityParameters& lv_params) {
+            return PDESolution{}; // Placeholder
+        }
+        
+        double extract_vanilla_price(const PDESolution& solution, double spot) {
+            return 5.0; // Placeholder
+        }
+        
+        double calculate_delta_from_grid(const PDESolution& solution, double spot) {
+            return 0.6; // Placeholder
+        }
+        
+        double calculate_gamma_from_grid(const PDESolution& solution, double spot) {
+            return 0.02; // Placeholder
+        }
+        
+        double calculate_theta_from_grid(const PDESolution& solution, double spot) {
+            return -0.05; // Placeholder
+        }
+        
+        double calculate_vega_via_surface_bump(const VanillaOptionSpec& option,
+                                              const LocalVolatilityParameters& lv_params) {
+            return 15.0; // Placeholder
+        }
+        
+        double calculate_rho_via_rate_bump(const VanillaOptionSpec& option,
+                                          const LocalVolatilityParameters& lv_params) {
+            return 4.0; // Placeholder
+        }
+        
+        HybridPricingResult price_via_monte_carlo_method(const VanillaOptionSpec& option,
+                                                        const LocalVolatilityParameters& lv_params) {
+            return HybridPricingResult{}; // Placeholder
+        }
+    };
+}
+```
+
+### Barrier Options
+
+#### Single and Double Barriers
+Options à barrière avec traitement spécialisé selon la méthode :
+
+```cpp
+// Options à barrière avec sélection de méthode optimale
+class BarrierOptionPricer {
+public:
+    struct BarrierOptionSpec {
+        std::string option_type;        // "CALL" ou "PUT"
+        std::string barrier_type;       // "UP_AND_OUT", "DOWN_AND_IN", etc.
+        double strike;                  // Strike
+        double barrier_level;           // Niveau de barrière
+        double maturity;                // Maturité
+        double rebate;                  // Rebate si knock-out
+        bool is_continuous_monitoring;  // Monitoring continu ou discret
+        std::vector<double> monitoring_dates; // Dates de monitoring si discret
+        double barrier_proximity_factor; // Facteur de proximité à la barrière
+    };
+    
+    // Pricing avec sélection de méthode selon proximité de barrière
+    HybridPricingResult price_barrier_option(
+        const BarrierOptionSpec& option,
+        const LocalVolatilityParameters& lv_params) {
+        
+        HybridPricingResult result;
+        
+        // Analyse de proximité à la barrière
+        double spot = lv_params.spot_price;
+        double barrier_distance = std::abs(spot - option.barrier_level) / spot;
+        
+        if (option.is_continuous_monitoring && barrier_distance > 0.1) {
+            // Monitoring continu, loin de la barrière : PDE optimal
+            result = price_barrier_via_pde(option, lv_params);
+            result.method_used = PricingMethod::PDE_ONLY;
+            
+        } else if (!option.is_continuous_monitoring) {
+            // Monitoring discret : Monte Carlo nécessaire
+            result = price_barrier_via_monte_carlo(option, lv_params);
+            result.method_used = PricingMethod::MONTE_CARLO_ONLY;
+            
+        } else if (barrier_distance < 0.05) {
+            // Très proche de la barrière : Hybride pour précision
+            result = price_barrier_via_hybrid(option, lv_params);
+            result.method_used = PricingMethod::HYBRID_ADAPTIVE;
+            
+        } else {
+            // Cas standard : PDE avec validation MC
+            result = price_barrier_with_validation(option, lv_params);
+            result.method_used = PricingMethod::PDE_FOR_GREEKS_MC_FOR_PRICE;
+        }
+        
+        return result;
+    }
+    
+private:
+    HybridPricingResult price_barrier_via_pde(
+        const BarrierOptionSpec& option,
+        const LocalVolatilityParameters& lv_params) {
+        
+        // Grille PDE adaptée pour barrière
+        auto adapted_grid = build_barrier_adapted_grid(option, lv_params);
+        
+        // Conditions aux limites spécialisées pour barrière
+        auto boundary_conditions = setup_barrier_boundary_conditions(option);
+        
+        // Résolution PDE avec traitement de barrière
+        auto pde_solution = solve_barrier_pde(option, adapted_grid, boundary_conditions, lv_params);
+        
+        HybridPricingResult result;
+        result.present_value = extract_barrier_price(pde_solution, lv_params.spot_price);
+        
+        // Greeks avec attention particulière près de la barrière
+        result.delta = calculate_barrier_delta_pde(pde_solution, lv_params.spot_price, option);
+        result.gamma = calculate_barrier_gamma_pde(pde_solution, lv_params.spot_price, option);
+        
+        return result;
+    }
+    
+    HybridPricingResult price_barrier_via_monte_carlo(
+        const BarrierOptionSpec& option,
+        const LocalVolatilityParameters& lv_params) {
+        
+        // Génération de chemins avec monitoring de barrière
+        auto paths = generate_paths_with_barrier_monitoring(option, lv_params);
+        
+        // Calcul du payoff avec vérification de barrière
+        auto payoffs = calculate_barrier_payoffs(option, paths);
+        
+        HybridPricingResult result;
+        result.present_value = calculate_discounted_expectation(payoffs, lv_params.risk_free_rate, option.maturity);
+        result.confidence_interval_95 = calculate_confidence_interval(payoffs);
+        
+        // Greeks via différences finies (plus coûteux mais nécessaire pour monitoring discret)
+        result.delta = calculate_barrier_delta_mc(option, lv_params);
+        result.gamma = calculate_barrier_gamma_mc(option, lv_params);
+        
+        return result;
+    }
+    
+    HybridPricingResult price_barrier_via_hybrid(
+        const BarrierOptionSpec& option,
+        const LocalVolatilityParameters& lv_params) {
+        
+        // Combinaison PDE (loin de la barrière) + MC (près de la barrière)
+        HybridPricingResult result;
+        
+        // PDE pour la région principale
+        auto pde_result = price_barrier_via_pde(option, lv_params);
+        
+        // Monte Carlo pour validation près de la barrière
+        auto mc_validation = validate_near_barrier_behavior(option, lv_params);
+        
+        // Combinaison pondérée selon la distance à la barrière
+        double spot = lv_params.spot_price;
+        double barrier_distance = std::abs(spot - option.barrier_level) / spot;
+        double pde_weight = std::min(1.0, barrier_distance / 0.05); // Poids PDE diminue près de la barrière
+        
+        result.present_value = pde_weight * pde_result.present_value + 
+                              (1.0 - pde_weight) * mc_validation.present_value;
+        
+        // Greeks hybrides
+        result.delta = pde_weight * pde_result.delta + (1.0 - pde_weight) * mc_validation.delta;
+        result.gamma = pde_weight * pde_result.gamma + (1.0 - pde_weight) * mc_validation.gamma;
+        
+        return result;
+    }
+    
+    // Méthodes utilitaires (placeholders)
+    struct AdaptedGrid {
+        std::vector<double> spot_points;
+        std::vector<double> time_points;
+        std::vector<int> barrier_indices;
+    };
+    
+    AdaptedGrid build_barrier_adapted_grid(const BarrierOptionSpec& option,
+                                          const LocalVolatilityParameters& lv_params) {
+        return AdaptedGrid{}; // Placeholder
+    }
+    
+    struct BoundaryConditions {
+        std::string barrier_condition_type;
+        double barrier_value;
+    };
+    
+    BoundaryConditions setup_barrier_boundary_conditions(const BarrierOptionSpec& option) {
+        return BoundaryConditions{}; // Placeholder
+    }
+    
+    PDESolution solve_barrier_pde(const BarrierOptionSpec& option,
+                                 const AdaptedGrid& grid,
+                                 const BoundaryConditions& bc,
+                                 const LocalVolatilityParameters& lv_params) {
+        return PDESolution{}; // Placeholder
+    }
+    
+    double extract_barrier_price(const PDESolution& solution, double spot) {
+        return 3.5; // Placeholder
+    }
+    
+    double calculate_barrier_delta_pde(const PDESolution& solution, double spot, 
+                                      const BarrierOptionSpec& option) {
+        return 0.4; // Placeholder
+    }
+    
+    double calculate_barrier_gamma_pde(const PDESolution& solution, double spot,
+                                      const BarrierOptionSpec& option) {
+        return 0.015; // Placeholder
+    }
+    
+    std::vector<std::vector<double>> generate_paths_with_barrier_monitoring(
+        const BarrierOptionSpec& option,
+        const LocalVolatilityParameters& lv_params) {
+        return {}; // Placeholder
+    }
+    
+    std::vector<double> calculate_barrier_payoffs(const BarrierOptionSpec& option,
+                                                 const std::vector<std::vector<double>>& paths) {
+        return {}; // Placeholder
+    }
+    
+    double calculate_discounted_expectation(const std::vector<double>& payoffs,
+                                           double rate, double maturity) {
+        return 3.5; // Placeholder
+    }
+    
+    double calculate_confidence_interval(const std::vector<double>& payoffs) {
+        return 0.1; // Placeholder
+    }
+    
+    double calculate_barrier_delta_mc(const BarrierOptionSpec& option,
+                                     const LocalVolatilityParameters& lv_params) {
+        return 0.4; // Placeholder
+    }
+    
+    double calculate_barrier_gamma_mc(const BarrierOptionSpec& option,
+                                     const LocalVolatilityParameters& lv_params) {
+        return 0.015; // Placeholder
+    }
+    
+    HybridPricingResult validate_near_barrier_behavior(const BarrierOptionSpec& option,
+                                                      const LocalVolatilityParameters& lv_params) {
+        return HybridPricingResult{}; // Placeholder
+    }
+    
+    HybridPricingResult price_barrier_with_validation(const BarrierOptionSpec& option,
+                                                     const LocalVolatilityParameters& lv_params) {
+        return HybridPricingResult{}; // Placeholder
+    }
+};
+```
+
+### Asian Options
+
+#### Path-Dependent Pricing
+Options asiatiques nécessitant généralement Monte Carlo :
+
+```cpp
+// Options asiatiques avec traitement spécialisé
+class AsianOptionPricer {
+public:
+    struct AsianOptionSpec {
+        std::string option_type;        // "CALL" ou "PUT"
+        std::string averaging_type;     // "ARITHMETIC" ou "GEOMETRIC"
+        double strike;                  // Strike
+        double maturity;                // Maturité
+        std::vector<double> averaging_dates; // Dates de moyenne
+        double current_average;         // Moyenne actuelle (si déjà commencé)
+        int observations_so_far;        // Nombre d'observations déjà prises
+        bool is_fixed_strike;           // Strike fixe ou flottant
+    };
+    
+    // Pricing avec sélection selon type de moyenne
+    HybridPricingResult price_asian_option(
+        const AsianOptionSpec& option,
+        const LocalVolatilityParameters& lv_params) {
+        
+        HybridPricingResult result;
+        
+        if (option.averaging_type == "GEOMETRIC" && option.averaging_dates.size() <= 12) {
+            // Moyenne géométrique avec peu de dates : PDE possible via transformation log
+            result = price_geometric_asian_via_pde(option, lv_params);
+            result.method_used = PricingMethod::PDE_ONLY;
+            
+        } else if (option.averaging_type == "ARITHMETIC" && option.averaging_dates.size() > 50) {
+            // Moyenne arithmétique avec beaucoup de dates : Monte Carlo optimal
+            result = price_arithmetic_asian_via_monte_carlo(option, lv_params);
+            result.method_used = PricingMethod::MONTE_CARLO_ONLY;
+            
+        } else {
+            // Cas mixtes : Hybride avec validation
+            result = price_asian_via_hybrid(option, lv_params);
+            result.method_used = PricingMethod::HYBRID_ADAPTIVE;
+        }
+        
+        return result;
+    }
+    
+private:
+    HybridPricingResult price_geometric_asian_via_pde(
+        const AsianOptionSpec& option,
+        const LocalVolatilityParameters& lv_params) {
+        
+        // Transformation log pour réduire à PDE 2D
+        auto transformed_params = transform_for_geometric_asian(option, lv_params);
+        
+        // PDE 2D avec volatilité locale ajustée
+        auto pde_solution = solve_geometric_asian_pde(option, transformed_params);
+        
+        HybridPricingResult result;
+        result.present_value = extract_geometric_asian_price(pde_solution, lv_params.spot_price);
+        
+        // Greeks via PDE (efficace pour géométrique)
+        result.delta = calculate_geometric_asian_delta_pde(pde_solution, lv_params.spot_price);
+        result.gamma = calculate_geometric_asian_gamma_pde(pde_solution, lv_params.spot_price);
+        
+        return result;
+    }
+    
+    HybridPricingResult price_arithmetic_asian_via_monte_carlo(
+        const AsianOptionSpec& option,
+        const LocalVolatilityParameters& lv_params) {
+        
+        // Génération de chemins avec dates d'observation exactes
+        auto paths = generate_paths_with_observation_dates(option, lv_params);
+        
+        // Calcul des moyennes arithmétiques sur chaque chemin
+        auto arithmetic_averages = calculate_arithmetic_averages(option, paths);
+        
+        // Payoffs basés sur les moyennes
+        auto payoffs = calculate_asian_payoffs(option, arithmetic_averages);
+        
+        HybridPricingResult result;
+        result.present_value = calculate_discounted_expectation(payoffs, lv_params.risk_free_rate, option.maturity);
+        result.confidence_interval_95 = calculate_confidence_interval(payoffs);
+        
+        // Greeks via différences finies avec contrôle de variance
+        result.delta = calculate_asian_delta_mc_with_control_variates(option, lv_params);
+        result.gamma = calculate_asian_gamma_mc_with_control_variates(option, lv_params);
+        
+        return result;
+    }
+    
+    HybridPricingResult price_asian_via_hybrid(
+        const AsianOptionSpec& option,
+        const LocalVolatilityParameters& lv_params) {
+        
+        HybridPricingResult result;
+        
+        if (option.averaging_type == "GEOMETRIC") {
+            // Géométrique : PDE pour prix, MC pour validation
+            auto pde_result = price_geometric_asian_via_pde(option, lv_params);
+            auto mc_validation = price_geometric_asian_via_monte_carlo_validation(option, lv_params);
+            
+            result.present_value = pde_result.present_value;
+            result.delta = pde_result.delta;
+            result.gamma = pde_result.gamma;
+            
+            // Validation croisée
+            result.cross_validation_performed = true;
+            result.pde_price = pde_result.present_value;
+            result.mc_price = mc_validation.present_value;
+            result.price_difference = std::abs(pde_result.present_value - mc_validation.present_value);
+            
+        } else {
+            // Arithmétique : MC pour prix, approximation PDE pour Greeks
+            auto mc_result = price_arithmetic_asian_via_monte_carlo(option, lv_params);
+            auto pde_greeks_approx = approximate_asian_greeks_via_pde(option, lv_params);
+            
+            result.present_value = mc_result.present_value;
+            result.confidence_interval_95 = mc_result.confidence_interval_95;
+            
+            // Greeks hybrides : MC pour précision, PDE pour stabilité
+            result.delta = 0.7 * mc_result.delta + 0.3 * pde_greeks_approx.delta;
+            result.gamma = 0.7 * mc_result.gamma + 0.3 * pde_greeks_approx.gamma;
+        }
+        
+        return result;
+    }
+    
+    // Méthodes utilitaires (placeholders)
+    struct TransformedParameters {
+        LocalVolatilityParameters adjusted_lv_params;
+        double geometric_adjustment_factor;
+    };
+    
+    TransformedParameters transform_for_geometric_asian(const AsianOptionSpec& option,
+                                                       const LocalVolatilityParameters& lv_params) {
+        return TransformedParameters{}; // Placeholder
+    }
+    
+    PDESolution solve_geometric_asian_pde(const AsianOptionSpec& option,
+                                         const TransformedParameters& params) {
+        return PDESolution{}; // Placeholder
+    }
+    
+    double extract_geometric_asian_price(const PDESolution& solution, double spot) {
+        return 4.2; // Placeholder
+    }
+    
+    double calculate_geometric_asian_delta_pde(const PDESolution& solution, double spot) {
+        return 0.5; // Placeholder
+    }
+    
+    double calculate_geometric_asian_gamma_pde(const PDESolution& solution, double spot) {
+        return 0.018; // Placeholder
+    }
+    
+    std::vector<std::vector<double>> generate_paths_with_observation_dates(
+        const AsianOptionSpec& option,
+        const LocalVolatilityParameters& lv_params) {
+        return {}; // Placeholder
+    }
+    
+    std::vector<double> calculate_arithmetic_averages(const AsianOptionSpec& option,
+                                                     const std::vector<std::vector<double>>& paths) {
+        return {}; // Placeholder
+    }
+    
+    std::vector<double> calculate_asian_payoffs(const AsianOptionSpec& option,
+                                               const std::vector<double>& averages) {
+        return {}; // Placeholder
+    }
+    
+    double calculate_asian_delta_mc_with_control_variates(const AsianOptionSpec& option,
+                                                         const LocalVolatilityParameters& lv_params) {
+        return 0.5; // Placeholder
+    }
+    
+    double calculate_asian_gamma_mc_with_control_variates(const AsianOptionSpec& option,
+                                                         const LocalVolatilityParameters& lv_params) {
+        return 0.018; // Placeholder
+    }
+    
+    HybridPricingResult price_geometric_asian_via_monte_carlo_validation(
+        const AsianOptionSpec& option,
+        const LocalVolatilityParameters& lv_params) {
+        return HybridPricingResult{}; // Placeholder
+    }
+    
+    HybridPricingResult approximate_asian_greeks_via_pde(const AsianOptionSpec& option,
+                                                        const LocalVolatilityParameters& lv_params) {
+        return HybridPricingResult{}; // Placeholder
+    }
+};
+```
+
+## Portfolio Management
+
+### Multi-Product Portfolios
+
+#### Portfolio Risk Aggregation
+Gestion de portfolios avec sélection de méthode optimale par produit :
+
+```cpp
+// Gestionnaire de portfolio avec méthodes hybrides
+class LocalVolatilityPortfolioManager {
+public:
+    struct PortfolioPosition {
+        std::string position_id;
+        std::string product_type;       // "VANILLA", "BARRIER", "ASIAN", etc.
+        std::variant<VanillaOptionSpec, BarrierOptionSpec, AsianOptionSpec> product_spec;
+        double quantity;                // Quantité (peut être négative)
+        double market_value;            // Valeur de marché actuelle
+        PricingMethod preferred_method; // Méthode préférée pour ce produit
+        bool requires_cross_validation; // Validation croisée requise
+    };
+    
+    struct PortfolioRisk {
+        // Greeks agrégés
+        double total_delta;
+        double total_gamma;
+        double total_vega;
+        double total_theta;
+        double total_rho;
+        
+        // Métriques par méthode
+        std::map<PricingMethod, double> value_by_method;
+        std::map<PricingMethod, int> positions_by_method;
+        
+        // Métriques de qualité
+        double cross_validation_coverage;  // % de positions avec validation croisée
+        double average_pricing_error;      // Erreur moyenne de pricing
+        std::vector<std::string> quality_warnings;
+        
+        // VaR et stress
+        double var_95_1d;
+        double expected_shortfall_95;
+        std::map<std::string, double> stress_scenario_pnl;
+    };
+    
+    // Calcul des risques de portfolio avec méthodes optimales
+    PortfolioRisk calculate_portfolio_risk(
+        const std::vector<PortfolioPosition>& positions,
+        const LocalVolatilityParameters& lv_params) {
+        
+        PortfolioRisk risk;
+        
+        // Pricing de chaque position avec méthode optimale
+        std::vector<HybridPricingResult> individual_results;
+        for (const auto& position : positions) {
+            auto result = price_position_with_optimal_method(position, lv_params);
+            individual_results.push_back(result);
+            
+            // Agrégation par méthode
+            risk.value_by_method[result.method_used] += position.quantity * result.present_value;
+            risk.positions_by_method[result.method_used]++;
+        }
+        
+        // Agrégation des Greeks
+        aggregate_portfolio_greeks(positions, individual_results, risk);
+        
+        // Métriques de qualité
+        calculate_quality_metrics(positions, individual_results, risk);
+        
+        // VaR et stress testing
+        calculate_portfolio_var(positions, individual_results, risk);
+        
+        return risk;
+    }
+    
+private:
+    HybridPricingResult price_position_with_optimal_method(
+        const PortfolioPosition& position,
+        const LocalVolatilityParameters& lv_params) {
+        
+        // Sélection du pricer selon le type de produit
+        if (position.product_type == "VANILLA") {
+            VanillaOptionPricer pricer;
+            auto spec = std::get<VanillaOptionSpec>(position.product_spec);
+            return pricer.price_vanilla_option(spec, lv_params);
+            
+        } else if (position.product_type == "BARRIER") {
+            BarrierOptionPricer pricer;
+            auto spec = std::get<BarrierOptionSpec>(position.product_spec);
+            return pricer.price_barrier_option(spec, lv_params);
+            
+        } else if (position.product_type == "ASIAN") {
+            AsianOptionPricer pricer;
+            auto spec = std::get<AsianOptionSpec>(position.product_spec);
+            return pricer.price_asian_option(spec, lv_params);
+        }
+        
+        return HybridPricingResult{}; // Fallback
+    }
+    
+    void aggregate_portfolio_greeks(
+        const std::vector<PortfolioPosition>& positions,
+        const std::vector<HybridPricingResult>& results,
+        PortfolioRisk& risk) {
+        
+        risk.total_delta = 0.0;
+        risk.total_gamma = 0.0;
+        risk.total_vega = 0.0;
+        risk.total_theta = 0.0;
+        risk.total_rho = 0.0;
+        
+        for (size_t i = 0; i < positions.size(); ++i) {
+            const auto& position = positions[i];
+            const auto& result = results[i];
+            
+            risk.total_delta += position.quantity * result.delta;
+            risk.total_gamma += position.quantity * result.gamma;
+            risk.total_vega += position.quantity * result.vega;
+            risk.total_theta += position.quantity * result.theta;
+            risk.total_rho += position.quantity * result.rho;
+        }
+    }
+    
+    void calculate_quality_metrics(
+        const std::vector<PortfolioPosition>& positions,
+        const std::vector<HybridPricingResult>& results,
+        PortfolioRisk& risk) {
+        
+        int cross_validated_positions = 0;
+        double total_error = 0.0;
+        
+        for (size_t i = 0; i < positions.size(); ++i) {
+            const auto& result = results[i];
+            
+            if (result.cross_validation_performed) {
+                cross_validated_positions++;
+                
+                // Vérification de cohérence PDE/MC
+                double relative_error = result.price_difference / 
+                                       std::max(std::abs(result.pde_price), std::abs(result.mc_price));
+                
+                if (relative_error > 0.01) { // 1%
+                    risk.quality_warnings.push_back(
+                        "Position " + positions[i].position_id + 
+                        " : différence PDE/MC = " + std::to_string(relative_error * 100) + "%");
+                }
+            }
+            
+            total_error += result.pricing_error_estimate;
+        }
+        
+        risk.cross_validation_coverage = static_cast<double>(cross_validated_positions) / positions.size();
+        risk.average_pricing_error = total_error / positions.size();
+    }
+    
+    void calculate_portfolio_var(
+        const std::vector<PortfolioPosition>& positions,
+        const std::vector<HybridPricingResult>& results,
+        PortfolioRisk& risk) {
+        
+        // VaR paramétrique basé sur les Greeks agrégés
+        double underlying_volatility = 0.20; // 20% vol annuelle
+        double portfolio_std = std::abs(risk.total_delta) * underlying_volatility;
+        
+        risk.var_95_1d = 1.65 * portfolio_std / std::sqrt(252); // VaR 1 jour
+        risk.expected_shortfall_95 = 2.06 * portfolio_std / std::sqrt(252);
+        
+        // Scénarios de stress
+        risk.stress_scenario_pnl["MARKET_DOWN_20PCT"] = 
+            risk.total_delta * (-0.20) + 0.5 * risk.total_gamma * (-0.20) * (-0.20);
+        risk.stress_scenario_pnl["MARKET_UP_20PCT"] = 
+            risk.total_delta * 0.20 + 0.5 * risk.total_gamma * 0.20 * 0.20;
+        risk.stress_scenario_pnl["VOL_UP_50PCT"] = risk.total_vega * 0.50;
+        risk.stress_scenario_pnl["VOL_DOWN_50PCT"] = risk.total_vega * (-0.50);
+    }
+};
+```
+
+Le framework de produits et portfolio Local Volatility PDE and MC dans Our project offre une solution hybride optimale combinant la précision des méthodes PDE avec la flexibilité de Monte Carlo, avec sélection automatique de la méthode optimale selon le type de produit et les exigences de précision.

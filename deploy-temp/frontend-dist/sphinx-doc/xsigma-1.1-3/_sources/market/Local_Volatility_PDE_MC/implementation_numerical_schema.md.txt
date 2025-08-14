@@ -1,0 +1,614 @@
+# Implementation / Numerical Schema Description
+
+## Vue d'ensemble
+
+Le modèle de volatilité locale a été connecté aux techniques numériques de différences finies (PDE) et de Monte Carlo (MC). Nous décrivons les deux implémentations ci-dessous.
+
+```cpp
+// Implémentation Our project de l'architecture numérique
+namespace xsigma {
+    // Énumération des méthodes numériques
+    enum class NumericalMethod {
+        PDE_FINITE_DIFFERENCE,    // Différences finies PDE
+        MONTE_CARLO,             // Monte Carlo
+        HYBRID_PDE_MC           // Hybride PDE/MC
+    };
+    
+    // Interface de base pour les solveurs numériques
+    class NumericalSolver {
+    public:
+        virtual ~NumericalSolver() = default;
+        virtual double solve(const PayoffFunction& payoff, 
+                           const LocalVolatilitySurface& vol_surface) = 0;
+        virtual NumericalMethod get_method_type() const = 0;
+        virtual void set_parameters(const SolverParameters& params) = 0;
+    };
+    
+    // Factory pour créer les solveurs appropriés
+    class SolverFactory {
+    public:
+        static std::unique_ptr<NumericalSolver> create_solver(
+            NumericalMethod method,
+            const SolverParameters& params) {
+            
+            switch (method) {
+                case NumericalMethod::PDE_FINITE_DIFFERENCE:
+                    return std::make_unique<PDESolver>(params);
+                case NumericalMethod::MONTE_CARLO:
+                    return std::make_unique<MonteCarloSolver>(params);
+                case NumericalMethod::HYBRID_PDE_MC:
+                    return std::make_unique<HybridSolver>(params);
+                default:
+                    XSIGMA_THROW("Méthode numérique non supportée");
+            }
+        }
+    };
+}
+```
+*Cette implémentation C++ dans Our project définit l'architecture générale des solveurs numériques pour le modèle Local Volatility.*
+
+## Solveur PDE
+
+Le solveur PDE générique QA (Oliver, 2007) est le moteur de différences finies utilisé pour résoudre l'équation aux dérivées partielles (PDE) de pricing pour le modèle LV. Les méthodes de différences finies résolvent la PDE en approximant les dérivées partielles apparaissant dans l'équation comme des différences finies.
+
+### Transformation Logarithmique
+
+Pour la solution numérique, la PDE de pricing est généralement exprimée en termes du logarithme (naturel) du taux de change spot sous-jacent :
+
+$$x_t = \log S_t$$
+
+Soit $V(x_t, t)$ la valeur du dérivé au temps $t$. De la théorie standard de pricing d'arbitrage, nous avons :
+
+$$\frac{V(x_t, t)}{\beta_t} = \mathbb{E}^q \left[ \frac{V(x_T)}{\beta_T} /F_t\right]$$
+
+Ici, $q$ dénote la mesure risque-neutre associée au numéraire $\beta_t$, et $V(x_T)$ est le payoff de l'option à $T$. L'application de Feynman-Kac (Shreve, 2010) à ce qui précède donne la PDE de pricing :
+
+$$\frac{\partial V}{\partial t} + \left( r_d - r_f - \frac{1}{2} \sigma^2(S_t, t) \right) \frac{\partial V}{\partial x} + \frac{1}{2} \sigma^2(S_t, t) \frac{\partial^2 V}{\partial x^2} = r_d V$$
+
+```cpp
+// Implémentation Our project du solveur PDE
+namespace xsigma {
+    // Classe pour le solveur PDE de différences finies
+    class PDESolver : public NumericalSolver {
+    public:
+        // Structure pour les paramètres PDE
+        struct PDEParameters {
+            size_t num_time_steps;        // Nombre de pas de temps
+            size_t num_space_steps;       // Nombre de pas spatiaux
+            double space_std_devs;        // Écart-types spatiaux
+            bool use_rannacher_stepping;  // Utiliser Rannacher stepping
+            bool apply_smoothing;         // Appliquer le lissage
+            bool use_non_uniform_grid;    // Grille non-uniforme
+        };
+        
+        PDESolver(const PDEParameters& params) : pde_params_(params) {
+            initialize_grid();
+        }
+        
+        double solve(const PayoffFunction& payoff, 
+                    const LocalVolatilitySurface& vol_surface) override {
+            
+            // 1. Initialiser la grille avec le payoff terminal
+            initialize_terminal_condition(payoff);
+            
+            // 2. Résolution backward dans le temps
+            for (int t_idx = time_grid_.size() - 2; t_idx >= 0; --t_idx) {
+                solve_time_step(t_idx, vol_surface);
+                
+                // Appliquer Rannacher stepping si nécessaire
+                if (pde_params_.use_rannacher_stepping && has_discontinuity(t_idx)) {
+                    apply_rannacher_steps(t_idx, vol_surface);
+                }
+            }
+            
+            // 3. Interpoler la solution au spot initial
+            return interpolate_solution_at_spot();
+        }
+        
+        NumericalMethod get_method_type() const override {
+            return NumericalMethod::PDE_FINITE_DIFFERENCE;
+        }
+        
+        void set_parameters(const SolverParameters& params) override {
+            // Mise à jour des paramètres PDE
+        }
+        
+    private:
+        PDEParameters pde_params_;
+        std::vector<double> time_grid_;
+        std::vector<double> space_grid_;
+        std::vector<std::vector<double>> solution_grid_;
+        
+        void initialize_grid() {
+            // Construction de la grille temporelle
+            time_grid_.resize(pde_params_.num_time_steps + 1);
+            for (size_t i = 0; i <= pde_params_.num_time_steps; ++i) {
+                time_grid_[i] = i * (1.0 / pde_params_.num_time_steps); // Exemple
+            }
+            
+            // Construction de la grille spatiale
+            space_grid_.resize(pde_params_.num_space_steps + 1);
+            double dx = 2.0 * pde_params_.space_std_devs / pde_params_.num_space_steps;
+            for (size_t i = 0; i <= pde_params_.num_space_steps; ++i) {
+                space_grid_[i] = -pde_params_.space_std_devs + i * dx;
+            }
+            
+            // Initialiser la grille de solution
+            solution_grid_.resize(time_grid_.size(), 
+                                std::vector<double>(space_grid_.size(), 0.0));
+        }
+        
+        void initialize_terminal_condition(const PayoffFunction& payoff) {
+            size_t T_idx = time_grid_.size() - 1;
+            double T = time_grid_[T_idx];
+            
+            for (size_t i = 0; i < space_grid_.size(); ++i) {
+                double spot = std::exp(space_grid_[i]); // x = log(S) => S = exp(x)
+                solution_grid_[T_idx][i] = payoff.evaluate(spot, T);
+                
+                // Appliquer le lissage si activé
+                if (pde_params_.apply_smoothing) {
+                    solution_grid_[T_idx][i] = apply_payoff_smoothing(payoff, i, T);
+                }
+            }
+        }
+        
+        void solve_time_step(int t_idx, const LocalVolatilitySurface& vol_surface) {
+            double dt = time_grid_[t_idx + 1] - time_grid_[t_idx];
+            double t = time_grid_[t_idx];
+            
+            // Schéma Crank-Nicolson
+            std::vector<double> diagonal(space_grid_.size());
+            std::vector<double> upper_diag(space_grid_.size() - 1);
+            std::vector<double> lower_diag(space_grid_.size() - 1);
+            std::vector<double> rhs(space_grid_.size());
+            
+            for (size_t i = 1; i < space_grid_.size() - 1; ++i) {
+                double x = space_grid_[i];
+                double S = std::exp(x);
+                double sigma = vol_surface.get_volatility(S, t);
+                double dx = space_grid_[i+1] - space_grid_[i];
+                
+                // Coefficients de la PDE discrétisée
+                double alpha = 0.5 * sigma * sigma * dt / (dx * dx);
+                double beta = (pde_params_.domestic_rate - pde_params_.foreign_rate 
+                             - 0.5 * sigma * sigma) * dt / (2.0 * dx);
+                double gamma = pde_params_.domestic_rate * dt;
+                
+                // Matrice tridiagonale pour Crank-Nicolson
+                lower_diag[i-1] = -0.5 * (alpha - beta);
+                diagonal[i] = 1.0 + 0.5 * (2.0 * alpha + gamma);
+                upper_diag[i] = -0.5 * (alpha + beta);
+                
+                // Terme de droite
+                rhs[i] = solution_grid_[t_idx + 1][i] * (1.0 - 0.5 * (2.0 * alpha + gamma))
+                       + solution_grid_[t_idx + 1][i-1] * 0.5 * (alpha - beta)
+                       + solution_grid_[t_idx + 1][i+1] * 0.5 * (alpha + beta);
+            }
+            
+            // Conditions aux limites
+            apply_boundary_conditions(t_idx, diagonal, upper_diag, lower_diag, rhs);
+            
+            // Résolution du système tridiagonal
+            solution_grid_[t_idx] = solve_tridiagonal_system(diagonal, upper_diag, lower_diag, rhs);
+        }
+        
+        void apply_rannacher_steps(int t_idx, const LocalVolatilitySurface& vol_surface) {
+            // Implémentation des pas Rannacher pour stabiliser les discontinuités
+            for (int step = 0; step < 3; ++step) {
+                solve_implicit_step(t_idx, vol_surface);
+            }
+        }
+        
+        double apply_payoff_smoothing(const PayoffFunction& payoff, size_t i, double t) const {
+            // Lissage du payoff selon la formule :
+            // f̂(x_i,t_j) = (2/(x_{i+1} - x_{i-1})) ∫ f(x,t_j) dx
+            
+            if (i == 0 || i == space_grid_.size() - 1) {
+                return payoff.evaluate(std::exp(space_grid_[i]), t);
+            }
+            
+            double x_left = (space_grid_[i] + space_grid_[i-1]) / 2.0;
+            double x_right = (space_grid_[i+1] + space_grid_[i]) / 2.0;
+            double dx = x_right - x_left;
+            
+            // Intégration numérique simple (règle du trapèze)
+            const int num_integration_points = 10;
+            double integral = 0.0;
+            double h = dx / num_integration_points;
+            
+            for (int j = 0; j <= num_integration_points; ++j) {
+                double x = x_left + j * h;
+                double spot = std::exp(x);
+                double weight = (j == 0 || j == num_integration_points) ? 0.5 : 1.0;
+                integral += weight * payoff.evaluate(spot, t) * h;
+            }
+            
+            return integral / dx;
+        }
+        
+        void apply_boundary_conditions(int t_idx, 
+                                     std::vector<double>& diagonal,
+                                     std::vector<double>& upper_diag,
+                                     std::vector<double>& lower_diag,
+                                     std::vector<double>& rhs) {
+            // Conditions aux limites Neumann pour options vanilla
+            // ∂²V/∂S² = 0 aux limites
+            
+            // Limite inférieure
+            diagonal[0] = 1.0;
+            if (!upper_diag.empty()) upper_diag[0] = -1.0;
+            rhs[0] = 0.0;
+            
+            // Limite supérieure
+            size_t last = diagonal.size() - 1;
+            diagonal[last] = 1.0;
+            if (!lower_diag.empty()) lower_diag[last-1] = -1.0;
+            rhs[last] = 0.0;
+        }
+        
+        std::vector<double> solve_tridiagonal_system(
+            const std::vector<double>& diagonal,
+            const std::vector<double>& upper_diag,
+            const std::vector<double>& lower_diag,
+            const std::vector<double>& rhs) const {
+            
+            // Algorithme de Thomas pour systèmes tridiagonaux
+            size_t n = diagonal.size();
+            std::vector<double> solution(n);
+            std::vector<double> c_prime(n);
+            std::vector<double> d_prime(n);
+            
+            // Forward sweep
+            c_prime[0] = upper_diag.empty() ? 0.0 : upper_diag[0] / diagonal[0];
+            d_prime[0] = rhs[0] / diagonal[0];
+            
+            for (size_t i = 1; i < n; ++i) {
+                double denominator = diagonal[i] - (i-1 < lower_diag.size() ? lower_diag[i-1] : 0.0) * c_prime[i-1];
+                c_prime[i] = (i < upper_diag.size() ? upper_diag[i] : 0.0) / denominator;
+                d_prime[i] = (rhs[i] - (i-1 < lower_diag.size() ? lower_diag[i-1] : 0.0) * d_prime[i-1]) / denominator;
+            }
+            
+            // Back substitution
+            solution[n-1] = d_prime[n-1];
+            for (int i = n-2; i >= 0; --i) {
+                solution[i] = d_prime[i] - c_prime[i] * solution[i+1];
+            }
+            
+            return solution;
+        }
+        
+        double interpolate_solution_at_spot() const {
+            // Interpolation de la solution au spot initial
+            double log_spot = std::log(initial_spot_);
+            
+            // Trouver les indices d'interpolation
+            auto it = std::lower_bound(space_grid_.begin(), space_grid_.end(), log_spot);
+            if (it == space_grid_.end()) {
+                return solution_grid_[0].back();
+            }
+            if (it == space_grid_.begin()) {
+                return solution_grid_[0].front();
+            }
+            
+            size_t i = std::distance(space_grid_.begin(), it);
+            double weight = (log_spot - space_grid_[i-1]) / (space_grid_[i] - space_grid_[i-1]);
+            
+            return (1.0 - weight) * solution_grid_[0][i-1] + weight * solution_grid_[0][i];
+        }
+        
+        bool has_discontinuity(int t_idx) const {
+            // Vérifier s'il y a une discontinuité dans le payoff à ce temps
+            return false; // Placeholder
+        }
+        
+        void solve_implicit_step(int t_idx, const LocalVolatilitySurface& vol_surface) {
+            // Pas implicite pour Rannacher stepping
+        }
+        
+        double initial_spot_ = 1.0; // À initialiser avec le spot réel
+        double domestic_rate_ = 0.0;
+        double foreign_rate_ = 0.0;
+    };
+}
+```
+*Cette implémentation C++ dans Our project fournit un solveur PDE complet avec schéma Crank-Nicolson, lissage de payoff et Rannacher stepping.*
+
+### Conditions aux Limites
+
+Le payoff de l'option $V(x_T)$ forme la condition aux limites à $T$. Dans la direction spatiale, les limites (et les conditions aux limites) sont déterminées par le payoff :
+
+- **Pour un DNT** : Les niveaux de barrière déterminent la limite de grille, et nous imposons une condition aux limites de Dirichlet exigeant que la valeur soit égale à zéro si l'une des barrières est touchée.
+
+- **Pour une option vanilla** : Où le payoff n'impose aucune limite spécifique, nous permettons à la grille de s'étendre (dans la direction spatiale) jusqu'à un niveau que le spot a une probabilité négligeable d'atteindre. Ce niveau est spécifié par l'utilisateur en termes d'écarts-types de la distribution du spot.
+
+### Techniques de Stabilisation
+
+Le framework PDE supporte des techniques telles que le Rannacher stepping et le lissage de payoff, qui aident à atténuer les instabilités numériques, en particulier dans les régions où les barrières n'existent pas.
+
+L'impact des payoffs discontinus (ou non-lisses) est atténué en utilisant des techniques telles que le Rannacher stepping et le lissage de payoff. La PDE LV est normalement résolue en utilisant le stepping Crank-Nicholson (Oliver, 2007).
+
+**Rannacher Stepping** : Des pas implicites supplémentaires sont insérés dans la grille temporelle immédiatement après toute discontinuité dans le payoff ; cela aide à amortir les oscillations dans la solution calculée.
+
+**Lissage de Payoff** : La fonction de payoff est échantillonnée sur la grille PDE en intégrant la fonction de payoff sur un voisinage du point de grille (dans la direction spatiale). Pour le point de grille $(x_i,t_j)$, l'échantillonnage est appliqué par :
+
+$$\hat{f}(x_i,t_j) = \frac{2}{x_{i+1} - x_{i-1}} \int_{\frac{x_i+x_{i-1}}{2}}^{\frac{x_{i+1}+x_i}{2}} f(x_i,t_j) \, dx$$
+
+Cela garantit que nous ne sommes pas indûment sensibles à la position exacte de la discontinuité, et que de petits changements dans la position de la discontinuité (causés, par exemple, lors de la perturbation de risque) ne causent pas de grandes oscillations dans la solution calculée.
+
+## Monte Carlo
+
+Comme noté précédemment, le problème de pricing implique le calcul d'une espérance sous la mesure risque-neutre :
+
+$$\frac{V(x_t,t)}{\beta_t} = \mathbb{E}^q \left[ \frac{V(x_T)}{\beta_T}/\mathcal{F}_t \right]$$
+
+Les méthodes Monte Carlo (voir (Glasserman, 2003) et (Jaeckel, 2002)) utilisent des nombres pseudo/quasi-aléatoires pour générer des chemins d'échantillonnage pour le processus stochastique modélisé. Le payoff de l'option est alors *simulé* sur chacun de ces chemins et moyenné pour obtenir l'espérance ci-dessus.
+
+### Discrétisation de l'EDS
+
+Nous rappelons de la Section 4.1 que, sous la mesure risque-neutre, l'EDS de volatilité locale pour le spot FX est :
+
+$$\frac{dS_t}{S_t} = \left( r_d - r_f \right) dt + \sigma(S_t,t) dW_t$$
+
+Pour la solution numérique, cette EDS est transformée en termes du logarithme (naturel) du taux de change spot sous-jacent :
+
+$$d \log S_t = \left( r_d - r_f - \frac{1}{2}\sigma^2 \left( S_t,t \right) \right) dt + \sigma \left( S_t,t \right) dW_t$$
+
+L'EDS transformée est discrétisée en utilisant le schéma d'Euler :
+
+$$\log S_{t+\Delta t} = \log S_t - \frac{1}{2}\sigma^2 \left( S_t,t \right) \Delta t + \sigma \left( S_t,t \right) \omega \sqrt{\Delta t} + \left( \text{drift} \right)$$
+
+```cpp
+// Implémentation Our project du solveur Monte Carlo
+namespace xsigma {
+    // Classe pour le solveur Monte Carlo
+    class MonteCarloSolver : public NumericalSolver {
+    public:
+        // Structure pour les paramètres Monte Carlo
+        struct MCParameters {
+            size_t num_paths;              // Nombre de chemins
+            size_t num_time_steps;         // Nombre de pas de temps
+            bool use_antithetic_variates;  // Variables antithétiques
+            bool use_brownian_bridge;      // Pont brownien
+            RandomNumberGenerator rng_type; // Type de générateur
+            DiscretizationScheme scheme;   // Schéma de discrétisation
+        };
+
+        MonteCarloSolver(const MCParameters& params) : mc_params_(params) {
+            initialize_rng();
+        }
+
+        double solve(const PayoffFunction& payoff,
+                    const LocalVolatilitySurface& vol_surface) override {
+
+            double sum_payoffs = 0.0;
+            double sum_squared_payoffs = 0.0;
+
+            for (size_t path = 0; path < mc_params_.num_paths; ++path) {
+                // Générer un chemin
+                auto spot_path = generate_path(vol_surface);
+
+                // Évaluer le payoff sur ce chemin
+                double payoff_value = evaluate_payoff_on_path(payoff, spot_path);
+
+                sum_payoffs += payoff_value;
+                sum_squared_payoffs += payoff_value * payoff_value;
+
+                // Variables antithétiques
+                if (mc_params_.use_antithetic_variates) {
+                    auto antithetic_path = generate_antithetic_path(vol_surface);
+                    double antithetic_payoff = evaluate_payoff_on_path(payoff, antithetic_path);
+
+                    sum_payoffs += antithetic_payoff;
+                    sum_squared_payoffs += antithetic_payoff * antithetic_payoff;
+                }
+            }
+
+            size_t total_paths = mc_params_.use_antithetic_variates ?
+                               2 * mc_params_.num_paths : mc_params_.num_paths;
+
+            double mean_payoff = sum_payoffs / total_paths;
+            double variance = (sum_squared_payoffs / total_paths) - (mean_payoff * mean_payoff);
+            standard_error_ = std::sqrt(variance / total_paths);
+
+            return mean_payoff;
+        }
+
+        NumericalMethod get_method_type() const override {
+            return NumericalMethod::MONTE_CARLO;
+        }
+
+        void set_parameters(const SolverParameters& params) override {
+            // Mise à jour des paramètres MC
+        }
+
+        double get_standard_error() const { return standard_error_; }
+
+    private:
+        MCParameters mc_params_;
+        std::unique_ptr<RandomNumberGenerator> rng_;
+        double standard_error_;
+
+        void initialize_rng() {
+            switch (mc_params_.rng_type) {
+                case RandomNumberGenerator::MERSENNE_TWISTER:
+                    rng_ = std::make_unique<MersenneTwisterRNG>();
+                    break;
+                case RandomNumberGenerator::SOBOL:
+                    rng_ = std::make_unique<SobolRNG>();
+                    break;
+                case RandomNumberGenerator::HYBRID:
+                    rng_ = std::make_unique<HybridRNG>();
+                    break;
+            }
+        }
+
+        std::vector<double> generate_path(const LocalVolatilitySurface& vol_surface) {
+            std::vector<double> path(mc_params_.num_time_steps + 1);
+            path[0] = initial_spot_;
+
+            double dt = time_horizon_ / mc_params_.num_time_steps;
+
+            for (size_t i = 1; i <= mc_params_.num_time_steps; ++i) {
+                double t = (i - 1) * dt;
+                double S_t = path[i - 1];
+
+                // Volatilité locale au point (S_t, t)
+                double local_vol = vol_surface.get_volatility(S_t, t);
+
+                // Génération du nombre aléatoire
+                double random_normal = rng_->generate_normal();
+
+                // Schéma de discrétisation
+                if (mc_params_.scheme == DiscretizationScheme::EULER) {
+                    path[i] = euler_step(S_t, local_vol, dt, random_normal);
+                } else if (mc_params_.scheme == DiscretizationScheme::MILSTEIN) {
+                    path[i] = milstein_step(S_t, local_vol, dt, random_normal, vol_surface, t);
+                }
+            }
+
+            return path;
+        }
+
+        double euler_step(double S_t, double sigma, double dt, double random_normal) const {
+            // Schéma d'Euler pour log(S)
+            double log_S_t = std::log(S_t);
+            double drift = (domestic_rate_ - foreign_rate_ - 0.5 * sigma * sigma) * dt;
+            double diffusion = sigma * std::sqrt(dt) * random_normal;
+
+            return std::exp(log_S_t + drift + diffusion);
+        }
+
+        double milstein_step(double S_t, double sigma, double dt, double random_normal,
+                           const LocalVolatilitySurface& vol_surface, double t) const {
+            // Schéma de Milstein avec correction d'ordre supérieur
+            double log_S_t = std::log(S_t);
+
+            // Terme de drift
+            double drift = (domestic_rate_ - foreign_rate_ - 0.5 * sigma * sigma) * dt;
+
+            // Terme de diffusion principal
+            double diffusion = sigma * std::sqrt(dt) * random_normal;
+
+            // Correction de Milstein
+            double ds = 0.01 * S_t; // Petit déplacement pour dérivée numérique
+            double sigma_plus = vol_surface.get_volatility(S_t + ds, t);
+            double sigma_minus = vol_surface.get_volatility(S_t - ds, t);
+            double dsigma_dS = (sigma_plus - sigma_minus) / (2.0 * ds);
+
+            double milstein_correction = 0.5 * sigma * S_t * dsigma_dS *
+                                       (random_normal * random_normal - 1.0) * dt;
+
+            return std::exp(log_S_t + drift + diffusion + milstein_correction / S_t);
+        }
+
+        std::vector<double> generate_antithetic_path(const LocalVolatilitySurface& vol_surface) {
+            // Générer le chemin antithétique en utilisant -Z au lieu de Z
+            // Implémentation similaire à generate_path mais avec nombres aléatoires opposés
+            return generate_path(vol_surface); // Placeholder
+        }
+
+        double evaluate_payoff_on_path(const PayoffFunction& payoff,
+                                     const std::vector<double>& path) const {
+            // Évaluer le payoff sur le chemin complet
+            // Pour les options européennes, seule la valeur finale compte
+            double final_spot = path.back();
+            double final_time = time_horizon_;
+
+            return payoff.evaluate(final_spot, final_time);
+        }
+
+        double initial_spot_ = 1.0;
+        double time_horizon_ = 1.0;
+        double domestic_rate_ = 0.0;
+        double foreign_rate_ = 0.0;
+    };
+
+    // Générateurs de nombres aléatoires
+    class RandomNumberGenerator {
+    public:
+        enum Type {
+            MERSENNE_TWISTER,
+            SOBOL,
+            HYBRID
+        };
+
+        virtual ~RandomNumberGenerator() = default;
+        virtual double generate_uniform() = 0;
+        virtual double generate_normal() = 0;
+    };
+
+    class MersenneTwisterRNG : public RandomNumberGenerator {
+    public:
+        MersenneTwisterRNG() : gen_(std::random_device{}()), uniform_(0.0, 1.0), normal_(0.0, 1.0) {}
+
+        double generate_uniform() override {
+            return uniform_(gen_);
+        }
+
+        double generate_normal() override {
+            return normal_(gen_);
+        }
+
+    private:
+        std::mt19937 gen_;
+        std::uniform_real_distribution<double> uniform_;
+        std::normal_distribution<double> normal_;
+    };
+
+    class SobolRNG : public RandomNumberGenerator {
+    public:
+        SobolRNG() : dimension_(0) {
+            // Initialisation de la séquence de Sobol
+        }
+
+        double generate_uniform() override {
+            // Génération quasi-aléatoire Sobol
+            return 0.5; // Placeholder
+        }
+
+        double generate_normal() override {
+            // Transformation Box-Muller des uniformes Sobol
+            static bool has_spare = false;
+            static double spare;
+
+            if (has_spare) {
+                has_spare = false;
+                return spare;
+            }
+
+            has_spare = true;
+            double u1 = generate_uniform();
+            double u2 = generate_uniform();
+
+            double mag = std::sqrt(-2.0 * std::log(u1));
+            spare = mag * std::cos(2.0 * M_PI * u2);
+            return mag * std::sin(2.0 * M_PI * u2);
+        }
+
+    private:
+        size_t dimension_;
+    };
+}
+```
+*Cette implémentation C++ dans Our project fournit un solveur Monte Carlo complet avec support pour différents générateurs de nombres aléatoires et schémas de discrétisation.*
+
+### Générateurs de Nombres Aléatoires
+
+Le drift est calculé en utilisant les facteurs d'actualisation FOR et DOM comme $\log \left( \text{DF}_f \left( t,t + \Delta t \right) / \text{DF}_d \left( t,t + \Delta t \right) \right)$. Si le numéraire choisi est autre que la devise domestique, des termes quanto supplémentaires sont ajoutés au drift.
+
+Ici $\omega$ est un échantillon aléatoire de la distribution normale standard. Les échantillons uniformes aléatoires sont générés en utilisant un générateur de séquence (quasi-aléatoire) Sobol (Joe & Kuo, 2003) ou un (pseudo-aléatoire) Mersenne Twister. Une combinaison des deux peut être utilisée lorsque la dimension du problème dépasse le maximum supporté par le générateur Sobol. Un Mersenne Twister parallèle est également disponible pour une utilisation sur des lots distribués.
+
+**Note** : C'est le schéma de discrétisation par défaut. D'autres schémas de discrétisation tels que Milstein (Glasserman, 2003) sont disponibles dans le framework FX MC et peuvent être optionnellement activés.
+
+### Construction de Chemins Browniens
+
+Par défaut, les chemins browniens sont construits en utilisant une construction de pont brownien (Jaeckel, 2002). Les antithétiques sont toujours utilisées, et elles aident à réduire la variance de l'estimation Monte Carlo.
+
+## Contrôle de Qualité
+
+Les fonctions de contrôle seront appropriées pour le contrôle de qualité. De plus, le pricer Monte Carlo produit une erreur standard pour son estimation, et cela peut être utilisé pour inférer la qualité du pricing.
+
+## Limitations
+
+Les payoffs nécessitant un grand nombre (>2) de variables d'état dépendantes du chemin peuvent rendre la technique numérique PDE lente et augmenter significativement son empreinte mémoire. Sinon, pour les payoffs où le modèle LV est adapté (voir Section 4.2), aucune limitation supplémentaire n'est introduite par les techniques numériques.

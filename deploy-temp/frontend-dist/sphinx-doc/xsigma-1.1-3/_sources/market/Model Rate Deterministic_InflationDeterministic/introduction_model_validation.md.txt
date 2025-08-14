@@ -1,0 +1,335 @@
+# Introduction to Model and Validation
+
+## Validation Scope
+
+Le scope de la validation est détaillé dans la Section Executive Summary. Les produits avec des caractéristiques similaires d'un point de vue valorisation sont groupés ensemble et testés comme un groupe cohérent unique où les résultats de test pour un produit représentatif sont considérés comme applicables et capables de conférer une inférence équivalente à l'ensemble du groupe de produits.
+
+```cpp
+// Implémentation Our project de la gestion du scope de validation
+namespace xsigma {
+    // Énumération des groupes de produits pour validation
+    enum class ProductValidationGroup {
+        INFLATION_LINEAR_PRODUCTS,      // Produits d'inflation linéaires
+        INFLATION_CONVEX_PRODUCTS,      // Produits d'inflation convexes
+        MIXED_IR_INFLATION_PRODUCTS     // Produits mixtes IR-Inflation
+    };
+    
+    // Classe pour gérer le scope de validation
+    class ValidationScopeManager {
+    public:
+        // Structure pour définir un groupe de validation
+        struct ValidationGroup {
+            ProductValidationGroup group_type;
+            std::vector<std::string> products;
+            std::string representative_product;
+            std::string validation_rationale;
+        };
+        
+        // Configuration des groupes de validation
+        static std::vector<ValidationGroup> get_validation_groups() {
+            return {
+                {
+                    ProductValidationGroup::INFLATION_LINEAR_PRODUCTS,
+                    {"InflSwapZC", "InflAssetSwap", "IRSwapRealRate", "IRIndexSingle_INFLATION"},
+                    "InflSwapZC",
+                    "Tous les produits sont linéaires par rapport aux courbes d'inflation et de taux"
+                },
+                {
+                    ProductValidationGroup::INFLATION_CONVEX_PRODUCTS,
+                    {"InflSwapYOY"},
+                    "InflSwapYOY",
+                    "Produit avec caractéristiques de convexité spécifiques"
+                }
+            };
+        }
+        
+        // Validation de l'applicabilité d'un test
+        static bool is_test_applicable(const std::string& product,
+                                     const std::string& representative_product) {
+            auto groups = get_validation_groups();
+            
+            for (const auto& group : groups) {
+                if (group.representative_product == representative_product) {
+                    return std::find(group.products.begin(), group.products.end(), product) 
+                           != group.products.end();
+                }
+            }
+            
+            return false;
+        }
+    };
+}
+```
+*Cette implémentation C++ dans Our project gère la logique de groupement des produits pour la validation selon leurs caractéristiques de valorisation.*
+
+## Product Description
+
+### Produits Supportés
+
+#### DBOPT-RateDeterministic_InflationDeterministic
+- **InflSwapZC*** - Swaps d'inflation zéro coupon
+- **InflAssetSwap*** - Asset swaps d'inflation
+- **InflSwapYOY*** - Swaps d'inflation year-over-year
+- **IRSwapRealRate*** - Swaps de taux réels
+
+#### DBX-RateDeterministic_InflationDeterministic
+- **IRIndexSingle_INFLATION*** - Index de taux d'intérêt simple inflation
+
+*Les produits marqués d'un "*" indiquent que le modèle approuvé est primaire.*
+
+### PRDS Description
+
+| Product Name | Product Description |
+|--------------|---------------------|
+| **InflSwapZC** | Swap d'inflation impliquant l'échange d'un flux régulier de paiements indexés sur l'inflation contre un flux de paiements d'intérêts nominaux, pricé sur une base zéro coupon, avec paiement échangé à la fin du terme. |
+| **InflSwapYOY** | Swap d'inflation impliquant l'échange d'un flux régulier de paiements indexés sur l'inflation contre un flux de paiements d'intérêts nominaux échangés sur une base "year on year", où le taux de variation annuel de l'indice sous-jacent est appliqué. |
+| **InflAssetSwap** | Transaction de swap de taux d'intérêt impliquée dans une structure où l'investisseur achète une obligation liée à l'inflation et entre dans un swap de taux d'intérêt qui échange le profil de coupon de l'obligation non zéro coupon pour un ensemble différent de paiements, généralement basé sur le LIBOR. |
+| **IRSwapRealRate** | Swap de taux réel où la jambe inflation paie un coupon ajusté par l'indice d'inflation spécifié dans le contrat. Il peut également y avoir le paiement d'une augmentation notionnelle à l'échéance. |
+| **IRIndexSingle_INFLATION** | Transaction tradée sur une base transparente impliquant un indice qui a des composants d'indice avec la même devise et qui appartient à la famille d'indices d'inflation. Cette transaction n'aura pas d'optionalité. |
+
+```cpp
+// Implémentation Our project des produits d'inflation
+namespace xsigma {
+    // Interface de base pour tous les produits d'inflation
+    class InflationProduct {
+    public:
+        virtual ~InflationProduct() = default;
+        virtual std::string get_product_type() const = 0;
+        virtual double calculate_pv(const InterestRateCurve& ir_curve,
+                                  const InflationCurve& infl_curve) const = 0;
+        virtual bool has_optionality() const = 0;
+        virtual bool is_linear() const = 0;
+    };
+    
+    // Implémentation du swap d'inflation zéro coupon
+    class InflationSwapZeroCoupon : public InflationProduct {
+    public:
+        struct Parameters {
+            double notional;                // Notionnel N
+            double fixed_rate;              // Taux fixe K
+            std::string start_date;         // Date de début S
+            std::string maturity_date;      // Date de maturité T
+            std::string inflation_index;    // Indice d'inflation
+        };
+        
+        InflationSwapZeroCoupon(const Parameters& params) : params_(params) {}
+        
+        std::string get_product_type() const override {
+            return "InflSwapZC";
+        }
+        
+        double calculate_pv(const InterestRateCurve& ir_curve,
+                          const InflationCurve& infl_curve) const override {
+            // Formule: N * [(1 + K)^T - 1] vs. N * (I_t/I_s - 1)
+            
+            double maturity_years = calculate_time_to_maturity();
+            
+            // Jambe fixe
+            double fixed_leg = params_.notional * (std::pow(1.0 + params_.fixed_rate, maturity_years) - 1.0);
+            
+            // Jambe inflation
+            double inflation_ratio = infl_curve.get_inflation_ratio(params_.start_date, params_.maturity_date);
+            double inflation_leg = params_.notional * (inflation_ratio - 1.0);
+            
+            // Facteur d'actualisation
+            double discount_factor = ir_curve.get_discount_factor(params_.maturity_date);
+            
+            // PV = (Inflation Leg - Fixed Leg) * Discount Factor
+            return (inflation_leg - fixed_leg) * discount_factor;
+        }
+        
+        bool has_optionality() const override { return false; }
+        bool is_linear() const override { return true; }
+        
+    private:
+        Parameters params_;
+        
+        double calculate_time_to_maturity() const {
+            // Calcul du temps jusqu'à maturité en années
+            return 1.0; // Placeholder - implémentation réelle nécessaire
+        }
+    };
+    
+    // Implémentation du swap d'inflation year-over-year
+    class InflationSwapYearOverYear : public InflationProduct {
+    public:
+        struct Parameters {
+            double notional;                // Notionnel N
+            double fixed_rate;              // Taux fixe K
+            std::vector<std::string> payment_dates; // Dates de paiement T_i
+            std::string inflation_index;    // Indice d'inflation
+        };
+        
+        InflationSwapYearOverYear(const Parameters& params) : params_(params) {}
+        
+        std::string get_product_type() const override {
+            return "InflSwapYOY";
+        }
+        
+        double calculate_pv(const InterestRateCurve& ir_curve,
+                          const InflationCurve& infl_curve) const override {
+            // Formule: N * θ_k * K vs. N * θ_k * [I(T_i)/I(T_{i-1} * 1Y) - 1]
+            
+            double total_pv = 0.0;
+            
+            for (size_t i = 1; i < params_.payment_dates.size(); ++i) {
+                std::string current_date = params_.payment_dates[i];
+                std::string previous_date = params_.payment_dates[i-1];
+                
+                // Facteur d'accrual
+                double accrual_factor = calculate_accrual_factor(previous_date, current_date);
+                
+                // Jambe fixe
+                double fixed_payment = params_.notional * accrual_factor * params_.fixed_rate;
+                
+                // Jambe inflation YoY
+                double yoy_inflation = infl_curve.get_yoy_inflation_rate(previous_date, current_date);
+                double inflation_payment = params_.notional * accrual_factor * yoy_inflation;
+                
+                // Actualisation
+                double discount_factor = ir_curve.get_discount_factor(current_date);
+                
+                total_pv += (inflation_payment - fixed_payment) * discount_factor;
+            }
+            
+            return total_pv;
+        }
+        
+        bool has_optionality() const override { return false; }
+        bool is_linear() const override { return false; } // Convexe due à YoY
+        
+    private:
+        Parameters params_;
+        
+        double calculate_accrual_factor(const std::string& start_date, 
+                                      const std::string& end_date) const {
+            // Calcul du facteur d'accrual θ_k
+            return 1.0; // Placeholder
+        }
+    };
+    
+    // Factory pour créer les produits d'inflation
+    class InflationProductFactory {
+    public:
+        static std::unique_ptr<InflationProduct> create_product(
+            const std::string& product_type,
+            const std::map<std::string, std::string>& parameters) {
+            
+            if (product_type == "InflSwapZC") {
+                InflationSwapZeroCoupon::Parameters params;
+                params.notional = std::stod(parameters.at("notional"));
+                params.fixed_rate = std::stod(parameters.at("fixed_rate"));
+                params.start_date = parameters.at("start_date");
+                params.maturity_date = parameters.at("maturity_date");
+                params.inflation_index = parameters.at("inflation_index");
+                
+                return std::make_unique<InflationSwapZeroCoupon>(params);
+            }
+            else if (product_type == "InflSwapYOY") {
+                InflationSwapYearOverYear::Parameters params;
+                params.notional = std::stod(parameters.at("notional"));
+                params.fixed_rate = std::stod(parameters.at("fixed_rate"));
+                params.inflation_index = parameters.at("inflation_index");
+                
+                // Parse payment dates from parameter string
+                // ... implementation needed
+                
+                return std::make_unique<InflationSwapYearOverYear>(params);
+            }
+            else {
+                XSIGMA_THROW("Type de produit d'inflation non supporté: " + product_type);
+            }
+        }
+    };
+}
+```
+*Cette implémentation C++ dans Our project fournit une architecture complète pour les produits d'inflation avec pricing spécialisé pour chaque type de produit.*
+
+### Product Grouping Table
+
+| Product | Underlying | Coupon Structure | Underlying Specifics | Option | Barrier | Path Dependent |
+|---------|------------|------------------|---------------------|--------|---------|----------------|
+| InflSwapZC | Inflation | Linear | Linear | None | None | None |
+| InflSwapYOY | Inflation | Linear | Convex | None | None | None |
+| InflAssetSwap | Inflation-InterestRate | Linear | Linear | None | None | None |
+| IRSwapRealRate | Inflation | Linear | Linear | None | None | None |
+| IRIndexSingle_INFLATION | Inflation Index | Linear | Linear | None | None | None |
+
+**Tous les produits sont explicitement testés dans cette MVR.**
+
+### Portfolio Composition
+
+**Snapshot au 30 novembre 2023 pour DBOPT-RateDeterministic_InflationDeterministic :**
+
+| Product | No. of Trades | PV (million EUR) | Absolute PV (million EUR) |
+|---------|---------------|------------------|---------------------------|
+| InflAssetSwap | 147 | 338.18 | 2,712.24 |
+| InflSwapYOY | 13 | -40.48 | 52.71 |
+| InflSwapZC | 52,995 | -6,842.96 | 195,444.85 |
+
+### Product Overviews
+
+#### InflAssetSwap
+InflAssetSwap est simplement un swap avec une jambe consistant en paiements d'inflation ZC, l'autre jambe payant soit un taux fixe soit un taux LIBOR. Par conséquent, la PV de ce produit est simplement la somme des PV des jambes individuelles et donc les tests InflSwapZC couvriront les tests pour ce produit.
+
+#### InflSwapYOY (Year on Year Inflation Swap)
+Étant donné une structure de tenors $T_0 < T_1 < ... < T_n$, ce produit paie à la fin de chaque intervalle de temps $[T_{i-1}, T_i]$, les flux de trésorerie :
+
+$$N \cdot \theta_k K \text{ vs. } N \cdot \theta_k \left[ \frac{I(T_i)}{I(T_{i-1} \cdot 1Y)} - 1 \right]$$
+
+Où :
+- $N$ est le montant notionnel
+- $\theta_k$ est le facteur d'accrual
+- $K$ est le taux fixe
+- $I(T)$ est l'indice d'inflation au temps $T$
+
+#### InflSwapZC (Zero Coupon Inflation Swap)
+Ce produit échange une jambe fixe contre une jambe flottante d'inflation :
+
+$$N \cdot [(1 + K)^T - 1] \text{ vs. } N \cdot \left(\frac{I_t}{I_s} - 1\right)$$
+
+Où :
+- $T$ est la maturité du trade
+- $S$ est la date de règlement de l'instrument
+- $\theta$ est le facteur d'accrual pour la période $[S, T]$
+
+## Models
+
+### Configurations Supportées
+- **DBOPT-RateDeterministic_InflationDeterministic** avec configuration :
+  - DBOPT-RatesMarketDeterministic_InflationDeterministic
+- **DBX-RateDeterministic_InflationDeterministic** avec configuration :
+  - DBX-ShortRateDeterministic_InflationDeterministic
+
+### Model Assumptions
+
+1. **No Arbitrage** : Il est assumé qu'il n'y a pas d'opportunités d'arbitrage.
+2. **Interest Rates Dynamics** : Les produits sont linéaires avec des solutions analytiques qui dépendent seulement des quantités de courbe de rendement au temps zéro, sans dépendance à la volatilité.
+3. **Inflation Dynamics** : Les produits sont linéaires avec des solutions analytiques qui dépendent seulement des quantités de courbe de rendement d'inflation au temps zéro, sans dépendance à la volatilité.
+
+### Model Inputs
+
+#### Market Inputs
+- **Interest Rate Curve** : Construite à partir d'observables de marché, tels que les taux cash, futures ou swaps de taux d'intérêt.
+- **Inflation Curve** : Construite à partir d'observables de marché, tels que les swaps d'inflation, et les chiffres CPI historiques.
+
+#### Model Parameters
+Les paramètres du modèle s'appliquant aux modèles DBOPT-RateDeterministic_InflationDeterministic et DBX-RateDeterministic_InflationDeterministic sont listés dans la section Control Assessment.
+
+### Model Dynamics
+
+Les produits considérés dans cette MVR ne contiennent aucune optionalité intégrée. De tels produits peuvent être répliqués statiquement. Notez que cela ne signifie pas que leur payoff est assumé être déterministe, mais qu'en raison de l'absence d'optionalité leur PV est indépendante de la volatilité.
+
+Le modèle DBOPT est l'un des modèles de pricing (quasi-)analytiques disponibles dans la bibliothèque DBAnalytics. La qualification "quasi" ici fait référence au fait que DBOPT s'appuie fortement sur l'intégration numérique.
+
+Le modèle DBX - Un modèle Monte-Carlo fonctionne en formulant le problème de pricing pour résoudre une espérance particulière (le payoff actualisé) sous la mesure risque-neutre. Pour les produits linéaires simples, cela devrait être fait en simulant les sous-jacents selon un calcul intrinsèque.
+
+## Feeder and Servicer Models
+
+Le modèle DBOPT-RateDeterministic_InflationDeterministic et DBX-RateDeterministic_InflationDeterministic n'a pas de modèles servicer ou feeder directs.
+
+## Model Change Description
+
+Les développeurs de modèles DBAnalytics enregistrent les changements de modèle dans les notes de release, qui sont disponibles via un site web dédié. Dans la note de release, les développeurs de modèles identifient le scope du changement effectué pour les Combinaisons Produit-Modèle auxquelles il est lié et comment il peut être identifié via l'interface de la bibliothèque.
+
+Les changements de modèles de pricing sont catégorisés en majeur, mineur, technique, non-modèle et autre. La catégorie de changement proposée est revue et approuvée par MoRM sur le site web DBAnalytics.

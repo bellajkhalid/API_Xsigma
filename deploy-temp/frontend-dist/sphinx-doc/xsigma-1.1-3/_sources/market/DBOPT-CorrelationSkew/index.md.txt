@@ -1,0 +1,265 @@
+# DBOPT - Correlation Skew Models
+
+## 📋 **Vue d'Ensemble**
+
+Le modèle **DBOPT-CorrelationSkew** est un framework de pricing analytique et Monte Carlo single horizon utilisé pour l'évaluation de dérivés sur un ou deux sous-jacents qui se fixent à la même date. Ce modèle utilise un modèle AFSABR pour la volatilité IR et PIV pour les volatilités FX, EQ et Asset, avec une modélisation sophistiquée de la corrélation par copule de skew de corrélation.
+
+---
+
+## 🎯 **Caractéristiques Principales**
+
+### **Modèles Couverts**
+- **DBOPT-RateDeterministic_FXMarket_AssetMarket_CorrelationSkew**
+- **DBOPT-RateDeterministic_EquityBlackScholes_AssetMarket_CorrelationSkew**
+- **DBOPT-RatesMarketAFSABR_FXMarket_EquityBlackScholes_CorrelationSkew**
+
+### **Produits Supportés**
+- **HybMultiDigital*** - Digitaux hybrides multi-actifs
+- **HybContingentOptMultiAssetBasket** - Options contingentes multi-actifs
+
+### **Usages Approuvés**
+- ✅ **End of Day (EOD)** - Évaluation et gestion des risques
+- ✅ **HistSim** - Simulations historiques
+- ✅ **CCAR** - Tests de stress réglementaires
+- ✅ **IRRBB** - Interest Rate Risk in Banking Book
+
+---
+
+## 🏗️ **Architecture du Framework**
+
+### **Approche Correlation Skew**
+Le framework utilise une approche sophistiquée de modélisation de corrélation :
+- **Distribution jointe** de 2 sous-jacents modélisée par copule de skew de corrélation
+- **Marginales** dérivées directement des volatilités de marché
+- **Corrélation sticky strike** pour capturer le skew de corrélation
+
+### **Composants Techniques**
+```cpp
+// Exemple d'implémentation de copule Gaussienne dans Our project
+class gaussian_copula : public copula {
+private:
+    size_t dim_;
+    double* correlation_matrix_;
+    double* cholesky_matrix_;
+
+public:
+    gaussian_copula(double rho) : dim_(2) {
+        XSIGMA_CHECK(rho >= -1.0 && rho <= 1.0,
+                     "Correlation parameter must be in [-1, 1]");
+
+        // Création matrice de corrélation 2x2
+        correlation_matrix_ = new double[dim_ * dim_];
+        correlation_matrix_[0] = 1.0;
+        correlation_matrix_[1] = rho;
+        correlation_matrix_[2] = rho;
+        correlation_matrix_[3] = 1.0;
+
+        // Décomposition de Cholesky
+        cholesky_matrix_ = new double[dim_ * dim_];
+        initialize_cholesky_decomposition();
+    }
+
+    double evaluate(const std::vector<double>& u) const override;
+};
+```
+*Cette implémentation C++ dans Our project montre la construction d'une copule Gaussienne avec validation des paramètres de corrélation et décomposition de Cholesky pour la simulation.*
+
+---
+
+## 📊 **Évaluation des Risques**
+
+### **Global Model Risk Assessment**
+
+| Modèle | Complexité | Incertitude | Dépendance |
+|--------|------------|-------------|------------|
+| **DBOPT-RateDeterministic_FXMarket_AssetMarket** | HIGH | LOW | HIGH |
+| **DBOPT-RateDeterministic_EquityBlackScholes_AssetMarket** | HIGH | LOW | HIGH |
+| **DBOPT-RatesMarketAFSABR_FXMarket_EquityBlackScholes** | HIGH | LOW | HIGH |
+
+**Justifications :**
+- **Complexité HIGH** : Le modèle a plus d'un actif avec skew
+- **Incertitude LOW** : Le modèle n'a pas de trades live
+- **Dépendance HIGH** : Les modèles de pricing ont une dépendance élevée
+
+---
+
+## 📚 **Documentation Détaillée**
+
+```{toctree}
+:maxdepth: 2
+:caption: Documentation DBOPT-CorrelationSkew
+
+executive_summary
+introduction_model_validation
+methodology_calibration
+independent_validation_testing
+product_testing_hybmultidigital
+product_testing_contingentopt
+```
+
+### **Sections Principales**
+
+#### **📋 Documentation Fondamentale**
+- **[Executive Summary](executive_summary.md)** - Résumé exécutif et évaluation globale des risques
+- **[Introduction & Model Validation](introduction_model_validation.md)** - Scope, description des produits et méthodologie
+- **[Methodology & Calibration](methodology_calibration.md)** - Méthodologie CorrelationSkew et calibration TermSkew
+
+#### **🔬 Tests et Validation**
+- **[Independent Validation Testing](independent_validation_testing.md)** - Tests de validation indépendants et frameworks réglementaires
+
+#### **📊 Tests de Produits Spécifiques**
+- **[Product Testing: HybMultiDigital](product_testing_hybmultidigital.md)** - Tests complets pour digitaux hybrides multi-actifs
+- **[Product Testing: ContingentOpt](product_testing_contingentopt.md)** - Tests complets pour options contingentes multi-actifs
+
+---
+
+## 🔧 **Implémentation Technique Avancée**
+
+### **Copule de Corrélation TermSkew**
+Le framework utilise une copule sophistiquée pour modéliser la corrélation sticky strike :
+
+```cpp
+// Implémentation avancée de la copule TermSkew dans Our project
+class term_skew_copula_advanced : public correlation_skew_copula {
+private:
+    struct calibration_state {
+        matrix<double> current_correlation_surface;
+        std::vector<dual_digital_target> market_targets;
+        double convergence_metric;
+        int iteration_count;
+    };
+
+    calibration_state state_;
+
+public:
+    term_skew_copula_advanced(const std::vector<dual_digital_target>& targets) {
+        state_.market_targets = targets;
+        state_.iteration_count = 0;
+        initialize_correlation_surface();
+    }
+
+    std::pair<double, double> generate_correlated_pair(
+        double underlying_1_level,
+        double underlying_2_level) const override {
+
+        // Corrélation dépendante des niveaux (sticky strike)
+        double correlation = interpolate_correlation_surface(
+            underlying_1_level, underlying_2_level);
+
+        // Génération via copule Gaussienne avec corrélation ajustée
+        return generate_gaussian_pair_with_correlation(correlation);
+    }
+
+    void calibrate_to_dual_digitals() {
+        const int max_iterations = 1000;
+        const double tolerance = 1e-6;
+
+        for (int iter = 0; iter < max_iterations; ++iter) {
+            // Pricing des digitaux duaux avec corrélation actuelle
+            std::vector<double> model_prices = price_all_dual_digitals();
+
+            // Calcul de l'erreur vs marché
+            double total_error = calculate_calibration_error(model_prices);
+
+            if (total_error < tolerance) {
+                break; // Convergence atteinte
+            }
+
+            // Ajustement de la surface de corrélation
+            adjust_correlation_surface(model_prices);
+
+            state_.iteration_count = iter;
+            state_.convergence_metric = total_error;
+        }
+    }
+
+private:
+    double interpolate_correlation_surface(double s1, double s2) const {
+        // Interpolation bilinéaire dans la surface de corrélation
+        return bilinear_interpolation(state_.current_correlation_surface, s1, s2);
+    }
+};
+```
+*Cette implémentation C++ dans Our project montre la copule TermSkew avancée avec calibration itérative aux digitaux duaux et corrélation sticky strike.*
+
+---
+
+## 🎯 **Avantages Techniques du Framework**
+
+### **✅ Modélisation de Corrélation Avancée**
+- **Corrélation non-paramétrique** riche pour capturer le skew de corrélation
+- **Sticky strike correlation** selon les exigences business
+- **Calibration intuitive** aux digitaux duaux et calls/puts duaux
+- **Flexibilité** pour surfaces de corrélation complexes
+
+### **✅ Performance et Précision**
+- **Convergence Monte Carlo** optimisée avec techniques de réduction de variance
+- **Précision élevée** pour produits 2D complexes
+- **Stabilité numérique** sous stress de corrélation extrême
+- **Intégration native** avec DBAnalytics et Our project
+
+### **✅ Validation Complète**
+- **Tests exhaustifs** de convergence et stabilité
+- **Validation croisée** avec modèles de copule alternatifs
+- **Conformité réglementaire** (CCAR, IRRBB, HistSim)
+- **Monitoring continu** des paramètres de corrélation
+
+---
+
+## 📈 **Cas d'Usage Spécialisés**
+
+### **Digitaux Hybrides Multi-Actifs**
+```cpp
+// Exemple d'usage pour digitaux hybrides dans Our project
+class hybrid_digital_use_case {
+public:
+    void price_fx_equity_digital() {
+        // Configuration du digital FX-Equity
+        HybMultiDigital::digital_specification spec;
+        spec.underlying_1_id = "EURUSD";
+        spec.underlying_2_id = "SPX";
+        spec.strike_1 = 1.10;  // EUR/USD strike
+        spec.strike_2 = 4500;  // SPX strike
+        spec.type = digital_type::CALL_CALL;
+        spec.notional = 1000000; // 1M USD
+
+        // Copule avec corrélation FX-Equity
+        correlation_skew_copula copula(create_fx_equity_correlation_config());
+
+        HybMultiDigital digital(spec, copula);
+
+        // Pricing et sensibilités
+        double pv = digital.calculate_pv(market_data);
+        auto sensitivities = digital.calculate_sensitivities(market_data);
+
+        // Analyse des résultats
+        analyze_correlation_impact(pv, sensitivities);
+    }
+};
+```
+
+### **Options Contingentes Multi-Actifs**
+- **Paniers commodity-equity** avec barrières multiples
+- **Options FX-rates** contingentes sur niveaux de taux
+- **Produits structurés** avec corrélations complexes
+- **Instruments de hedging** multi-dimensionnels
+
+---
+
+## 🔍 **Surveillance et Contrôle Qualité**
+
+### **Model Parameter Monitoring**
+- **Surveillance automatisée** des paramètres de corrélation via MARS
+- **Alertes** sur déviations de corrélation significatives
+- **Validation continue** des calibrations TermSkew
+- **Monitoring** de la stabilité des copules
+
+### **Contrôles de Cohérence**
+- **Tests de réplication** quotidiens pour digitaux duaux
+- **Validation croisée** avec modèles de corrélation alternatifs
+- **Monitoring des écarts** de pricing vs marché
+- **Analyse des tendances** de corrélation temporelles
+
+---
+
+*Cette documentation complète du framework DBOPT-CorrelationSkew intègre les meilleures pratiques de Our project avec une validation rigoureuse et des implémentations techniques avancées pour le pricing de produits 2D avec corrélation sophistiquée.*

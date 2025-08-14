@@ -1,0 +1,285 @@
+# Calibration
+
+## GSABR Calibration Methodology
+
+The GSABR model calibration involves fitting the local volatility parameters (α, β₁, β₂, ρ, ν, d, v_L) to market volatility surfaces. This process combines the theoretical framework with robust numerical optimization to ensure stable and accurate parameter estimation.
+
+### GSABR Parameter Calibration Strategy
+
+The calibration process follows a hierarchical approach:
+1. **ATM Calibration**: First calibrate α to match at-the-money volatility
+2. **Skew Calibration**: Fit β₁, ρ for ATM skew behavior
+3. **Wing Calibration**: Optimize β₂, d for high-strike behavior
+4. **Left Wing**: Calibrate v_L for deep out-of-the-money puts
+
+## ZABR Calibration Engine for GSABR
+
+The ZABR implementation provides the PDE-based calibration engine that implements the GSABR methodology:
+```cpp
+namespace xsigma {
+    // Main ZABR calibration method
+    ptr_const<volatility_model> volatility_model_zabr::calibrate(
+        const std::vector<double>& market_vols,
+        const std::vector<double>& calibration_strikes,
+        const volatility_model* initial_values,
+        bool calibrate_backbone,
+        bool calibrate_atm_only,
+        bool calibrate_gamma,
+        bool calibrate_shift) {
+        
+        // Validate input data
+        XSIGMA_ALL_FINITE(calibration_strikes);
+        XSIGMA_CHECK_STRICTLY_INCREASING(calibration_strikes);
+        XSIGMA_ALL_FINITE(market_vols);
+        XSIGMA_ALL_POSITIVE(market_vols);
+
+        const auto& obj = static_cast<const volatility_model_zabr*>(initial_values);
+        XSIGMA_CHECK(obj != nullptr, "Object is not of type volatility_model_zabr");
+        XSIGMA_CHECK(
+            market_vols.size() == calibration_strikes.size(),
+            "target vols size(", market_vols.size(), 
+            ") is different from strikes size(", calibration_strikes.size(), ")");
+
+        auto output = obj->calibrator(initial_values);
+        
+        // Set up optimization problem
+        const auto n = output->pde_size_;
+        const auto forward = output->forward_;
+        const auto stdev = output->max_strikes_ - forward;
+
+        // Determine if strike grid needs updating
+        bool update_strikes = false;
+        if (dynamic_cast<const volatility_model_zabr_classic*>(output.get())) {
+            update_strikes = !calibrate_atm_only && calibrate_shift;
+        }
+
+        // Initialize parameter bounds
+        vector<double> lb, ub;
+        output->initialize_bounds(lb, ub, calibrate_backbone, calibrate_atm_only, 
+                                calibrate_gamma, calibrate_shift);
+
+        // Set up matrices for PDE solution
+        size_t iter = 0;
+        vector<double> tmp_aad(iter, n);
+        iter += n;
+        matrix<double> M(iter, 3, n);
+        iter += 3 * n;
+        vector<double> moneyness(iter, n);
+        iter += n;
+        vector<double> local_variance(iter, n);
+        iter += n;
+
+        // Define objective function
+        const auto& objective_function = [&](const vector<double>& x, vector<double>& y) {
+            // Update parameters from optimization variables
+            output->initialize_parameters_from(
+                x, lb, ub, calibrate_backbone, calibrate_atm_only, 
+                calibrate_gamma, calibrate_shift);
+
+            if (update_strikes) {
+                update_strike_grid(std::max(forward - stdev, output->shift_));
+            }
+
+            const auto& strike_grid = output->strikes_;
+
+            // Solve PDE to get option values
+            output->values(output->density_, M, moneyness, local_variance, strike_grid, false);
+
+            // Calculate calibration residuals
+            size_t i = 0;
+            for (const auto K : calibration_strikes) {
+                const auto vol = output->implied_volatility(
+                    output->forward_, K, output->expiry_, implied_volatility_enum::NORMAL);
+
+                y[i] = scaling_factor * (market_vols[i] - vol);
+                i++;
+            }
+        };
+
+        // Initialize parameters
+        std::vector<double> x_init = output->initialize_parameters_to(
+            lb, ub, calibrate_backbone, calibrate_atm_only, calibrate_gamma, calibrate_shift);
+
+        // Choose optimization algorithm
+        bool use_ceres = true;
+        if (use_ceres) {
+            const auto& options = util::make_ptr_const<solver_options_ceres>(
+                200, 0.01, 0.0, std::numeric_limits<double>::epsilon());
+
+            ceres_solver_algorithms optimiser_ceres(
+                (int)x_init.size(), (int)market_vols.size(), objective_function, lb, ub);
+
+            if (optimiser_ceres.is_supported()) {
+                optimiser_ceres.solve(x_init, *options);
+            }
+        } else {
+            // Fallback to Levenberg-Marquardt
+            levenberg_marquardt optimiser(
+                x_init.size(), market_vols.size(), objective_function);
+            
+            solver_options_lm lm_options(100);
+            lm_options.set_function_tolerance(1e-8);
+            lm_options.set_parameter_tolerance(1e-8);
+            
+            optimiser.solve(x_init, lm_options);
+        }
+
+        // Update final parameters
+        output->initialize_parameters_from(
+            x_init, lb, ub, calibrate_backbone, calibrate_atm_only, 
+            calibrate_gamma, calibrate_shift);
+
+        return output;
+    }
+}
+```
+
+**GSABR Calibration Process**: This ZABR calibration engine implements the complete GSABR calibration methodology:
+
+1. **PDE-Based Objective**: The calibration minimizes the difference between market volatilities and GSABR model volatilities computed via PDE solution
+
+2. **Parameter Transformation**: Uses parameter bounds and transformations to ensure numerical stability during optimization
+
+3. **Strike Grid Updates**: Dynamically updates the strike grid when shift parameter is calibrated to maintain accuracy
+
+4. **Ceres Integration**: Leverages the Ceres solver for robust non-linear optimization with automatic differentiation
+
+5. **GSABR Parameters**: Supports calibration of all GSABR parameters including the additional gamma parameter for enhanced local volatility control
+
+6. **Convergence Monitoring**: Tracks calibration progress and provides detailed convergence diagnostics
+
+### SABR Volatility Surface Construction
+
+The calibrated GSABR parameters are used to construct complete volatility surfaces through interpolation and surface management:
+
+
+**IR Volatility Data SABR Integration**:
+```cpp
+namespace xsigma {
+    // SABR volatility surface construction
+    ptr_const<volatility_model> ir_volatility_data_sabr::model(const datetime& expiry) const {
+        const auto expiry_double = valuation_date_.time_fraction(expiry);
+        const auto t = expiry_double;
+        
+        // Interpolate SABR parameters
+        const auto alpha = alpha_interpolator_->interpolate(expiry_double, t);
+        const auto beta = beta_interpolator_->interpolate(expiry_double, t);
+        const auto rho = rho_interpolator_->interpolate(expiry_double, t);
+        const auto nu = nu_interpolator_->interpolate(expiry_double, t);
+        const auto shift = shift_interpolator_->interpolate(expiry_double, t);
+        const auto forward = forward_interpolator_->interpolate(expiry_double, t);
+
+        // Validate interpolated parameters
+        XSIGMA_FINITE_DEBUG(alpha);
+        XSIGMA_FINITE_DEBUG(beta);
+        XSIGMA_FINITE_DEBUG(rho);
+        XSIGMA_FINITE_DEBUG(nu);
+        XSIGMA_FINITE_DEBUG(shift);
+        XSIGMA_FINITE_DEBUG(forward);
+
+        // Create appropriate model based on configuration
+        switch (volatility_config_->model_type()) {
+        case volatility_model_sabr_enum::ANALYTIC: {
+            return util::make_ptr_const<volatility_model_sabr>(
+                alpha, beta, rho, nu, shift, volatility_config_->is_skew_dampening());
+        }
+        
+        case volatility_model_sabr_enum::PDE: {
+            const auto stdev = forward * volatility_config_->standard_deviation() * sqrt(expiry_double);
+            
+            return util::make_ptr_const<volatility_model_pde_classic>(
+                forward,
+                expiry_double,
+                alpha,
+                beta,
+                rho,
+                nu,
+                shift,
+                volatility_config_->pde_size(),
+                volatility_config_->time_steps(),
+                std::max(forward - stdev, shift),
+                forward + stdev);
+        }
+        
+        case volatility_model_sabr_enum::ZABR: {
+            const auto gamma = gamma_interpolator_->interpolate(expiry_double, t);
+            XSIGMA_FINITE_DEBUG(gamma);
+            
+            return util::make_ptr_const<volatility_model_zabr_classic>(
+                forward,
+                expiry_double,
+                volatility_model_zabr_output_enum::PRICES,
+                volatility_config_->strike_interpolation_type(),
+                volatility_config_->pde_size(),
+                volatility_config_->standard_deviation(),
+                alpha,
+                beta,
+                rho,
+                nu,
+                shift,
+                gamma);
+        }
+        
+        default:
+            XSIGMA_THROW("Invalid SABR model type. Expected ANALYTIC, PDE or ZABR.");
+        }
+    }
+}
+```
+
+**GSABR Surface Management**: The `ir_volatility_data_sabr` class provides comprehensive volatility surface management for GSABR models:
+
+1. **Multi-Model Support**: Seamlessly switches between analytical SABR, PDE-based methods, and full ZABR/GSABR implementations based on market conditions
+
+2. **Parameter Interpolation**: Interpolates all GSABR parameters (α, β, ρ, ν, γ) across expiries to ensure smooth volatility surfaces
+
+3. **Forward Rate Integration**: Incorporates forward rate evolution for consistent pricing across different expiries
+
+4. **Model Selection Logic**:
+   - **ANALYTIC**: Fast Hagan approximation for standard market conditions
+   - **PDE**: Enhanced accuracy using finite difference methods
+   - **ZABR**: Full GSABR implementation with local volatility function
+
+5. **Production Integration**: Provides the interface between market data systems and GSABR pricing engines in production environments
+
+
+## Overview
+
+The calibration process for SABR/GSABR models in Our project is designed to fit market volatility surfaces accurately while maintaining numerical stability and computational efficiency. The framework supports multiple calibration approaches:
+
+### 1. Analytical SABR Calibration
+
+- **Fast Bootstrap**: Quick calibration using Hagan's approximation
+- **Parameter Constraints**: Enforced bounds to ensure model stability
+- **ATM-Only Mode**: Simplified calibration for alpha parameter only
+
+### 2. PDE-Based ZABR Calibration
+
+- **Full Surface Fitting**: Simultaneous calibration to entire volatility surface
+- **Numerical Accuracy**: PDE solution ensures arbitrage-free prices
+- **Advanced Parameters**: Support for gamma parameter and local volatility caps
+
+### 3. GSABR Beta Mixture Calibration
+
+- **Local Volatility Function**: Flexible parametrization for complex smiles
+- **Multi-Region Support**: Different behavior for low and high strikes
+- **CMS Optimization**: Enhanced pricing for constant maturity swaps
+
+### Key Calibration Features
+
+#### Parameter Bounds and Constraints
+- **Alpha**: [0.001, 10.0] - Overall volatility level
+- **Beta**: [0.01, 0.99] - CEV exponent
+- **Rho**: [-0.99, 0.99] - Correlation parameter
+- **Nu**: [0.001, 5.0] - Volatility of volatility
+- **Shift**: [-10*forward, 0.0] - Displacement parameter
+
+#### Optimization Algorithms
+- **Ceres Solver**: Primary optimization engine with robust convergence
+- **Levenberg-Marquardt**: Fallback algorithm for compatibility
+- **Parameter Mapping**: Transformation to unconstrained optimization space
+
+#### Quality Control
+- **Convergence Monitoring**: Real-time tracking of optimization progress
+- **Residual Analysis**: Detailed analysis of calibration errors
+- **Stability Checks**: Validation of parameter stability across market conditions

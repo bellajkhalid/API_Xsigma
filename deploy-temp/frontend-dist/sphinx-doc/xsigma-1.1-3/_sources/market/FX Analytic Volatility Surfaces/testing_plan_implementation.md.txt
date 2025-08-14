@@ -1,0 +1,425 @@
+# Testing Plan & Implementation
+
+## 📊 **Testing Plan Overview**
+
+### **Testing Objectives**
+The testing plan for FX volatility surfaces aims to validate the accuracy, stability and robustness of models under various market conditions. Tests cover calibration, interpolation, bumping and sensitivity calculations.
+
+### **Testing Scope**
+- **Unit Tests**: Unit tests of individual components
+- **Integration Tests**: Module integration tests
+- **Validation Tests**: Validation tests against benchmarks
+- **Performance Tests**: Performance and scalability tests
+- **Regression Tests**: Non-regression tests
+
+---
+
+## 🔧 **Testing Framework**
+
+### **Testing Architecture**
+
+#### **🔍 Testing Hierarchy**
+1. **Component Level**: Tests of smile models, temporal interpolators
+2. **Surface Level**: Tests of complete MR and VI surfaces
+3. **Portfolio Level**: Tests on option portfolios
+4. **System Level**: Complete system integration tests
+
+### **Implementation in Our Project**
+
+#### **🔧 Automated Testing Framework**
+```cpp
+// Testing framework for FX surfaces in Our project
+class fx_surface_testing_framework {
+public:
+    enum class test_category {
+        UNIT_TESTS,
+        INTEGRATION_TESTS,
+        VALIDATION_TESTS,
+        PERFORMANCE_TESTS,
+        REGRESSION_TESTS,
+        STRESS_TESTS
+    };
+    
+    enum class test_severity {
+        CRITICAL,    // Failure blocks release
+        HIGH,        // Failure requires investigation
+        MEDIUM,      // Failure to monitor
+        LOW          // Informational failure
+    };
+    
+    struct test_specification {
+        std::string test_name;
+        test_category category;
+        test_severity severity;
+        std::string description;
+        std::vector<std::string> prerequisites;
+        double tolerance;
+        int max_execution_time_ms;
+        bool enabled;
+    };
+    
+    struct test_result {
+        std::string test_name;
+        bool passed;
+        double execution_time_ms;
+        double measured_value;
+        double expected_value;
+        double tolerance_used;
+        std::string failure_reason;
+        std::map<std::string, double> metrics;
+    };
+    
+    class automated_test_runner {
+    public:
+        std::vector<test_result> run_test_suite(
+            const std::vector<test_specification>& test_specs,
+            const fx_volatility_surface_base& surface) {
+            
+            std::vector<test_result> results;
+            
+            for (const auto& spec : test_specs) {
+                if (!spec.enabled) continue;
+                
+                test_result result = run_single_test(spec, surface);
+                results.push_back(result);
+                
+                // Stop in case of critical failure
+                if (!result.passed && spec.severity == test_severity::CRITICAL) {
+                    break;
+                }
+            }
+            
+            return results;
+        }
+        
+    private:
+        test_result run_single_test(const test_specification& spec,
+                                   const fx_volatility_surface_base& surface) {
+            
+            test_result result;
+            result.test_name = spec.test_name;
+            result.tolerance_used = spec.tolerance;
+            
+            auto start_time = std::chrono::high_resolution_clock::now();
+            
+            try {
+                // Dispatch to appropriate test
+                if (spec.category == test_category::UNIT_TESTS) {
+                    result = run_unit_test(spec, surface);
+                } else if (spec.category == test_category::VALIDATION_TESTS) {
+                    result = run_validation_test(spec, surface);
+                } else if (spec.category == test_category::PERFORMANCE_TESTS) {
+                    result = run_performance_test(spec, surface);
+                }
+                
+                auto end_time = std::chrono::high_resolution_clock::now();
+                result.execution_time_ms = std::chrono::duration<double, std::milli>(
+                    end_time - start_time).count();
+                
+                // Timeout verification
+                if (result.execution_time_ms > spec.max_execution_time_ms) {
+                    result.passed = false;
+                    result.failure_reason = "Test timeout exceeded";
+                }
+                
+            } catch (const std::exception& e) {
+                result.passed = false;
+                result.failure_reason = "Exception: " + std::string(e.what());
+            }
+            
+            return result;
+        }
+        
+        test_result run_unit_test(const test_specification& spec,
+                                 const fx_volatility_surface_base& surface) {
+            
+            test_result result;
+            result.test_name = spec.test_name;
+            
+            if (spec.test_name == "ATM_VOLATILITY_INTERPOLATION") {
+                result = test_atm_volatility_interpolation(surface, spec.tolerance);
+            } else if (spec.test_name == "SMILE_CALIBRATION_ACCURACY") {
+                result = test_smile_calibration_accuracy(surface, spec.tolerance);
+            } else if (spec.test_name == "WING_INTERPOLATION_CONSISTENCY") {
+                result = test_wing_interpolation_consistency(surface, spec.tolerance);
+            } else if (spec.test_name == "ARBITRAGE_FREE_VALIDATION") {
+                result = test_arbitrage_free_validation(surface, spec.tolerance);
+            }
+            
+            return result;
+        }
+        
+        test_result test_atm_volatility_interpolation(
+            const fx_volatility_surface_base& surface,
+            double tolerance) {
+            
+            test_result result;
+            result.test_name = "ATM_VOLATILITY_INTERPOLATION";
+            
+            // ATM interpolation test between known tenors
+            std::vector<double> test_times = {0.25, 0.75, 1.5, 2.5}; // 3M, 9M, 18M, 30M
+
+            double max_error = 0.0;
+            int num_tests = 0;
+
+            for (double test_time : test_times) {
+                // Interpolation via surface
+                double interpolated_vol = surface.get_atm_volatility(test_time);
+
+                // Reference calculation by manual interpolation
+                double reference_vol = calculate_reference_atm_interpolation(surface, test_time);
+
+                double error = std::abs(interpolated_vol - reference_vol);
+                max_error = std::max(max_error, error);
+                num_tests++;
+            }
+            
+            result.measured_value = max_error;
+            result.expected_value = 0.0;
+            result.passed = (max_error < tolerance);
+            result.metrics["MAX_INTERPOLATION_ERROR"] = max_error;
+            result.metrics["NUM_TESTS"] = num_tests;
+            
+            if (!result.passed) {
+                result.failure_reason = "ATM interpolation error " + 
+                                      std::to_string(max_error) + " exceeds tolerance " + 
+                                      std::to_string(tolerance);
+            }
+            
+            return result;
+        }
+        
+        test_result test_smile_calibration_accuracy(
+            const fx_volatility_surface_base& surface,
+            double tolerance) {
+            
+            test_result result;
+            result.test_name = "SMILE_CALIBRATION_ACCURACY";
+            
+            // Smile calibration accuracy test
+            auto tenor_grid = surface.get_tenor_grid();
+
+            double max_calibration_error = 0.0;
+            int num_tenors_tested = 0;
+
+            for (double tenor : tenor_grid) {
+                // Retrieve market quotes for this tenor
+                auto market_quotes = get_market_quotes_for_tenor(tenor);
+
+                // Calculate model volatilities
+                for (const auto& quote : market_quotes) {
+                    double model_vol = surface.get_volatility_for_quote(quote);
+                    double market_vol = quote.quote_value;
+
+                    double error = std::abs(model_vol - market_vol);
+                    max_calibration_error = std::max(max_calibration_error, error);
+                }
+
+                num_tenors_tested++;
+            }
+            
+            result.measured_value = max_calibration_error;
+            result.expected_value = 0.0;
+            result.passed = (max_calibration_error < tolerance);
+            result.metrics["MAX_CALIBRATION_ERROR"] = max_calibration_error;
+            result.metrics["NUM_TENORS_TESTED"] = num_tenors_tested;
+            
+            return result;
+        }
+        
+        test_result test_arbitrage_free_validation(
+            const fx_volatility_surface_base& surface,
+            double tolerance) {
+            
+            test_result result;
+            result.test_name = "ARBITRAGE_FREE_VALIDATION";
+            
+            // Test for absence of calendar and smile arbitrage
+            bool arbitrage_free = true;
+            std::string arbitrage_details;
+
+            // Calendar arbitrage test
+            auto calendar_arbitrage = check_calendar_arbitrage(surface);
+            if (!calendar_arbitrage.first) {
+                arbitrage_free = false;
+                arbitrage_details += "Calendar arbitrage: " + calendar_arbitrage.second + "; ";
+            }
+
+            // Smile arbitrage test
+            auto smile_arbitrage = check_smile_arbitrage(surface);
+            if (!smile_arbitrage.first) {
+                arbitrage_free = false;
+                arbitrage_details += "Smile arbitrage: " + smile_arbitrage.second + "; ";
+            }
+            
+            result.passed = arbitrage_free;
+            result.measured_value = arbitrage_free ? 0.0 : 1.0;
+            result.expected_value = 0.0;
+            
+            if (!arbitrage_free) {
+                result.failure_reason = arbitrage_details;
+            }
+            
+            return result;
+        }
+        
+        std::pair<bool, std::string> check_calendar_arbitrage(
+            const fx_volatility_surface_base& surface) {
+            
+            auto tenor_grid = surface.get_tenor_grid();
+            
+            for (size_t i = 0; i < tenor_grid.size() - 1; ++i) {
+                double t1 = tenor_grid[i];
+                double t2 = tenor_grid[i + 1];
+                
+                double vol1 = surface.get_atm_volatility(t1);
+                double vol2 = surface.get_atm_volatility(t2);
+                
+                double var1 = vol1 * vol1 * t1;
+                double var2 = vol2 * vol2 * t2;
+                
+                if (var2 < var1) {
+                    return {false, "Variance decreasing from " + std::to_string(t1) + 
+                                  " to " + std::to_string(t2)};
+                }
+            }
+            
+            return {true, ""};
+        }
+    };
+    
+    class back_testing_framework {
+    public:
+        struct back_test_specification {
+            std::string test_name;
+            std::string start_date;
+            std::string end_date;
+            std::vector<std::string> currency_pairs;
+            std::string frequency; // "DAILY", "WEEKLY", "MONTHLY"
+            std::vector<std::string> metrics_to_track;
+        };
+        
+        struct back_test_results {
+            std::string test_name;
+            std::map<std::string, std::vector<double>> time_series_metrics;
+            std::map<std::string, double> summary_statistics;
+            bool test_passed;
+            std::string performance_summary;
+        };
+        
+        back_test_results run_back_test(const back_test_specification& spec) {
+            back_test_results results;
+            results.test_name = spec.test_name;
+            
+            // Loading historical data
+            auto historical_data = load_historical_market_data(spec);
+
+            // Daily calibration simulation
+            for (const auto& [date, market_data] : historical_data) {
+                // Surface calibration for this date
+                auto surface = calibrate_surface_for_date(market_data);
+
+                // Performance metrics calculation
+                auto daily_metrics = calculate_daily_metrics(surface, market_data);
+
+                // Results storage
+                for (const auto& [metric_name, metric_value] : daily_metrics) {
+                    results.time_series_metrics[metric_name].push_back(metric_value);
+                }
+            }
+
+            // Summary statistics calculation
+            results.summary_statistics = calculate_summary_statistics(results.time_series_metrics);
+
+            // Test success evaluation
+            results.test_passed = evaluate_back_test_success(results.summary_statistics);
+            
+            return results;
+        }
+        
+    private:
+        std::map<std::string, double> calculate_daily_metrics(
+            const fx_volatility_surface_base& surface,
+            const market_data& market_data) {
+            
+            std::map<std::string, double> metrics;
+            
+            // Calibration error metric
+            metrics["CALIBRATION_RMSE"] = calculate_calibration_rmse(surface, market_data);
+
+            // Stability metric
+            metrics["SURFACE_STABILITY"] = calculate_surface_stability(surface);
+
+            // Arbitrage metric
+            metrics["ARBITRAGE_VIOLATIONS"] = count_arbitrage_violations(surface);
+
+            // Performance metric
+            metrics["CALIBRATION_TIME_MS"] = measure_calibration_time(surface, market_data);
+            
+            return metrics;
+        }
+    };
+};
+```
+*This C++ implementation in Our project shows the complete automated testing framework with unit tests, validation and back-testing.*
+
+---
+
+## 📈 **Validation Tests**
+
+### **Repricing Tests**
+Validation that the surface faithfully reproduces market quotes used for calibration.
+
+#### **🔍 Validation Metrics**
+- **RMSE**: Root Mean Square Error of calibration residuals
+- **MAE**: Mean Absolute Error
+- **Max Error**: Maximum observed error
+- **R²**: Coefficient of determination
+
+### **Cross-Validation Tests**
+Cross-validation tests to evaluate calibration robustness.
+
+#### **🔍 Methodology**
+1. **Data Partition**: Division into training and test sets
+2. **Calibration**: On the training set
+3. **Validation**: On the test set
+4. **Metrics**: Prediction error calculation
+
+---
+
+## 🎯 **Performance Tests**
+
+### **Performance Benchmarks**
+- **Calibration Speed**: Calibration time per surface
+- **Query Speed**: Volatility query time
+- **Memory Usage**: Surface memory usage
+- **Scalability**: Performance with increasing number of tenors
+
+### **Stress Testing**
+Tests under high load conditions and degraded data.
+
+#### **🔍 Stress Scenarios**
+- **High Frequency Queries**: High frequency queries
+- **Large Portfolio Bumping**: Large portfolio bumping
+- **Degraded Data Quality**: Poor quality data
+- **Extreme Market Conditions**: Extreme market conditions
+
+---
+
+## 🔧 **Regression Tests**
+
+### **Automated Regression Suite**
+Automated non-regression test suite executed with each modification.
+
+#### **🔍 Test Coverage**
+- **API Compatibility**: Interface compatibility
+- **Numerical Stability**: Numerical stability
+- **Performance Regression**: Performance regression
+- **Output Consistency**: Output consistency
+
+### **Continuous Integration**
+Continuous integration with automatic test execution.
+
+---
+
+*This section details the complete testing plan for FX volatility surfaces, integrating Our project best practices with automated frameworks for validation, performance and regression.*

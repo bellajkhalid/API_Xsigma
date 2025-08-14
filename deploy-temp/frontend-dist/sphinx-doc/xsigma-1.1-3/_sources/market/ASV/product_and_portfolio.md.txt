@@ -1,0 +1,264 @@
+# Product and Portfolio
+
+## Description
+
+This section describes the financial products, payoffs, and portfolios that interact with the Analytical Sigma Volatility (ASV) parameterization. The ASV model serves as a foundational component for volatility surface construction, supporting a wide range of equity derivatives and risk management applications.
+
+### Financial Products Supported
+
+The ASV parameterization provides volatility surface inputs for various equity-based financial instruments:
+
+#### Vanilla Options
+
+| Product Type | Description | ASV Application |
+|--------------|-------------|-----------------|
+| **Single Stock Options** | European and American options on individual equities | Strike-dependent volatility parameterization |
+| **Index Options** | Options on major equity indices (SPX, SX5E, DAX, etc.) | Unified parameterization across index families |
+| **ETF Options** | Options on exchange-traded funds | Consistent volatility modeling approach |
+
+#### Exotic Options
+
+| Product Type | Complexity | ASV Requirements |
+|--------------|------------|------------------|
+| **Barrier Options** | Path-dependent payoffs | Local volatility surface for Monte Carlo |
+| **Asian Options** | Average-based payoffs | Volatility surface for path simulation |
+| **Lookback Options** | Extreme value payoffs | High-quality wing parameterization |
+| **Digital Options** | Discontinuous payoffs | Smooth volatility surface near barriers |
+
+#### Structured Products
+
+- **Autocallable Notes**: Multi-asset, path-dependent structures requiring consistent volatility surfaces
+- **Variance Swaps**: Direct volatility exposure requiring accurate wing modeling
+- **Volatility Swaps**: Realized volatility products needing forward volatility projections
+- **Equity-Linked Notes**: Complex payoffs with embedded option components
+
+### Payoff Structures
+
+#### Linear Payoffs
+
+**Direct Volatility Exposure**:
+- Variance swaps with payoffs proportional to realized variance
+- Volatility swaps with payoffs based on realized volatility
+- VIX futures and options requiring forward volatility modeling
+
+#### Non-Linear Payoffs
+
+**Option-Based Structures**:
+- Standard call and put option payoffs across strike ranges
+- Spread strategies requiring consistent volatility parameterization
+- Straddles and strangles sensitive to volatility smile characteristics
+- Butterfly spreads requiring smooth volatility transitions
+
+**Path-Dependent Structures**:
+- Barrier options with knock-in/knock-out features
+- Asian options with averaging mechanisms
+- Lookback options with extreme value dependencies
+- Cliquet options with periodic reset features
+
+### Portfolio Context
+
+#### Risk Assessment Applications
+
+**Portfolio-Level Risk Metrics**:
+- **Delta Exposure**: Directional risk across equity positions
+- **Gamma Exposure**: Convexity risk requiring accurate volatility surfaces
+- **Vega Exposure**: Volatility risk assessment across different strikes and maturities
+- **Theta Exposure**: Time decay analysis with volatility surface evolution
+
+**Cross-Asset Risk Analysis**:
+- **Correlation Risk**: Multi-asset portfolio volatility interactions
+- **Basis Risk**: Single stock vs. index volatility relationships
+- **Sector Risk**: Industry-specific volatility clustering analysis
+- **Geographic Risk**: Regional volatility pattern assessment
+
+#### Hedging Strategies
+
+**Dynamic Hedging**:
+- **Delta Hedging**: Continuous rebalancing based on volatility surface evolution
+- **Gamma Hedging**: Convexity management using option portfolios
+- **Vega Hedging**: Volatility exposure management across strike and maturity dimensions
+- **Cross-Gamma Hedging**: Multi-asset volatility risk management
+
+**Static Hedging**:
+- **Variance Swap Replication**: Using option portfolios to replicate variance exposure
+- **Volatility Surface Arbitrage**: Exploiting inconsistencies across related instruments
+- **Calendar Spread Strategies**: Time-based volatility trading approaches
+- **Strike Spread Strategies**: Moneyness-based volatility positioning
+
+## Inputs
+
+### Market Data Requirements
+
+#### Primary Market Data
+
+| Data Type | Source | Frequency | Quality Requirements |
+|-----------|--------|-----------|---------------------|
+| **Implied Volatilities** | Option exchanges, OTC markets | Real-time | Bid-ask spreads, volume data |
+| **Underlying Prices** | Equity exchanges | Real-time | Last trade, bid-ask quotes |
+| **Forward Curves** | Interest rate markets | Daily | Risk-free rates, dividend yields |
+| **Dividend Forecasts** | Corporate actions, analyst estimates | Event-driven | Ex-dividend dates, amounts |
+
+#### Supporting Market Data
+
+**Reference Data**:
+- Strike grids for liquid option series
+- Maturity dates for standard and non-standard expirations
+- Contract specifications and settlement procedures
+- Corporate action adjustments and stock splits
+
+**Market Microstructure Data**:
+- Trading volumes and open interest
+- Bid-ask spreads and market depth
+- Time and sales data for volatility estimation
+- Market maker quotes and indicative pricing
+
+### User-Defined Parameters
+
+#### Control Parameters
+
+| Parameter | Default Value | Range | Purpose |
+|-----------|---------------|-------|---------|
+| **Ctrl_C** | 0.2 | [0.1, 0.5] | Controls call wing flattening behavior |
+| **Ctrl_P** | 0.2 | [0.1, 0.5] | Controls put wing flattening behavior |
+| **Ctrl** | 0.2 | [0.1, 0.5] | Unified control (sets both Ctrl_C and Ctrl_P) |
+
+**Parameter Selection Guidelines**:
+- **High Liquidity Names**: Lower values (0.1-0.2) for better wing fitting
+- **Low Liquidity Names**: Higher values (0.3-0.5) for stability
+- **Variance Swap Evidence**: Adjust based on variance swap market pricing
+- **Historical Analysis**: Calibrate based on realized volatility patterns
+
+#### Calibration Settings
+
+**Optimization Parameters**:
+- Convergence tolerance for parameter fitting
+- Maximum iteration limits for optimization algorithms
+- Regularization parameters for stability enhancement
+- Constraint definitions for parameter bounds
+
+**Quality Control Settings**:
+- Arbitrage tolerance levels for butterfly constraints
+- Maximum allowed parameter changes between calibrations
+- Outlier detection thresholds for market data validation
+- Model validation criteria for acceptance/rejection
+
+### Additional Inputs
+
+#### Strike Grid Specifications
+
+**Grid Construction**:
+- **Density**: Strike spacing relative to underlying price and volatility
+- **Range**: Minimum and maximum strikes relative to forward price
+- **Granularity**: Fine grid around ATM, coarser grid on wings
+- **Adaptive Sizing**: Dynamic adjustment based on market conditions
+
+**Standard Grid Examples**:
+- **Index Options**: 50-200% moneyness range with 1-5% spacing
+- **Single Stock Options**: 70-150% moneyness range with 2-10% spacing
+- **High Volatility Periods**: Extended ranges with finer granularity
+- **Low Volatility Periods**: Compressed ranges with standard spacing
+
+#### Maturity Date Specifications
+
+**Liquid Maturities**:
+- Standard monthly and quarterly expirations
+- Weekly expirations for highly liquid underlyings
+- Special expirations (earnings, events)
+- Long-term equity anticipation securities (LEAPS)
+
+**Term Structure Considerations**:
+- Minimum maturity for reliable parameterization (typically 1 week)
+- Maximum maturity for extrapolation validity (typically 2-3 years)
+- Holiday and weekend adjustments
+- Business day conventions and settlement procedures
+
+## Outputs
+
+### Volatility Surface Products
+
+#### Implied Volatility Surface
+
+**Surface Characteristics**:
+- **Continuous Function**: Smooth volatility as function of strike and maturity
+- **Arbitrage-Free**: No butterfly or calendar arbitrage opportunities
+- **Market Consistent**: Fits to liquid market data within tolerance
+- **Extrapolation Capable**: Reasonable behavior beyond market data range
+
+**Output Formats**:
+- **Grid Format**: Volatility values at specified strike-maturity points
+- **Functional Form**: Analytical expression for arbitrary strike-maturity queries
+- **Interpolation Ready**: Compatible with various interpolation schemes
+- **API Accessible**: Programmatic access for real-time applications
+
+#### Local Volatility Surface
+
+**Monte Carlo Applications**:
+- **Path Generation**: Local volatility for stochastic differential equation simulation
+- **Exotic Pricing**: Path-dependent option valuation
+- **Risk Scenario Generation**: Stress testing and scenario analysis
+- **Model Validation**: Comparison with market-observed volatility patterns
+
+**Quality Metrics**:
+- **Smoothness**: Continuous derivatives for stable simulation
+- **Positivity**: Strictly positive local volatility values
+- **Consistency**: Alignment with implied volatility surface
+- **Numerical Stability**: Robust performance in Monte Carlo applications
+
+### Risk Metrics and Sensitivities
+
+#### First-Order Greeks
+
+| Greek | Definition | ASV Application |
+|-------|------------|-----------------|
+| **Delta** | $\frac{\partial V}{\partial S}$ | Directional risk from underlying price changes |
+| **Vega** | $\frac{\partial V}{\partial \sigma}$ | Volatility risk across strike and maturity dimensions |
+| **Theta** | $\frac{\partial V}{\partial t}$ | Time decay with evolving volatility surface |
+| **Rho** | $\frac{\partial V}{\partial r}$ | Interest rate sensitivity with forward curve impact |
+
+#### Second-Order Greeks
+
+| Greek | Definition | ASV Application |
+|-------|------------|-----------------|
+| **Gamma** | $\frac{\partial^2 V}{\partial S^2}$ | Convexity risk requiring smooth volatility surface |
+| **Volga** | $\frac{\partial^2 V}{\partial \sigma^2}$ | Volatility convexity across surface dimensions |
+| **Vanna** | $\frac{\partial^2 V}{\partial S \partial \sigma}$ | Cross-sensitivity between price and volatility |
+
+#### Parameter Sensitivities
+
+**ASV Parameter Greeks**:
+- **ATM Vega**: Sensitivity to at-the-money volatility parameter
+- **Skew Sensitivity**: Risk from skew parameter changes
+- **Smile Sensitivity**: Exposure to smile parameter variations
+- **Wing Sensitivities**: Risk from put and call wing parameter movements
+
+### Arbitrage-Free Validation
+
+#### Butterfly Arbitrage Detection
+
+**Mathematical Conditions**:
+- **Convexity Constraint**: $\frac{\partial^2 C}{\partial K^2} \geq 0$ for call prices
+- **Probability Density**: Non-negative risk-neutral density function
+- **Strike Ordering**: Monotonic price relationships across strikes
+- **Boundary Conditions**: Proper asymptotic behavior at extreme strikes
+
+**Validation Procedures**:
+- **Real-time Monitoring**: Continuous arbitrage checking during calibration
+- **Alert Generation**: Immediate notification of arbitrage violations
+- **Automatic Correction**: Parameter adjustment to restore arbitrage-free conditions
+- **Quality Reporting**: Comprehensive arbitrage status documentation
+
+#### Calendar Arbitrage Detection
+
+**Temporal Consistency**:
+- **Forward Volatility**: Non-negative forward volatility between maturities
+- **Variance Ordering**: Monotonic total variance across time
+- **Smoothness**: Continuous evolution of volatility surface over time
+- **Boundary Behavior**: Consistent limiting behavior as maturity approaches
+
+**Implementation Framework**:
+- **Multi-Maturity Validation**: Simultaneous checking across all maturities
+- **Dynamic Monitoring**: Real-time validation during market hours
+- **Historical Analysis**: Retrospective arbitrage pattern identification
+- **Regulatory Compliance**: Documentation for model validation requirements
+
+This comprehensive product and portfolio framework establishes ASV as a robust foundation for equity derivatives modeling and risk management across diverse market applications.

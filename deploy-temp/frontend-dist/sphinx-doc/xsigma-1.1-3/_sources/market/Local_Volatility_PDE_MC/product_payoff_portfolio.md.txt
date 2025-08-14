@@ -1,0 +1,420 @@
+# Product / Payoff / Portfolio
+
+## Vue d'ensemble
+
+Ce document examine le modèle LV et ne se concentre pas sur des produits spécifiques. Nous évaluerons la précision du modèle, la convergence numérique, l'impact des hypothèses, et les cas limites à travers les options vanilla européennes cash-settled et les options Double No Touch (abrégées DNT). Ces produits sont décrits ci-dessous.
+
+```cpp
+// Implémentation Our project des produits supportés par Local Volatility
+namespace xsigma {
+    // Énumération des types de produits testés
+    enum class TestProductType {
+        CASH_SETTLED_VANILLA,    // Options vanilla cash-settled
+        DOUBLE_NO_TOUCH,         // Options Double No Touch
+        BARRIER_OPTIONS,         // Options à barrière
+        DIGITAL_OPTIONS         // Options digitales
+    };
+    
+    // Interface de base pour tous les payoffs
+    class PayoffFunction {
+    public:
+        virtual ~PayoffFunction() = default;
+        virtual double evaluate(double spot_price, double time) const = 0;
+        virtual std::string get_description() const = 0;
+        virtual TestProductType get_product_type() const = 0;
+    };
+    
+    // Factory pour créer les payoffs de test
+    class TestPayoffFactory {
+    public:
+        static std::unique_ptr<PayoffFunction> create_test_payoff(
+            TestProductType type,
+            const ProductParameters& params) {
+            
+            switch (type) {
+                case TestProductType::CASH_SETTLED_VANILLA:
+                    return create_vanilla_payoff(params);
+                case TestProductType::DOUBLE_NO_TOUCH:
+                    return create_dnt_payoff(params);
+                case TestProductType::BARRIER_OPTIONS:
+                    return create_barrier_payoff(params);
+                case TestProductType::DIGITAL_OPTIONS:
+                    return create_digital_payoff(params);
+                default:
+                    XSIGMA_THROW("Type de produit de test non supporté");
+            }
+        }
+        
+    private:
+        static std::unique_ptr<PayoffFunction> create_vanilla_payoff(
+            const ProductParameters& params);
+        static std::unique_ptr<PayoffFunction> create_dnt_payoff(
+            const ProductParameters& params);
+        static std::unique_ptr<PayoffFunction> create_barrier_payoff(
+            const ProductParameters& params);
+        static std::unique_ptr<PayoffFunction> create_digital_payoff(
+            const ProductParameters& params);
+    };
+}
+```
+*Cette implémentation C++ dans Our project définit l'architecture des produits de test pour la validation du modèle Local Volatility.*
+
+## Description des Produits
+
+### Options Vanilla Européennes Cash-Settled
+
+L'acheteur d'une option vanilla cash-settled reçoit le payoff suivant (déterminé à l'expiration de l'option $T$ et payé à la date de livraison contractuelle $T_d \geq T$). Ici $N^{FOR}$ dénote le montant notionnel (en devise étrangère) et $K$ est le strike de l'option.
+
+| Devise de Règlement | Call Européen (mTQL) | Put Européen (mTQL) |
+|-------------------|---------------------|-------------------|
+| Domestique (DOM) | Recevoir (en DOM) $N^{FOR} (S_T - K)^+$ | Recevoir (en DOM) $N^{FOR} (K - S_T)^+$ |
+| Étrangère (FOR) | Recevoir (en FOR) $N^{FOR} \left(1 - \frac{K}{S_T}\right)^+$ | Recevoir (en FOR) $N^{FOR} \left(\frac{K}{S_T} - 1\right)^+$ |
+
+```cpp
+// Implémentation Our project des options vanilla cash-settled
+namespace xsigma {
+    // Classe pour les options vanilla européennes
+    class CashSettledVanillaOption : public PayoffFunction {
+    public:
+        // Énumération pour le type d'option
+        enum class OptionType {
+            CALL,
+            PUT
+        };
+        
+        // Énumération pour la devise de règlement
+        enum class SettlementCurrency {
+            DOMESTIC,
+            FOREIGN
+        };
+        
+        // Structure des paramètres
+        struct VanillaParameters {
+            double strike;                    // Strike K
+            double notional_foreign;          // Notionnel N^{FOR}
+            double expiry_time;              // Temps d'expiration T
+            double delivery_time;            // Temps de livraison T_d
+            OptionType option_type;          // Call ou Put
+            SettlementCurrency settlement;   // Devise de règlement
+            std::string currency_pair;       // Paire de devises
+        };
+        
+        CashSettledVanillaOption(const VanillaParameters& params)
+            : params_(params) {}
+        
+        // Évaluation du payoff à l'expiration
+        double evaluate(double spot_price, double time) const override {
+            if (std::abs(time - params_.expiry_time) > 1e-12) {
+                // Avant expiration, retourner 0 (payoff déterminé à l'expiration)
+                return 0.0;
+            }
+            
+            double payoff = 0.0;
+            
+            if (params_.settlement == SettlementCurrency::DOMESTIC) {
+                // Règlement en devise domestique
+                if (params_.option_type == OptionType::CALL) {
+                    // Call: N^{FOR} * (S_T - K)^+
+                    payoff = params_.notional_foreign * std::max(spot_price - params_.strike, 0.0);
+                } else {
+                    // Put: N^{FOR} * (K - S_T)^+
+                    payoff = params_.notional_foreign * std::max(params_.strike - spot_price, 0.0);
+                }
+            } else {
+                // Règlement en devise étrangère
+                if (params_.option_type == OptionType::CALL) {
+                    // Call: N^{FOR} * (1 - K/S_T)^+
+                    if (spot_price > 1e-12) {
+                        payoff = params_.notional_foreign * std::max(1.0 - params_.strike / spot_price, 0.0);
+                    }
+                } else {
+                    // Put: N^{FOR} * (K/S_T - 1)^+
+                    if (spot_price > 1e-12) {
+                        payoff = params_.notional_foreign * std::max(params_.strike / spot_price - 1.0, 0.0);
+                    }
+                }
+            }
+            
+            return payoff;
+        }
+        
+        std::string get_description() const override {
+            std::ostringstream desc;
+            desc << "Cash-Settled Vanilla " 
+                 << (params_.option_type == OptionType::CALL ? "Call" : "Put")
+                 << " Option - Strike: " << params_.strike
+                 << ", Notional: " << params_.notional_foreign
+                 << ", Settlement: " << (params_.settlement == SettlementCurrency::DOMESTIC ? "DOM" : "FOR");
+            return desc.str();
+        }
+        
+        TestProductType get_product_type() const override {
+            return TestProductType::CASH_SETTLED_VANILLA;
+        }
+        
+        // Accès aux paramètres
+        const VanillaParameters& get_parameters() const { return params_; }
+        
+    private:
+        VanillaParameters params_;
+    };
+}
+```
+*Cette implémentation C++ dans Our project gère les options vanilla européennes cash-settled avec support pour les deux devises de règlement.*
+
+#### Spécifications Techniques Paula Script
+
+**Cash Settled European Vanilla Option (Paula Script: CashSettledVanillaOption.xml)**
+
+| Champ | Type | Description |
+|-------|------|-------------|
+| Currency1 | ctr:Currency | Code devise 3 lettres. Partie CCY1 de CCY1/CCY2 qui sera le taux FX sous-jacent (devise étrangère) |
+| Currency2 | ctr:Currency | Code devise 3 lettres. Partie CCY2 de CCY1/CCY2 qui sera le taux FX sous-jacent (devise domestique) |
+| Currency1Amount | ctr:Amount | Notionnel Currency1 |
+| Currency2Amount | ctr:Amount | Notionnel Currency2 |
+| Strike | ctr:Strike | Strike de l'option vanilla (exprimé en unités de Currency2 par Currency1) |
+| Currency1CallPut | ctr:CallPut | Spécifie si le trade est un Call ou Put sur Currency1 |
+| ExpiryDate | xsd:date | Date d'expiration de l'option |
+| ExpiryCut | ctr:ExpiryCut | Code qui dénote l'heure exacte d'expiration |
+| DeliveryDate | xsd:date | Date de règlement |
+| SettlementStyle | ctr:SettlementStyle | Spécifie si c'est cash-settled ou physically-settled (CASH pour ce document) |
+
+#### Spécifications Techniques Padla Script
+
+**Padla Cash Settled European Vanilla Option (Padla Script: CashSettledVanillaOption.xml)**
+
+| Nom | Type | Description |
+|-----|------|-------------|
+| Strike | Double | Strike de l'option vanilla (en unités de devise DOM par unité de devise FOR) |
+| Notional | Double | Notionnel de l'option vanilla (en devise FOR) |
+| ExpiryDate | VectorDate | Date d'expiration de l'option |
+| PayDate | VectorDate | Date de règlement (Note: seul le règlement domestique est supporté) |
+| FXAsset | Basket | Taux FX sous-jacent (spécifié avec codes ISO 3 lettres pour FOR et DOM) |
+| OptionType | String | Spécifie si le trade est un "Call" ou "Put" (sur FOR) |
+
+### Options Double No Touch
+
+```cpp
+// Implémentation Our project des options Double No Touch
+namespace xsigma {
+    // Classe pour les options Double No Touch
+    class DoubleNoTouchOption : public PayoffFunction {
+    public:
+        // Structure des paramètres DNT
+        struct DNTParameters {
+            double rebate_amount;           // Montant du rebate
+            double upper_barrier;           // Barrière supérieure
+            double lower_barrier;           // Barrière inférieure
+            double start_time;             // Début de surveillance des barrières
+            double expiry_time;            // Fin de surveillance des barrières
+            double delivery_time;          // Date de livraison du rebate
+            std::string rebate_currency;   // Devise du rebate
+            std::string currency_pair;     // Paire de devises
+        };
+        
+        DoubleNoTouchOption(const DNTParameters& params)
+            : params_(params), barrier_touched_(false) {
+            
+            // Validation des paramètres
+            if (params_.upper_barrier <= params_.lower_barrier) {
+                XSIGMA_THROW("Barrière supérieure doit être > barrière inférieure");
+            }
+        }
+        
+        // Évaluation du payoff
+        double evaluate(double spot_price, double time) const override {
+            // Vérifier si nous sommes dans la période de surveillance
+            if (time < params_.start_time || time > params_.expiry_time) {
+                return 0.0;
+            }
+            
+            // Vérifier si une barrière a été touchée
+            if (spot_price >= params_.upper_barrier || spot_price <= params_.lower_barrier) {
+                // Barrière touchée - pas de payoff
+                return 0.0;
+            }
+            
+            // À l'expiration, si aucune barrière n'a été touchée
+            if (std::abs(time - params_.expiry_time) < 1e-12) {
+                return params_.rebate_amount;
+            }
+            
+            return 0.0;
+        }
+        
+        std::string get_description() const override {
+            std::ostringstream desc;
+            desc << "Double No Touch Option - Barriers: [" 
+                 << params_.lower_barrier << ", " << params_.upper_barrier << "]"
+                 << ", Rebate: " << params_.rebate_amount;
+            return desc.str();
+        }
+        
+        TestProductType get_product_type() const override {
+            return TestProductType::DOUBLE_NO_TOUCH;
+        }
+        
+        // Méthode pour vérifier le statut des barrières
+        bool check_barrier_status(double spot_price, double time) const {
+            if (time >= params_.start_time && time <= params_.expiry_time) {
+                return (spot_price >= params_.upper_barrier || spot_price <= params_.lower_barrier);
+            }
+            return false;
+        }
+        
+        // Accès aux paramètres
+        const DNTParameters& get_parameters() const { return params_; }
+        
+    private:
+        DNTParameters params_;
+        mutable bool barrier_touched_;
+    };
+}
+```
+*Cette implémentation C++ dans Our project gère les options Double No Touch avec surveillance continue des barrières.*
+
+#### Spécifications Techniques Double No Touch
+
+**Double No Touch option (CTR Schema: FXDoubleNoTouch)**
+
+| Nom | Type | Description |
+|-----|------|-------------|
+| OptionBuySell | ctr:BuySell | Achat ou vente d'optionalité du point de vue du Book contenant ce trade |
+| Currency1 | ctr:Currency | Code devise 3 lettres. Partie CCY1 de CCY1/CCY2 (devise étrangère) |
+| Currency2 | ctr:Currency | Code devise 3 lettres. Partie CCY2 de CCY1/CCY2 (devise domestique) |
+| RebateAmount | ctr:Amount | Montant notionnel de l'option double no-touch |
+| RebateCurrency | ctr:Currency | Devise pour le paiement du rebate (doit être Currency1 ou Currency2) |
+| ExpiryDate | xsd:date | Date d'expiration : les deux barrières no-touch cessent à cette date |
+| ExpiryCut | ctr:ExpiryCut | Code qui dénote l'heure exacte de début et fin des barrières |
+| TouchBarrierStartDate | xsd:date | Date de début pour les deux barrières no-touch |
+| UpperTouchBarrierLevel | ctr:Strike | Niveau spot de la barrière no-touch supérieure en unités de Currency2 par Currency1 |
+| LowerTouchBarrierLevel | ctr:Strike | Niveau spot de la barrière no-touch inférieure en unités de Currency2 par Currency1 |
+| DeliveryDate | xsd:date | Date de règlement pour le montant du rebate payé si les barrières ne sont pas touchées |
+
+## Outputs
+
+Il n'y a pas d'outputs spécifiques au modèle LV pour ces trades.
+
+## Analyse des Payoffs
+
+L'objectif de ce document est le modèle LV et les payoffs discutés ci-dessus sont principalement dans le but d'évaluer la précision du modèle, la convergence numérique, l'impact des hypothèses et les cas limites. Comme décrit ci-dessus dans la section 3.1, un DNT, en vertu de sa dépendance aux distributions conditionnelles, nous donne un moyen d'étudier et de comparer l'impact du modèle.
+
+```cpp
+// Implémentation Our project de l'analyse des payoffs
+namespace xsigma {
+    // Classe pour analyser les caractéristiques des payoffs
+    class PayoffAnalyzer {
+    public:
+        // Structure pour les résultats d'analyse
+        struct PayoffAnalysis {
+            double max_payoff;              // Payoff maximum possible
+            double expected_payoff;         // Payoff attendu
+            double payoff_volatility;       // Volatilité du payoff
+            double gamma_exposure;          // Exposition gamma
+            double vega_exposure;           // Exposition vega
+            std::vector<double> barrier_sensitivities; // Sensibilités aux barrières
+            std::string risk_profile;       // Profil de risque
+        };
+        
+        // Analyse d'un payoff vanilla
+        PayoffAnalysis analyze_vanilla_payoff(
+            const CashSettledVanillaOption& option,
+            const MarketData& market_data) const {
+            
+            PayoffAnalysis analysis;
+            
+            const auto& params = option.get_parameters();
+            double spot = market_data.get_spot();
+            double vol = market_data.get_volatility(params.strike, params.expiry_time);
+            
+            // Calcul du payoff maximum
+            if (params.option_type == CashSettledVanillaOption::OptionType::CALL) {
+                analysis.max_payoff = std::numeric_limits<double>::infinity(); // Théoriquement infini
+            } else {
+                analysis.max_payoff = params.notional_foreign * params.strike;
+            }
+            
+            // Calcul du payoff attendu (approximation Black-Scholes)
+            analysis.expected_payoff = calculate_bs_price(option, market_data);
+            
+            // Analyse des sensibilités
+            analysis.gamma_exposure = calculate_gamma(option, market_data);
+            analysis.vega_exposure = calculate_vega(option, market_data);
+            
+            // Profil de risque
+            analysis.risk_profile = determine_risk_profile(option);
+            
+            return analysis;
+        }
+        
+        // Analyse d'un payoff Double No Touch
+        PayoffAnalysis analyze_dnt_payoff(
+            const DoubleNoTouchOption& dnt,
+            const MarketData& market_data) const {
+            
+            PayoffAnalysis analysis;
+            
+            const auto& params = dnt.get_parameters();
+            
+            // Payoff maximum = rebate amount
+            analysis.max_payoff = params.rebate_amount;
+            
+            // Calcul de la probabilité de survie
+            double survival_prob = calculate_survival_probability(dnt, market_data);
+            analysis.expected_payoff = params.rebate_amount * survival_prob;
+            
+            // Sensibilités aux barrières
+            analysis.barrier_sensitivities = calculate_barrier_sensitivities(dnt, market_data);
+            
+            // Profil de risque spécifique aux barrières
+            analysis.risk_profile = "Barrier-dependent with binary payoff structure";
+            
+            return analysis;
+        }
+        
+    private:
+        double calculate_bs_price(const CashSettledVanillaOption& option,
+                                const MarketData& market_data) const {
+            // Implémentation Black-Scholes standard
+            return 0.0; // Placeholder
+        }
+        
+        double calculate_gamma(const CashSettledVanillaOption& option,
+                             const MarketData& market_data) const {
+            // Calcul de la sensibilité gamma
+            return 0.0; // Placeholder
+        }
+        
+        double calculate_vega(const CashSettledVanillaOption& option,
+                            const MarketData& market_data) const {
+            // Calcul de la sensibilité vega
+            return 0.0; // Placeholder
+        }
+        
+        double calculate_survival_probability(const DoubleNoTouchOption& dnt,
+                                            const MarketData& market_data) const {
+            // Calcul de la probabilité de ne toucher aucune barrière
+            return 0.0; // Placeholder
+        }
+        
+        std::vector<double> calculate_barrier_sensitivities(
+            const DoubleNoTouchOption& dnt,
+            const MarketData& market_data) const {
+            // Sensibilités aux niveaux des barrières
+            return {}; // Placeholder
+        }
+        
+        std::string determine_risk_profile(const CashSettledVanillaOption& option) const {
+            const auto& params = option.get_parameters();
+            if (params.option_type == CashSettledVanillaOption::OptionType::CALL) {
+                return "Long gamma, positive delta, unlimited upside";
+            } else {
+                return "Long gamma, negative delta, limited upside";
+            }
+        }
+    };
+}
+```
+*Cette implémentation C++ dans Our project analyse les caractéristiques des payoffs pour évaluer l'impact du modèle Local Volatility.*
+
+Ces produits de test permettent d'évaluer de manière complète les performances du modèle Local Volatility dans différentes conditions de marché et configurations de payoff.

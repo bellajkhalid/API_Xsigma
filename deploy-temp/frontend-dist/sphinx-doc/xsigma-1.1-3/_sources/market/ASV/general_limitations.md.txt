@@ -1,0 +1,394 @@
+# General Limitations
+
+## Overview
+
+While the Analytical Sigma Volatility (ASV) model provides a robust and interpretable framework for volatility surface modeling, it is important to understand its limitations and constraints. This section outlines the key limitations, their implications, and recommended mitigation strategies.
+
+## Model Structure Limitations
+
+### Parameter Count Constraints
+
+#### Limited Flexibility
+
+**Core Limitation**:
+The ASV model uses only five fitted parameters per maturity, which provides stability but limits flexibility compared to higher-order polynomial models.
+
+| Limitation Aspect | Description | Impact | Mitigation |
+|------------------|-------------|--------|------------|
+| **Fine-Tuning Capability** | Cannot capture complex volatility structures | May miss subtle market features | Use hybrid approaches for critical applications |
+| **Extreme Market Conditions** | Limited adaptability to unusual volatility patterns | Potential fit degradation | Enhanced monitoring and manual overrides |
+| **High-Frequency Features** | Cannot model rapid volatility changes across strikes | Smoothed representation of market data | Accept trade-off for stability benefits |
+
+**Comparison with Alternatives**:
+- **Taylor Model**: 8-12 parameters provide more flexibility but less stability
+- **Polynomial Models**: Higher-order terms capture more detail but risk overfitting
+- **SVI Model**: Similar parameter count but different interpretability trade-offs
+
+#### Mathematical Constraints
+
+**Cubic Equation Dependency**:
+```
+Limitation: ASV relies on solving cubic equations for volatility calculation
+Implications:
+- Mathematical complexity in extreme parameter regimes
+- Potential for multiple solutions requiring careful selection
+- Numerical stability challenges near parameter boundaries
+
+Risk Factors:
+- Parameter combinations leading to degenerate cubic equations
+- Numerical precision issues in extreme market conditions
+- Computational overhead for real-time applications
+```
+
+### Wing Behavior Challenges
+
+#### High Wing Volatilities
+
+**Problem Description**:
+ASV often produces higher implied volatilities on the wings compared to alternative models, particularly for:
+- **Front Maturities**: Short-term options close to expiry
+- **High Volatility Regimes**: During market stress periods
+- **Low Liquidity Names**: Single stocks with limited option trading
+
+**Quantitative Impact**:
+
+| Scenario | Wing Volatility Increase | Monte Carlo Impact | Mitigation Required |
+|----------|-------------------------|-------------------|-------------------|
+| **Normal Markets** | +5-10% vs market | Minimal | Standard procedures |
+| **Stressed Markets** | +15-25% vs market | Significant | Enhanced path counts |
+| **Front Maturities** | +20-40% vs market | Severe | Alternative methods |
+
+**Monte Carlo Convergence Issues**:
+```cpp
+// Example of convergence challenges
+struct MonteCarloIssues {
+    int standard_paths = 100000;
+    int required_paths_asv = 250000;  // 2.5x increase
+    double convergence_rate = 0.7;    // Slower than standard
+    
+    // Specific challenges
+    bool wing_option_pricing = true;   // Difficult
+    bool barrier_option_pricing = true; // Very difficult  
+    bool exotic_payoffs = true;        // Case-by-case basis
+};
+```
+
+#### Asymptotic Behavior
+
+**Wing Parameter Interpretation**:
+- **Put Wing**: Controls volatility behavior for deep out-of-the-money puts
+- **Call Wing**: Controls volatility behavior for deep out-of-the-money calls
+- **Asymptotic Limits**: May not align perfectly with variance swap market pricing
+
+**Market Consistency Challenges**:
+```
+Variance Swap Pricing:
+- ASV wings may imply different variance swap levels than market
+- Particularly noticeable in low volatility environments
+- Requires careful calibration of Ctrl_C and Ctrl_P parameters
+
+Long-Term Options:
+- Wing behavior for very long maturities (>2 years) less reliable
+- Limited market data for validation
+- Extrapolation beyond liquid market range
+```
+
+## Numerical and Computational Limitations
+
+### Optimization Challenges
+
+#### Parameter Correlation
+
+**Correlation Matrix Issues**:
+Despite orthogonal design intent, parameters can exhibit correlation in practice:
+
+| Parameter Pair | Typical Correlation | Market Conditions | Impact |
+|----------------|-------------------|------------------|--------|
+| **ATM Vol - Skew** | -0.3 to -0.7 | High volatility periods | Calibration instability |
+| **Smile - Wings** | +0.2 to +0.5 | Low liquidity names | Parameter uncertainty |
+| **Put Wing - Call Wing** | +0.1 to +0.4 | Stressed markets | Reduced orthogonality |
+
+**Calibration Stability**:
+```cpp
+// Example of parameter correlation impact
+class ParameterCorrelationMonitor {
+public:
+    bool checkCalibrationStability(const ASVParameters& params,
+                                  const ASVParameters& previous_params) {
+        
+        double param_change_magnitude = calculateChangeVector(params, previous_params);
+        double correlation_impact = assessCorrelationImpact(params);
+        
+        // High correlation can amplify parameter changes
+        if (correlation_impact > 0.7 && param_change_magnitude > 0.1) {
+            return false;  // Potentially unstable calibration
+        }
+        
+        return true;
+    }
+};
+```
+
+#### Local Minima Risk
+
+**Optimization Landscape**:
+- **Multiple Local Minima**: Objective function may have several local optima
+- **Initial Condition Sensitivity**: Results may depend on starting parameter values
+- **Market Regime Changes**: Optimization landscape shifts with market conditions
+
+**Mitigation Strategies**:
+```cpp
+struct OptimizationEnhancements {
+    // Multiple starting points
+    std::vector<ASVParameters> initial_guesses = {
+        market_based_initialization(),
+        historical_parameter_initialization(),
+        robust_default_initialization()
+    };
+    
+    // Global optimization fallback
+    bool use_global_optimization = true;
+    int max_global_iterations = 1000;
+    
+    // Parameter bounds enforcement
+    bool enforce_economic_bounds = true;
+    double parameter_change_limit = 0.2;  // 20% max change
+};
+```
+
+### Numerical Precision Issues
+
+#### Floating Point Arithmetic
+
+**Precision Challenges**:
+- **Wing Calculations**: High volatility values may approach floating point limits
+- **Cubic Equation Solving**: Numerical instability near parameter boundaries
+- **Derivative Calculations**: Finite difference approximations may be inaccurate
+
+**Error Propagation**:
+```
+Sources of Numerical Error:
+1. Market data input precision (typically 0.1% volatility)
+2. Parameter optimization tolerance (1e-6 to 1e-8)
+3. Cubic equation solution accuracy (1e-12)
+4. Monte Carlo simulation variance (1/√N)
+
+Cumulative Impact:
+- Typical accuracy: ±0.1-0.2% volatility
+- Extreme conditions: ±0.5-1.0% volatility
+- Wing regions: ±1.0-2.0% volatility
+```
+
+## Market Data Dependencies
+
+### Data Quality Requirements
+
+#### Liquidity Constraints
+
+**Market Data Availability**:
+
+| Asset Class | Typical Liquidity | ASV Performance | Limitations |
+|-------------|------------------|-----------------|-------------|
+| **Major Indices** | High | Excellent | Minimal |
+| **Large Cap Stocks** | Medium-High | Good | Some wing uncertainty |
+| **Small Cap Stocks** | Low-Medium | Acceptable | Significant wing uncertainty |
+| **Emerging Markets** | Low | Challenging | May require simplified approach |
+
+**Data Quality Impact**:
+```cpp
+struct DataQualityMetrics {
+    double bid_ask_spread_threshold = 0.05;  // 5% max spread
+    int minimum_daily_volume = 100;          // contracts
+    double price_staleness_limit = 3600;     // 1 hour max age
+    
+    bool isDataSufficientForASV(const MarketData& data) {
+        return (data.average_spread < bid_ask_spread_threshold &&
+                data.daily_volume > minimum_daily_volume &&
+                data.data_age < price_staleness_limit);
+    }
+};
+```
+
+#### Market Microstructure Effects
+
+**Bid-Ask Spread Impact**:
+- **Wide Spreads**: Increase calibration uncertainty
+- **Stale Quotes**: May lead to parameter instability
+- **Market Maker Behavior**: Can create artificial volatility patterns
+
+**Time-of-Day Effects**:
+- **Market Open/Close**: Elevated volatility may skew parameters
+- **Low Volume Periods**: Reduced data reliability
+- **Event-Driven Volatility**: May not be captured by static parameters
+
+### Arbitrage Constraints
+
+#### External Arbitrage Monitoring
+
+**Framework Dependency**:
+ASV does not include built-in arbitrage constraints, requiring external validation:
+
+```cpp
+class ArbitrageMonitor {
+public:
+    struct ArbitrageViolation {
+        enum Type { BUTTERFLY, CALENDAR, PUT_CALL_PARITY };
+        Type violation_type;
+        double severity;
+        std::string description;
+    };
+    
+    std::vector<ArbitrageViolation> checkArbitrageConditions(
+        const VolatilitySurface& surface) {
+        
+        std::vector<ArbitrageViolation> violations;
+        
+        // Check butterfly arbitrage
+        violations.append(checkButterflyArbitrage(surface));
+        
+        // Check calendar arbitrage  
+        violations.append(checkCalendarArbitrage(surface));
+        
+        // Check put-call parity
+        violations.append(checkPutCallParity(surface));
+        
+        return violations;
+    }
+};
+```
+
+**Constraint Enforcement**:
+- **Real-Time Monitoring**: Continuous arbitrage checking during calibration
+- **Automatic Correction**: Parameter adjustment to restore arbitrage-free conditions
+- **Quality Degradation**: Trade-off between fit quality and arbitrage compliance
+
+## Usage and Implementation Limitations
+
+### Model Validation Requirements
+
+#### Regulatory Compliance
+
+**Documentation Requirements**:
+- **Model Methodology**: Complete mathematical description
+- **Validation Results**: Comprehensive back-testing and stress testing
+- **Limitation Assessment**: Clear documentation of model constraints
+- **Usage Guidelines**: Appropriate application boundaries
+
+**Ongoing Monitoring**:
+```cpp
+struct RegulatoryMonitoring {
+    // Model performance tracking
+    double monthly_rmse_threshold = 0.008;  // 0.8%
+    double parameter_stability_threshold = 0.15;  // 15% change
+    
+    // Exception reporting
+    int consecutive_failures_limit = 3;
+    double extreme_parameter_threshold = 2.0;  // 2 standard deviations
+    
+    // Validation frequency
+    int back_testing_frequency_days = 30;
+    int stress_testing_frequency_days = 90;
+};
+```
+
+#### User Expertise Requirements
+
+**Technical Complexity**:
+- **Parameter Interpretation**: Requires understanding of volatility surface dynamics
+- **Calibration Oversight**: Need for expert judgment in parameter validation
+- **Risk Assessment**: Understanding of model limitations for risk management
+
+**Training Requirements**:
+- **Quantitative Analysts**: Deep understanding of mathematical framework
+- **Traders**: Practical knowledge of parameter behavior and market interpretation
+- **Risk Managers**: Awareness of model limitations and appropriate usage
+
+### Integration Challenges
+
+#### System Dependencies
+
+**Technology Requirements**:
+- **Computational Resources**: Sufficient processing power for real-time calibration
+- **Data Infrastructure**: Reliable, high-quality market data feeds
+- **Risk Systems**: Integration with existing risk management frameworks
+- **Monitoring Tools**: Comprehensive model performance tracking
+
+**Legacy System Integration**:
+```cpp
+struct IntegrationChallenges {
+    // Data format compatibility
+    bool requires_data_transformation = true;
+    
+    // Performance requirements
+    double max_calibration_time_seconds = 1.0;
+    double max_memory_usage_gb = 2.0;
+    
+    // API compatibility
+    bool backward_compatible_interface = false;
+    bool requires_wrapper_layer = true;
+};
+```
+
+## Mitigation Strategies and Best Practices
+
+### Operational Mitigation
+
+#### Enhanced Monitoring Framework
+
+**Real-Time Quality Control System**:
+```cpp
+class ASVQualityMonitor {
+private:
+    QualityThresholds thresholds_;
+    AlertSystem alert_system_;
+
+public:
+    void performContinuousMonitoring(const ASVParameters& params,
+                                   const CalibrationResults& results) {
+
+        // Parameter range validation
+        if (!validateParameterRanges(params)) {
+            alert_system_.sendAlert(AlertLevel::WARNING,
+                "Parameter approaching boundary conditions");
+        }
+
+        // Fit quality assessment
+        if (results.rmse > thresholds_.rmse_warning) {
+            alert_system_.sendAlert(AlertLevel::WARNING,
+                f"Fit quality degradation: RMSE = {results.rmse}%");
+        }
+
+        // Arbitrage violation detection
+        auto arbitrage_violations = checkArbitrageConditions(results.surface);
+        if (!arbitrage_violations.empty()) {
+            alert_system_.sendAlert(AlertLevel::CRITICAL,
+                "Arbitrage violations detected");
+        }
+
+        // Performance degradation monitoring
+        if (results.calibration_time > thresholds_.max_calibration_time) {
+            alert_system_.sendAlert(AlertLevel::INFO,
+                "Calibration performance degradation");
+        }
+    }
+};
+```
+
+**Monitoring KPIs**:
+
+| KPI Category | Metric | Warning Threshold | Critical Threshold | Action |
+|--------------|--------|------------------|-------------------|--------|
+| **Parameter Stability** | Daily change | >15% | >30% | Parameter review |
+| **Fit Quality** | RMSE | >0.8% | >1.5% | Data quality check |
+| **Arbitrage** | Violations/day | >5 | >20 | Model adjustment |
+| **Performance** | Calibration time | >1.0s | >2.0s | System optimization |
+
+#### Fallback Procedures
+
+**Alternative Model Integration**:
+- **Hybrid Approaches**: Combine ASV with complementary models for enhanced flexibility
+- **Simplified Models**: Fallback to basic models during ASV calibration failures
+- **Manual Override Capabilities**: Expert intervention for extreme market conditions
+- **Historical Parameter Fallback**: Use previous day's parameters when calibration fails
+
+This comprehensive understanding of ASV limitations enables informed decision-making about model usage while implementing appropriate risk management and mitigation strategies.

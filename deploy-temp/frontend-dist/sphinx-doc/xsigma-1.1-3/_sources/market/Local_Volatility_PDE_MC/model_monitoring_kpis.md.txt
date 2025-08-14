@@ -1,0 +1,333 @@
+# Model Monitoring – KPIs
+
+## Applicabilité
+
+Cette section n'est pas pertinente pour les modèles de valorisation.
+
+```cpp
+// Implémentation Our project du monitoring des modèles de valorisation
+namespace xsigma {
+    // Note : Les modèles de valorisation comme Local Volatility ne nécessitent pas
+    // de KPIs de monitoring au sens traditionnel des modèles de risque ou statistiques.
+    // Cependant, nous pouvons implémenter des métriques de qualité et de performance.
+    
+    // Classe pour le monitoring de la qualité du modèle Local Volatility
+    class LocalVolatilityQualityMonitor {
+    public:
+        // Structure pour les métriques de qualité
+        struct QualityMetrics {
+            double calibration_accuracy;        // Précision de calibration
+            double numerical_stability;         // Stabilité numérique
+            double convergence_rate;            // Taux de convergence
+            double computational_performance;   // Performance computationnelle
+            std::string last_update;           // Dernière mise à jour
+        };
+        
+        // Métriques de performance
+        struct PerformanceMetrics {
+            double avg_pricing_time_pde;        // Temps moyen pricing PDE
+            double avg_pricing_time_mc;         // Temps moyen pricing MC
+            double avg_calibration_time;       // Temps moyen calibration
+            double memory_usage_mb;             // Utilisation mémoire
+            int successful_calibrations;       // Calibrations réussies
+            int failed_calibrations;           // Calibrations échouées
+        };
+        
+        // Surveillance de la qualité du modèle
+        QualityMetrics monitor_model_quality(const LocalVolatilityModel& model,
+                                            const std::vector<TestCase>& test_cases) {
+            QualityMetrics metrics;
+            
+            // Test de précision de calibration
+            metrics.calibration_accuracy = assess_calibration_accuracy(model, test_cases);
+            
+            // Test de stabilité numérique
+            metrics.numerical_stability = assess_numerical_stability(model, test_cases);
+            
+            // Test de convergence
+            metrics.convergence_rate = assess_convergence_rate(model, test_cases);
+            
+            // Performance computationnelle
+            metrics.computational_performance = assess_computational_performance(model, test_cases);
+            
+            metrics.last_update = get_current_timestamp();
+            
+            return metrics;
+        }
+        
+        // Surveillance de la performance
+        PerformanceMetrics monitor_performance(const LocalVolatilityModel& model,
+                                             const std::vector<PricingRequest>& requests) {
+            PerformanceMetrics metrics;
+            
+            auto start_time = std::chrono::high_resolution_clock::now();
+            
+            double total_pde_time = 0.0;
+            double total_mc_time = 0.0;
+            double total_calibration_time = 0.0;
+            int pde_count = 0;
+            int mc_count = 0;
+            int calibration_count = 0;
+            
+            for (const auto& request : requests) {
+                try {
+                    auto request_start = std::chrono::high_resolution_clock::now();
+                    
+                    if (request.method == PricingMethod::PDE) {
+                        model.price_with_pde(request.payoff);
+                        auto request_end = std::chrono::high_resolution_clock::now();
+                        total_pde_time += std::chrono::duration<double>(request_end - request_start).count();
+                        pde_count++;
+                    } else if (request.method == PricingMethod::MONTE_CARLO) {
+                        model.price_with_mc(request.payoff);
+                        auto request_end = std::chrono::high_resolution_clock::now();
+                        total_mc_time += std::chrono::duration<double>(request_end - request_start).count();
+                        mc_count++;
+                    }
+                    
+                    if (request.requires_calibration) {
+                        auto calib_start = std::chrono::high_resolution_clock::now();
+                        model.calibrate(request.market_data);
+                        auto calib_end = std::chrono::high_resolution_clock::now();
+                        total_calibration_time += std::chrono::duration<double>(calib_end - calib_start).count();
+                        calibration_count++;
+                        metrics.successful_calibrations++;
+                    }
+                    
+                } catch (const CalibrationException& e) {
+                    metrics.failed_calibrations++;
+                    XSIGMA_LOG_WARNING("Échec de calibration: " + std::string(e.what()));
+                } catch (const std::exception& e) {
+                    XSIGMA_LOG_ERROR("Erreur de pricing: " + std::string(e.what()));
+                }
+            }
+            
+            // Calcul des moyennes
+            metrics.avg_pricing_time_pde = pde_count > 0 ? total_pde_time / pde_count : 0.0;
+            metrics.avg_pricing_time_mc = mc_count > 0 ? total_mc_time / mc_count : 0.0;
+            metrics.avg_calibration_time = calibration_count > 0 ? total_calibration_time / calibration_count : 0.0;
+            
+            // Mesure de l'utilisation mémoire
+            metrics.memory_usage_mb = get_memory_usage_mb();
+            
+            return metrics;
+        }
+        
+        // Génération de rapport de monitoring
+        std::string generate_monitoring_report(const QualityMetrics& quality,
+                                              const PerformanceMetrics& performance) {
+            std::ostringstream report;
+            
+            report << "=== Rapport de Monitoring Local Volatility ===\n\n";
+            
+            report << "MÉTRIQUES DE QUALITÉ:\n";
+            report << "- Précision de calibration: " << quality.calibration_accuracy * 100 << "%\n";
+            report << "- Stabilité numérique: " << quality.numerical_stability * 100 << "%\n";
+            report << "- Taux de convergence: " << quality.convergence_rate * 100 << "%\n";
+            report << "- Performance computationnelle: " << quality.computational_performance * 100 << "%\n";
+            report << "- Dernière mise à jour: " << quality.last_update << "\n\n";
+            
+            report << "MÉTRIQUES DE PERFORMANCE:\n";
+            report << "- Temps moyen pricing PDE: " << performance.avg_pricing_time_pde * 1000 << " ms\n";
+            report << "- Temps moyen pricing MC: " << performance.avg_pricing_time_mc * 1000 << " ms\n";
+            report << "- Temps moyen calibration: " << performance.avg_calibration_time * 1000 << " ms\n";
+            report << "- Utilisation mémoire: " << performance.memory_usage_mb << " MB\n";
+            report << "- Calibrations réussies: " << performance.successful_calibrations << "\n";
+            report << "- Calibrations échouées: " << performance.failed_calibrations << "\n";
+            
+            // Calcul du taux de succès
+            int total_calibrations = performance.successful_calibrations + performance.failed_calibrations;
+            if (total_calibrations > 0) {
+                double success_rate = (double)performance.successful_calibrations / total_calibrations * 100;
+                report << "- Taux de succès calibration: " << success_rate << "%\n";
+            }
+            
+            report << "\n=== Fin du Rapport ===\n";
+            
+            return report.str();
+        }
+        
+    private:
+        double assess_calibration_accuracy(const LocalVolatilityModel& model,
+                                          const std::vector<TestCase>& test_cases) {
+            double total_accuracy = 0.0;
+            int valid_tests = 0;
+            
+            for (const auto& test_case : test_cases) {
+                try {
+                    // Calibrer le modèle
+                    model.calibrate(test_case.market_data);
+                    
+                    // Tester la reproduction des prix de marché
+                    double model_price = model.price(test_case.payoff);
+                    double market_price = test_case.expected_price;
+                    
+                    double accuracy = 1.0 - std::abs(model_price - market_price) / market_price;
+                    total_accuracy += std::max(0.0, accuracy);
+                    valid_tests++;
+                    
+                } catch (const std::exception& e) {
+                    XSIGMA_LOG_WARNING("Test de calibration échoué: " + std::string(e.what()));
+                }
+            }
+            
+            return valid_tests > 0 ? total_accuracy / valid_tests : 0.0;
+        }
+        
+        double assess_numerical_stability(const LocalVolatilityModel& model,
+                                         const std::vector<TestCase>& test_cases) {
+            double stability_score = 0.0;
+            int valid_tests = 0;
+            
+            for (const auto& test_case : test_cases) {
+                try {
+                    // Test avec différentes grilles
+                    auto price1 = model.price_with_grid(test_case.payoff, GridSize::COARSE);
+                    auto price2 = model.price_with_grid(test_case.payoff, GridSize::FINE);
+                    
+                    double relative_diff = std::abs(price1 - price2) / std::max(price1, price2);
+                    double stability = 1.0 - std::min(1.0, relative_diff / 0.01); // 1% tolérance
+                    
+                    stability_score += std::max(0.0, stability);
+                    valid_tests++;
+                    
+                } catch (const std::exception& e) {
+                    XSIGMA_LOG_WARNING("Test de stabilité échoué: " + std::string(e.what()));
+                }
+            }
+            
+            return valid_tests > 0 ? stability_score / valid_tests : 0.0;
+        }
+        
+        double assess_convergence_rate(const LocalVolatilityModel& model,
+                                      const std::vector<TestCase>& test_cases) {
+            double convergence_score = 0.0;
+            int valid_tests = 0;
+            
+            for (const auto& test_case : test_cases) {
+                try {
+                    // Test de convergence PDE vs MC
+                    double pde_price = model.price_with_pde(test_case.payoff);
+                    double mc_price = model.price_with_mc(test_case.payoff, 100000); // Beaucoup de chemins
+                    
+                    double convergence = 1.0 - std::abs(pde_price - mc_price) / std::max(pde_price, mc_price);
+                    convergence_score += std::max(0.0, convergence);
+                    valid_tests++;
+                    
+                } catch (const std::exception& e) {
+                    XSIGMA_LOG_WARNING("Test de convergence échoué: " + std::string(e.what()));
+                }
+            }
+            
+            return valid_tests > 0 ? convergence_score / valid_tests : 0.0;
+        }
+        
+        double assess_computational_performance(const LocalVolatilityModel& model,
+                                               const std::vector<TestCase>& test_cases) {
+            auto start_time = std::chrono::high_resolution_clock::now();
+            
+            int successful_pricings = 0;
+            for (const auto& test_case : test_cases) {
+                try {
+                    model.price(test_case.payoff);
+                    successful_pricings++;
+                } catch (const std::exception& e) {
+                    // Ignorer les erreurs pour ce test de performance
+                }
+            }
+            
+            auto end_time = std::chrono::high_resolution_clock::now();
+            double elapsed_seconds = std::chrono::duration<double>(end_time - start_time).count();
+            
+            // Score basé sur le nombre de pricings par seconde
+            double pricings_per_second = successful_pricings / elapsed_seconds;
+            
+            // Normaliser le score (100 pricings/seconde = score parfait)
+            return std::min(1.0, pricings_per_second / 100.0);
+        }
+        
+        std::string get_current_timestamp() {
+            auto now = std::chrono::system_clock::now();
+            auto time_t = std::chrono::system_clock::to_time_t(now);
+            std::ostringstream oss;
+            oss << std::put_time(std::localtime(&time_t), "%Y-%m-%d %H:%M:%S");
+            return oss.str();
+        }
+        
+        double get_memory_usage_mb() {
+            // Implémentation spécifique à la plateforme pour mesurer l'utilisation mémoire
+            return 0.0; // Placeholder
+        }
+    };
+    
+    // Classe pour les alertes de monitoring
+    class MonitoringAlerts {
+    public:
+        static void check_and_alert(const LocalVolatilityQualityMonitor::QualityMetrics& quality,
+                                   const LocalVolatilityQualityMonitor::PerformanceMetrics& performance) {
+            
+            // Alertes de qualité
+            if (quality.calibration_accuracy < 0.95) {
+                XSIGMA_LOG_ALERT("ALERTE: Précision de calibration faible: " 
+                                + std::to_string(quality.calibration_accuracy * 100) + "%");
+            }
+            
+            if (quality.numerical_stability < 0.90) {
+                XSIGMA_LOG_ALERT("ALERTE: Stabilité numérique faible: " 
+                                + std::to_string(quality.numerical_stability * 100) + "%");
+            }
+            
+            // Alertes de performance
+            if (performance.avg_pricing_time_pde > 5.0) { // 5 secondes
+                XSIGMA_LOG_ALERT("ALERTE: Temps de pricing PDE élevé: " 
+                                + std::to_string(performance.avg_pricing_time_pde) + "s");
+            }
+            
+            if (performance.memory_usage_mb > 1000) { // 1GB
+                XSIGMA_LOG_ALERT("ALERTE: Utilisation mémoire élevée: " 
+                                + std::to_string(performance.memory_usage_mb) + " MB");
+            }
+            
+            // Alerte taux d'échec
+            int total_calibrations = performance.successful_calibrations + performance.failed_calibrations;
+            if (total_calibrations > 0) {
+                double failure_rate = (double)performance.failed_calibrations / total_calibrations;
+                if (failure_rate > 0.05) { // 5% d'échecs
+                    XSIGMA_LOG_ALERT("ALERTE: Taux d'échec de calibration élevé: " 
+                                    + std::to_string(failure_rate * 100) + "%");
+                }
+            }
+        }
+    };
+}
+```
+*Cette implémentation C++ dans Our project fournit un système de monitoring de qualité et de performance pour le modèle Local Volatility, bien que les KPIs traditionnels ne s'appliquent pas aux modèles de valorisation.*
+
+## Contexte des Modèles de Valorisation
+
+Les modèles de valorisation comme Local Volatility diffèrent fondamentalement des modèles de risque ou statistiques en ce qu'ils :
+
+1. **Ne prédisent pas de comportements futurs** - Ils calculent des prix justes basés sur les conditions de marché actuelles
+2. **N'ont pas de backtesting au sens traditionnel** - La validation se fait par arbitrage et cohérence théorique
+3. **Ne nécessitent pas de KPIs de performance prédictive** - L'accent est mis sur la précision de calibration et la stabilité numérique
+
+## Métriques de Qualité Alternatives
+
+Bien que les KPIs traditionnels ne s'appliquent pas, nous pouvons surveiller :
+
+### Métriques de Calibration
+- **Précision de reproduction** des prix de marché
+- **Stabilité** face aux perturbations des données
+- **Temps de convergence** de la calibration
+
+### Métriques Numériques
+- **Convergence PDE vs Monte Carlo**
+- **Stabilité des grilles** numériques
+- **Performance computationnelle**
+
+### Métriques Opérationnelles
+- **Taux de succès** des calibrations
+- **Temps de réponse** du système
+- **Utilisation des ressources**
+
+Cette approche permet un monitoring efficace de la qualité du modèle Local Volatility dans Our project tout en respectant sa nature de modèle de valorisation.

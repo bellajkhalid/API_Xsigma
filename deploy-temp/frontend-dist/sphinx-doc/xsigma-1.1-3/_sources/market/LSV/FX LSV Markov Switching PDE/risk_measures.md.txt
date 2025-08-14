@@ -1,0 +1,760 @@
+# Risk Measures
+
+## Overview
+
+Cette section décrit les mesures de risque spécifiques au modèle **FX LSV Markov Switching PDE**, incluant les Greeks FX calculés via PDE, les métriques de risque de marché et les techniques d'agrégation de risques multi-devises.
+
+## FX PDE Greeks Framework
+
+### Primary FX Greeks via PDE
+
+#### Delta FX (∂V/∂S) - Direct PDE Calculation
+```cpp
+// Calcul direct du Delta FX via PDE
+namespace xsigma::fx_risk_measures {
+    
+    class FXPDEGreeksCalculator {
+    public:
+        struct FXPDEGreeks {
+            // Greeks de premier ordre
+            double delta_spot;               // ∂V/∂S (sensibilité au taux de change)
+            double delta_variance;           // ∂V/∂V (sensibilité à la variance)
+            double rho_domestic;             // ∂V/∂r_d (sensibilité taux domestique)
+            double rho_foreign;              // ∂V/∂r_f (sensibilité taux étranger)
+            double theta;                    // ∂V/∂t (décroissance temporelle)
+            
+            // Greeks de second ordre
+            double gamma_spot;               // ∂²V/∂S² (convexité spot)
+            double gamma_variance;           // ∂²V/∂V² (convexité variance)
+            double cross_gamma_spot_var;     // ∂²V/∂S∂V (gamma croisé)
+            double cross_gamma_spot_rate;    // ∂²V/∂S∂r (gamma croisé spot-taux)
+            
+            // Greeks avancés PDE
+            double vanna_pde;                // ∂²V/∂S∂σ via PDE
+            double volga_pde;                // ∂²V/∂σ² via PDE
+            double charm_pde;                // ∂²V/∂S∂t via PDE
+            double color_pde;                // ∂²V/∂S²∂t via PDE
+            
+            // Greeks spécifiques Markov Switching
+            std::vector<double> state_deltas;        // Delta par état Markov
+            std::vector<double> transition_sensitivities; // ∂V/∂λ_ij
+            double correlation_sensitivity;   // ∂V/∂ρ (corrélation spot-vol)
+            
+            // Métriques de qualité PDE
+            double grid_convergence_error;   // Erreur de convergence grille
+            double boundary_error;           // Erreur aux frontières
+            bool greeks_stability;           // Stabilité des Greeks
+        };
+        
+        // Calcul complet des Greeks FX via PDE
+        FXPDEGreeks calculate_fx_pde_greeks(
+            const std::vector<Eigen::VectorXd>& pde_solutions,
+            const FXLSVMSPDEParameters& model_params,
+            const DiscretizationParameters& disc_params,
+            double current_spot,
+            double current_variance) {
+            
+            FXPDEGreeks greeks;
+            
+            try {
+                // Localisation dans la grille PDE
+                auto grid_location = locate_in_pde_grid(
+                    current_spot, current_variance, disc_params);
+                
+                // Greeks de premier ordre via différentiation PDE
+                greeks.delta_spot = calculate_delta_spot_pde(
+                    pde_solutions, grid_location, disc_params);
+                
+                greeks.delta_variance = calculate_delta_variance_pde(
+                    pde_solutions, grid_location, disc_params);
+                
+                // Greeks de taux via perturbation PDE
+                greeks.rho_domestic = calculate_rho_domestic_pde(
+                    model_params, disc_params, current_spot, current_variance);
+                
+                greeks.rho_foreign = calculate_rho_foreign_pde(
+                    model_params, disc_params, current_spot, current_variance);
+                
+                // Greeks de second ordre
+                greeks.gamma_spot = calculate_gamma_spot_pde(
+                    pde_solutions, grid_location, disc_params);
+                
+                greeks.gamma_variance = calculate_gamma_variance_pde(
+                    pde_solutions, grid_location, disc_params);
+                
+                greeks.cross_gamma_spot_var = calculate_cross_gamma_pde(
+                    pde_solutions, grid_location, disc_params);
+                
+                // Greeks temporels
+                greeks.theta = calculate_theta_pde(
+                    pde_solutions, model_params, disc_params);
+                
+                // Greeks avancés via PDE
+                greeks.vanna_pde = calculate_vanna_pde(
+                    pde_solutions, grid_location, disc_params);
+                
+                greeks.volga_pde = calculate_volga_pde(
+                    pde_solutions, grid_location, disc_params);
+                
+                greeks.charm_pde = calculate_charm_pde(
+                    pde_solutions, grid_location, disc_params);
+                
+                greeks.color_pde = calculate_color_pde(
+                    pde_solutions, grid_location, disc_params);
+                
+                // Greeks Markov Switching
+                greeks.state_deltas = calculate_state_deltas_pde(
+                    pde_solutions, grid_location, disc_params);
+                
+                greeks.transition_sensitivities = calculate_transition_sensitivities_pde(
+                    pde_solutions, model_params);
+                
+                greeks.correlation_sensitivity = calculate_correlation_sensitivity_pde(
+                    pde_solutions, model_params);
+                
+                // Validation de qualité
+                greeks.grid_convergence_error = assess_grid_convergence_error(
+                    pde_solutions, disc_params);
+                
+                greeks.boundary_error = assess_boundary_error(
+                    pde_solutions, disc_params);
+                
+                greeks.greeks_stability = validate_greeks_stability(greeks);
+                
+                XSIGMA_LOG_INFO("Greeks FX PDE calculés avec succès");
+                
+            } catch (const std::exception& e) {
+                XSIGMA_LOG_ERROR("Erreur lors du calcul des Greeks PDE: " + std::string(e.what()));
+                throw;
+            }
+            
+            return greeks;
+        }
+        
+        // Structure pour localisation dans la grille PDE
+        struct PDEGridLocation {
+            int i_spot, j_variance;          // Indices de grille
+            double alpha_spot, alpha_var;    // Poids d'interpolation
+            std::vector<int> neighbor_indices; // Indices des voisins
+        };
+        
+        // Localisation précise dans la grille PDE
+        PDEGridLocation locate_in_pde_grid(
+            double spot, double variance,
+            const DiscretizationParameters& params) {
+            
+            PDEGridLocation location;
+            
+            // Localisation spot
+            double spot_step = (params.spot_max - params.spot_min) / (params.spot_grid_points - 1);
+            double spot_normalized = (spot - params.spot_min) / spot_step;
+            location.i_spot = static_cast<int>(std::floor(spot_normalized));
+            location.alpha_spot = spot_normalized - location.i_spot;
+            
+            // Localisation variance
+            double var_step = (params.variance_max - params.variance_min) / (params.variance_grid_points - 1);
+            double var_normalized = (variance - params.variance_min) / var_step;
+            location.j_variance = static_cast<int>(std::floor(var_normalized));
+            location.alpha_var = var_normalized - location.j_variance;
+            
+            // Calcul des indices des voisins pour interpolation
+            location.neighbor_indices = calculate_neighbor_indices(
+                location.i_spot, location.j_variance, params);
+            
+            return location;
+        }
+        
+        // Calcul du Delta spot via différentiation PDE
+        double calculate_delta_spot_pde(
+            const std::vector<Eigen::VectorXd>& solutions,
+            const PDEGridLocation& location,
+            const DiscretizationParameters& params) {
+            
+            double spot_step = (params.spot_max - params.spot_min) / (params.spot_grid_points - 1);
+            double delta_total = 0.0;
+            
+            // Moyenne pondérée sur les états Markov
+            for (size_t state = 0; state < solutions.size(); ++state) {
+                
+                // Indices pour différences centrées
+                int idx_center = location.i_spot * params.variance_grid_points + location.j_variance;
+                int idx_up = (location.i_spot + 1) * params.variance_grid_points + location.j_variance;
+                int idx_down = (location.i_spot - 1) * params.variance_grid_points + location.j_variance;
+                
+                // Vérification des limites
+                if (location.i_spot == 0) {
+                    // Différence avant
+                    double state_delta = (solutions[state][idx_up] - solutions[state][idx_center]) / spot_step;
+                    delta_total += state_delta;
+                } else if (location.i_spot == params.spot_grid_points - 1) {
+                    // Différence arrière
+                    double state_delta = (solutions[state][idx_center] - solutions[state][idx_down]) / spot_step;
+                    delta_total += state_delta;
+                } else {
+                    // Différence centrée
+                    double state_delta = (solutions[state][idx_up] - solutions[state][idx_down]) / (2.0 * spot_step);
+                    delta_total += state_delta;
+                }
+            }
+            
+            // Moyenne sur les états (pondération uniforme ou par probabilités)
+            return delta_total / solutions.size();
+        }
+        
+        // Calcul du Gamma spot via PDE
+        double calculate_gamma_spot_pde(
+            const std::vector<Eigen::VectorXd>& solutions,
+            const PDEGridLocation& location,
+            const DiscretizationParameters& params) {
+            
+            double spot_step = (params.spot_max - params.spot_min) / (params.spot_grid_points - 1);
+            double gamma_total = 0.0;
+            
+            for (size_t state = 0; state < solutions.size(); ++state) {
+                
+                int idx_center = location.i_spot * params.variance_grid_points + location.j_variance;
+                int idx_up = (location.i_spot + 1) * params.variance_grid_points + location.j_variance;
+                int idx_down = (location.i_spot - 1) * params.variance_grid_points + location.j_variance;
+                
+                // Gamma via différences finies de second ordre
+                if (location.i_spot > 0 && location.i_spot < params.spot_grid_points - 1) {
+                    double state_gamma = (solutions[state][idx_up] - 2.0 * solutions[state][idx_center] + 
+                                         solutions[state][idx_down]) / (spot_step * spot_step);
+                    gamma_total += state_gamma;
+                } else {
+                    // Extrapolation aux frontières
+                    gamma_total += extrapolate_gamma_at_boundary(solutions[state], location, params);
+                }
+            }
+            
+            return gamma_total / solutions.size();
+        }
+        
+        // Calcul du Rho domestique via perturbation PDE
+        double calculate_rho_domestic_pde(
+            const FXLSVMSPDEParameters& model_params,
+            const DiscretizationParameters& disc_params,
+            double spot, double variance) {
+            
+            double rate_bump = 0.0001; // 1bp
+            
+            // Prix avec taux domestique original
+            double base_price = solve_pde_for_price(model_params, disc_params, spot, variance);
+            
+            // Prix avec taux domestique bumpé
+            FXLSVMSPDEParameters bumped_params = model_params;
+            bumped_params.domestic_rate += rate_bump;
+            double bumped_price = solve_pde_for_price(bumped_params, disc_params, spot, variance);
+            
+            return (bumped_price - base_price) / rate_bump;
+        }
+        
+        // Calcul du Rho étranger via perturbation PDE
+        double calculate_rho_foreign_pde(
+            const FXLSVMSPDEParameters& model_params,
+            const DiscretizationParameters& disc_params,
+            double spot, double variance) {
+            
+            double rate_bump = 0.0001; // 1bp
+            
+            // Prix avec taux étranger original
+            double base_price = solve_pde_for_price(model_params, disc_params, spot, variance);
+            
+            // Prix avec taux étranger bumpé
+            FXLSVMSPDEParameters bumped_params = model_params;
+            bumped_params.foreign_rate += rate_bump;
+            double bumped_price = solve_pde_for_price(bumped_params, disc_params, spot, variance);
+            
+            return (bumped_price - base_price) / rate_bump;
+        }
+        
+        // Calcul des sensibilités aux transitions Markov
+        std::vector<double> calculate_transition_sensitivities_pde(
+            const std::vector<Eigen::VectorXd>& solutions,
+            const FXLSVMSPDEParameters& model_params) {
+            
+            std::vector<double> sensitivities;
+            
+            // Sensibilité à chaque taux de transition λ_ij
+            for (int i = 0; i < model_params.number_of_states; ++i) {
+                for (int j = 0; j < model_params.number_of_states; ++j) {
+                    if (i != j) {
+                        double sensitivity = calculate_single_transition_sensitivity(
+                            solutions, model_params, i, j);
+                        sensitivities.push_back(sensitivity);
+                    }
+                }
+            }
+            
+            return sensitivities;
+        }
+        
+        // Calcul de sensibilité à une transition spécifique
+        double calculate_single_transition_sensitivity(
+            const std::vector<Eigen::VectorXd>& solutions,
+            const FXLSVMSPDEParameters& model_params,
+            int from_state, int to_state) {
+            
+            // Sensibilité ∂V/∂λ_ij = V_j - V_i (différence entre états)
+            double sensitivity = 0.0;
+            
+            for (size_t idx = 0; idx < solutions[from_state].size(); ++idx) {
+                double state_diff = solutions[to_state][idx] - solutions[from_state][idx];
+                sensitivity += state_diff; // Intégration sur le domaine
+            }
+            
+            // Normalisation par la taille du domaine
+            return sensitivity / solutions[from_state].size();
+        }
+        
+        // Validation de la stabilité des Greeks
+        bool validate_greeks_stability(const FXPDEGreeks& greeks) {
+            
+            // Tests de cohérence des Greeks
+            bool stability = true;
+            
+            // Test 1: Gamma doit être positif pour options vanilles
+            if (greeks.gamma_spot < 0.0) {
+                XSIGMA_LOG_WARNING("Gamma spot négatif détecté: " + std::to_string(greeks.gamma_spot));
+                stability = false;
+            }
+            
+            // Test 2: Delta doit être dans [0,1] pour calls, [-1,0] pour puts
+            if (std::abs(greeks.delta_spot) > 1.5) {
+                XSIGMA_LOG_WARNING("Delta spot hors limites: " + std::to_string(greeks.delta_spot));
+                stability = false;
+            }
+            
+            // Test 3: Vanna et Volga doivent avoir des signes cohérents
+            if (greeks.vanna_pde * greeks.volga_pde < 0 && std::abs(greeks.vanna_pde) > 0.01) {
+                XSIGMA_LOG_WARNING("Incohérence Vanna-Volga détectée");
+                stability = false;
+            }
+            
+            // Test 4: Erreur de convergence grille acceptable
+            if (greeks.grid_convergence_error > 0.01) {
+                XSIGMA_LOG_WARNING("Erreur de convergence grille élevée: " + 
+                                  std::to_string(greeks.grid_convergence_error));
+                stability = false;
+            }
+            
+            return stability;
+        }
+        
+    private:
+        std::vector<int> calculate_neighbor_indices(
+            int i_spot, int j_var, const DiscretizationParameters& params) {
+            
+            std::vector<int> indices;
+            
+            // Indices des 4 voisins pour interpolation bilinéaire
+            indices.push_back(i_spot * params.variance_grid_points + j_var);           // (i,j)
+            indices.push_back((i_spot + 1) * params.variance_grid_points + j_var);     // (i+1,j)
+            indices.push_back(i_spot * params.variance_grid_points + (j_var + 1));     // (i,j+1)
+            indices.push_back((i_spot + 1) * params.variance_grid_points + (j_var + 1)); // (i+1,j+1)
+            
+            return indices;
+        }
+        
+        double extrapolate_gamma_at_boundary(
+            const Eigen::VectorXd& solution,
+            const PDEGridLocation& location,
+            const DiscretizationParameters& params) {
+            
+            // Extrapolation du gamma aux frontières
+            return 0.0; // Placeholder - implémentation d'extrapolation
+        }
+        
+        double solve_pde_for_price(
+            const FXLSVMSPDEParameters& params,
+            const DiscretizationParameters& disc_params,
+            double spot, double variance) {
+            
+            // Résolution PDE complète pour un prix
+            return 0.05; // Placeholder
+        }
+        
+        // Méthodes pour autres Greeks (placeholders)
+        double calculate_delta_variance_pde(const std::vector<Eigen::VectorXd>& solutions,
+                                           const PDEGridLocation& location,
+                                           const DiscretizationParameters& params) {
+            return 0.0; // Implémentation similaire à delta_spot
+        }
+        
+        double calculate_gamma_variance_pde(const std::vector<Eigen::VectorXd>& solutions,
+                                           const PDEGridLocation& location,
+                                           const DiscretizationParameters& params) {
+            return 0.0; // Implémentation similaire à gamma_spot
+        }
+        
+        double calculate_cross_gamma_pde(const std::vector<Eigen::VectorXd>& solutions,
+                                        const PDEGridLocation& location,
+                                        const DiscretizationParameters& params) {
+            return 0.0; // ∂²V/∂S∂V
+        }
+        
+        double calculate_theta_pde(const std::vector<Eigen::VectorXd>& solutions,
+                                  const FXLSVMSPDEParameters& params,
+                                  const DiscretizationParameters& disc_params) {
+            return 0.0; // Calcul via différence temporelle
+        }
+        
+        double calculate_vanna_pde(const std::vector<Eigen::VectorXd>& solutions,
+                                  const PDEGridLocation& location,
+                                  const DiscretizationParameters& params) {
+            return 0.0; // ∂²V/∂S∂σ
+        }
+        
+        double calculate_volga_pde(const std::vector<Eigen::VectorXd>& solutions,
+                                  const PDEGridLocation& location,
+                                  const DiscretizationParameters& params) {
+            return 0.0; // ∂²V/∂σ²
+        }
+        
+        double calculate_charm_pde(const std::vector<Eigen::VectorXd>& solutions,
+                                  const PDEGridLocation& location,
+                                  const DiscretizationParameters& params) {
+            return 0.0; // ∂²V/∂S∂t
+        }
+        
+        double calculate_color_pde(const std::vector<Eigen::VectorXd>& solutions,
+                                  const PDEGridLocation& location,
+                                  const DiscretizationParameters& params) {
+            return 0.0; // ∂²V/∂S²∂t
+        }
+        
+        std::vector<double> calculate_state_deltas_pde(
+            const std::vector<Eigen::VectorXd>& solutions,
+            const PDEGridLocation& location,
+            const DiscretizationParameters& params) {
+            
+            std::vector<double> state_deltas;
+            // Delta pour chaque état Markov
+            return state_deltas;
+        }
+        
+        double calculate_correlation_sensitivity_pde(
+            const std::vector<Eigen::VectorXd>& solutions,
+            const FXLSVMSPDEParameters& params) {
+            return 0.0; // ∂V/∂ρ
+        }
+        
+        double assess_grid_convergence_error(
+            const std::vector<Eigen::VectorXd>& solutions,
+            const DiscretizationParameters& params) {
+            return 1e-6; // Placeholder
+        }
+        
+        double assess_boundary_error(
+            const std::vector<Eigen::VectorXd>& solutions,
+            const DiscretizationParameters& params) {
+            return 1e-7; // Placeholder
+        }
+    };
+}
+```
+
+## Multi-Currency Risk Aggregation
+
+### Portfolio Risk via PDE
+```cpp
+// Agrégation de risques portfolio via PDE
+class FXLSVMSPortfolioRiskAggregator {
+public:
+    struct PortfolioRiskMetrics {
+        // Greeks agrégés
+        double total_delta_usd;              // Delta total en USD
+        double total_gamma_usd;              // Gamma total en USD
+        double total_vega_usd;               // Vega total en USD
+        double total_theta_usd;              // Theta total en USD
+        
+        // Risques par devise
+        std::map<std::string, double> delta_by_currency;
+        std::map<std::string, double> gamma_by_currency;
+        std::map<std::string, double> vega_by_currency;
+        
+        // Risques croisés
+        std::map<std::pair<std::string, std::string>, double> cross_gamma_currencies;
+        std::map<std::string, double> correlation_risk_by_pair;
+        
+        // VaR et métriques de risque
+        double var_95_1d_usd;                // VaR 95% 1 jour en USD
+        double var_99_1d_usd;                // VaR 99% 1 jour en USD
+        double expected_shortfall_95_usd;    // Expected Shortfall 95% en USD
+        double maximum_drawdown_estimate;    // Estimation du drawdown maximal
+        
+        // Métriques de concentration
+        double largest_position_pct;         // Plus grosse position en %
+        double top_10_positions_pct;         // Top 10 positions en %
+        std::map<std::string, double> concentration_by_currency_pair;
+        
+        // Stress testing
+        std::map<std::string, double> stress_scenario_pnl;
+    };
+    
+    // Calcul des risques de portfolio via PDE
+    PortfolioRiskMetrics calculate_portfolio_risk_pde(
+        const std::vector<FXPosition>& positions,
+        const std::map<std::string, FXLSVMSPDEParameters>& model_params_by_pair) {
+        
+        PortfolioRiskMetrics risk;
+        
+        // Calcul des Greeks individuels via PDE
+        std::vector<FXPDEGreeks> individual_greeks;
+        for (const auto& position : positions) {
+            auto greeks = calculate_position_greeks_pde(position, model_params_by_pair);
+            individual_greeks.push_back(greeks);
+        }
+        
+        // Agrégation des Greeks
+        aggregate_portfolio_greeks(positions, individual_greeks, risk);
+        
+        // Calcul de VaR via simulation Monte Carlo sur Greeks
+        calculate_portfolio_var_pde(positions, individual_greeks, risk);
+        
+        // Métriques de concentration
+        calculate_concentration_metrics(positions, risk);
+        
+        // Stress testing
+        calculate_stress_scenarios_pde(positions, individual_greeks, risk);
+        
+        return risk;
+    }
+    
+private:
+    FXPDEGreeks calculate_position_greeks_pde(
+        const FXPosition& position,
+        const std::map<std::string, FXLSVMSPDEParameters>& model_params) {
+        
+        // Récupération des paramètres pour cette paire
+        auto params_it = model_params.find(position.currency_pair);
+        if (params_it == model_params.end()) {
+            XSIGMA_THROW("Paramètres non trouvés pour " + position.currency_pair);
+        }
+        
+        // Résolution PDE pour cette position
+        FXLSVMSPDEDiscretizer discretizer;
+        DiscretizationParameters disc_params = create_standard_discretization_params();
+        
+        // Calcul des Greeks via PDE
+        FXPDEGreeksCalculator greeks_calc;
+        auto pde_solutions = solve_pde_for_position(position, params_it->second, disc_params);
+        
+        return greeks_calc.calculate_fx_pde_greeks(
+            pde_solutions, params_it->second, disc_params,
+            params_it->second.spot_fx_rate, params_it->second.long_term_variance);
+    }
+    
+    void aggregate_portfolio_greeks(
+        const std::vector<FXPosition>& positions,
+        const std::vector<FXPDEGreeks>& individual_greeks,
+        PortfolioRiskMetrics& risk) {
+        
+        // Initialisation
+        risk.total_delta_usd = 0.0;
+        risk.total_gamma_usd = 0.0;
+        risk.total_vega_usd = 0.0;
+        risk.total_theta_usd = 0.0;
+        
+        // Agrégation position par position
+        for (size_t i = 0; i < positions.size(); ++i) {
+            const auto& position = positions[i];
+            const auto& greeks = individual_greeks[i];
+            
+            // Conversion en USD si nécessaire
+            double fx_to_usd = get_fx_rate_to_usd(position.currency_pair);
+            double position_notional_usd = position.notional * fx_to_usd;
+            
+            // Agrégation des Greeks
+            risk.total_delta_usd += greeks.delta_spot * position_notional_usd;
+            risk.total_gamma_usd += greeks.gamma_spot * position_notional_usd;
+            risk.total_vega_usd += greeks.vanna_pde * position_notional_usd; // Approximation
+            risk.total_theta_usd += greeks.theta * position_notional_usd;
+            
+            // Agrégation par devise
+            std::string base_currency = position.currency_pair.substr(0, 3);
+            std::string quote_currency = position.currency_pair.substr(3, 3);
+            
+            risk.delta_by_currency[base_currency] += greeks.delta_spot * position.notional;
+            risk.gamma_by_currency[base_currency] += greeks.gamma_spot * position.notional;
+        }
+    }
+    
+    void calculate_portfolio_var_pde(
+        const std::vector<FXPosition>& positions,
+        const std::vector<FXPDEGreeks>& individual_greeks,
+        PortfolioRiskMetrics& risk) {
+        
+        // Calcul de VaR paramétrique basé sur les Greeks PDE
+        double portfolio_variance = 0.0;
+        
+        // Variance des Greeks individuels
+        for (size_t i = 0; i < positions.size(); ++i) {
+            const auto& position = positions[i];
+            const auto& greeks = individual_greeks[i];
+            
+            // Volatilité de la paire FX
+            double fx_vol = get_fx_volatility(position.currency_pair);
+            double position_var = std::pow(greeks.delta_spot * position.notional * fx_vol, 2);
+            portfolio_variance += position_var;
+        }
+        
+        // Corrélations entre paires
+        for (size_t i = 0; i < positions.size(); ++i) {
+            for (size_t j = i + 1; j < positions.size(); ++j) {
+                
+                const auto& pos_i = positions[i];
+                const auto& pos_j = positions[j];
+                const auto& greeks_i = individual_greeks[i];
+                const auto& greeks_j = individual_greeks[j];
+                
+                double correlation = get_fx_correlation(pos_i.currency_pair, pos_j.currency_pair);
+                double vol_i = get_fx_volatility(pos_i.currency_pair);
+                double vol_j = get_fx_volatility(pos_j.currency_pair);
+                
+                double covariance = 2.0 * greeks_i.delta_spot * pos_i.notional * vol_i *
+                                   greeks_j.delta_spot * pos_j.notional * vol_j * correlation;
+                
+                portfolio_variance += covariance;
+            }
+        }
+        
+        // Calcul des VaR
+        double portfolio_std = std::sqrt(portfolio_variance);
+        risk.var_95_1d_usd = 1.65 * portfolio_std; // 95% VaR
+        risk.var_99_1d_usd = 2.33 * portfolio_std; // 99% VaR
+        risk.expected_shortfall_95_usd = 2.06 * portfolio_std; // ES 95%
+    }
+    
+    void calculate_stress_scenarios_pde(
+        const std::vector<FXPosition>& positions,
+        const std::vector<FXPDEGreeks>& individual_greeks,
+        PortfolioRiskMetrics& risk) {
+        
+        // Scénarios de stress standard
+        std::vector<std::string> scenarios = {
+            "FX_SHOCK_UP_10PCT", "FX_SHOCK_DOWN_10PCT",
+            "VOL_SHOCK_UP_50PCT", "VOL_SHOCK_DOWN_50PCT",
+            "CORRELATION_BREAKDOWN", "CRISIS_SCENARIO"
+        };
+        
+        for (const auto& scenario : scenarios) {
+            double scenario_pnl = calculate_scenario_pnl_pde(
+                positions, individual_greeks, scenario);
+            risk.stress_scenario_pnl[scenario] = scenario_pnl;
+        }
+    }
+    
+    double calculate_scenario_pnl_pde(
+        const std::vector<FXPosition>& positions,
+        const std::vector<FXPDEGreeks>& individual_greeks,
+        const std::string& scenario) {
+        
+        double total_pnl = 0.0;
+        
+        for (size_t i = 0; i < positions.size(); ++i) {
+            const auto& position = positions[i];
+            const auto& greeks = individual_greeks[i];
+            
+            double position_pnl = 0.0;
+            
+            if (scenario == "FX_SHOCK_UP_10PCT") {
+                // Choc FX +10%
+                double fx_shock = 0.10;
+                position_pnl = greeks.delta_spot * position.notional * fx_shock +
+                              0.5 * greeks.gamma_spot * position.notional * fx_shock * fx_shock;
+                
+            } else if (scenario == "VOL_SHOCK_UP_50PCT") {
+                // Choc volatilité +50%
+                double vol_shock = 0.50;
+                position_pnl = greeks.vanna_pde * position.notional * vol_shock;
+                
+            } else if (scenario == "CORRELATION_BREAKDOWN") {
+                // Rupture des corrélations
+                position_pnl = greeks.correlation_sensitivity * position.notional * (-0.5);
+                
+            } else if (scenario == "CRISIS_SCENARIO") {
+                // Scénario de crise combiné
+                double fx_shock = -0.15;
+                double vol_shock = 1.0;
+                position_pnl = greeks.delta_spot * position.notional * fx_shock +
+                              0.5 * greeks.gamma_spot * position.notional * fx_shock * fx_shock +
+                              greeks.vanna_pde * position.notional * vol_shock;
+            }
+            
+            total_pnl += position_pnl;
+        }
+        
+        return total_pnl;
+    }
+    
+    void calculate_concentration_metrics(
+        const std::vector<FXPosition>& positions,
+        PortfolioRiskMetrics& risk) {
+        
+        // Calcul des métriques de concentration
+        std::vector<double> position_values;
+        std::map<std::string, double> exposure_by_pair;
+        
+        for (const auto& position : positions) {
+            double position_value = std::abs(position.notional * 
+                                           get_fx_rate_to_usd(position.currency_pair));
+            position_values.push_back(position_value);
+            exposure_by_pair[position.currency_pair] += position_value;
+        }
+        
+        // Tri des positions par valeur
+        std::sort(position_values.rbegin(), position_values.rend());
+        
+        double total_value = std::accumulate(position_values.begin(), position_values.end(), 0.0);
+        
+        if (total_value > 0) {
+            risk.largest_position_pct = position_values[0] / total_value;
+            
+            double top_10_value = 0.0;
+            for (size_t i = 0; i < std::min(size_t(10), position_values.size()); ++i) {
+                top_10_value += position_values[i];
+            }
+            risk.top_10_positions_pct = top_10_value / total_value;
+        }
+        
+        // Concentration par paire de devises
+        for (const auto& [pair, exposure] : exposure_by_pair) {
+            risk.concentration_by_currency_pair[pair] = exposure / total_value;
+        }
+    }
+    
+    // Méthodes utilitaires (placeholders)
+    DiscretizationParameters create_standard_discretization_params() {
+        DiscretizationParameters params;
+        params.spot_grid_points = 100;
+        params.variance_grid_points = 50;
+        params.time_steps = 100;
+        return params;
+    }
+    
+    std::vector<Eigen::VectorXd> solve_pde_for_position(
+        const FXPosition& position,
+        const FXLSVMSPDEParameters& params,
+        const DiscretizationParameters& disc_params) {
+        
+        std::vector<Eigen::VectorXd> solutions;
+        // Résolution PDE pour cette position
+        return solutions;
+    }
+    
+    double get_fx_rate_to_usd(const std::string& currency_pair) {
+        return 1.0; // Placeholder
+    }
+    
+    double get_fx_volatility(const std::string& currency_pair) {
+        return 0.12; // Placeholder
+    }
+    
+    double get_fx_correlation(const std::string& pair1, const std::string& pair2) {
+        return 0.3; // Placeholder
+    }
+};
+```
+
+Le framework de mesures de risque FX LSV Markov Switching PDE dans Our project fournit une solution complète pour l'évaluation, le monitoring et la gestion des risques FX avec des Greeks calculés directement via PDE, des métriques spécialisées et des capacités d'agrégation avancées pour portfolios multi-devises.

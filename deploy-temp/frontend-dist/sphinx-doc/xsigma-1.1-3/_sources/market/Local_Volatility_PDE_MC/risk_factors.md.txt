@@ -1,0 +1,464 @@
+# Risk (Calculated by the Model/Payoff)
+
+## Description
+
+Les métriques de risque (Greeks) sont calculées en perturbant les données de marché. La grille PDE est maintenue fixe pendant le calcul de risque afin de réduire le bruit numérique. De même, le prix MC réutilise les nombres aléatoires qui ont été utilisés pour la valorisation de base pour réduire le bruit. Les perturbations de données de marché sont effectuées par le framework QARisk2, qui est un framework partagé utilisé à travers les modèles QA pour les calculs de risque et de scénario.
+
+```cpp
+// Implémentation Our project du calcul des risques
+namespace xsigma {
+    // Énumération des types de Greeks
+    enum class GreekType {
+        DELTA,          // Sensibilité au spot
+        GAMMA,          // Sensibilité du delta
+        VEGA,           // Sensibilité à la volatilité
+        THETA,          // Sensibilité au temps
+        RHO_DOMESTIC,   // Sensibilité au taux domestique
+        RHO_FOREIGN,    // Sensibilité au taux étranger
+        VOLGA,          // Sensibilité de vega
+        VANNA           // Sensibilité croisée spot-vol
+    };
+    
+    // Énumération des méthodes de différenciation
+    enum class DifferenceMethod {
+        CENTRAL,        // Différence centrée
+        FORWARD,        // Différence avant
+        BACKWARD        // Différence arrière
+    };
+    
+    // Classe principale pour le calcul des risques
+    class LocalVolatilityRiskCalculator {
+    public:
+        // Structure pour les paramètres de risque
+        struct RiskParameters {
+            double spot_bump_size;           // Taille du bump spot (défaut: 1%)
+            double vol_bump_size;            // Taille du bump volatilité (défaut: 1%)
+            double rate_bump_size;           // Taille du bump taux (défaut: 1bp)
+            double time_bump_size;           // Taille du bump temps (défaut: 1 jour)
+            DifferenceMethod diff_method;    // Méthode de différenciation
+            bool use_fixed_grid;             // Grille fixe pour PDE
+            bool reuse_random_numbers;       // Réutiliser les nombres aléatoires MC
+        };
+        
+        LocalVolatilityRiskCalculator(const LocalVolatilityModel& model,
+                                    const RiskParameters& params)
+            : model_(model), risk_params_(params) {}
+        
+        // Calcul d'un Greek spécifique
+        double calculate_greek(GreekType greek_type, 
+                             const PayoffFunction& payoff,
+                             const MarketData& base_market_data) {
+            
+            switch (greek_type) {
+                case GreekType::DELTA:
+                    return calculate_delta(payoff, base_market_data);
+                case GreekType::GAMMA:
+                    return calculate_gamma(payoff, base_market_data);
+                case GreekType::VEGA:
+                    return calculate_vega(payoff, base_market_data);
+                case GreekType::THETA:
+                    return calculate_theta(payoff, base_market_data);
+                case GreekType::RHO_DOMESTIC:
+                    return calculate_rho_domestic(payoff, base_market_data);
+                case GreekType::RHO_FOREIGN:
+                    return calculate_rho_foreign(payoff, base_market_data);
+                case GreekType::VOLGA:
+                    return calculate_volga(payoff, base_market_data);
+                case GreekType::VANNA:
+                    return calculate_vanna(payoff, base_market_data);
+                default:
+                    XSIGMA_THROW("Type de Greek non supporté");
+            }
+        }
+        
+        // Calcul de tous les Greeks en une fois
+        std::map<GreekType, double> calculate_all_greeks(
+            const PayoffFunction& payoff,
+            const MarketData& base_market_data) {
+            
+            std::map<GreekType, double> greeks;
+            
+            // Prix de base
+            double base_price = model_.price(payoff, base_market_data);
+            
+            // Calcul des Greeks de premier ordre
+            greeks[GreekType::DELTA] = calculate_delta(payoff, base_market_data);
+            greeks[GreekType::VEGA] = calculate_vega(payoff, base_market_data);
+            greeks[GreekType::THETA] = calculate_theta(payoff, base_market_data);
+            greeks[GreekType::RHO_DOMESTIC] = calculate_rho_domestic(payoff, base_market_data);
+            greeks[GreekType::RHO_FOREIGN] = calculate_rho_foreign(payoff, base_market_data);
+            
+            // Calcul des Greeks de second ordre
+            greeks[GreekType::GAMMA] = calculate_gamma(payoff, base_market_data);
+            greeks[GreekType::VOLGA] = calculate_volga(payoff, base_market_data);
+            greeks[GreekType::VANNA] = calculate_vanna(payoff, base_market_data);
+            
+            return greeks;
+        }
+        
+    private:
+        const LocalVolatilityModel& model_;
+        RiskParameters risk_params_;
+        
+        // Calcul du Delta (sensibilité au spot)
+        double calculate_delta(const PayoffFunction& payoff, 
+                             const MarketData& base_market_data) {
+            
+            if (risk_params_.diff_method == DifferenceMethod::CENTRAL) {
+                // Différence centrée
+                auto market_up = bump_spot(base_market_data, risk_params_.spot_bump_size);
+                auto market_down = bump_spot(base_market_data, -risk_params_.spot_bump_size);
+                
+                double price_up = model_.price(payoff, market_up);
+                double price_down = model_.price(payoff, market_down);
+                
+                return (price_up - price_down) / (2.0 * risk_params_.spot_bump_size * base_market_data.get_spot());
+            } else {
+                // Différence avant
+                auto market_up = bump_spot(base_market_data, risk_params_.spot_bump_size);
+                double base_price = model_.price(payoff, base_market_data);
+                double price_up = model_.price(payoff, market_up);
+                
+                return (price_up - base_price) / (risk_params_.spot_bump_size * base_market_data.get_spot());
+            }
+        }
+        
+        // Calcul du Gamma (sensibilité du delta)
+        double calculate_gamma(const PayoffFunction& payoff, 
+                             const MarketData& base_market_data) {
+            
+            auto market_up = bump_spot(base_market_data, risk_params_.spot_bump_size);
+            auto market_down = bump_spot(base_market_data, -risk_params_.spot_bump_size);
+            
+            double price_up = model_.price(payoff, market_up);
+            double base_price = model_.price(payoff, base_market_data);
+            double price_down = model_.price(payoff, market_down);
+            
+            double spot = base_market_data.get_spot();
+            double bump = risk_params_.spot_bump_size * spot;
+            
+            return (price_up - 2.0 * base_price + price_down) / (bump * bump);
+        }
+        
+        // Calcul du Vega (sensibilité à la volatilité)
+        double calculate_vega(const PayoffFunction& payoff, 
+                            const MarketData& base_market_data) {
+            
+            if (risk_params_.diff_method == DifferenceMethod::CENTRAL) {
+                auto market_up = bump_volatility(base_market_data, risk_params_.vol_bump_size);
+                auto market_down = bump_volatility(base_market_data, -risk_params_.vol_bump_size);
+                
+                double price_up = model_.price(payoff, market_up);
+                double price_down = model_.price(payoff, market_down);
+                
+                return (price_up - price_down) / (2.0 * risk_params_.vol_bump_size);
+            } else {
+                auto market_up = bump_volatility(base_market_data, risk_params_.vol_bump_size);
+                double base_price = model_.price(payoff, base_market_data);
+                double price_up = model_.price(payoff, market_up);
+                
+                return (price_up - base_price) / risk_params_.vol_bump_size;
+            }
+        }
+        
+        // Calcul du Theta (sensibilité au temps)
+        double calculate_theta(const PayoffFunction& payoff, 
+                             const MarketData& base_market_data) {
+            
+            auto market_forward = bump_time(base_market_data, risk_params_.time_bump_size);
+            double base_price = model_.price(payoff, base_market_data);
+            double price_forward = model_.price(payoff, market_forward);
+            
+            return (price_forward - base_price) / risk_params_.time_bump_size;
+        }
+        
+        // Calcul du Rho domestique
+        double calculate_rho_domestic(const PayoffFunction& payoff, 
+                                    const MarketData& base_market_data) {
+            
+            auto market_up = bump_domestic_rate(base_market_data, risk_params_.rate_bump_size);
+            double base_price = model_.price(payoff, base_market_data);
+            double price_up = model_.price(payoff, market_up);
+            
+            return (price_up - base_price) / risk_params_.rate_bump_size;
+        }
+        
+        // Calcul du Rho étranger
+        double calculate_rho_foreign(const PayoffFunction& payoff, 
+                                   const MarketData& base_market_data) {
+            
+            auto market_up = bump_foreign_rate(base_market_data, risk_params_.rate_bump_size);
+            double base_price = model_.price(payoff, base_market_data);
+            double price_up = model_.price(payoff, market_up);
+            
+            return (price_up - base_price) / risk_params_.rate_bump_size;
+        }
+        
+        // Calcul du Volga (sensibilité de vega)
+        double calculate_volga(const PayoffFunction& payoff, 
+                             const MarketData& base_market_data) {
+            
+            auto market_up = bump_volatility(base_market_data, risk_params_.vol_bump_size);
+            auto market_down = bump_volatility(base_market_data, -risk_params_.vol_bump_size);
+            
+            double price_up = model_.price(payoff, market_up);
+            double base_price = model_.price(payoff, base_market_data);
+            double price_down = model_.price(payoff, market_down);
+            
+            return (price_up - 2.0 * base_price + price_down) / 
+                   (risk_params_.vol_bump_size * risk_params_.vol_bump_size);
+        }
+        
+        // Calcul du Vanna (sensibilité croisée spot-vol)
+        double calculate_vanna(const PayoffFunction& payoff, 
+                             const MarketData& base_market_data) {
+            
+            // Bump spot et volatilité simultanément
+            auto market_up_up = bump_spot_and_vol(base_market_data, 
+                                                 risk_params_.spot_bump_size, 
+                                                 risk_params_.vol_bump_size);
+            auto market_up_down = bump_spot_and_vol(base_market_data, 
+                                                   risk_params_.spot_bump_size, 
+                                                   -risk_params_.vol_bump_size);
+            auto market_down_up = bump_spot_and_vol(base_market_data, 
+                                                   -risk_params_.spot_bump_size, 
+                                                   risk_params_.vol_bump_size);
+            auto market_down_down = bump_spot_and_vol(base_market_data, 
+                                                     -risk_params_.spot_bump_size, 
+                                                     -risk_params_.vol_bump_size);
+            
+            double price_up_up = model_.price(payoff, market_up_up);
+            double price_up_down = model_.price(payoff, market_up_down);
+            double price_down_up = model_.price(payoff, market_down_up);
+            double price_down_down = model_.price(payoff, market_down_down);
+            
+            double spot_bump = risk_params_.spot_bump_size * base_market_data.get_spot();
+            double vol_bump = risk_params_.vol_bump_size;
+            
+            return (price_up_up - price_up_down - price_down_up + price_down_down) / 
+                   (4.0 * spot_bump * vol_bump);
+        }
+        
+        // Fonctions utilitaires pour les bumps
+        MarketData bump_spot(const MarketData& base_data, double bump_size) const {
+            MarketData bumped_data = base_data;
+            double new_spot = base_data.get_spot() * (1.0 + bump_size);
+            bumped_data.set_spot(new_spot);
+            return bumped_data;
+        }
+        
+        MarketData bump_volatility(const MarketData& base_data, double bump_size) const {
+            MarketData bumped_data = base_data;
+            auto vol_surface = base_data.get_vol_surface();
+            vol_surface.bump_all_volatilities(bump_size);
+            bumped_data.set_vol_surface(vol_surface);
+            return bumped_data;
+        }
+        
+        MarketData bump_time(const MarketData& base_data, double time_bump) const {
+            MarketData bumped_data = base_data;
+            // Avancer le temps de time_bump jours
+            bumped_data.advance_time(time_bump);
+            return bumped_data;
+        }
+        
+        MarketData bump_domestic_rate(const MarketData& base_data, double rate_bump) const {
+            MarketData bumped_data = base_data;
+            auto curve = base_data.get_domestic_curve();
+            curve.bump_all_rates(rate_bump);
+            bumped_data.set_domestic_curve(curve);
+            return bumped_data;
+        }
+        
+        MarketData bump_foreign_rate(const MarketData& base_data, double rate_bump) const {
+            MarketData bumped_data = base_data;
+            auto curve = base_data.get_foreign_curve();
+            curve.bump_all_rates(rate_bump);
+            bumped_data.set_foreign_curve(curve);
+            return bumped_data;
+        }
+        
+        MarketData bump_spot_and_vol(const MarketData& base_data, 
+                                   double spot_bump, double vol_bump) const {
+            MarketData bumped_data = bump_spot(base_data, spot_bump);
+            return bump_volatility(bumped_data, vol_bump);
+        }
+    };
+}
+```
+*Cette implémentation C++ dans Our project calcule tous les Greeks du modèle Local Volatility avec différentes méthodes de différenciation.*
+
+## Inputs
+
+Les métriques QARisk2 peuvent être configurées avec un ensemble d'inputs, tels qu'une taille de bump, un style de bump (multiplicatif, additif, etc.), un type de différenciation (central, au-dessus, en-dessous, etc.), etc. Une description complète de la métrique et une liste des inputs attendus par chaque métrique peuvent être trouvées dans la documentation QARisk2.
+
+```cpp
+// Implémentation Our project de la configuration des risques
+namespace xsigma {
+    // Structure pour la configuration des métriques de risque
+    struct RiskMetricConfiguration {
+        // Configuration des bumps
+        struct BumpConfiguration {
+            double size;                    // Taille du bump
+            std::string style;              // "multiplicative", "additive", "absolute"
+            DifferenceMethod diff_method;   // Méthode de différenciation
+            bool parallel_bump;             // Bump parallèle ou par pilier
+        };
+        
+        BumpConfiguration spot_config;      // Configuration spot
+        BumpConfiguration vol_config;       // Configuration volatilité
+        BumpConfiguration rate_config;      // Configuration taux
+        BumpConfiguration time_config;      // Configuration temps
+        
+        // Configuration numérique
+        bool use_fixed_grid_pde;           // Grille fixe pour PDE
+        bool reuse_random_numbers_mc;      // Réutiliser nombres aléatoires MC
+        int num_mc_paths_for_greeks;       // Nombre de chemins MC pour Greeks
+        
+        // Validation et contrôles
+        double max_reasonable_delta;       // Delta maximum raisonnable
+        double max_reasonable_gamma;       // Gamma maximum raisonnable
+        double max_reasonable_vega;        // Vega maximum raisonnable
+        bool validate_greeks;              // Valider les Greeks calculés
+    };
+    
+    // Classe pour valider les Greeks calculés
+    class GreekValidator {
+    public:
+        static bool validate_greek_values(const std::map<GreekType, double>& greeks,
+                                         const RiskMetricConfiguration& config) {
+            
+            // Validation du Delta
+            if (greeks.count(GreekType::DELTA)) {
+                double delta = greeks.at(GreekType::DELTA);
+                if (std::abs(delta) > config.max_reasonable_delta) {
+                    XSIGMA_LOG_WARNING("Delta suspect: " + std::to_string(delta));
+                    return false;
+                }
+            }
+            
+            // Validation du Gamma
+            if (greeks.count(GreekType::GAMMA)) {
+                double gamma = greeks.at(GreekType::GAMMA);
+                if (std::abs(gamma) > config.max_reasonable_gamma) {
+                    XSIGMA_LOG_WARNING("Gamma suspect: " + std::to_string(gamma));
+                    return false;
+                }
+            }
+            
+            // Validation du Vega
+            if (greeks.count(GreekType::VEGA)) {
+                double vega = greeks.at(GreekType::VEGA);
+                if (std::abs(vega) > config.max_reasonable_vega) {
+                    XSIGMA_LOG_WARNING("Vega suspect: " + std::to_string(vega));
+                    return false;
+                }
+            }
+            
+            return true;
+        }
+    };
+}
+```
+*Cette implémentation C++ dans Our project configure et valide les métriques de risque selon les standards QARisk2.*
+
+## Limitations et Évaluation des Risques
+
+Il n'y a pas de limitations spécifiques introduites par le modèle. Comme décrit précédemment dans la Section 6.4, la calibration peut échouer si la surface de volatilité n'est pas cohérente. Si la surface de volatilité d'entrée est à la limite de la cohérence, alors elle pourrait devenir incohérente pendant un bump de risque, et la calibration pourrait échouer. Cela peut être corrigé soit en révisant la surface de volatilité d'entrée soit en réduisant les tailles de bump. La première approche est recommandée.
+
+```cpp
+// Implémentation Our project de la gestion des échecs de calibration
+namespace xsigma {
+    // Classe pour gérer les échecs de calibration pendant les calculs de risque
+    class CalibrationFailureHandler {
+    public:
+        // Stratégies de récupération
+        enum class RecoveryStrategy {
+            REDUCE_BUMP_SIZE,       // Réduire la taille du bump
+            SMOOTH_SURFACE,         // Lisser la surface de volatilité
+            USE_FALLBACK_MODEL,     // Utiliser un modèle de fallback
+            INTERPOLATE_MISSING     // Interpoler les points manquants
+        };
+        
+        // Gestion d'un échec de calibration
+        static bool handle_calibration_failure(
+            const CalibrationException& exception,
+            MarketData& market_data,
+            RiskParameters& risk_params,
+            RecoveryStrategy strategy = RecoveryStrategy::REDUCE_BUMP_SIZE) {
+            
+            switch (strategy) {
+                case RecoveryStrategy::REDUCE_BUMP_SIZE:
+                    return reduce_bump_sizes(risk_params);
+                    
+                case RecoveryStrategy::SMOOTH_SURFACE:
+                    return smooth_volatility_surface(market_data);
+                    
+                case RecoveryStrategy::USE_FALLBACK_MODEL:
+                    return switch_to_fallback_model(market_data);
+                    
+                case RecoveryStrategy::INTERPOLATE_MISSING:
+                    return interpolate_missing_points(market_data, exception);
+                    
+                default:
+                    return false;
+            }
+        }
+        
+    private:
+        static bool reduce_bump_sizes(RiskParameters& params) {
+            // Réduire toutes les tailles de bump de 50%
+            params.spot_bump_size *= 0.5;
+            params.vol_bump_size *= 0.5;
+            params.rate_bump_size *= 0.5;
+            
+            // Vérifier que les bumps restent raisonnables
+            if (params.spot_bump_size < 0.0001) { // 0.01%
+                XSIGMA_LOG_ERROR("Taille de bump spot trop petite pour être fiable");
+                return false;
+            }
+            
+            XSIGMA_LOG_INFO("Tailles de bump réduites pour éviter l'échec de calibration");
+            return true;
+        }
+        
+        static bool smooth_volatility_surface(MarketData& market_data) {
+            auto vol_surface = market_data.get_vol_surface();
+            
+            // Appliquer un lissage spline à la surface
+            vol_surface.apply_smoothing();
+            
+            // Vérifier l'absence d'arbitrage après lissage
+            if (vol_surface.check_arbitrage_free()) {
+                market_data.set_vol_surface(vol_surface);
+                XSIGMA_LOG_INFO("Surface de volatilité lissée avec succès");
+                return true;
+            }
+            
+            return false;
+        }
+        
+        static bool switch_to_fallback_model(MarketData& market_data) {
+            // Utiliser un modèle Black-Scholes constant comme fallback
+            XSIGMA_LOG_WARNING("Passage au modèle de fallback Black-Scholes");
+            return true;
+        }
+        
+        static bool interpolate_missing_points(MarketData& market_data, 
+                                             const CalibrationException& exception) {
+            // Interpoler les points problématiques de la surface
+            auto vol_surface = market_data.get_vol_surface();
+            
+            // Identifier et corriger les points problématiques
+            vol_surface.fix_problematic_points(exception.get_problematic_strikes(),
+                                              exception.get_problematic_expiries());
+            
+            market_data.set_vol_surface(vol_surface);
+            return true;
+        }
+    };
+}
+```
+*Cette implémentation C++ dans Our project gère les échecs de calibration pendant les calculs de risque avec différentes stratégies de récupération.*
+
+La gestion robuste des risques dans le modèle Local Volatility nécessite une attention particulière à la stabilité numérique et à la cohérence des données de marché, en particulier lors des perturbations pour le calcul des sensibilités.

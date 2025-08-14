@@ -1,0 +1,684 @@
+# Independent Validation Testing
+
+## 🧪 **Vue d'Ensemble des Tests de Validation**
+
+### **Objectif des Tests**
+Cette section présente les tests de validation indépendants effectués pour vérifier le comportement du modèle **DBX-ShortRate_FXSkewStochVol** dans le pricing de dérivés FX long terme avec taux stochastiques, incluant la validation Monte Carlo, la calibration automatique et les tests sous frameworks réglementaires.
+
+### **Méthodologie de Test**
+Les tests sont organisés en plusieurs phases spécialisées :
+1. **Tests de Convergence Monte Carlo**
+2. **Tests de Calibration PIV et DLVIR**
+3. **Tests de Cohérence Hull-White**
+4. **Tests sous Frameworks Réglementaires**
+
+---
+
+## 📊 **Tests de Convergence Monte Carlo**
+
+### **Validation de la Convergence**
+
+#### **🔍 Test 1 : Convergence des Prix**
+
+##### **Tests de Convergence Monte Carlo**
+```cpp
+// Tests de convergence Monte Carlo pour DBX dans Our project
+class dbx_monte_carlo_convergence_tester {
+public:
+    struct convergence_test_results {
+        std::vector<double> price_estimates;
+        std::vector<double> standard_errors;
+        std::vector<int> simulation_counts;
+        double convergence_rate;
+        bool convergence_achieved;
+        double final_confidence_interval_width;
+    };
+    
+    convergence_test_results test_monte_carlo_convergence(
+        const fx_derivative_base& derivative,
+        const dbx_model_parameters& model_params) {
+        
+        convergence_test_results results;
+        
+        // Séquence de nombres de simulations
+        std::vector<int> sim_counts = {1000, 5000, 10000, 25000, 50000, 100000, 250000};
+        
+        for (int num_sims : sim_counts) {
+            // Configuration Monte Carlo
+            monte_carlo_configuration mc_config;
+            mc_config.num_simulations = num_sims;
+            mc_config.num_time_steps = static_cast<int>(derivative.get_expiry() * 252);
+            mc_config.enable_antithetic_variates = true;
+            
+            // Modèle DBX
+            dbx_shortrate_fx_skew_stochvol_model model(model_params);
+            model.set_monte_carlo_config(mc_config);
+            
+            // Pricing avec multiple runs pour estimer la variance
+            std::vector<double> price_samples;
+            const int num_independent_runs = 10;
+            
+            for (int run = 0; run < num_independent_runs; ++run) {
+                double price = model.price_derivative(derivative, create_test_market_data());
+                price_samples.push_back(price);
+            }
+            
+            // Statistiques
+            double mean_price = calculate_mean(price_samples);
+            double standard_error = calculate_standard_error(price_samples);
+            
+            results.price_estimates.push_back(mean_price);
+            results.standard_errors.push_back(standard_error);
+            results.simulation_counts.push_back(num_sims);
+            
+            // Validation de convergence
+            EXPECT_TRUE(std::isfinite(mean_price));
+            EXPECT_GT(standard_error, 0.0);
+        }
+        
+        // Analyse de la convergence
+        results.convergence_rate = analyze_convergence_rate(results);
+        results.convergence_achieved = validate_convergence_criteria(results);
+        results.final_confidence_interval_width = 1.96 * results.standard_errors.back();
+        
+        return results;
+    }
+    
+private:
+    double analyze_convergence_rate(const convergence_test_results& results) const {
+        // Analyse de la vitesse de convergence (doit être proche de 1/sqrt(N))
+        
+        std::vector<double> log_sim_counts, log_standard_errors;
+        
+        for (size_t i = 1; i < results.simulation_counts.size(); ++i) {
+            log_sim_counts.push_back(std::log(results.simulation_counts[i]));
+            log_standard_errors.push_back(std::log(results.standard_errors[i]));
+        }
+        
+        // Régression linéaire pour estimer la pente
+        double slope = calculate_linear_regression_slope(log_sim_counts, log_standard_errors);
+        
+        // La pente théorique devrait être -0.5 (convergence en 1/sqrt(N))
+        return slope;
+    }
+    
+    bool validate_convergence_criteria(const convergence_test_results& results) const {
+        // Critères de convergence
+        
+        // 1. Stabilité des prix
+        if (results.price_estimates.size() >= 3) {
+            double last_price = results.price_estimates.back();
+            double second_last_price = results.price_estimates[results.price_estimates.size() - 2];
+            double relative_change = std::abs(last_price - second_last_price) / std::abs(last_price);
+            
+            if (relative_change > 0.01) { // 1% de changement max
+                return false;
+            }
+        }
+        
+        // 2. Réduction de l'erreur standard
+        if (results.standard_errors.size() >= 2) {
+            double error_reduction_ratio = results.standard_errors.back() / results.standard_errors[0];
+            
+            if (error_reduction_ratio > 0.1) { // Réduction d'au moins 90%
+                return false;
+            }
+        }
+        
+        // 3. Intervalle de confiance final acceptable
+        if (results.final_confidence_interval_width > 0.001) { // 10bp max
+            return false;
+        }
+        
+        return true;
+    }
+};
+```
+
+#### **🔍 Test 2 : Validation des Techniques de Réduction de Variance**
+
+##### **Tests de Réduction de Variance**
+```cpp
+// Tests de techniques de réduction de variance dans Our project
+class variance_reduction_tester {
+public:
+    struct variance_reduction_results {
+        double standard_mc_variance;
+        double antithetic_variance;
+        double control_variate_variance;
+        double combined_variance;
+        double antithetic_efficiency_gain;
+        double control_variate_efficiency_gain;
+        double combined_efficiency_gain;
+    };
+    
+    variance_reduction_results test_variance_reduction_techniques(
+        const fx_derivative_base& derivative,
+        const dbx_model_parameters& model_params) {
+        
+        variance_reduction_results results;
+        
+        const int num_simulations = 50000;
+        const int num_independent_runs = 20;
+        
+        // Test 1 : Monte Carlo standard
+        results.standard_mc_variance = test_standard_monte_carlo(
+            derivative, model_params, num_simulations, num_independent_runs);
+        
+        // Test 2 : Variables antithétiques
+        results.antithetic_variance = test_antithetic_variates(
+            derivative, model_params, num_simulations, num_independent_runs);
+        
+        // Test 3 : Variables de contrôle
+        results.control_variate_variance = test_control_variates(
+            derivative, model_params, num_simulations, num_independent_runs);
+        
+        // Test 4 : Techniques combinées
+        results.combined_variance = test_combined_techniques(
+            derivative, model_params, num_simulations, num_independent_runs);
+        
+        // Calcul des gains d'efficacité
+        results.antithetic_efficiency_gain = results.standard_mc_variance / results.antithetic_variance;
+        results.control_variate_efficiency_gain = results.standard_mc_variance / results.control_variate_variance;
+        results.combined_efficiency_gain = results.standard_mc_variance / results.combined_variance;
+        
+        // Validation des gains
+        EXPECT_GT(results.antithetic_efficiency_gain, 1.1); // Au moins 10% de gain
+        EXPECT_GT(results.control_variate_efficiency_gain, 1.2); // Au moins 20% de gain
+        EXPECT_GT(results.combined_efficiency_gain, 1.5); // Au moins 50% de gain
+        
+        return results;
+    }
+    
+private:
+    double test_antithetic_variates(const fx_derivative_base& derivative,
+                                   const dbx_model_parameters& model_params,
+                                   int num_simulations, int num_runs) const {
+        
+        std::vector<double> price_estimates;
+        
+        for (int run = 0; run < num_runs; ++run) {
+            
+            monte_carlo_configuration mc_config;
+            mc_config.num_simulations = num_simulations;
+            mc_config.enable_antithetic_variates = true;
+            mc_config.enable_control_variates = false;
+            
+            dbx_shortrate_fx_skew_stochvol_model model(model_params);
+            model.set_monte_carlo_config(mc_config);
+            
+            double price = model.price_derivative(derivative, create_test_market_data());
+            price_estimates.push_back(price);
+        }
+        
+        return calculate_sample_variance(price_estimates);
+    }
+    
+    double test_control_variates(const fx_derivative_base& derivative,
+                                const dbx_model_parameters& model_params,
+                                int num_simulations, int num_runs) const {
+        
+        std::vector<double> price_estimates;
+        
+        for (int run = 0; run < num_runs; ++run) {
+            
+            // Configuration avec variables de contrôle
+            monte_carlo_configuration mc_config;
+            mc_config.num_simulations = num_simulations;
+            mc_config.enable_antithetic_variates = false;
+            mc_config.enable_control_variates = true;
+            mc_config.control_variate_type = "BLACK_SCHOLES_APPROXIMATION";
+            
+            dbx_shortrate_fx_skew_stochvol_model model(model_params);
+            model.set_monte_carlo_config(mc_config);
+            
+            double price = model.price_derivative(derivative, create_test_market_data());
+            price_estimates.push_back(price);
+        }
+        
+        return calculate_sample_variance(price_estimates);
+    }
+};
+```
+
+---
+
+## 🔧 **Tests de Calibration**
+
+### **Validation PIV AutoFit**
+
+#### **🔍 Test 1 : Qualité de Calibration PIV**
+
+##### **Tests de Calibration PIV**
+```cpp
+// Tests de validation PIV AutoFit dans Our project
+class piv_autofit_validation_tester {
+public:
+    struct piv_validation_results {
+        std::map<std::string, double> pillar_calibration_errors;
+        std::map<std::string, double> interpolated_point_errors;
+        double max_calibration_error;
+        double avg_calibration_error;
+        bool calibration_successful;
+        std::string problematic_region;
+    };
+    
+    piv_validation_results test_piv_calibration_quality(
+        const std::vector<fx_option_quote>& market_quotes,
+        const dbx_model_parameters& model_params) {
+        
+        piv_validation_results results;
+        
+        // Configuration PIV AutoFit
+        piv_autofit_engine piv_engine(market_quotes, create_piv_config());
+        
+        // Calibration de la surface
+        auto calibrated_surface = piv_engine.calibrate_local_volatility_surface();
+        
+        // Test de calibration aux piliers
+        test_pillar_calibration_accuracy(market_quotes, calibrated_surface, 
+                                        model_params, results);
+        
+        // Test de qualité d'interpolation
+        test_interpolation_quality(market_quotes, calibrated_surface, 
+                                  model_params, results);
+        
+        // Test de stabilité de calibration
+        test_calibration_stability(market_quotes, calibrated_surface, 
+                                  model_params, results);
+        
+        // Analyse des résultats
+        analyze_piv_calibration_results(results);
+        
+        return results;
+    }
+    
+private:
+    void test_pillar_calibration_accuracy(
+        const std::vector<fx_option_quote>& market_quotes,
+        std::shared_ptr<fx_local_volatility_surface> calibrated_surface,
+        const dbx_model_parameters& model_params,
+        piv_validation_results& results) {
+        
+        // Filtrage des quotes piliers
+        std::vector<fx_option_quote> pillar_quotes;
+        std::copy_if(market_quotes.begin(), market_quotes.end(),
+                    std::back_inserter(pillar_quotes),
+                    [](const fx_option_quote& quote) { return quote.is_pillar; });
+        
+        for (const auto& pillar_quote : pillar_quotes) {
+            
+            // Configuration du modèle avec surface calibrée
+            auto test_model_params = model_params;
+            test_model_params.fx_local_vol_surface = calibrated_surface;
+            
+            dbx_shortrate_fx_skew_stochvol_model model(test_model_params);
+            
+            // Option correspondante
+            fx_vanilla_option option(pillar_quote.strike, pillar_quote.expiry, 
+                                   pillar_quote.is_call, 1.0);
+            
+            // Prix modèle
+            double model_price = model.price_derivative(option, create_test_market_data());
+            
+            // Erreur de calibration
+            double calibration_error = std::abs(model_price - pillar_quote.market_price);
+            
+            std::string pillar_name = create_pillar_name(pillar_quote);
+            results.pillar_calibration_errors[pillar_name] = calibration_error;
+            
+            // Validation de précision
+            EXPECT_LT(calibration_error, 1e-4); // 1bp de tolérance
+        }
+    }
+    
+    void test_calibration_stability(
+        const std::vector<fx_option_quote>& market_quotes,
+        std::shared_ptr<fx_local_volatility_surface> calibrated_surface,
+        const dbx_model_parameters& model_params,
+        piv_validation_results& results) {
+        
+        // Test de stabilité avec perturbations des quotes
+        const double quote_perturbation = 1e-5; // 0.1bp de perturbation
+        
+        for (size_t i = 0; i < market_quotes.size(); ++i) {
+            
+            // Perturbation d'une quote
+            auto perturbed_quotes = market_quotes;
+            perturbed_quotes[i].market_price += quote_perturbation;
+            
+            // Re-calibration avec quotes perturbées
+            piv_autofit_engine perturbed_engine(perturbed_quotes, create_piv_config());
+            auto perturbed_surface = perturbed_engine.calibrate_local_volatility_surface();
+            
+            // Mesure de la différence de surface
+            double surface_difference = measure_surface_difference(
+                calibrated_surface, perturbed_surface);
+            
+            // Validation de stabilité
+            double amplification_factor = surface_difference / quote_perturbation;
+            EXPECT_LT(amplification_factor, 10.0); // Amplification < 10x
+        }
+    }
+};
+```
+
+#### **🔍 Test 2 : Validation DLVIR Correction**
+
+##### **Tests de Correction DLVIR**
+```cpp
+// Tests de validation DLVIR dans Our project
+class dlvir_correction_validation_tester {
+public:
+    struct dlvir_validation_results {
+        double correction_magnitude;
+        std::map<std::string, double> correction_factors_by_region;
+        bool correction_reasonable;
+        double max_correction_factor;
+        double min_correction_factor;
+    };
+    
+    dlvir_validation_results test_dlvir_correction_validity(
+        std::shared_ptr<fx_local_volatility_surface> base_surface,
+        const hull_white_parameters& domestic_hw,
+        const hull_white_parameters& foreign_hw) {
+        
+        dlvir_validation_results results;
+        
+        // Application de la correction DLVIR
+        dlvir_correction_engine dlvir_engine(create_dlvir_params());
+        auto corrected_surface = dlvir_engine.apply_dlvir_correction(
+            base_surface, domestic_hw, foreign_hw);
+        
+        // Analyse de la magnitude de correction
+        analyze_correction_magnitude(base_surface, corrected_surface, results);
+        
+        // Test de cohérence économique
+        test_economic_coherence(corrected_surface, results);
+        
+        // Test de stabilité numérique
+        test_numerical_stability(corrected_surface, results);
+        
+        return results;
+    }
+    
+private:
+    void analyze_correction_magnitude(
+        std::shared_ptr<fx_local_volatility_surface> base_surface,
+        std::shared_ptr<fx_local_volatility_surface> corrected_surface,
+        dlvir_validation_results& results) {
+        
+        // Grille de test
+        std::vector<double> test_times = {0.25, 0.5, 1.0, 2.0, 5.0};
+        std::vector<double> test_strikes = {0.8, 0.9, 1.0, 1.1, 1.2};
+        
+        std::vector<double> correction_factors;
+        
+        for (double time : test_times) {
+            for (double strike : test_strikes) {
+                
+                double base_vol = base_surface->get_volatility(time, strike);
+                double corrected_vol = corrected_surface->get_volatility(time, strike);
+                
+                double correction_factor = corrected_vol / base_vol;
+                correction_factors.push_back(correction_factor);
+                
+                // Classification par région
+                std::string region = classify_region(time, strike);
+                if (results.correction_factors_by_region.find(region) == 
+                    results.correction_factors_by_region.end()) {
+                    results.correction_factors_by_region[region] = correction_factor;
+                } else {
+                    results.correction_factors_by_region[region] = 
+                        (results.correction_factors_by_region[region] + correction_factor) / 2.0;
+                }
+            }
+        }
+        
+        // Statistiques globales
+        results.max_correction_factor = *std::max_element(correction_factors.begin(), 
+                                                         correction_factors.end());
+        results.min_correction_factor = *std::min_element(correction_factors.begin(), 
+                                                         correction_factors.end());
+        
+        results.correction_magnitude = std::abs(1.0 - calculate_mean(correction_factors));
+        
+        // Validation de raisonnabilité
+        results.correction_reasonable = 
+            (results.max_correction_factor < 1.5) && 
+            (results.min_correction_factor > 0.5) &&
+            (results.correction_magnitude < 0.2); // 20% max de correction
+    }
+};
+```
+
+---
+
+## 🏛️ **Tests sous Frameworks Réglementaires**
+
+### **Tests CCAR avec Modèle DBX**
+
+#### **🔍 CCAR Testing avec Dérivés FX Long Terme**
+
+##### **Tests CCAR Spécialisés**
+```cpp
+// Tests CCAR pour modèle DBX dans Our project
+class ccar_dbx_testing_framework {
+public:
+    void run_ccar_dbx_tests(const std::vector<fx_derivative_base*>& fx_portfolio) {
+        
+        // Scénarios CCAR avec stress multi-facteurs
+        std::vector<ccar_dbx_scenario> scenarios = {
+            create_baseline_dbx_scenario(),
+            create_severely_adverse_dbx_scenario(),
+            create_adverse_dbx_scenario()
+        };
+        
+        for (const auto& scenario : scenarios) {
+            test_portfolio_under_ccar_dbx_scenario(fx_portfolio, scenario);
+        }
+    }
+    
+private:
+    struct ccar_dbx_scenario {
+        std::string scenario_name;
+        std::vector<market_data_snapshot> quarterly_snapshots;
+        std::map<std::string, double> fx_stress_factors;
+        std::map<std::string, double> ir_stress_factors;
+        std::map<std::string, double> volatility_stress_factors;
+        matrix<double> stressed_correlations;
+    };
+    
+    void test_portfolio_under_ccar_dbx_scenario(
+        const std::vector<fx_derivative_base*>& portfolio,
+        const ccar_dbx_scenario& scenario) {
+        
+        std::cout << "Testing DBX portfolio under: " << scenario.scenario_name << std::endl;
+        
+        for (int quarter = 1; quarter <= 9; ++quarter) {
+            const auto& market_data = scenario.quarterly_snapshots[quarter-1];
+            
+            // Application du stress multi-facteurs
+            auto stressed_market = apply_ccar_dbx_stress(market_data, scenario);
+            
+            // Configuration du modèle sous stress
+            dbx_model_parameters stressed_params = create_stressed_dbx_parameters(
+                stressed_market, scenario);
+            
+            dbx_shortrate_fx_skew_stochvol_model stressed_model(stressed_params);
+            
+            double total_portfolio_pv = 0.0;
+            
+            for (auto derivative : portfolio) {
+                
+                // Pricing sous stress
+                double stressed_pv = stressed_model.price_derivative(*derivative, stressed_market);
+                total_portfolio_pv += stressed_pv;
+                
+                // Validation de stabilité
+                EXPECT_TRUE(std::isfinite(stressed_pv));
+                
+                // Tests spécifiques aux dérivés FX long terme
+                validate_long_term_fx_behavior_under_stress(*derivative, stressed_market, scenario);
+            }
+            
+            // Validation du portfolio global
+            validate_portfolio_coherence_under_stress(total_portfolio_pv, scenario, quarter);
+            
+            // Documentation des résultats CCAR
+            document_ccar_dbx_results(scenario.scenario_name, quarter, total_portfolio_pv);
+        }
+    }
+    
+    ccar_dbx_scenario create_severely_adverse_dbx_scenario() {
+        ccar_dbx_scenario scenario;
+        scenario.scenario_name = "CCAR 2023 Severely Adverse with Multi-Factor FX Stress";
+        
+        // Stress FX sévère
+        scenario.fx_stress_factors = {
+            {"EURUSD", -0.25},  // EUR faiblesse extrême
+            {"GBPUSD", -0.20},  // GBP faiblesse sévère
+            {"USDJPY", +0.30},  // JPY faiblesse extrême
+            {"AUDUSD", -0.35}   // AUD faiblesse extrême
+        };
+        
+        // Stress taux d'intérêt
+        scenario.ir_stress_factors = {
+            {"USD_RATES", +0.03},   // +300bp USD
+            {"EUR_RATES", +0.02},   // +200bp EUR
+            {"GBP_RATES", +0.025},  // +250bp GBP
+            {"JPY_RATES", +0.01}    // +100bp JPY
+        };
+        
+        // Stress de volatilité
+        scenario.volatility_stress_factors = {
+            {"FX_VOL_LEVEL", +0.15},      // +15% vol absolue
+            {"FX_VOL_SKEW", +0.05},       // Augmentation du skew
+            {"IR_VOL_LEVEL", +0.10}       // +10% vol IR
+        };
+        
+        // Corrélations de crise (augmentation des corrélations)
+        scenario.stressed_correlations = create_crisis_correlation_matrix();
+        
+        return scenario;
+    }
+    
+    void validate_long_term_fx_behavior_under_stress(
+        const fx_derivative_base& derivative,
+        const market_data& stressed_market,
+        const ccar_dbx_scenario& scenario) {
+        
+        // Validation spécifique aux dérivés FX long terme
+        
+        // 1. Vérification que les taux stochastiques restent dans des bornes raisonnables
+        auto ir_levels = extract_ir_levels(stressed_market);
+        for (const auto& [currency, rate] : ir_levels) {
+            EXPECT_GT(rate, -0.02); // Pas en dessous de -200bp
+            EXPECT_LT(rate, 0.15);  // Pas au dessus de 1500bp
+        }
+        
+        // 2. Vérification que la volatilité FX reste dans des bornes
+        auto fx_vol_levels = extract_fx_vol_levels(stressed_market);
+        for (const auto& [pair, vol] : fx_vol_levels) {
+            EXPECT_GT(vol, 0.05);  // Minimum 5%
+            EXPECT_LT(vol, 2.0);   // Maximum 200%
+        }
+        
+        // 3. Test de cohérence des corrélations sous stress
+        validate_correlation_coherence_under_stress(scenario.stressed_correlations);
+    }
+};
+```
+
+#### **🔍 IRRBB Testing avec Expositions FX**
+
+##### **Tests IRRBB Multi-Devises**
+```cpp
+// Tests IRRBB pour expositions FX long terme dans Our project
+class irrbb_fx_longterm_testing_framework {
+public:
+    void run_irrbb_fx_longterm_tests(const std::vector<fx_derivative_base*>& fx_portfolio,
+                                    const market_data& base_market) {
+        
+        // Scénarios IRRBB adaptés pour FX long terme
+        std::vector<irrbb_fx_scenario> scenarios = {
+            create_parallel_shift_fx_scenario(200),    // +200bp toutes devises
+            create_parallel_shift_fx_scenario(-200),   // -200bp toutes devises
+            create_usd_steepener_fx_scenario(),
+            create_usd_flattener_fx_scenario(),
+            create_fx_volatility_stress_scenario(),
+            create_correlation_breakdown_scenario()
+        };
+        
+        double base_eve = calculate_economic_value_equity_fx(fx_portfolio, base_market);
+        
+        for (const auto& scenario : scenarios) {
+            auto stressed_market = apply_irrbb_fx_scenario(base_market, scenario);
+            
+            double stressed_eve = calculate_economic_value_equity_fx(fx_portfolio, stressed_market);
+            
+            double delta_eve = stressed_eve - base_eve;
+            double eve_ratio = std::abs(delta_eve) / base_eve;
+            
+            // Validation contre limites réglementaires IRRBB
+            validate_irrbb_fx_limits(scenario.name, eve_ratio);
+            
+            // Tests de stabilité FX long terme sous stress IR
+            test_fx_longterm_stability_under_ir_stress(fx_portfolio, stressed_market, scenario);
+        }
+    }
+    
+private:
+    void test_fx_longterm_stability_under_ir_stress(
+        const std::vector<fx_derivative_base*>& portfolio,
+        const market_data& stressed_market,
+        const irrbb_fx_scenario& scenario) {
+        
+        // Configuration DBX sous stress IR
+        dbx_model_parameters stressed_params = create_irrbb_stressed_dbx_parameters(
+            stressed_market, scenario);
+        
+        dbx_shortrate_fx_skew_stochvol_model stressed_model(stressed_params);
+        
+        for (auto derivative : portfolio) {
+            
+            // Vérification que le pricing reste stable sous stress IR extrême
+            double stressed_pv = stressed_model.price_derivative(*derivative, stressed_market);
+            
+            EXPECT_TRUE(std::isfinite(stressed_pv));
+            EXPECT_GE(stressed_pv, 0.0); // Pour options
+            
+            // Calcul des sensibilités sous stress
+            auto sensitivities = stressed_model.calculate_sensitivities(*derivative, stressed_market);
+            
+            // Validation des sensibilités IR multi-devises
+            validate_multi_currency_ir_sensitivities(sensitivities, scenario);
+            
+            // Validation des sensibilités FX sous stress IR
+            validate_fx_sensitivities_under_ir_stress(sensitivities, scenario);
+        }
+    }
+    
+    void validate_multi_currency_ir_sensitivities(
+        const fx_sensitivities& sensitivities,
+        const irrbb_fx_scenario& scenario) {
+        
+        // Validation que les sensibilités IR restent cohérentes
+        EXPECT_TRUE(std::isfinite(sensitivities.domestic_ir_delta));
+        EXPECT_TRUE(std::isfinite(sensitivities.foreign_ir_delta));
+        EXPECT_TRUE(std::isfinite(sensitivities.domestic_ir_vega));
+        EXPECT_TRUE(std::isfinite(sensitivities.foreign_ir_vega));
+        
+        // Validation de cohérence cross-currency
+        // Pour dérivés FX long terme, les sensibilités IR doivent être significatives
+        double total_ir_sensitivity = std::abs(sensitivities.domestic_ir_delta) + 
+                                     std::abs(sensitivities.foreign_ir_delta);
+        
+        EXPECT_GT(total_ir_sensitivity, 1e-8); // Sensibilité IR non-négligeable
+    }
+};
+```
+
+---
+
+*Cette section fournit une documentation complète des tests de validation indépendants pour le modèle DBX-ShortRate_FXSkewStochVol, intégrant les implémentations C++ de Our project avec des méthodologies de validation spécialisées pour la convergence Monte Carlo, calibration PIV/DLVIR et frameworks réglementaires.*

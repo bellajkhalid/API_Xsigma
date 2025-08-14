@@ -1,0 +1,308 @@
+# General Limitations
+
+## Overview
+
+Cette section décrit les limitations générales du modèle **LSV Markov Switching PDE** et les considérations importantes pour son utilisation en production.
+
+## Model Limitations
+
+### 1. Discrete State Approximation
+
+**Nature** : Approximation de la volatilité par un nombre fini d'états discrets
+
+**Impact** :
+- Nombre limité d'états peut ne pas capturer toute la richesse des dynamiques de volatilité
+- Transitions abruptes entre états vs transitions continues dans la réalité
+- Calibration devient plus complexe avec l'augmentation du nombre d'états
+
+**Mitigation** :
+- Choix optimal du nombre d'états basé sur l'analyse des données de marché
+- Tests de sensibilité au nombre d'états
+- Validation que le nombre d'états est suffisant pour la précision requise
+- Comparaison avec modèles à volatilité continue pour validation
+
+### 2. PDE Grid Limitations
+
+**Nature** : Contraintes liées à la discrétisation spatiale et temporelle
+
+**Impact** :
+- Précision limitée par la taille de la grille
+- Temps de calcul augmente avec la finesse de la grille
+- Besoins mémoire croissent quadratiquement avec la résolution
+- Conditions aux limites peuvent introduire des erreurs
+
+**Mitigation** :
+- Grilles adaptatives avec raffinement local
+- Tests de convergence systématiques
+- Optimisation de la distribution des points de grille
+- Conditions aux limites sophistiquées
+
+### 3. Computational Complexity
+
+**Nature** : Complexité computationnelle élevée pour produits très complexes
+
+**Impact** :
+- Temps de calcul prohibitif pour certains produits exotiques
+- Besoins mémoire importants pour grilles fines
+- Scalabilité limitée pour très gros portfolios
+- Contraintes temps réel pour certaines applications
+
+**Mitigation** :
+- Optimisations algorithmiques et parallélisation
+- Techniques de réduction de modèle
+- Approximations rapides pour monitoring intraday
+- Architecture distribuée pour gros calculs
+
+### 4. Calibration Dependencies
+
+**Nature** : Qualité des résultats dépendante de la calibration
+
+**Impact** :
+- Erreurs de calibration se propagent dans les prix
+- Instabilité potentielle si calibration de mauvaise qualité
+- Sensibilité aux données de marché utilisées
+- Difficultés en périodes de stress de marché
+
+**Mitigation** :
+- Procédures de validation rigoureuses de la calibration
+- Monitoring continu de la qualité de calibration
+- Techniques de régularisation pour stabilité
+- Procédures de fallback en cas d'échec
+
+## Implementation Limitations
+
+### 5. Numerical Precision
+
+**Nature** : Limitations de précision numérique en arithmétique flottante
+
+**Impact** :
+- Accumulation d'erreurs d'arrondi dans les calculs PDE
+- Instabilité numérique pour paramètres extrêmes
+- Problèmes de conditionnement des systèmes linéaires
+- Perte de précision pour produits très sensibles
+
+**Mitigation** :
+- Utilisation de précision double systématiquement
+- Algorithmes numériquement stables
+- Préconditionnement des systèmes linéaires
+- Monitoring des indicateurs de conditionnement
+
+### 6. Boundary Condition Accuracy
+
+**Nature** : Approximations dans les conditions aux limites
+
+**Impact** :
+- Erreurs près des frontières du domaine de calcul
+- Réflexions artificielles pour options à barrière
+- Approximations pour comportement asymptotique
+- Impact sur la précision des Greeks
+
+**Mitigation** :
+- Domaines de calcul suffisamment larges
+- Conditions aux limites sophistiquées
+- Techniques d'absorption pour barrières
+- Validation par comparaison avec solutions analytiques
+
+### 7. Matrix System Conditioning
+
+**Nature** : Problèmes de conditionnement des systèmes linéaires
+
+**Impact** :
+- Convergence lente des solveurs itératifs
+- Instabilité numérique pour certains paramètres
+- Erreurs de résolution des systèmes linéaires
+- Temps de calcul imprévisibles
+
+**Mitigation** :
+- Préconditionnement adaptatif
+- Solveurs robustes (GMRES, BiCGSTAB)
+- Monitoring du conditionnement
+- Techniques de régularisation
+
+## Product Scope Limitations
+
+### 8. Complex Path Dependency
+
+**Nature** : Limitations pour produits avec dépendance de chemin très complexe
+
+**Impact** :
+- Difficultés avec produits multi-asset complexes
+- Limitations pour options américaines/bermudiennes
+- Problèmes avec dépendances de chemin non-markoviennes
+- Complexité d'implémentation pour nouveaux payoffs
+
+**Mitigation** :
+- Évaluation cas par cas pour nouveaux produits
+- Techniques de réduction de dimensionnalité
+- Approximations pour produits très complexes
+- Validation extensive pour extensions
+
+### 9. Multi-Asset Limitations
+
+**Nature** : Modèle optimisé pour single-asset
+
+**Impact** :
+- Extension non-triviale au multi-asset
+- Explosion de dimensionnalité pour plusieurs sous-jacents
+- Corrélations complexes difficiles à modéliser
+- Besoins computationnels exponentiels
+
+**Mitigation** :
+- Techniques de réduction de dimensionnalité
+- Approximations pour corrélations
+- Modèles factoriels pour multi-asset
+- Validation sur produits simples d'abord
+
+### 10. American Exercise Features
+
+**Nature** : Complexité additionnelle pour exercice anticipé
+
+**Impact** :
+- Nécessité d'algorithmes d'optimisation
+- Augmentation significative du temps de calcul
+- Complexité d'implémentation
+- Difficultés de validation
+
+**Mitigation** :
+- Algorithmes spécialisés (Longstaff-Schwartz adapté)
+- Approximations pour exercice optimal
+- Validation par comparaison avec Monte Carlo
+- Implémentation progressive par complexité
+
+## Market Data Limitations
+
+### 11. Calibration Data Quality
+
+**Nature** : Dépendance à la qualité des données de marché
+
+**Impact** :
+- Calibration dégradée avec données de mauvaise qualité
+- Instabilité en périodes de stress
+- Problèmes avec données manquantes
+- Biais potentiels dans les paramètres
+
+**Mitigation** :
+- Validation et nettoyage des données
+- Techniques de filtrage et lissage
+- Procédures de fallback pour données manquantes
+- Monitoring de la qualité des données
+
+### 12. Market Regime Changes
+
+**Nature** : Adaptation aux changements de régime de marché
+
+**Impact** :
+- Paramètres calibrés peuvent devenir obsolètes
+- Performance dégradée en périodes de transition
+- Risque de model breakdown
+- Nécessité de recalibration fréquente
+
+**Mitigation** :
+- Recalibration quotidienne automatique
+- Monitoring des indicateurs de performance
+- Tests de robustesse réguliers
+- Procédures d'escalation
+
+## Operational Limitations
+
+### 13. Real-Time Constraints
+
+**Nature** : Limitations pour usage en temps réel strict
+
+**Impact** :
+- Latence incompatible avec trading haute fréquence
+- Temps de calcul variable selon la complexité
+- Besoins en ressources computationnelles
+- Contraintes de disponibilité système
+
+**Mitigation** :
+- Optimisations de performance
+- Approximations rapides pour monitoring
+- Architecture distribuée
+- Pré-calcul et mise en cache
+
+### 14. System Integration Complexity
+
+**Nature** : Complexité d'intégration dans l'écosystème existant
+
+**Impact** :
+- Interfaces complexes avec systèmes legacy
+- Besoins de formation des utilisateurs
+- Maintenance et support technique
+- Gestion des versions et mises à jour
+
+**Mitigation** :
+- Interfaces standardisées
+- Documentation complète
+- Formation et support utilisateur
+- Procédures de déploiement robustes
+
+### 15. Regulatory Compliance
+
+**Nature** : Exigences réglementaires pour modèles de pricing
+
+**Impact** :
+- Validation indépendante requise
+- Documentation extensive nécessaire
+- Tests de stress réglementaires
+- Audit et revue périodiques
+
+**Mitigation** :
+- Procédures de validation conformes
+- Documentation réglementaire complète
+- Tests de stress automatisés
+- Audit trail complet
+
+## Risk Management Considerations
+
+### 16. Model Risk
+
+**Nature** : Risque inhérent à l'utilisation du modèle
+
+**Impact** :
+- Erreurs de pricing systématiques possibles
+- Risque de perte en cas de model breakdown
+- Dépendance excessive au modèle
+- Difficultés de validation pour produits nouveaux
+
+**Mitigation** :
+- Diversification des modèles
+- Validation croisée continue
+- Réserves pour incertitude de modèle
+- Monitoring de performance
+
+### 17. Operational Risk
+
+**Nature** : Risques opérationnels liés à l'utilisation
+
+**Impact** :
+- Erreurs d'implémentation ou configuration
+- Problèmes de données ou systèmes
+- Erreurs humaines d'utilisation
+- Indisponibilité système
+
+**Mitigation** :
+- Procédures de contrôle qualité
+- Formation appropriée des utilisateurs
+- Systèmes de backup et redondance
+- Monitoring opérationnel continu
+
+## Recommendations for Usage
+
+### Best Practices
+
+1. **Validation Continue** : Tests réguliers contre benchmarks
+2. **Monitoring Qualité** : Surveillance des métriques de performance
+3. **Formation** : Formation continue des utilisateurs
+4. **Documentation** : Maintien de documentation à jour
+5. **Escalation** : Procédures claires en cas de problème
+
+### Risk Controls
+
+1. **Limites d'Usage** : Définition claire du scope d'application
+2. **Validation Croisée** : Comparaison avec modèles alternatifs
+3. **Tests de Stress** : Validation sous conditions extrêmes
+4. **Réserves** : Provisions pour incertitude de modèle
+5. **Audit** : Revues régulières par équipes indépendantes
+
+Le modèle LSV Markov Switching PDE, malgré ces limitations, reste un outil puissant et approprié pour le pricing et la gestion des risques d'une large gamme de produits dérivés, à condition d'être utilisé dans le cadre de ses limitations et avec les contrôles appropriés.

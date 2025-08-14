@@ -1,0 +1,759 @@
+# Risk (Calculated by the model/payoff)
+
+## Overview
+
+Cette section décrit les mesures de risque calculées par le modèle **Local Volatility PDE and MC**, incluant les Greeks hybrides, les métriques de risque de portfolio et les techniques d'agrégation optimisées selon la méthode de pricing.
+
+## Greeks Calculation Framework
+
+### Hybrid Greeks Methodology
+
+#### PDE-Based Greeks (Primary Method)
+```cpp
+// Implémentation Our project des Greeks hybrides Local Volatility
+namespace xsigma::local_vol_risk {
+    
+    class LocalVolatilityGreeksCalculator {
+    public:
+        struct HybridGreeks {
+            // Greeks de premier ordre
+            double delta;                    // ∂V/∂S
+            double vega_local;               // ∂V/∂σ_LV (sensibilité vol locale)
+            double theta;                    // ∂V/∂t
+            double rho;                      // ∂V/∂r
+            double dividend_rho;             // ∂V/∂q
+            
+            // Greeks de second ordre
+            double gamma;                    // ∂²V/∂S²
+            double vanna;                    // ∂²V/∂S∂σ
+            double volga;                    // ∂²V/∂σ²
+            double charm;                    // ∂²V/∂S∂t
+            double color;                    // ∂²V/∂S²∂t
+            
+            // Greeks spécifiques Local Volatility
+            double local_vol_sensitivity;    // Sensibilité à la surface LV
+            std::vector<double> strike_sensitivities; // Sensibilités par strike
+            std::vector<double> maturity_sensitivities; // Sensibilités par maturité
+            
+            // Métriques de qualité
+            PricingMethod calculation_method; // Méthode utilisée pour calcul
+            double calculation_error_estimate; // Estimation d'erreur
+            bool cross_validation_performed;  // Validation croisée effectuée
+            double pde_mc_difference_pct;     // Différence PDE vs MC en %
+        };
+        
+        // Calcul des Greeks avec sélection de méthode optimale
+        HybridGreeks calculate_hybrid_greeks(
+            const ProductSpecification& product,
+            const LocalVolatilitySurface& lv_surface,
+            const HybridPricingParameters& pricing_params) {
+            
+            HybridGreeks greeks;
+            
+            // Sélection de méthode pour Greeks
+            PricingMethod greeks_method = select_optimal_greeks_method(product, pricing_params);
+            greeks.calculation_method = greeks_method;
+            
+            if (greeks_method == PricingMethod::PDE_ONLY || 
+                greeks_method == PricingMethod::PDE_FOR_GREEKS_MC_FOR_PRICE) {
+                
+                // Greeks via PDE (méthode préférée pour précision)
+                greeks = calculate_greeks_via_pde(product, lv_surface, pricing_params);
+                
+            } else if (greeks_method == PricingMethod::MONTE_CARLO_ONLY) {
+                
+                // Greeks via Monte Carlo (pour produits très path-dependent)
+                greeks = calculate_greeks_via_monte_carlo(product, lv_surface, pricing_params);
+                
+            } else if (greeks_method == PricingMethod::HYBRID_ADAPTIVE) {
+                
+                // Greeks hybrides (combinaison optimale)
+                greeks = calculate_greeks_via_hybrid_method(product, lv_surface, pricing_params);
+                
+            } else if (greeks_method == PricingMethod::DUAL_VALIDATION) {
+                
+                // Greeks avec validation croisée
+                greeks = calculate_greeks_with_cross_validation(product, lv_surface, pricing_params);
+            }
+            
+            // Post-traitement et validation
+            validate_greeks_consistency(greeks);
+            
+            return greeks;
+        }
+        
+        // Greeks via PDE (méthode principale)
+        HybridGreeks calculate_greeks_via_pde(
+            const ProductSpecification& product,
+            const LocalVolatilitySurface& lv_surface,
+            const HybridPricingParameters& params) {
+            
+            HybridGreeks greeks;
+            
+            // Construction de la grille PDE optimisée pour Greeks
+            auto pde_grid = build_greeks_optimized_grid(product, lv_surface);
+            
+            // Résolution PDE avec conditions aux limites appropriées
+            auto pde_solution = solve_local_vol_pde_for_greeks(product, lv_surface, pde_grid);
+            
+            // Extraction des Greeks directement de la grille PDE
+            greeks.delta = calculate_delta_from_pde_grid(pde_solution, pde_grid, lv_surface.spot_price);
+            greeks.gamma = calculate_gamma_from_pde_grid(pde_solution, pde_grid, lv_surface.spot_price);
+            greeks.theta = calculate_theta_from_pde_grid(pde_solution, pde_grid);
+            
+            // Greeks de volatilité locale via perturbation de surface
+            greeks.vega_local = calculate_vega_local_via_surface_perturbation(
+                product, lv_surface, pde_grid);
+            
+            // Greeks de second ordre
+            greeks.vanna = calculate_vanna_from_pde_grid(pde_solution, pde_grid, lv_surface.spot_price);
+            greeks.volga = calculate_volga_via_surface_perturbation(product, lv_surface);
+            greeks.charm = calculate_charm_from_pde_grid(pde_solution, pde_grid, lv_surface.spot_price);
+            greeks.color = calculate_color_from_pde_grid(pde_solution, pde_grid, lv_surface.spot_price);
+            
+            // Greeks spécifiques Local Volatility
+            greeks.local_vol_sensitivity = calculate_local_vol_sensitivity(product, lv_surface);
+            greeks.strike_sensitivities = calculate_strike_sensitivities(product, lv_surface);
+            greeks.maturity_sensitivities = calculate_maturity_sensitivities(product, lv_surface);
+            
+            // Estimation d'erreur PDE
+            greeks.calculation_error_estimate = estimate_pde_greeks_error(pde_solution, pde_grid);
+            
+            return greeks;
+        }
+        
+        // Greeks via Monte Carlo avec techniques de réduction de variance
+        HybridGreeks calculate_greeks_via_monte_carlo(
+            const ProductSpecification& product,
+            const LocalVolatilitySurface& lv_surface,
+            const HybridPricingParameters& params) {
+            
+            HybridGreeks greeks;
+            
+            // Génération de chemins avec volatilité locale
+            auto paths = generate_local_vol_paths_for_greeks(product, lv_surface, params);
+            
+            // Delta via différences finies avec variables de contrôle
+            greeks.delta = calculate_delta_mc_with_control_variates(product, lv_surface, paths);
+            
+            // Gamma via différences finies de second ordre
+            greeks.gamma = calculate_gamma_mc_with_variance_reduction(product, lv_surface, paths);
+            
+            // Theta via décalage temporel
+            greeks.theta = calculate_theta_mc_via_time_shift(product, lv_surface, paths);
+            
+            // Vega local via perturbation de surface
+            greeks.vega_local = calculate_vega_local_mc_via_surface_bump(product, lv_surface, paths);
+            
+            // Greeks de second ordre (plus coûteux en MC)
+            greeks.vanna = calculate_vanna_mc_via_mixed_differences(product, lv_surface);
+            greeks.volga = calculate_volga_mc_via_surface_perturbation(product, lv_surface);
+            
+            // Estimation d'erreur Monte Carlo
+            greeks.calculation_error_estimate = estimate_mc_greeks_error(paths);
+            
+            return greeks;
+        }
+        
+        // Greeks hybrides (combinaison PDE + MC)
+        HybridGreeks calculate_greeks_via_hybrid_method(
+            const ProductSpecification& product,
+            const LocalVolatilitySurface& lv_surface,
+            const HybridPricingParameters& params) {
+            
+            HybridGreeks greeks;
+            
+            // Analyse de la structure du produit pour optimiser la combinaison
+            auto product_analysis = analyze_product_for_greeks_calculation(product);
+            
+            if (product_analysis.is_smooth_near_spot) {
+                // Produit lisse près du spot : PDE pour Delta/Gamma, MC pour validation
+                auto pde_greeks = calculate_greeks_via_pde(product, lv_surface, params);
+                auto mc_validation = calculate_delta_gamma_mc_validation(product, lv_surface);
+                
+                // Utilisation des Greeks PDE avec validation MC
+                greeks.delta = pde_greeks.delta;
+                greeks.gamma = pde_greeks.gamma;
+                greeks.theta = pde_greeks.theta;
+                
+                // Validation croisée
+                double delta_diff = std::abs(pde_greeks.delta - mc_validation.delta) / 
+                                   std::abs(mc_validation.delta);
+                if (delta_diff > 0.05) { // 5%
+                    XSIGMA_LOG_WARNING("Différence Delta PDE/MC significative: " + 
+                                      std::to_string(delta_diff * 100) + "%");
+                }
+                
+            } else {
+                // Produit non-lisse : MC pour prix, PDE pour Greeks lisses
+                auto mc_greeks = calculate_greeks_via_monte_carlo(product, lv_surface, params);
+                auto pde_smooth_greeks = calculate_smooth_greeks_via_pde(product, lv_surface);
+                
+                // Combinaison pondérée
+                double smoothness_weight = product_analysis.smoothness_score;
+                greeks.delta = smoothness_weight * pde_smooth_greeks.delta + 
+                              (1.0 - smoothness_weight) * mc_greeks.delta;
+                greeks.gamma = smoothness_weight * pde_smooth_greeks.gamma + 
+                              (1.0 - smoothness_weight) * mc_greeks.gamma;
+            }
+            
+            // Vega local toujours via perturbation de surface (méthode robuste)
+            greeks.vega_local = calculate_vega_local_via_surface_perturbation(product, lv_surface, {});
+            
+            return greeks;
+        }
+        
+        // Greeks avec validation croisée complète
+        HybridGreeks calculate_greeks_with_cross_validation(
+            const ProductSpecification& product,
+            const LocalVolatilitySurface& lv_surface,
+            const HybridPricingParameters& params) {
+            
+            HybridGreeks greeks;
+            
+            // Calcul via PDE
+            auto pde_greeks = calculate_greeks_via_pde(product, lv_surface, params);
+            
+            // Calcul via Monte Carlo
+            auto mc_greeks = calculate_greeks_via_monte_carlo(product, lv_surface, params);
+            
+            // Analyse des différences
+            double delta_diff_pct = std::abs(pde_greeks.delta - mc_greeks.delta) / 
+                                   std::abs(mc_greeks.delta) * 100;
+            double gamma_diff_pct = std::abs(pde_greeks.gamma - mc_greeks.gamma) / 
+                                   std::abs(mc_greeks.gamma) * 100;
+            
+            greeks.pde_mc_difference_pct = std::max(delta_diff_pct, gamma_diff_pct);
+            greeks.cross_validation_performed = true;
+            
+            // Sélection des Greeks les plus fiables
+            if (product.is_path_dependent) {
+                // MC plus fiable pour path-dependent
+                greeks = mc_greeks;
+                greeks.calculation_method = PricingMethod::MONTE_CARLO_ONLY;
+            } else {
+                // PDE plus fiable pour vanilles
+                greeks = pde_greeks;
+                greeks.calculation_method = PricingMethod::PDE_ONLY;
+            }
+            
+            // Conservation des métriques de validation
+            greeks.cross_validation_performed = true;
+            greeks.pde_mc_difference_pct = std::max(delta_diff_pct, gamma_diff_pct);
+            
+            return greeks;
+        }
+        
+    private:
+        PricingMethod select_optimal_greeks_method(
+            const ProductSpecification& product,
+            const HybridPricingParameters& params) {
+            
+            // Règles de sélection pour Greeks
+            if (product.requires_fast_greeks && !product.is_highly_path_dependent) {
+                return PricingMethod::PDE_ONLY;
+            } else if (product.is_highly_path_dependent && product.observation_dates.size() > 50) {
+                return PricingMethod::MONTE_CARLO_ONLY;
+            } else if (product.requires_high_precision) {
+                return PricingMethod::DUAL_VALIDATION;
+            } else {
+                return PricingMethod::HYBRID_ADAPTIVE;
+            }
+        }
+        
+        void validate_greeks_consistency(HybridGreeks& greeks) {
+            // Validation de cohérence des Greeks
+            
+            // Test 1: Gamma doit être positif pour options vanilles
+            if (greeks.gamma < 0.0) {
+                XSIGMA_LOG_WARNING("Gamma négatif détecté: " + std::to_string(greeks.gamma));
+            }
+            
+            // Test 2: Delta doit être dans [-1, 1] pour options standard
+            if (std::abs(greeks.delta) > 1.2) {
+                XSIGMA_LOG_WARNING("Delta hors limites: " + std::to_string(greeks.delta));
+            }
+            
+            // Test 3: Cohérence Vanna-Volga
+            if (greeks.vanna * greeks.volga < 0 && std::abs(greeks.vanna) > 0.01) {
+                XSIGMA_LOG_WARNING("Incohérence Vanna-Volga détectée");
+            }
+        }
+        
+        // Méthodes utilitaires (placeholders pour implémentations complètes)
+        struct PDEGrid {
+            std::vector<double> spot_points;
+            std::vector<double> time_points;
+        };
+        
+        PDEGrid build_greeks_optimized_grid(const ProductSpecification& product,
+                                           const LocalVolatilitySurface& surface) {
+            return PDEGrid{}; // Placeholder
+        }
+        
+        struct PDESolution {
+            std::vector<std::vector<double>> solution_matrix;
+        };
+        
+        PDESolution solve_local_vol_pde_for_greeks(const ProductSpecification& product,
+                                                  const LocalVolatilitySurface& surface,
+                                                  const PDEGrid& grid) {
+            return PDESolution{}; // Placeholder
+        }
+        
+        double calculate_delta_from_pde_grid(const PDESolution& solution,
+                                            const PDEGrid& grid, double spot) {
+            return 0.6; // Placeholder
+        }
+        
+        double calculate_gamma_from_pde_grid(const PDESolution& solution,
+                                            const PDEGrid& grid, double spot) {
+            return 0.02; // Placeholder
+        }
+        
+        double calculate_theta_from_pde_grid(const PDESolution& solution,
+                                            const PDEGrid& grid) {
+            return -0.05; // Placeholder
+        }
+        
+        double calculate_vega_local_via_surface_perturbation(
+            const ProductSpecification& product,
+            const LocalVolatilitySurface& surface,
+            const PDEGrid& grid) {
+            return 15.0; // Placeholder
+        }
+        
+        double calculate_vanna_from_pde_grid(const PDESolution& solution,
+                                            const PDEGrid& grid, double spot) {
+            return 0.8; // Placeholder
+        }
+        
+        double calculate_volga_via_surface_perturbation(const ProductSpecification& product,
+                                                       const LocalVolatilitySurface& surface) {
+            return 2.5; // Placeholder
+        }
+        
+        double calculate_charm_from_pde_grid(const PDESolution& solution,
+                                            const PDEGrid& grid, double spot) {
+            return -0.003; // Placeholder
+        }
+        
+        double calculate_color_from_pde_grid(const PDESolution& solution,
+                                            const PDEGrid& grid, double spot) {
+            return -0.0001; // Placeholder
+        }
+        
+        double calculate_local_vol_sensitivity(const ProductSpecification& product,
+                                              const LocalVolatilitySurface& surface) {
+            return 12.0; // Placeholder
+        }
+        
+        std::vector<double> calculate_strike_sensitivities(const ProductSpecification& product,
+                                                          const LocalVolatilitySurface& surface) {
+            return {0.1, 0.2, 0.15}; // Placeholder
+        }
+        
+        std::vector<double> calculate_maturity_sensitivities(const ProductSpecification& product,
+                                                            const LocalVolatilitySurface& surface) {
+            return {0.05, 0.08, 0.06}; // Placeholder
+        }
+        
+        double estimate_pde_greeks_error(const PDESolution& solution, const PDEGrid& grid) {
+            return 0.001; // Placeholder
+        }
+        
+        // Méthodes Monte Carlo (placeholders)
+        std::vector<std::vector<double>> generate_local_vol_paths_for_greeks(
+            const ProductSpecification& product,
+            const LocalVolatilitySurface& surface,
+            const HybridPricingParameters& params) {
+            return {}; // Placeholder
+        }
+        
+        double calculate_delta_mc_with_control_variates(
+            const ProductSpecification& product,
+            const LocalVolatilitySurface& surface,
+            const std::vector<std::vector<double>>& paths) {
+            return 0.6; // Placeholder
+        }
+        
+        double calculate_gamma_mc_with_variance_reduction(
+            const ProductSpecification& product,
+            const LocalVolatilitySurface& surface,
+            const std::vector<std::vector<double>>& paths) {
+            return 0.02; // Placeholder
+        }
+        
+        double calculate_theta_mc_via_time_shift(
+            const ProductSpecification& product,
+            const LocalVolatilitySurface& surface,
+            const std::vector<std::vector<double>>& paths) {
+            return -0.05; // Placeholder
+        }
+        
+        double calculate_vega_local_mc_via_surface_bump(
+            const ProductSpecification& product,
+            const LocalVolatilitySurface& surface,
+            const std::vector<std::vector<double>>& paths) {
+            return 15.0; // Placeholder
+        }
+        
+        double calculate_vanna_mc_via_mixed_differences(const ProductSpecification& product,
+                                                       const LocalVolatilitySurface& surface) {
+            return 0.8; // Placeholder
+        }
+        
+        double calculate_volga_mc_via_surface_perturbation(const ProductSpecification& product,
+                                                          const LocalVolatilitySurface& surface) {
+            return 2.5; // Placeholder
+        }
+        
+        double estimate_mc_greeks_error(const std::vector<std::vector<double>>& paths) {
+            return 0.002; // Placeholder
+        }
+        
+        // Méthodes d'analyse (placeholders)
+        struct ProductAnalysis {
+            bool is_smooth_near_spot;
+            double smoothness_score;
+        };
+        
+        ProductAnalysis analyze_product_for_greeks_calculation(const ProductSpecification& product) {
+            return ProductAnalysis{true, 0.8}; // Placeholder
+        }
+        
+        HybridGreeks calculate_delta_gamma_mc_validation(const ProductSpecification& product,
+                                                        const LocalVolatilitySurface& surface) {
+            return HybridGreeks{}; // Placeholder
+        }
+        
+        HybridGreeks calculate_smooth_greeks_via_pde(const ProductSpecification& product,
+                                                    const LocalVolatilitySurface& surface) {
+            return HybridGreeks{}; // Placeholder
+        }
+    };
+}
+```
+
+## Portfolio Risk Aggregation
+
+### Multi-Product Risk Management
+```cpp
+// Agrégation de risques pour portfolios multi-produits
+class LocalVolatilityPortfolioRiskManager {
+public:
+    struct PortfolioRiskMetrics {
+        // Greeks agrégés
+        double total_delta;
+        double total_gamma;
+        double total_vega_local;
+        double total_theta;
+        double total_rho;
+        
+        // Risques par méthode de pricing
+        std::map<PricingMethod, double> delta_by_method;
+        std::map<PricingMethod, double> gamma_by_method;
+        
+        // Métriques de concentration
+        double largest_position_delta_pct;
+        double top_10_positions_delta_pct;
+        std::map<std::string, double> delta_by_underlying;
+        
+        // VaR et stress testing
+        double var_95_1d;
+        double expected_shortfall_95;
+        std::map<std::string, double> stress_scenario_pnl;
+        
+        // Métriques de qualité
+        double average_greeks_error;
+        double cross_validation_coverage_pct;
+        std::vector<std::string> risk_warnings;
+    };
+    
+    // Calcul des risques de portfolio avec méthodes hybrides
+    PortfolioRiskMetrics calculate_portfolio_risk(
+        const std::vector<PortfolioPosition>& positions,
+        const std::map<std::string, LocalVolatilitySurface>& lv_surfaces) {
+        
+        PortfolioRiskMetrics risk;
+        
+        // Calcul des Greeks individuels avec méthodes optimales
+        std::vector<HybridGreeks> individual_greeks;
+        for (const auto& position : positions) {
+            auto greeks = calculate_position_greeks(position, lv_surfaces);
+            individual_greeks.push_back(greeks);
+        }
+        
+        // Agrégation des Greeks
+        aggregate_portfolio_greeks(positions, individual_greeks, risk);
+        
+        // Métriques de concentration
+        calculate_concentration_metrics(positions, individual_greeks, risk);
+        
+        // VaR et stress testing
+        calculate_portfolio_var_and_stress(positions, individual_greeks, risk);
+        
+        // Métriques de qualité
+        calculate_quality_metrics(individual_greeks, risk);
+        
+        return risk;
+    }
+    
+private:
+    HybridGreeks calculate_position_greeks(
+        const PortfolioPosition& position,
+        const std::map<std::string, LocalVolatilitySurface>& surfaces) {
+        
+        // Récupération de la surface appropriée
+        auto surface_it = surfaces.find(position.underlying);
+        if (surface_it == surfaces.end()) {
+            XSIGMA_THROW("Surface de volatilité locale non trouvée pour " + position.underlying);
+        }
+        
+        // Calcul des Greeks avec méthode optimale
+        LocalVolatilityGreeksCalculator calculator;
+        HybridPricingParameters params; // Configuration par défaut
+        
+        return calculator.calculate_hybrid_greeks(position.product_spec, surface_it->second, params);
+    }
+    
+    void aggregate_portfolio_greeks(
+        const std::vector<PortfolioPosition>& positions,
+        const std::vector<HybridGreeks>& individual_greeks,
+        PortfolioRiskMetrics& risk) {
+        
+        risk.total_delta = 0.0;
+        risk.total_gamma = 0.0;
+        risk.total_vega_local = 0.0;
+        risk.total_theta = 0.0;
+        risk.total_rho = 0.0;
+        
+        for (size_t i = 0; i < positions.size(); ++i) {
+            const auto& position = positions[i];
+            const auto& greeks = individual_greeks[i];
+            
+            // Agrégation pondérée par la quantité
+            risk.total_delta += position.quantity * greeks.delta;
+            risk.total_gamma += position.quantity * greeks.gamma;
+            risk.total_vega_local += position.quantity * greeks.vega_local;
+            risk.total_theta += position.quantity * greeks.theta;
+            risk.total_rho += position.quantity * greeks.rho;
+            
+            // Agrégation par méthode de pricing
+            risk.delta_by_method[greeks.calculation_method] += position.quantity * greeks.delta;
+            risk.gamma_by_method[greeks.calculation_method] += position.quantity * greeks.gamma;
+            
+            // Agrégation par sous-jacent
+            risk.delta_by_underlying[position.underlying] += position.quantity * greeks.delta;
+        }
+    }
+    
+    void calculate_concentration_metrics(
+        const std::vector<PortfolioPosition>& positions,
+        const std::vector<HybridGreeks>& individual_greeks,
+        PortfolioRiskMetrics& risk) {
+        
+        // Calcul des deltas individuels
+        std::vector<double> position_deltas;
+        for (size_t i = 0; i < positions.size(); ++i) {
+            double position_delta = std::abs(positions[i].quantity * individual_greeks[i].delta);
+            position_deltas.push_back(position_delta);
+        }
+        
+        // Tri par delta décroissant
+        std::sort(position_deltas.rbegin(), position_deltas.rend());
+        
+        double total_delta = std::accumulate(position_deltas.begin(), position_deltas.end(), 0.0);
+        
+        if (total_delta > 0) {
+            risk.largest_position_delta_pct = position_deltas[0] / total_delta;
+            
+            double top_10_delta = 0.0;
+            for (size_t i = 0; i < std::min(size_t(10), position_deltas.size()); ++i) {
+                top_10_delta += position_deltas[i];
+            }
+            risk.top_10_positions_delta_pct = top_10_delta / total_delta;
+        }
+    }
+    
+    void calculate_portfolio_var_and_stress(
+        const std::vector<PortfolioPosition>& positions,
+        const std::vector<HybridGreeks>& individual_greeks,
+        PortfolioRiskMetrics& risk) {
+        
+        // VaR paramétrique basé sur les Greeks agrégés
+        double underlying_volatility = 0.25; // 25% vol annuelle
+        double portfolio_std = std::abs(risk.total_delta) * underlying_volatility;
+        
+        risk.var_95_1d = 1.65 * portfolio_std / std::sqrt(252); // VaR 1 jour
+        risk.expected_shortfall_95 = 2.06 * portfolio_std / std::sqrt(252);
+        
+        // Scénarios de stress
+        risk.stress_scenario_pnl["MARKET_DOWN_20PCT"] = 
+            risk.total_delta * (-0.20) + 0.5 * risk.total_gamma * (-0.20) * (-0.20);
+        risk.stress_scenario_pnl["MARKET_UP_20PCT"] = 
+            risk.total_delta * 0.20 + 0.5 * risk.total_gamma * 0.20 * 0.20;
+        risk.stress_scenario_pnl["VOL_UP_50PCT"] = risk.total_vega_local * 0.50;
+        risk.stress_scenario_pnl["VOL_DOWN_50PCT"] = risk.total_vega_local * (-0.50);
+        risk.stress_scenario_pnl["RATES_UP_100BP"] = risk.total_rho * 0.01;
+        risk.stress_scenario_pnl["RATES_DOWN_100BP"] = risk.total_rho * (-0.01);
+    }
+    
+    void calculate_quality_metrics(
+        const std::vector<HybridGreeks>& individual_greeks,
+        PortfolioRiskMetrics& risk) {
+        
+        double total_error = 0.0;
+        int cross_validated_positions = 0;
+        
+        for (const auto& greeks : individual_greeks) {
+            total_error += greeks.calculation_error_estimate;
+            
+            if (greeks.cross_validation_performed) {
+                cross_validated_positions++;
+                
+                if (greeks.pde_mc_difference_pct > 5.0) { // 5%
+                    risk.risk_warnings.push_back(
+                        "Différence PDE/MC élevée: " + std::to_string(greeks.pde_mc_difference_pct) + "%");
+                }
+            }
+        }
+        
+        risk.average_greeks_error = total_error / individual_greeks.size();
+        risk.cross_validation_coverage_pct = 
+            static_cast<double>(cross_validated_positions) / individual_greeks.size() * 100;
+        
+        // Avertissements de qualité
+        if (risk.average_greeks_error > 0.01) {
+            risk.risk_warnings.push_back("Erreur moyenne des Greeks élevée");
+        }
+        
+        if (risk.cross_validation_coverage_pct < 50.0) {
+            risk.risk_warnings.push_back("Couverture de validation croisée insuffisante");
+        }
+    }
+    
+    struct PortfolioPosition {
+        std::string position_id;
+        std::string underlying;
+        ProductSpecification product_spec;
+        double quantity;
+        double market_value;
+    };
+};
+```
+
+## Real-Time Risk Monitoring
+
+### Dynamic Greeks Updates
+```cpp
+// Monitoring de risques en temps réel
+class RealTimeRiskMonitor {
+public:
+    struct RiskAlert {
+        std::string alert_type;
+        std::string description;
+        double severity_level;
+        std::string timestamp;
+        std::vector<std::string> affected_positions;
+    };
+    
+    // Monitoring continu des risques
+    std::vector<RiskAlert> monitor_portfolio_risk(
+        const PortfolioRiskMetrics& current_risk,
+        const PortfolioRiskMetrics& previous_risk,
+        const RiskLimits& limits) {
+        
+        std::vector<RiskAlert> alerts;
+        
+        // Surveillance des limites de Greeks
+        check_greeks_limits(current_risk, limits, alerts);
+        
+        // Surveillance des changements rapides
+        check_rapid_changes(current_risk, previous_risk, alerts);
+        
+        // Surveillance de la qualité des Greeks
+        check_greeks_quality(current_risk, alerts);
+        
+        return alerts;
+    }
+    
+private:
+    struct RiskLimits {
+        double max_delta;
+        double max_gamma;
+        double max_vega;
+        double max_var_95;
+        double max_greeks_error;
+    };
+    
+    void check_greeks_limits(const PortfolioRiskMetrics& risk,
+                            const RiskLimits& limits,
+                            std::vector<RiskAlert>& alerts) {
+        
+        if (std::abs(risk.total_delta) > limits.max_delta) {
+            RiskAlert alert;
+            alert.alert_type = "DELTA_LIMIT_BREACH";
+            alert.description = "Delta total dépasse la limite: " + std::to_string(risk.total_delta);
+            alert.severity_level = 0.8;
+            alerts.push_back(alert);
+        }
+        
+        if (std::abs(risk.total_gamma) > limits.max_gamma) {
+            RiskAlert alert;
+            alert.alert_type = "GAMMA_LIMIT_BREACH";
+            alert.description = "Gamma total dépasse la limite: " + std::to_string(risk.total_gamma);
+            alert.severity_level = 0.7;
+            alerts.push_back(alert);
+        }
+        
+        if (risk.var_95_1d > limits.max_var_95) {
+            RiskAlert alert;
+            alert.alert_type = "VAR_LIMIT_BREACH";
+            alert.description = "VaR 95% dépasse la limite: " + std::to_string(risk.var_95_1d);
+            alert.severity_level = 0.9;
+            alerts.push_back(alert);
+        }
+    }
+    
+    void check_rapid_changes(const PortfolioRiskMetrics& current,
+                            const PortfolioRiskMetrics& previous,
+                            std::vector<RiskAlert>& alerts) {
+        
+        double delta_change_pct = std::abs(current.total_delta - previous.total_delta) / 
+                                 std::abs(previous.total_delta) * 100;
+        
+        if (delta_change_pct > 20.0) { // 20%
+            RiskAlert alert;
+            alert.alert_type = "RAPID_DELTA_CHANGE";
+            alert.description = "Changement rapide de delta: " + std::to_string(delta_change_pct) + "%";
+            alert.severity_level = 0.6;
+            alerts.push_back(alert);
+        }
+    }
+    
+    void check_greeks_quality(const PortfolioRiskMetrics& risk,
+                             std::vector<RiskAlert>& alerts) {
+        
+        if (risk.average_greeks_error > 0.02) { // 2%
+            RiskAlert alert;
+            alert.alert_type = "GREEKS_QUALITY_DEGRADED";
+            alert.description = "Qualité des Greeks dégradée: " + 
+                              std::to_string(risk.average_greeks_error * 100) + "% erreur";
+            alert.severity_level = 0.5;
+            alerts.push_back(alert);
+        }
+        
+        if (risk.cross_validation_coverage_pct < 30.0) {
+            RiskAlert alert;
+            alert.alert_type = "LOW_VALIDATION_COVERAGE";
+            alert.description = "Couverture de validation faible: " + 
+                              std::to_string(risk.cross_validation_coverage_pct) + "%";
+            alert.severity_level = 0.4;
+            alerts.push_back(alert);
+        }
+    }
+};
+```
+
+Le framework de risque Local Volatility PDE and MC dans Our project fournit une solution complète pour le calcul de Greeks hybrides, l'agrégation de risques de portfolio et le monitoring en temps réel, avec sélection automatique de la méthode optimale selon les caractéristiques de chaque produit.

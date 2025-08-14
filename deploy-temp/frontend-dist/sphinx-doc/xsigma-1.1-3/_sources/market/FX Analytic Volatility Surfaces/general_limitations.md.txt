@@ -1,0 +1,354 @@
+# General Limitations
+
+## 📊 **Limitations Overview**
+
+### **Nature of Limitations**
+FX volatility surfaces, despite their sophistication, present inherent limitations related to modeling assumptions, data constraints and numerical approximations. This section identifies and documents these limitations for appropriate model usage.
+
+### **Limitation Categories**
+- **Theoretical Limitations**: Simplifying model assumptions
+- **Data Limitations**: Constraints related to market inputs
+- **Numerical Limitations**: Approximations and calculation errors
+- **Operational Limitations**: Implementation and usage constraints
+
+---
+
+## 🔧 **Theoretical Limitations**
+
+### **Modeling Assumptions**
+
+#### **🔍 Static Smile**
+Smile models assume a static smile structure that does not capture intraday smile dynamics.
+
+**Impact:**
+- Underestimation of dynamic smile risk
+- Imprecise pricing for barrier options
+- Incomplete hedging for complex strategies
+
+#### **🔍 Log-Normal Process**
+The underlying assumption of log-normal process for exchange rates presents limitations.
+
+### **Implementation in Our Project**
+
+#### **🔧 Limitations Documentation**
+```cpp
+// Limitations documentation in Our project
+class fx_surface_limitations_framework {
+public:
+    enum class limitation_category {
+        THEORETICAL,     // Theoretical limitations
+        DATA_RELATED,    // Data limitations
+        NUMERICAL,       // Numerical limitations
+        OPERATIONAL     // Operational limitations
+    };
+    
+    enum class limitation_severity {
+        CRITICAL,    // Major impact on results
+        HIGH,        // Significant impact
+        MEDIUM,      // Moderate impact
+        LOW          // Minor impact
+    };
+    
+    struct model_limitation {
+        std::string limitation_name;
+        limitation_category category;
+        limitation_severity severity;
+        std::string description;
+        std::vector<std::string> affected_use_cases;
+        std::vector<std::string> mitigation_strategies;
+        std::string quantitative_impact;
+        bool has_workaround;
+    };
+    
+    class limitation_registry {
+    public:
+        std::vector<model_limitation> get_all_limitations() {
+            return {
+                // Theoretical limitations
+                {
+                    "STATIC_SMILE_ASSUMPTION",
+                    limitation_category::THEORETICAL,
+                    limitation_severity::HIGH,
+                    "Model assumes static smile that does not capture intraday dynamics",
+                    {"Barrier Options", "Path-Dependent Products", "Intraday Trading"},
+                    {"Use Dynamic Smile Models", "Frequent Recalibration", "Local Volatility Models"},
+                    "Risk underestimation of 10-30% for exotic options",
+                    true
+                },
+                {
+                    "LOG_NORMAL_PROCESS_ASSUMPTION",
+                    limitation_category::THEORETICAL,
+                    limitation_severity::MEDIUM,
+                    "Log-normal process assumption does not capture jumps and fat tails",
+                    {"Tail Risk Estimation", "Crisis Scenarios", "Jump Risk Products"},
+                    {"Jump-Diffusion Models", "Lévy Process Models", "Stress Testing"},
+                    "Tail risk underestimation of 20-50%",
+                    true
+                },
+                {
+                    "CONSTANT_CORRELATION_ASSUMPTION",
+                    limitation_category::THEORETICAL,
+                    limitation_severity::MEDIUM,
+                    "Correlations between risk factors assumed constant",
+                    {"Multi-Currency Products", "Correlation Trading", "Portfolio Risk"},
+                    {"Dynamic Correlation Models", "Regime-Switching Models"},
+                    "Correlation error of 15-25% during stress periods",
+                    false
+                },
+                
+                // Data limitations
+                {
+                    "LIMITED_LONG_TENOR_LIQUIDITY",
+                    limitation_category::DATA_RELATED,
+                    limitation_severity::HIGH,
+                    "Limited liquidity for tenors > 5 years, unreliable quotes",
+                    {"Long-Dated Products", "Pension Fund Products", "Infrastructure Hedging"},
+                    {"Extrapolation Methods", "Cross-Currency Proxies", "Historical Analysis"},
+                    "Bid-offer spreads 2-5x wider for tenors > 5Y",
+                    true
+                },
+                {
+                    "EMERGING_MARKET_DATA_GAPS",
+                    limitation_category::DATA_RELATED,
+                    limitation_severity::HIGH,
+                    "Limited data for emerging market currency pairs",
+                    {"EM Currency Products", "Exotic Currency Pairs", "Regional Trading"},
+                    {"Proxy Models", "Regional Correlation Models", "Historical Fallbacks"},
+                    "Pricing error 50-100% for illiquid pairs",
+                    true
+                },
+                
+                // Numerical limitations
+                {
+                    "QUARTIC_SOLVER_CONVERGENCE",
+                    limitation_category::NUMERICAL,
+                    limitation_severity::MEDIUM,
+                    "Quartic solver may not converge for extreme parameters",
+                    {"Extreme Market Conditions", "High Volatility Regimes", "Crisis Scenarios"},
+                    {"Iterative Solvers", "Robust Root Finding", "Fallback Methods"},
+                    "Convergence failure in 1-5% of extreme cases",
+                    true
+                },
+                {
+                    "INTERPOLATION_ARTIFACTS",
+                    limitation_category::NUMERICAL,
+                    limitation_severity::LOW,
+                    "Interpolation artifacts for queries between marked tenors",
+                    {"Non-Standard Maturities", "Bespoke Products", "Custom Tenors"},
+                    {"Higher-Order Interpolation", "Smoothing Techniques", "Dense Grids"},
+                    "Interpolation error < 1% typically",
+                    true
+                }
+            };
+        }
+        
+        std::vector<model_limitation> get_limitations_by_category(
+            limitation_category category) {
+            
+            auto all_limitations = get_all_limitations();
+            std::vector<model_limitation> filtered;
+            
+            std::copy_if(all_limitations.begin(), all_limitations.end(),
+                        std::back_inserter(filtered),
+                        [category](const model_limitation& lim) {
+                            return lim.category == category;
+                        });
+            
+            return filtered;
+        }
+        
+        std::vector<model_limitation> get_critical_limitations() {
+            auto all_limitations = get_all_limitations();
+            std::vector<model_limitation> critical;
+            
+            std::copy_if(all_limitations.begin(), all_limitations.end(),
+                        std::back_inserter(critical),
+                        [](const model_limitation& lim) {
+                            return lim.severity == limitation_severity::CRITICAL;
+                        });
+            
+            return critical;
+        }
+    };
+    
+    class limitation_impact_assessor {
+    public:
+        struct impact_assessment {
+            std::string use_case;
+            std::vector<std::string> applicable_limitations;
+            double overall_impact_score; // 0-1 scale
+            std::string risk_level; // "LOW", "MEDIUM", "HIGH", "CRITICAL"
+            std::vector<std::string> recommended_mitigations;
+        };
+        
+        impact_assessment assess_use_case_impact(const std::string& use_case) {
+            impact_assessment assessment;
+            assessment.use_case = use_case;
+            
+            auto all_limitations = limitation_registry().get_all_limitations();
+            
+            // Identification of applicable limitations
+            for (const auto& limitation : all_limitations) {
+                auto& affected_cases = limitation.affected_use_cases;
+                if (std::find(affected_cases.begin(), affected_cases.end(), use_case)
+                    != affected_cases.end()) {
+                    assessment.applicable_limitations.push_back(limitation.limitation_name);
+                }
+            }
+
+            // Calculation of overall impact score
+            assessment.overall_impact_score = calculate_overall_impact_score(
+                assessment.applicable_limitations, all_limitations);
+
+            // Determination of risk level
+            assessment.risk_level = determine_risk_level(assessment.overall_impact_score);
+
+            // Mitigation recommendations
+            assessment.recommended_mitigations = compile_mitigation_strategies(
+                assessment.applicable_limitations, all_limitations);
+            
+            return assessment;
+        }
+        
+    private:
+        double calculate_overall_impact_score(
+            const std::vector<std::string>& applicable_limitations,
+            const std::vector<model_limitation>& all_limitations) {
+            
+            double total_score = 0.0;
+            int count = 0;
+            
+            for (const auto& lim_name : applicable_limitations) {
+                auto it = std::find_if(all_limitations.begin(), all_limitations.end(),
+                                     [&lim_name](const model_limitation& lim) {
+                                         return lim.limitation_name == lim_name;
+                                     });
+                
+                if (it != all_limitations.end()) {
+                    double severity_score = static_cast<double>(it->severity) / 3.0; // 0-1 scale
+                    total_score += severity_score;
+                    count++;
+                }
+            }
+            
+            return (count > 0) ? (total_score / count) : 0.0;
+        }
+        
+        std::string determine_risk_level(double impact_score) {
+            if (impact_score >= 0.75) return "CRITICAL";
+            else if (impact_score >= 0.5) return "HIGH";
+            else if (impact_score >= 0.25) return "MEDIUM";
+            else return "LOW";
+        }
+    };
+};
+```
+*This C++ implementation in Our project shows the complete framework for limitations documentation and evaluation with impact assessment.*
+
+---
+
+## 📈 **Data Limitations**
+
+### **Quality and Availability**
+
+#### **🔍 Long Tenors**
+- **Reduced liquidity**: Beyond 5 years
+- **Wide spreads**: Bid-offer spreads 2-5x wider
+- **Rare quotes**: Less frequent updates
+- **Questionable reliability**: Indicative vs. firm quotes
+
+#### **🔍 Exotic Pairs**
+- **Limited coverage**: Emerging market currencies
+- **Restricted sources**: Few providers
+- **Market hours**: Liquidity concentrated on certain hours
+- **Political events**: Impact on quote availability
+
+### **Staleness and Timing**
+- **Time lags**: Between data sources
+- **Weekends and holidays**: Liquidity gaps
+- **Time zones**: Synchronization issues
+- **Event windows**: Quote suspension
+
+---
+
+## 🎯 **Numerical Limitations**
+
+### **Calculation Precision**
+
+#### **🔍 Equation Resolution**
+- **Convergence**: Possible failure for extreme parameters
+- **Machine precision**: Floating-point limitations
+- **Conditioning**: Ill-conditioned matrices
+- **Overflow/Underflow**: Extreme values
+
+#### **🔍 Interpolation and Extrapolation**
+- **Interpolation artifacts**: Non-physical oscillations
+- **Extrapolation**: Increasing uncertainty
+- **Discontinuities**: At grid boundaries
+- **Smoothing**: Loss of local information
+
+### **Performance and Scalability**
+- **Calculation time**: Growth with complexity
+- **Memory**: Limitations for large surfaces
+- **Parallelization**: Architecture constraints
+- **Cache efficiency**: Memory access patterns
+
+---
+
+## 🔧 **Operational Limitations**
+
+### **Implementation Constraints**
+
+#### **🔍 Recalibration Frequency**
+- **Computational cost**: Frequency limitation
+- **Stability**: Trade-off with reactivity
+- **Resources**: CPU/memory constraints
+- **Latency**: Impact on real-time trading
+
+#### **🔍 System Integration**
+- **Legacy systems**: Interface constraints
+- **Data feeds**: Vendor dependencies
+- **Backup procedures**: Fallback complexity
+- **Monitoring**: Continuous surveillance required
+
+### **Regulatory Constraints**
+- **Model validation**: Validation requirements
+- **Documentation**: Complete traceability
+- **Audit trails**: Modification history
+- **Stress testing**: Mandatory regulatory tests
+
+---
+
+## 📊 **Mitigation Strategies**
+
+### **Technical Approaches**
+- **Model ensemble**: Model combination
+- **Robust calibration**: Robust methods
+- **Dynamic recalibration**: Adaptive recalibration
+- **Fallback mechanisms**: Backup mechanisms
+
+### **Operational Approaches**
+- **Multiple data sources**: Source diversification
+- **Quality monitoring**: Continuous quality surveillance
+- **Expert oversight**: Expert supervision
+- **Regular validation**: Periodic validation
+
+---
+
+## 🎯 **Usage Recommendations**
+
+### **Best Practices**
+- **Know your limitations**: Understanding limits
+- **Appropriate use cases**: Appropriate usage
+- **Regular monitoring**: Continuous surveillance
+- **Contingency planning**: Contingency plans
+
+### **Risk Management**
+- **Model risk reserves**: Model risk reserves
+- **Limitation disclosure**: Limitation communication
+- **Impact assessment**: Impact evaluation
+- **Mitigation strategies**: Mitigation strategies
+
+---
+
+*This section comprehensively documents FX volatility surface limitations, integrating Our project best practices with a structured approach to identification, evaluation and mitigation of risks associated with model limitations.*

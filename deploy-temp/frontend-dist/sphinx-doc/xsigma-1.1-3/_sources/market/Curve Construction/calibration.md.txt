@@ -1,0 +1,441 @@
+# Calibration
+
+
+
+## Overview
+
+The calibration process in the New Curve Framework (NCF) from Our project is designed to construct accurate, arbitrage-free curves that exactly reprice market instruments while maintaining smooth and economically sensible curve shapes. The calibration employs sophisticated optimization techniques combined with market data validation and quality control procedures.
+
+## Market Data Sources and Validation
+
+### Primary Data Sources
+
+**Trading Desk Marks**: 
+- Primary source for actively traded instruments
+- Real-time updates from market-making desks
+- Includes bid-ask spreads and market depth information
+
+**Electronic Trading Platforms**:
+- Bloomberg, Reuters, and other major data vendors
+- Real-time streaming quotes for liquid instruments
+- Historical data for validation and consistency checks
+
+**Broker Quotes**:
+- Consensus pricing for less liquid instruments
+- Multiple broker averaging for improved accuracy
+- Quality scoring based on broker reliability
+
+### Data Quality Control
+
+**Consistency Checks**:
+- Cross-validation between different data sources
+- Temporal consistency with recent historical data
+- Arbitrage relationship validation
+
+**Outlier Detection**:
+- Statistical outlier identification using z-scores
+- Comparison with theoretical model values
+- Manual review flags for suspicious data points
+
+**Completeness Validation**:
+- Verification of required instrument coverage
+- Gap identification and interpolation procedures
+- Missing data handling protocols
+
+## Instrument Selection and Weighting
+
+### Calibration Instrument Selection
+
+**Liquidity-Based Selection**:
+- Prioritize most liquid and actively traded instruments
+- Consider bid-ask spreads as liquidity indicators
+- Include benchmark instruments for curve anchoring
+
+**Maturity Coverage**:
+- Ensure adequate coverage across all curve tenors
+- Balance between short-term and long-term instruments
+- Include key benchmark maturities (2Y, 5Y, 10Y, 30Y)
+
+**Curve Dependency Management**:
+- Select instruments that clearly define curve relationships
+- Avoid redundant instruments that provide no additional information
+- Include basis instruments for multi-curve construction
+
+### Weighting Schemes
+
+The framework supports multiple weighting methodologies that can be applied individually or in combination:
+
+| Weighting Method | Formula | Use Case |
+|------------------|---------|----------|
+| **Liquidity-Based** | $w_i = \frac{1}{(\text{bid-ask spread}_i)^2}$ | Emphasizes most liquid instruments |
+| **Notional-Based** | $w_i = \frac{\text{notional}_i}{\sum_j \text{notional}_j}$ | Weights by market size/importance |
+| **Reliability-Based** | $w_i = \frac{1}{\sigma_i^2}$ | Based on historical price volatility |
+| **Hybrid Approach** | $w_i = \alpha \cdot w_i^{\text{liquidity}} + (1-\alpha) \cdot w_i^{\text{notional}}$ | Combines multiple factors |
+
+**Hybrid Weighting Parameters:**
+- $\alpha \in [0,1]$: Balance parameter between liquidity and notional weighting
+- Typical values: $\alpha = 0.7$ (70% liquidity, 30% notional)
+- Can be adjusted based on market conditions and calibration objectives
+
+## Calibration Procedures
+
+### Single Curve Calibration
+
+**Step 1: Initial Parameter Estimation**
+- Bootstrap initial curve from most liquid instruments
+- Use simple interpolation for initial guess
+- Validate initial curve for basic arbitrage conditions
+
+**Step 2: Optimization Setup**
+- Define objective function with instrument penalties
+- Set up smoothing constraints and penalties
+- Configure optimization algorithm parameters
+
+**Step 3: Iterative Optimization**
+- Apply Levenberg-Marquardt algorithm
+- Monitor convergence criteria
+- Adjust damping parameters as needed
+
+**Step 4: Quality Validation**
+- Verify repricing accuracy for all instruments
+- Check interpolation adherence
+- Validate curve smoothness properties
+
+## Calibration Implementation in Our Project
+
+The calibration framework implements the optimization process described above through several key methods that handle both bootstrapping and global optimization approaches.
+
+**Main Calibration Methods**:
+```cpp
+namespace xsigma {
+    // Main calibration entry point implementing the 4-step process
+    void curve_calibration::calibrate() {
+        auto market_precomputed =
+            impl::update_precomputed_market(market_, precalibrated_ids_, targets_);
+
+        timer_log timer;
+        timer.StartTimer();
+
+        if (config_->use_bootstarping_) {
+            // Sequential bootstrapping approach
+            bootstrap_curves(market_precomputed);
+            timer.StopTimer();
+            log_progress("Calibrate",
+                fmt::format("Bootstrap time: {} seconds", timer.GetElapsedTime()));
+        } else {
+            // Global optimization approach
+            optimize_curves(market_precomputed);
+            timer.StopTimer();
+            log_progress("Calibrate",
+                fmt::format("Global solver time: {} seconds", timer.GetElapsedTime()));
+        }
+    }
+
+    // Bootstrap curves using sequential method
+    void curve_calibration::bootstrap_curves(any_container_precomputed& market_precomputed) {
+        xsigma_set<any_id> calibrated_ids;
+
+        // Process curves in dependency order
+        for (size_t i = 0, size = stage_dependencies_.size(); i < size; ++i) {
+            bootstrap_single_curve(market_precomputed, i);
+        }
+    }
+
+    // Global optimization approach for simultaneous curve construction
+    void curve_calibration::optimize_curves(any_container_precomputed& market_precomputed) {
+        market_precomputed = impl::update_precomputed_market(market_, precalibrated_ids_, targets_);
+        xsigma_set<any_id> calibrated_ids;
+
+        // Optimize curves considering interdependencies
+        for (size_t i = 0, size = stage_dependencies_.size(); i < size; ++i) {
+            optimize_single_curve(market_precomputed, calibrated_ids, i);
+        }
+    }
+}
+```
+
+*The main calibration methods implement the optimization framework described above. The `calibrate()` method chooses between bootstrapping and global optimization based on configuration. Bootstrapping builds curves sequentially, while global optimization considers interdependencies between curves for better overall accuracy.*
+
+### Multi-Curve Calibration
+
+**Sequential Approach**:
+1. **Base Curve Construction**: Build independent curves first (e.g., OIS)
+2. **Dependent Curve Construction**: Build curves that depend on base curves
+3. **Basis Curve Construction**: Build spread and basis curves last
+
+**Simultaneous Approach**:
+- Optimize all interdependent curves simultaneously
+- Use block optimization for computational efficiency
+- Ensure global consistency across all curves
+
+### Cross-Currency Calibration
+
+**USD Foundation Approach**:
+1. Construct USD curves as foundation
+2. Build other currency curves using USD as reference
+3. Incorporate FX forward points for consistency
+4. Apply cross-currency basis adjustments
+
+**Global Optimization Approach**:
+- Simultaneous optimization across all currencies
+- Enforce FX arbitrage relationships
+- Include cross-currency basis instruments
+- Maintain global consistency constraints
+
+## Smoothing and Regularization
+
+### Smoothing Penalty Functions
+
+**Second Derivative Penalty**:
+Penalizes excessive curvature in the curve:
+$$S_1 = \sum_{i=2}^{n-1} w_i^{smooth} \left( \frac{x_{i+1} - 2x_i + x_{i-1}}{(\Delta t_i)^2} \right)^2$$
+
+**Forward Rate Smoothness**:
+Penalizes rapid changes in forward rates:
+$$S_2 = \sum_{i=1}^{n-1} w_i^{forward} \left( \frac{f_{i+1} - f_i}{\Delta t_i} \right)^2$$
+
+**Tension Spline Penalty**:
+Minimizes total curvature while fitting data:
+$$S_3 = \int_0^T \left( \frac{d^2f(t)}{dt^2} \right)^2 dt$$
+
+### Adaptive Smoothing
+
+**Market Condition Dependent**:
+- Increase smoothing during volatile market conditions
+- Reduce smoothing when rich market data is available
+- Adjust based on instrument liquidity and reliability
+
+**Curve Region Specific**:
+- Higher smoothing in data-sparse regions
+- Lower smoothing in liquid, well-defined regions
+- Transition smoothing between different curve regions
+
+## Node Date Optimization
+
+### Automatic Node Placement
+
+**Sensitivity-Based Placement**:
+- Place nodes where instruments are most sensitive
+- Use Jacobian matrix to identify optimal locations
+- Balance between accuracy and computational efficiency
+
+**Information Content Analysis**:
+- Analyze information content of different curve regions
+- Place more nodes where information density is high
+- Reduce nodes in regions with limited market data
+
+### Constraint-Based Placement
+
+**Market Convention Alignment**:
+- Align nodes with standard market conventions
+- Include IMM dates for futures-based curves
+- Respect inflation day-of-month for inflation curves
+
+**Minimum Spacing Constraints**:
+- Enforce minimum distance between adjacent nodes
+- Prevent numerical instability from closely spaced nodes
+- Balance granularity with computational efficiency
+
+## Calibration Validation
+
+### Repricing Accuracy Tests
+
+**Absolute Error Tolerance**:
+$$|P_i^{market} - P_i^{model}| < \epsilon_{abs}$$
+
+**Relative Error Tolerance**:
+$$\left|\frac{P_i^{market} - P_i^{model}}{P_i^{market}}\right| < \epsilon_{rel}$$
+
+**Weighted Error Metrics**:
+$$RMSE = \sqrt{\frac{\sum_{i=1}^n w_i (P_i^{market} - P_i^{model})^2}{\sum_{i=1}^n w_i}}$$
+
+### Interpolation Validation
+
+**Node Value Reproduction**:
+Verify that interpolation exactly reproduces node values
+
+**Smoothness Verification**:
+Check continuity and differentiability at node points
+
+**Monotonicity Checks**:
+Ensure appropriate monotonicity properties for discount factors
+
+### Economic Validation
+
+**Forward Rate Reasonableness**:
+- Check for negative forward rates (where inappropriate)
+- Validate forward rate term structure shape
+- Compare with historical forward rate patterns
+
+**Arbitrage Relationship Validation**:
+- Verify covered interest rate parity for FX forwards
+- Check basis relationships between related curves
+- Validate cross-currency arbitrage conditions
+
+## Error Handling and Fallback Procedures
+
+### Calibration Failure Handling
+
+**Convergence Failure**:
+- Retry with different initial conditions
+- Adjust optimization parameters
+- Fall back to simpler interpolation methods
+
+**Data Quality Issues**:
+- Exclude problematic instruments from calibration
+- Use alternative data sources
+- Apply manual overrides where necessary
+
+**Numerical Instability**:
+- Increase regularization parameters
+- Simplify curve structure
+- Use more robust optimization algorithms
+
+### Quality Assurance Procedures
+
+**Daily Validation Reports**:
+- Comprehensive repricing accuracy reports
+- Curve shape and smoothness analysis
+- Comparison with previous day's curves
+
+**Exception Monitoring**:
+- Automated alerts for calibration failures
+- Threshold monitoring for repricing errors
+- Escalation procedures for quality issues
+
+**Historical Validation**:
+- Backtesting of calibration accuracy
+- Analysis of calibration stability over time
+- Validation against alternative methodologies
+
+## Performance Optimization
+
+### Computational Efficiency
+
+**Parallel Processing**:
+- Parallel evaluation of instrument prices
+- Concurrent optimization of independent curves
+- Load balancing across available processors
+
+**Caching Strategies**:
+- Cache intermediate calculations
+- Reuse Jacobian matrix components
+- Optimize memory access patterns
+
+**Algorithm Selection**:
+- Choose optimal algorithms based on problem size
+- Use sparse matrix techniques for large problems
+- Implement adaptive precision control
+
+## Root Finding Algorithms from Our Project
+
+**Brent's Method for Bootstrap Calibration**:
+```cpp
+namespace xsigma {
+    // Bootstrap single instrument using Brent's method
+    void curve_calibration::bootstrap_rate_curve(
+        any_container_precomputed& market_precomputed,
+        xsigma_set<any_id>& calibrated_ids,
+        const any_id& id) {
+
+        // Get calibration instrument
+        auto instrument = get_calibration_instrument(id);
+        double target_price = get_target_price(id);
+
+        // Define objective function for root finding
+        auto objective_function = [&](double rate) -> double {
+            // Update curve with new rate
+            update_curve_node(id, rate, market_precomputed);
+
+            // Calculate instrument price
+            double model_price = instrument->price(market_precomputed);
+
+            // Return pricing error
+            return model_price - target_price;
+        };
+
+        // Initial rate guess
+        double rate_guess = get_initial_rate_guess(id);
+        double rate_lower = rate_guess - config_->bootstrap_stdev_;
+        double rate_upper = rate_guess + config_->bootstrap_stdev_;
+
+        // Solve using Brent's method
+        double calibrated_rate;
+        bool converged = root_finding_algorithms::brent(
+            objective_function,
+            rate_lower,
+            rate_upper,
+            calibrated_rate,
+            0.0,  // Target value
+            1e-12  // Tolerance
+        );
+
+        XSIGMA_CHECK(converged, "Bootstrap calibration failed for curve: ", id);
+
+        // Update curve with calibrated rate
+        update_curve_node(id, calibrated_rate, market_precomputed);
+        calibrated_ids.insert(id);
+    }
+}
+```
+
+**Convergence Criteria from Our Project**:
+```cpp
+namespace xsigma {
+    struct calibration_convergence_criteria {
+        double objective_function_tolerance = 1e-8;    // ||F(x)||_2 < ε_f
+        double parameter_change_tolerance = 1e-8;      // ||Δx||_2 < ε_x
+        double gradient_tolerance = 1e-6;              // ||∇f||_2 < ε_g
+        size_t max_iterations_global = 100;           // Global optimization
+        size_t max_iterations_bootstrap = 50;         // Bootstrap calibration
+
+        // Levenberg-Marquardt specific parameters
+        double lm_lambda = 1e-3;                      // Initial damping parameter
+        double lm_epsilon = 1e-12;                    // Machine precision
+        double lm_function_tolerance = 1e-8;          // Function tolerance
+
+        // Ceres solver specific parameters
+        double ceres_function_tolerance = 1e-6;
+        double ceres_gradient_tolerance = 1e-10;
+        double ceres_parameter_tolerance = 1e-8;
+    };
+}
+```
+
+### Real-Time Calibration
+
+**Incremental Updates**:
+- Update only affected curves when market data changes
+- Use warm-start techniques for optimization
+- Maintain calibration state between updates
+
+**Priority-Based Processing**:
+- Prioritize most important curves for real-time updates
+- Defer less critical calibrations to batch processing
+- Implement quality-based processing queues
+
+## Regulatory and Compliance Considerations
+
+### Model Validation Requirements
+
+**Independent Validation**:
+- Regular independent review of calibration procedures
+- Validation of model assumptions and limitations
+- Documentation of calibration methodology changes
+
+**Audit Trail Maintenance**:
+- Complete logging of calibration inputs and outputs
+- Version control for calibration procedures
+- Reproducibility requirements for regulatory review
+
+### Risk Management Integration
+
+**Stress Testing**:
+- Calibration performance under stressed market conditions
+- Validation of curve behavior in extreme scenarios
+- Assessment of model limitations and breakdowns
+
+**Model Risk Assessment**:
+- Quantification of calibration uncertainty
+- Analysis of model sensitivity to input assumptions
+- Documentation of model limitations and appropriate usage

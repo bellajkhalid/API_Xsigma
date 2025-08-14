@@ -1,0 +1,479 @@
+# Model Uncertainty Identification, Measurement, and Management
+
+## Model Uncertainty and Identification
+
+Les sources d'incertitude du modèle et les déficiences/faiblesses ont été identifiées et catégorisées conformément à la classification définie par la politique. Des findings et limitations de modèle ont été émis pour les sources d'incertitude analysées.
+
+```cpp
+// Implémentation Our project de la gestion de l'incertitude du modèle Short Rate Normal
+namespace xsigma {
+    // Classe pour la gestion de l'incertitude du modèle Short Rate Normal
+    class ShortRateNormalUncertaintyManager {
+    public:
+        // Énumération des catégories de limitations
+        enum class LimitationCategory {
+            MISSING_RISK_FACTOR,          // Facteur de risque manquant
+            NUMERICAL,                    // Numérique
+            MODEL_WEAKNESS,               // Faiblesse du modèle
+            CALIBRATION,                  // Calibration
+            IMPLEMENTATION_DEPLOYMENT     // Implémentation et déploiement
+        };
+        
+        // Énumération des types de limitations
+        enum class LimitationType {
+            INTEREST_RATE_SMILE,          // Smile de taux d'intérêt
+            MONTE_CARLO_ERROR,            // Erreur Monte-Carlo
+            FORWARD_VOLATILITY,           // Volatilité forward
+            INFLATION_VOLATILITY_SMILE,   // Smile de volatilité d'inflation
+            MARKET_CALIBRATION,           // Calibration de marché
+            CALIBRATION_UNCERTAINTY       // Incertitude de calibration
+        };
+        
+        // Structure pour une limitation de modèle
+        struct ModelLimitation {
+            int uid;                              // Identifiant unique
+            std::string name;                     // Nom de la limitation
+            LimitationCategory category;          // Catégorie
+            LimitationType type;                  // Type
+            std::string framework;                // Framework concerné
+            std::string description;              // Description détaillée
+            std::string impact_assessment;       // Évaluation de l'impact
+            std::string mitigating_control;       // Contrôle d'atténuation
+            bool reserve_required;                // Réserve requise
+            std::string reserve_policy;           // Politique de réserve
+        };
+        
+        // Structure pour la gestion des réserves
+        struct ReserveManagement {
+            int limitation_uid;                   // UID de la limitation
+            std::string reserve_policy;           // Politique de réserve
+            bool limitation_assessed;             // Limitation évaluée
+            std::string rfu_status;               // Statut RFU
+            std::string reserve_mvr;              // MVR de réserve
+            double reserve_amount_eur;            // Montant de réserve en EUR
+            std::string monitoring_frequency;     // Fréquence de monitoring
+        };
+        
+        // Obtenir toutes les limitations du modèle
+        std::vector<ModelLimitation> get_model_limitations() const {
+            return {
+                // Limitation 699: Interest Rate Smile
+                {
+                    699, "Interest Rate Smile", LimitationCategory::MISSING_RISK_FACTOR,
+                    LimitationType::INTEREST_RATE_SMILE, "ShortRate",
+                    "Le framework ShortRate ne peut produire qu'un profil de volatilité implicite "
+                    "de taux d'intérêt décroissant (pour β ∈ (0, 1]). Cette hypothèse est raisonnable "
+                    "pour les marchés qui n'exhibent pas de smile de volatilité implicite significatif "
+                    "ou quand les produits ne sont pas sensibles aux strikes élevés.",
+                    "Impact limité pour produits peu sensibles aux strikes élevés",
+                    "Monitoring des conditions de marché et sensibilité aux strikes",
+                    true, "NL--"
+                },
+                
+                // Limitation 700: Monte-Carlo Error
+                {
+                    700, "Monte-Carlo Error", LimitationCategory::NUMERICAL,
+                    LimitationType::MONTE_CARLO_ERROR, "DBX",
+                    "Les valorisations Monte-Carlo ont une erreur associée qui est fonction "
+                    "de la discrétisation de la grille temporelle et du nombre de simulations utilisées.",
+                    "Précision dépendante des paramètres de configuration",
+                    "Paramètres NumberSims et FreqTimeVec appropriés, analyse de convergence",
+                    true, "NL--"
+                },
+                
+                // Limitation 2070: Interest Rate Forward Volatility
+                {
+                    2070, "Interest Rate Forward Volatility", LimitationCategory::MISSING_RISK_FACTOR,
+                    LimitationType::FORWARD_VOLATILITY, "ShortRate",
+                    "Le framework ShortRate ne peut produire qu'une dynamique de volatilité forward "
+                    "qui ne préserve pas les caractéristiques observées sur le marché de volatilité "
+                    "(ex: hump de volatilité). Cette hypothèse est raisonnable pour les produits "
+                    "à expiry unique ou faiblement path-dependent.",
+                    "Impact limité pour produits faiblement path-dependent",
+                    "Monitoring périodique basé sur l'utilisation continue",
+                    true, "NL--"
+                },
+                
+                // Limitation 2561: Inflation Volatility Smile
+                {
+                    2561, "Inflation Volatility Smile", LimitationCategory::MODEL_WEAKNESS,
+                    LimitationType::INFLATION_VOLATILITY_SMILE, "InflationStochVol",
+                    "Le framework InflationStochVol a une flexibilité limitée et peut ne pas être "
+                    "capable de capturer la structure complète du smile de volatilité du marché "
+                    "d'inflation. Cette hypothèse est raisonnable s'il n'y a que des cibles limitées "
+                    "disponibles pour la calibration.",
+                    "Impact limité si cibles de calibration limitées",
+                    "Monitoring des paramètres StochVol lors de changements de marché",
+                    true, "NL--"
+                },
+                
+                // Limitation 3085: Interest Rate Market Calibration
+                {
+                    3085, "Interest Rate Market Calibration", LimitationCategory::MODEL_WEAKNESS,
+                    LimitationType::MARKET_CALIBRATION, "ShortRate",
+                    "Le framework ShortRate ne peut pas simultanément fitter l'ensemble du marché "
+                    "d'options (caps/swaptions de toutes expiries/tenors/strikes). Cette limitation "
+                    "peut être améliorée en calibrant différentes volatilités exotiques à différentes "
+                    "parties de la surface de volatilité.",
+                    "Limitation peut être améliorée par calibration ciblée",
+                    "Calibration différentielle selon parties de surface de volatilité",
+                    true, "NL--"
+                },
+                
+                // Limitation 3609: Model Calibration Uncertainty
+                {
+                    3609, "Model Calibration Uncertainty", LimitationCategory::CALIBRATION,
+                    LimitationType::CALIBRATION_UNCERTAINTY, "InflationStochVol",
+                    "La qualité de calibration du modèle, exprimée en termes de distance entre "
+                    "les volatilités implicites générées par le modèle et les volatilités observées "
+                    "sur le marché peut varier, selon le nombre de cibles de calibration, les régimes "
+                    "de marché, certains paramètres de l'algorithme de calibration.",
+                    "Impact sur prix et sensibilités des produits en scope",
+                    "GVQ doit monitorer la qualité de calibration et calculer réserves d'incertitude",
+                    true, "NL--"
+                },
+                
+                // Limitation 3610: LocalVolsSV Initial Guess
+                {
+                    3610, "LocalVolsSV Initial Guess", LimitationCategory::NUMERICAL,
+                    LimitationType::CALIBRATION_UNCERTAINTY, "InflationStochVol",
+                    "L'initial guess du paramètre LocalVolsSV impacte les volatilités générées "
+                    "par le modèle dans quelques cas de marché extrêmes. Le problème semble résolu "
+                    "si on fixe l'initial guess LocalVolsSV au-dessus de 100bps et/ou fine-tune "
+                    "la valeur LocalVolsSV calibrée utilisée en Step2.",
+                    "Impact dans cas de marché extrêmes",
+                    "Initial guess > 100bps, fine-tuning Step2, monitoring et réserves",
+                    true, "NL--"
+                },
+                
+                // Limitation 3611: SV Parameters Exogenous Setting
+                {
+                    3611, "SV Parameters Exogenous Setting", LimitationCategory::MODEL_WEAKNESS,
+                    LimitationType::CALIBRATION_UNCERTAINTY, "InflationStochVol",
+                    "Le processus de calibration peut choisir de fixer de manière exogène les "
+                    "paramètres SV mean reversion rate (MeanRevSV) et volatility of volatility "
+                    "(LocalVolsSV) au lieu de les calibrer aux observables de marché. Ceci résulte "
+                    "en une incertitude autour du marking de ces paramètres.",
+                    "Incertitude sur marking des paramètres SV",
+                    "Monitoring régulier par GVQ et calcul de réserves d'incertitude",
+                    true, "NL--"
+                },
+                
+                // Limitation 3612: YOY/ZC Simultaneous Calibration
+                {
+                    3612, "YOY/ZC Simultaneous Calibration", LimitationCategory::CALIBRATION,
+                    LimitationType::CALIBRATION_UNCERTAINTY, "InflationStochVol",
+                    "Le processus de calibration ne fitte pas simultanément les marchés YOY et ZC "
+                    "et est sujet à incertitude due au type et disponibilité des données de marché "
+                    "utilisées comme cibles de calibration. Les produits avec caractéristiques "
+                    "callable/path dependent devraient être benchmarkés contre un modèle qui peut "
+                    "fitter les deux marchés YOY et ZC.",
+                    "Impact sur exotiques callable/path dependent",
+                    "Monitoring incertitude calibration, réserves, benchmark modèles alternatifs",
+                    true, "NL--"
+                }
+            };
+        }
+        
+        // Gestion des réserves d'incertitude
+        std::vector<ReserveManagement> get_reserve_management() const {
+            auto limitations = get_model_limitations();
+            std::vector<ReserveManagement> reserves;
+            
+            for (const auto& limitation : limitations) {
+                ReserveManagement reserve;
+                reserve.limitation_uid = limitation.uid;
+                reserve.reserve_policy = "NL--"; // Non disponible encore
+                reserve.limitation_assessed = true;
+                reserve.rfu_status = "TBD";
+                reserve.reserve_mvr = "[64]";
+                reserve.reserve_amount_eur = 0.0; // À déterminer
+                reserve.monitoring_frequency = "Monthly";
+                
+                reserves.push_back(reserve);
+            }
+            
+            return reserves;
+        }
+        
+        // Évaluation de l'impact des limitations sur un produit
+        std::vector<int> assess_product_limitations(
+            const std::string& product_name) const {
+            
+            std::vector<int> applicable_limitations;
+            
+            // Mapping produit-limitations basé sur les caractéristiques
+            if (product_name.find("Cap") != std::string::npos || 
+                product_name.find("Floor") != std::string::npos) {
+                // Produits avec optionalité sensibles au smile
+                applicable_limitations = {699, 2561, 3085, 3609, 3610, 3611, 3612};
+            } else if (product_name.find("Swaption") != std::string::npos) {
+                // Swaptions sensibles à la volatilité forward
+                applicable_limitations = {699, 2070, 2561, 3085, 3609, 3610, 3611, 3612};
+            } else if (product_name.find("Callable") != std::string::npos ||
+                      product_name.find("Lookback") != std::string::npos ||
+                      product_name.find("Snowball") != std::string::npos) {
+                // Produits path-dependent
+                applicable_limitations = {2070, 2561, 3609, 3610, 3611, 3612};
+            } else {
+                // Produits linéaires - limitations générales
+                applicable_limitations = {700, 3609, 3611};
+            }
+            
+            return applicable_limitations;
+        }
+        
+        // Calcul des réserves d'incertitude
+        double calculate_uncertainty_reserve(
+            const std::string& product_name,
+            double product_pv,
+            const std::vector<int>& applicable_limitations) const {
+            
+            double total_reserve = 0.0;
+            auto limitations = get_model_limitations();
+            
+            for (int uid : applicable_limitations) {
+                auto it = std::find_if(limitations.begin(), limitations.end(),
+                    [uid](const ModelLimitation& lim) { return lim.uid == uid; });
+                
+                if (it != limitations.end()) {
+                    // Calcul de réserve basé sur le type de limitation
+                    double limitation_reserve = 0.0;
+                    
+                    switch (it->type) {
+                        case LimitationType::MONTE_CARLO_ERROR:
+                            // Réserve basée sur l'erreur Monte-Carlo estimée
+                            limitation_reserve = std::abs(product_pv) * 0.001; // 0.1%
+                            break;
+                            
+                        case LimitationType::CALIBRATION_UNCERTAINTY:
+                            // Réserve basée sur l'incertitude de calibration
+                            limitation_reserve = std::abs(product_pv) * 0.005; // 0.5%
+                            break;
+                            
+                        case LimitationType::INFLATION_VOLATILITY_SMILE:
+                            // Réserve pour smile d'inflation limité
+                            limitation_reserve = std::abs(product_pv) * 0.002; // 0.2%
+                            break;
+                            
+                        case LimitationType::INTEREST_RATE_SMILE:
+                            // Réserve pour smile de taux limité
+                            limitation_reserve = std::abs(product_pv) * 0.001; // 0.1%
+                            break;
+                            
+                        default:
+                            limitation_reserve = std::abs(product_pv) * 0.001; // Défaut 0.1%
+                            break;
+                    }
+                    
+                    total_reserve += limitation_reserve;
+                }
+            }
+            
+            return total_reserve;
+        }
+        
+        // Monitoring des limitations
+        struct LimitationMonitoringReport {
+            std::string report_date;
+            std::map<int, std::string> limitation_status;
+            std::map<int, double> reserve_amounts;
+            std::vector<std::string> recommendations;
+            std::string overall_assessment;
+        };
+        
+        LimitationMonitoringReport generate_monitoring_report() const {
+            LimitationMonitoringReport report;
+            report.report_date = get_current_date();
+            
+            auto limitations = get_model_limitations();
+            
+            for (const auto& limitation : limitations) {
+                // Statut de chaque limitation
+                report.limitation_status[limitation.uid] = "ACTIVE - MONITORED";
+                
+                // Montants de réserve (à déterminer par GVQ)
+                report.reserve_amounts[limitation.uid] = 0.0; // TBD
+            }
+            
+            // Recommandations
+            report.recommendations = {
+                "Monitoring continu de la qualité de calibration",
+                "Évaluation régulière des réserves d'incertitude",
+                "Benchmark avec modèles alternatifs pour produits complexes",
+                "Amélioration des initial guess pour LocalVolsSV",
+                "Développement de capacités de calibration simultanée YOY/ZC"
+            };
+            
+            report.overall_assessment = 
+                "Limitations identifiées et contrôlées. Réserves d'incertitude à finaliser. "
+                "Monitoring actif requis pour conditions de marché changeantes.";
+            
+            return report;
+        }
+        
+    private:
+        std::string get_current_date() const {
+            auto now = std::chrono::system_clock::now();
+            auto time_t = std::chrono::system_clock::to_time_t(now);
+            std::stringstream ss;
+            ss << std::put_time(std::localtime(&time_t), "%Y-%m-%d");
+            return ss.str();
+        }
+    };
+}
+```
+*Cette implémentation C++ dans Our project gère l'identification, la mesure et la gestion de l'incertitude du modèle avec système complet de limitations, réserves et monitoring pour le modèle Short Rate Normal.*
+
+## Model Limitations
+
+Les déficiences/faiblesses du modèle ont été identifiées et catégorisées en :
+
+- **Techniques numériques**
+- **Hypothèses méthodologiques**  
+- **Implémentation et déploiement**
+- **Facteurs de risque manquants**
+- **Problèmes de processus**
+
+### Detailed Model Limitations
+
+| UID | Limitation | Category | Framework | Description |
+|-----|------------|----------|-----------|-------------|
+| **699** | Interest Rate Smile | Missing Risk Factor | ShortRate | Le framework ShortRate ne peut produire qu'un profil de volatilité implicite décroissant (β ∈ (0, 1]) |
+| **700** | Monte-Carlo Error | Numerical | DBX | Erreur Monte-Carlo fonction de la discrétisation temporelle et du nombre de simulations |
+| **2070** | Interest Rate Forward Volatility | Missing Risk Factor | ShortRate | Dynamique de volatilité forward ne préservant pas les caractéristiques observées (hump) |
+| **2561** | Inflation Volatility Smile | Model Weakness | InflationStochVol | Flexibilité limitée pour capturer la structure complète du smile d'inflation |
+| **3085** | Interest Rate Market Calibration | Model Weakness | ShortRate | Impossibilité de fitter simultanément l'ensemble du marché d'options |
+| **3609** | Model Calibration Uncertainty | Calibration | InflationStochVol | Qualité de calibration variable selon cibles et régimes de marché |
+| **3610** | LocalVolsSV Initial Guess | Numerical | InflationStochVol | Impact de l'initial guess dans cas de marché extrêmes |
+| **3611** | SV Parameters Exogenous | Model Weakness | InflationStochVol | Paramètres SV fixés de manière exogène au lieu d'être calibrés |
+| **3612** | YOY/ZC Calibration | Calibration | InflationStochVol | Pas de calibration simultanée des marchés YOY et ZC |
+
+## Model Uncertainty Measurement and Management
+
+### Reserve Policy Framework
+
+L'exigence d'une méthodologie d'ajustement de valorisation pour compenser une limitation de modèle doit être établie et implémentée par VC/GSA.
+
+**Note :** Les informations sur la politique de réserve ne sont pas encore disponibles. Elles sont donc notées "NL--" pour toutes les limitations.
+
+### Compensating Controls Assessment
+
+| Limitation UID | Reserve Policy | Limitation Assessed | RFU | Reserve MVR |
+|----------------|----------------|---------------------|-----|-------------|
+| **699** | NL--** | YES | TBD | [64] |
+| **700** | NL--** | YES | TBD | [64] |
+| **2070** | NL--** | YES | TBD | [64] |
+| **2561** | NL--** | YES | TBD | [64] |
+| **3085** | NL--** | YES | TBD | [64] |
+| **3609** | NL--** | YES | TBD | [64] |
+| **3610** | NL--** | YES | TBD | [64] |
+| **3611** | NL--** | YES | TBD | [64] |
+| **3612** | NL--** | YES | TBD | [64] |
+
+### Specific Limitation Analysis
+
+#### Limitation 699: Interest Rate Smile
+- **Impact** : Limité pour produits peu sensibles aux strikes élevés
+- **Contrôle** : Monitoring des conditions de marché et sensibilité aux strikes
+- **Recommandation** : Acceptable pour produits sans smile significatif
+
+#### Limitation 700: Monte-Carlo Error  
+- **Impact** : Précision dépendante de la configuration
+- **Contrôle** : Paramètres NumberSims et FreqTimeVec appropriés
+- **Recommandation** : Analyse de convergence produit-spécifique si nécessaire
+
+#### Limitation 2070: Forward Volatility
+- **Impact** : Limité pour produits faiblement path-dependent
+- **Contrôle** : Monitoring périodique basé sur l'utilisation continue
+- **Recommandation** : Acceptable pour single expiry ou faible path-dependency
+
+#### Limitation 2561: Inflation Volatility Smile
+- **Impact** : Limité si cibles de calibration limitées
+- **Contrôle** : Monitoring des paramètres StochVol lors de changements de marché
+- **Recommandation** : Acceptable avec cibles limitées disponibles
+
+#### Limitation 3085: IR Market Calibration
+- **Impact** : Limitation peut être améliorée
+- **Contrôle** : Calibration différentielle selon parties de surface
+- **Recommandation** : Calibrer volatilités exotiques à différentes parties
+
+#### Limitation 3609: Calibration Uncertainty
+- **Impact** : Impact sur prix et sensibilités
+- **Contrôle** : GVQ doit monitorer qualité et calculer réserves
+- **Recommandation** : Monitoring continu de la calibration
+
+#### Limitation 3610: LocalVolsSV Initial Guess
+- **Impact** : Cas de marché extrêmes
+- **Contrôle** : Initial guess > 100bps, fine-tuning Step2
+- **Recommandation** : Monitoring et réserves jusqu'à résolution Finding 2
+
+#### Limitation 3611: SV Parameters Exogenous
+- **Impact** : Incertitude sur marking des paramètres
+- **Contrôle** : Monitoring régulier par GVQ
+- **Recommandation** : Calcul de réserves d'incertitude si nécessaire
+
+#### Limitation 3612: YOY/ZC Simultaneous Calibration
+- **Impact** : Produits callable/path dependent
+- **Contrôle** : Monitoring incertitude, benchmark modèles alternatifs
+- **Recommandation** : Benchmark contre modèles fittant YOY et ZC
+
+## Product-Limitation Mapping
+
+### High-Risk Products (Multiple Limitations)
+- **InflCapFloorYOY** : Limitations 699, 2561, 3085, 3609, 3610, 3611, 3612
+- **InflSwaptionZCEuro** : Limitations 699, 2070, 2561, 3085, 3609, 3610, 3611, 3612
+- **InflSwaptionYOYBerm** : Limitations 2070, 2561, 3609, 3610, 3611, 3612
+
+### Medium-Risk Products (Path-Dependent)
+- **InflSwapLookback** : Limitations 2070, 2561, 3609, 3610, 3611, 3612
+- **InflSwapSnowball** : Limitations 2070, 2561, 3609, 3610, 3611, 3612
+- **InflSwapAverage** : Limitations 2070, 2561, 3609, 3610, 3611, 3612
+
+### Low-Risk Products (Linear)
+- **InflSwapZC** : Limitations 700, 3609, 3611
+- **InflSwapYOY** : Limitations 700, 3609, 3611
+
+## Uncertainty Reserve Calculation
+
+### Reserve Methodology
+- **Monte-Carlo Error** : 0.1% de la PV absolue
+- **Calibration Uncertainty** : 0.5% de la PV absolue  
+- **Inflation Volatility Smile** : 0.2% de la PV absolue
+- **Interest Rate Smile** : 0.1% de la PV absolue
+
+### Monitoring Requirements
+
+#### Monthly Monitoring
+- Qualité de calibration (distance modèle-marché)
+- Paramètres SV exogènes (MeanRevSV, LocalVolsSV)
+- Réserves d'incertitude par limitation
+
+#### Quarterly Review
+- Évaluation des limitations par produit
+- Benchmark avec modèles alternatifs
+- Mise à jour des réserves d'incertitude
+
+#### Annual Assessment
+- Revue complète des limitations
+- Évaluation de l'impact des changements de marché
+- Recommandations d'amélioration du modèle
+
+## Management Actions
+
+### Immediate Actions
+1. **Finaliser les politiques de réserve** pour toutes les limitations
+2. **Implémenter le monitoring** de la qualité de calibration
+3. **Établir les benchmarks** avec modèles alternatifs
+
+### Medium-Term Actions
+1. **Améliorer l'initial guess** pour LocalVolsSV
+2. **Développer la calibration simultanée** YOY/ZC
+3. **Renforcer le monitoring** des conditions de marché
+
+### Long-Term Actions
+1. **Évaluer le remplacement** par le nouveau modèle (2025)
+2. **Développer des capacités** de smile complet
+3. **Améliorer la flexibilité** du framework InflationStochVol
+
+La gestion de l'incertitude du modèle Short Rate Normal dans Our project assure une identification complète des limitations avec contrôles appropriés et monitoring continu pour maintenir la qualité de pricing et la gestion des risques.

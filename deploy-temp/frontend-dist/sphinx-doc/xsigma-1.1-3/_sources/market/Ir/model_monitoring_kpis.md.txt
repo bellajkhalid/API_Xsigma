@@ -1,0 +1,414 @@
+# Model Monitoring – KPIs
+
+## Vue d'ensemble du Monitoring
+
+**N/A** - Les swaps de taux d'intérêt linéaires étant des instruments de pricing déterministe, ils ne nécessitent pas de monitoring de modèle au sens traditionnel. Cependant, le monitoring de la qualité des calculs, de la performance du système, et de la cohérence des résultats reste important pour assurer la fiabilité opérationnelle.
+
+Cette section décrit les KPIs et métriques de monitoring qui peuvent être appliqués au système de pricing de swaps linéaires dans Our project.
+
+```cpp
+// Implémentation Our project du système de monitoring
+namespace xsigma {
+    // Gestionnaire de monitoring pour swaps linéaires
+    class SwapMonitoringManager {
+    public:
+        // Types de métriques de monitoring
+        enum class MetricType {
+            PERFORMANCE,        // Métriques de performance
+            ACCURACY,          // Métriques de précision
+            CONSISTENCY,       // Métriques de cohérence
+            SYSTEM_HEALTH,     // Santé du système
+            DATA_QUALITY       // Qualité des données
+        };
+        
+        // Structure pour une métrique de monitoring
+        struct MonitoringMetric {
+            std::string name;
+            MetricType type;
+            double current_value;
+            double threshold_warning;
+            double threshold_critical;
+            std::string unit;
+            datetime last_updated;
+            bool is_within_bounds;
+        };
+        
+        // Collecte de toutes les métriques
+        std::vector<MonitoringMetric> collect_all_metrics(
+            const std::vector<ptr_const<swap_instrument>>& swaps,
+            const any_container_precomputed& market_data) const {
+            
+            std::vector<MonitoringMetric> metrics;
+            
+            // Métriques de performance
+            auto perf_metrics = collect_performance_metrics(swaps, market_data);
+            metrics.insert(metrics.end(), perf_metrics.begin(), perf_metrics.end());
+            
+            // Métriques de précision
+            auto accuracy_metrics = collect_accuracy_metrics(swaps, market_data);
+            metrics.insert(metrics.end(), accuracy_metrics.begin(), accuracy_metrics.end());
+            
+            // Métriques de cohérence
+            auto consistency_metrics = collect_consistency_metrics(swaps, market_data);
+            metrics.insert(metrics.end(), consistency_metrics.begin(), consistency_metrics.end());
+            
+            // Métriques de santé système
+            auto health_metrics = collect_system_health_metrics();
+            metrics.insert(metrics.end(), health_metrics.begin(), health_metrics.end());
+            
+            // Métriques de qualité des données
+            auto data_quality_metrics = collect_data_quality_metrics(market_data);
+            metrics.insert(metrics.end(), data_quality_metrics.begin(), data_quality_metrics.end());
+            
+            return metrics;
+        }
+        
+    private:
+        std::vector<MonitoringMetric> collect_performance_metrics(
+            const std::vector<ptr_const<swap_instrument>>& swaps,
+            const any_container_precomputed& market_data) const;
+        
+        std::vector<MonitoringMetric> collect_accuracy_metrics(
+            const std::vector<ptr_const<swap_instrument>>& swaps,
+            const any_container_precomputed& market_data) const;
+        
+        std::vector<MonitoringMetric> collect_consistency_metrics(
+            const std::vector<ptr_const<swap_instrument>>& swaps,
+            const any_container_precomputed& market_data) const;
+        
+        std::vector<MonitoringMetric> collect_system_health_metrics() const;
+        
+        std::vector<MonitoringMetric> collect_data_quality_metrics(
+            const any_container_precomputed& market_data) const;
+    };
+}
+```
+*Cette implémentation C++ dans Our project fournit un framework de monitoring complet pour les systèmes de pricing de swaps.*
+
+## Tests de Monitoring et Indicateurs Clés de Performance (KPI)
+
+### Métriques de Performance
+
+Bien que les swaps linéaires ne nécessitent pas de monitoring de modèle traditionnel, plusieurs KPIs peuvent être surveillés pour assurer la performance opérationnelle :
+
+#### Temps de Calcul
+- **Temps de pricing moyen** par swap
+- **Temps de calcul de risque** par portefeuille
+- **Latence de réponse** du système
+
+#### Throughput
+- **Nombre de swaps pricés** par seconde
+- **Volume de calculs de risque** par minute
+- **Capacité de traitement** en période de pointe
+
+```cpp
+// Implémentation Our project des métriques de performance
+namespace xsigma {
+    class PerformanceMonitor {
+    public:
+        // Métriques de temps de calcul
+        struct TimingMetrics {
+            double avg_pricing_time_ms;
+            double max_pricing_time_ms;
+            double avg_risk_calc_time_ms;
+            double max_risk_calc_time_ms;
+            double system_latency_ms;
+        };
+        
+        // Métriques de throughput
+        struct ThroughputMetrics {
+            double swaps_per_second;
+            double risk_calcs_per_minute;
+            double peak_capacity_utilization;
+            size_t concurrent_calculations;
+        };
+        
+        // Collecte des métriques de performance
+        TimingMetrics collect_timing_metrics(
+            const std::vector<ptr_const<swap_instrument>>& swaps,
+            const any_container_precomputed& market_data) const {
+            
+            TimingMetrics metrics;
+            std::vector<double> pricing_times;
+            std::vector<double> risk_times;
+            
+            for (const auto& swap : swaps) {
+                // Mesure du temps de pricing
+                auto start_time = std::chrono::high_resolution_clock::now();
+                swap->price(market_data, option_output_enum::PV);
+                auto end_time = std::chrono::high_resolution_clock::now();
+                
+                auto duration = std::chrono::duration_cast<std::chrono::microseconds>(
+                    end_time - start_time).count() / 1000.0;  // Convert to ms
+                pricing_times.push_back(duration);
+                
+                // Mesure du temps de calcul de risque
+                start_time = std::chrono::high_resolution_clock::now();
+                calculate_swap_risk(swap, market_data);
+                end_time = std::chrono::high_resolution_clock::now();
+                
+                duration = std::chrono::duration_cast<std::chrono::microseconds>(
+                    end_time - start_time).count() / 1000.0;
+                risk_times.push_back(duration);
+            }
+            
+            // Calcul des statistiques
+            metrics.avg_pricing_time_ms = calculate_average(pricing_times);
+            metrics.max_pricing_time_ms = *std::max_element(pricing_times.begin(), pricing_times.end());
+            metrics.avg_risk_calc_time_ms = calculate_average(risk_times);
+            metrics.max_risk_calc_time_ms = *std::max_element(risk_times.begin(), risk_times.end());
+            
+            return metrics;
+        }
+        
+    private:
+        double calculate_average(const std::vector<double>& values) const {
+            return std::accumulate(values.begin(), values.end(), 0.0) / values.size();
+        }
+        
+        void calculate_swap_risk(
+            const ptr_const<swap_instrument>& swap,
+            const any_container_precomputed& market_data) const;
+    };
+}
+```
+*Cette implémentation C++ dans Our project mesure les métriques de performance avec timing précis et statistiques détaillées.*
+
+### Métriques de Qualité
+
+#### Précision Numérique
+- **Stabilité des calculs** : Variation des résultats pour inputs identiques
+- **Cohérence des méthodes** : Comparaison entre calculs numériques et AD
+- **Validation croisée** : Vérification par méthodes alternatives
+
+#### Qualité des Données
+- **Disponibilité des courbes** : Pourcentage de courbes disponibles
+- **Fraîcheur des données** : Âge des dernières mises à jour
+- **Cohérence des fixings** : Validation des fixings historiques
+
+```cpp
+// Implémentation Our project des métriques de qualité
+namespace xsigma {
+    class QualityMonitor {
+    public:
+        // Métriques de précision numérique
+        struct NumericalAccuracyMetrics {
+            double calculation_stability_score;    // 0.0 à 1.0
+            double numerical_vs_ad_consistency;    // Différence relative
+            double cross_validation_score;         // Score de validation croisée
+            size_t failed_calculations;            // Nombre de calculs échoués
+        };
+        
+        // Métriques de qualité des données
+        struct DataQualityMetrics {
+            double curve_availability_percentage;
+            double data_freshness_hours;
+            double fixing_consistency_score;
+            size_t missing_data_points;
+            size_t stale_data_points;
+        };
+        
+        // Évaluation de la stabilité des calculs
+        double evaluate_calculation_stability(
+            const swap_instrument& swap,
+            const any_container_precomputed& market_data,
+            int num_iterations = 100) const {
+            
+            std::vector<double> results;
+            results.reserve(num_iterations);
+            
+            // Répétition des calculs
+            for (int i = 0; i < num_iterations; ++i) {
+                double pv = swap.price(market_data, option_output_enum::PV);
+                results.push_back(pv);
+            }
+            
+            // Calcul de la variance relative
+            double mean = calculate_mean(results);
+            double variance = calculate_variance(results, mean);
+            double coefficient_of_variation = std::sqrt(variance) / std::abs(mean);
+            
+            // Score de stabilité (1.0 = parfaitement stable)
+            return std::max(0.0, 1.0 - coefficient_of_variation * 1e6);
+        }
+        
+        // Comparaison numérique vs AD
+        double compare_numerical_vs_ad(
+            const swap_instrument& swap,
+            const any_container_precomputed& market_data) const {
+            
+            // Calcul numérique
+            double numerical_delta = calculate_numerical_delta(swap, market_data);
+            
+            // Calcul AD
+            double ad_delta = calculate_ad_delta(swap, market_data);
+            
+            // Différence relative
+            if (std::abs(ad_delta) > 1e-12) {
+                return std::abs(numerical_delta - ad_delta) / std::abs(ad_delta);
+            } else {
+                return std::abs(numerical_delta - ad_delta);
+            }
+        }
+        
+        // Évaluation de la qualité des données
+        DataQualityMetrics evaluate_data_quality(
+            const any_container_precomputed& market_data) const {
+            
+            DataQualityMetrics metrics;
+            
+            // Disponibilité des courbes
+            auto required_curves = get_required_curves();
+            size_t available_curves = 0;
+            
+            for (const auto& curve_id : required_curves) {
+                if (market_data.contains(curve_id)) {
+                    available_curves++;
+                }
+            }
+            
+            metrics.curve_availability_percentage = 
+                (double)available_curves / required_curves.size() * 100.0;
+            
+            // Fraîcheur des données
+            metrics.data_freshness_hours = calculate_data_age_hours(market_data);
+            
+            // Cohérence des fixings
+            metrics.fixing_consistency_score = evaluate_fixing_consistency(market_data);
+            
+            return metrics;
+        }
+        
+    private:
+        double calculate_mean(const std::vector<double>& values) const;
+        double calculate_variance(const std::vector<double>& values, double mean) const;
+        double calculate_numerical_delta(
+            const swap_instrument& swap,
+            const any_container_precomputed& market_data) const;
+        double calculate_ad_delta(
+            const swap_instrument& swap,
+            const any_container_precomputed& market_data) const;
+        std::vector<std::string> get_required_curves() const;
+        double calculate_data_age_hours(const any_container_precomputed& market_data) const;
+        double evaluate_fixing_consistency(const any_container_precomputed& market_data) const;
+    };
+}
+```
+*Cette implémentation C++ dans Our project évalue la qualité des calculs et des données avec métriques détaillées et scoring.*
+
+## Exceptions de Performance
+
+### Seuils d'Alerte
+
+#### Seuils de Performance
+- **Temps de pricing** > 100ms par swap (Warning), > 500ms (Critical)
+- **Temps de calcul de risque** > 1s par portefeuille (Warning), > 5s (Critical)
+- **Utilisation mémoire** > 80% (Warning), > 95% (Critical)
+
+#### Seuils de Qualité
+- **Stabilité de calcul** < 0.99 (Warning), < 0.95 (Critical)
+- **Disponibilité des courbes** < 95% (Warning), < 90% (Critical)
+- **Fraîcheur des données** > 4h (Warning), > 8h (Critical)
+
+### Détection d'Anomalies
+
+```cpp
+// Implémentation Our project de la détection d'exceptions
+namespace xsigma {
+    class ExceptionDetector {
+    public:
+        // Types d'exceptions
+        enum class ExceptionType {
+            PERFORMANCE_DEGRADATION,
+            CALCULATION_INSTABILITY,
+            DATA_QUALITY_ISSUE,
+            SYSTEM_RESOURCE_EXHAUSTION,
+            UNEXPECTED_RESULT
+        };
+        
+        // Structure d'exception détectée
+        struct DetectedException {
+            ExceptionType type;
+            std::string description;
+            double severity_score;  // 0.0 à 1.0
+            datetime detection_time;
+            std::map<std::string, double> related_metrics;
+            std::string recommended_action;
+        };
+        
+        // Détection d'exceptions basée sur les métriques
+        std::vector<DetectedException> detect_exceptions(
+            const std::vector<SwapMonitoringManager::MonitoringMetric>& metrics) const {
+            
+            std::vector<DetectedException> exceptions;
+            
+            for (const auto& metric : metrics) {
+                if (!metric.is_within_bounds) {
+                    DetectedException exception;
+                    exception.detection_time = datetime::now();
+                    
+                    if (metric.current_value > metric.threshold_critical) {
+                        exception.severity_score = 1.0;
+                        exception.recommended_action = "Immediate intervention required";
+                    } else if (metric.current_value > metric.threshold_warning) {
+                        exception.severity_score = 0.6;
+                        exception.recommended_action = "Monitor closely and investigate";
+                    }
+                    
+                    // Classification du type d'exception
+                    exception.type = classify_exception_type(metric);
+                    exception.description = generate_exception_description(metric);
+                    exception.related_metrics[metric.name] = metric.current_value;
+                    
+                    exceptions.push_back(exception);
+                }
+            }
+            
+            return exceptions;
+        }
+        
+    private:
+        ExceptionType classify_exception_type(
+            const SwapMonitoringManager::MonitoringMetric& metric) const {
+            
+            switch (metric.type) {
+                case SwapMonitoringManager::MetricType::PERFORMANCE:
+                    return ExceptionType::PERFORMANCE_DEGRADATION;
+                case SwapMonitoringManager::MetricType::ACCURACY:
+                    return ExceptionType::CALCULATION_INSTABILITY;
+                case SwapMonitoringManager::MetricType::DATA_QUALITY:
+                    return ExceptionType::DATA_QUALITY_ISSUE;
+                case SwapMonitoringManager::MetricType::SYSTEM_HEALTH:
+                    return ExceptionType::SYSTEM_RESOURCE_EXHAUSTION;
+                default:
+                    return ExceptionType::UNEXPECTED_RESULT;
+            }
+        }
+        
+        std::string generate_exception_description(
+            const SwapMonitoringManager::MonitoringMetric& metric) const;
+    };
+}
+```
+*Cette implémentation C++ dans Our project détecte automatiquement les exceptions avec classification et recommandations d'actions.*
+
+## Plan de Mitigation des Exceptions
+
+### Stratégies de Mitigation
+
+#### Dégradation de Performance
+1. **Optimisation des calculs** : Utilisation de cache et parallélisation
+2. **Réduction de charge** : Limitation temporaire du throughput
+3. **Scaling horizontal** : Ajout de ressources de calcul
+
+#### Problèmes de Qualité des Données
+1. **Fallback sur données alternatives** : Utilisation de sources secondaires
+2. **Interpolation intelligente** : Estimation de données manquantes
+3. **Validation renforcée** : Vérifications additionnelles
+
+#### Instabilité des Calculs
+1. **Ajustement des paramètres** : Modification des tolérances
+2. **Méthodes alternatives** : Basculement vers calculs AD
+3. **Validation croisée** : Vérification par méthodes multiples
+
+Cette approche de monitoring assure la fiabilité opérationnelle du système de pricing de swaps linéaires même en l'absence de risque de modèle traditionnel.

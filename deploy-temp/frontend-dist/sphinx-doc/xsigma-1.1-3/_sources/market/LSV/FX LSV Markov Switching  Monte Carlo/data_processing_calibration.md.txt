@@ -1,0 +1,533 @@
+# Data Processing and Calibration
+
+## Overview
+
+Cette section décrit les procédures de traitement des données et de calibration spécifiques au modèle **FX LSV Markov Switching Monte Carlo**, incluant les sources de données FX, les méthodes de calibration et la validation des paramètres.
+
+## FX Market Data Sources
+
+### Primary Data Sources
+
+#### Spot FX Rates
+- **Reuters/Bloomberg** : Taux de change en temps réel
+- **ECB Reference Rates** : Taux de référence BCE
+- **Central Bank Rates** : Taux officiels des banques centrales
+- **Interbank Rates** : Taux interbancaires directs
+
+#### FX Volatility Surfaces
+- **Implied Volatilities** : Options vanilles cotées
+- **Risk Reversals** : 25-delta risk reversals
+- **Butterflies** : 25-delta butterflies
+- **ATM Volatilities** : Volatilités at-the-money
+
+#### Interest Rate Curves
+- **Domestic Curves** : Courbes de taux domestiques
+- **Foreign Curves** : Courbes de taux étrangères
+- **Cross-Currency Basis** : Spreads de base cross-currency
+- **Forward Points** : Points de terme FX
+
+### Data Quality Control
+
+#### Real-Time Validation
+```cpp
+// Validation en temps réel des données FX
+class FXDataValidator {
+public:
+    struct ValidationResult {
+        bool is_valid;
+        std::vector<std::string> warnings;
+        std::vector<std::string> errors;
+        double confidence_score;
+    };
+    
+    ValidationResult validate_fx_spot(double fx_rate, const std::string& currency_pair) {
+        ValidationResult result;
+        result.is_valid = true;
+        result.confidence_score = 1.0;
+        
+        // Validation de plausibilité
+        auto historical_range = get_historical_range(currency_pair, 30); // 30 jours
+        
+        if (fx_rate < historical_range.min * 0.95 || fx_rate > historical_range.max * 1.05) {
+            result.warnings.push_back("FX rate outside 5% of 30-day range");
+            result.confidence_score *= 0.8;
+        }
+        
+        // Validation de cohérence triangulaire
+        if (!validate_triangular_arbitrage(fx_rate, currency_pair)) {
+            result.errors.push_back("Triangular arbitrage violation detected");
+            result.is_valid = false;
+        }
+        
+        // Validation de spread bid-ask
+        double spread = get_bid_ask_spread(currency_pair);
+        if (spread > get_max_acceptable_spread(currency_pair)) {
+            result.warnings.push_back("Bid-ask spread unusually wide");
+            result.confidence_score *= 0.9;
+        }
+        
+        return result;
+    }
+    
+    ValidationResult validate_volatility_surface(
+        const std::vector<double>& strikes,
+        const std::vector<double>& maturities,
+        const std::vector<std::vector<double>>& volatilities) {
+        
+        ValidationResult result;
+        result.is_valid = true;
+        result.confidence_score = 1.0;
+        
+        // Validation d'absence d'arbitrage
+        if (!check_calendar_arbitrage(maturities, volatilities)) {
+            result.errors.push_back("Calendar arbitrage detected");
+            result.is_valid = false;
+        }
+        
+        if (!check_butterfly_arbitrage(strikes, volatilities)) {
+            result.errors.push_back("Butterfly arbitrage detected");
+            result.is_valid = false;
+        }
+        
+        // Validation de smoothness
+        double smoothness_score = calculate_smoothness_score(volatilities);
+        if (smoothness_score < 0.8) {
+            result.warnings.push_back("Volatility surface not smooth");
+            result.confidence_score *= 0.85;
+        }
+        
+        return result;
+    }
+    
+private:
+    struct HistoricalRange {
+        double min, max, mean, std;
+    };
+    
+    HistoricalRange get_historical_range(const std::string& pair, int days) {
+        // Récupération de la plage historique
+        return {1.0, 1.2, 1.1, 0.05}; // Placeholder
+    }
+    
+    bool validate_triangular_arbitrage(double rate, const std::string& pair) {
+        // Validation de l'arbitrage triangulaire
+        return true; // Placeholder
+    }
+    
+    double get_bid_ask_spread(const std::string& pair) {
+        return 0.0001; // Placeholder
+    }
+    
+    double get_max_acceptable_spread(const std::string& pair) {
+        return 0.0005; // Placeholder
+    }
+    
+    bool check_calendar_arbitrage(const std::vector<double>& maturities,
+                                 const std::vector<std::vector<double>>& vols) {
+        return true; // Placeholder
+    }
+    
+    bool check_butterfly_arbitrage(const std::vector<double>& strikes,
+                                  const std::vector<std::vector<double>>& vols) {
+        return true; // Placeholder
+    }
+    
+    double calculate_smoothness_score(const std::vector<std::vector<double>>& vols) {
+        return 0.9; // Placeholder
+    }
+};
+```
+
+## Calibration Framework
+
+### Sequential Calibration Process
+
+#### Step 1: Local Volatility Calibration
+```cpp
+// Calibration de la volatilité locale FX
+class FXLocalVolatilityCalibrator {
+public:
+    struct CalibrationResult {
+        std::vector<std::vector<double>> local_vol_surface;
+        double rmse;
+        double max_error;
+        bool convergence_achieved;
+        int iterations_used;
+    };
+    
+    CalibrationResult calibrate_local_volatility(
+        const FXMarketData& market_data) {
+        
+        CalibrationResult result;
+        
+        // Construction de la surface de volatilité implicite
+        auto implied_vol_surface = build_implied_vol_surface(market_data);
+        
+        // Application de l'équation de Dupire FX
+        result.local_vol_surface = apply_fx_dupire_equation(
+            implied_vol_surface, 
+            market_data.domestic_rate,
+            market_data.foreign_rate
+        );
+        
+        // Validation de la calibration
+        auto validation_prices = calculate_validation_prices(result.local_vol_surface);
+        result.rmse = calculate_rmse(market_data.option_prices, validation_prices);
+        result.max_error = calculate_max_error(market_data.option_prices, validation_prices);
+        
+        result.convergence_achieved = (result.rmse < 0.01 && result.max_error < 0.03);
+        
+        return result;
+    }
+    
+private:
+    std::vector<std::vector<double>> build_implied_vol_surface(
+        const FXMarketData& data) {
+        // Construction de la surface de volatilité implicite
+        return {}; // Placeholder
+    }
+    
+    std::vector<std::vector<double>> apply_fx_dupire_equation(
+        const std::vector<std::vector<double>>& implied_vols,
+        double domestic_rate,
+        double foreign_rate) {
+        
+        // Application de l'équation de Dupire adaptée FX
+        // σ_LV²(K,T) = (2∂C/∂T + (r_d-r_f)K∂C/∂K) / (K²∂²C/∂K²)
+        
+        return {}; // Placeholder
+    }
+    
+    std::vector<double> calculate_validation_prices(
+        const std::vector<std::vector<double>>& local_vol) {
+        return {}; // Placeholder
+    }
+    
+    double calculate_rmse(const std::vector<double>& market,
+                         const std::vector<double>& model) {
+        if (market.size() != model.size()) return 1.0;
+        
+        double sum_squared_errors = 0.0;
+        for (size_t i = 0; i < market.size(); ++i) {
+            double error = market[i] - model[i];
+            sum_squared_errors += error * error;
+        }
+        
+        return std::sqrt(sum_squared_errors / market.size());
+    }
+    
+    double calculate_max_error(const std::vector<double>& market,
+                              const std::vector<double>& model) {
+        double max_error = 0.0;
+        for (size_t i = 0; i < market.size(); ++i) {
+            double error = std::abs(market[i] - model[i]) / market[i];
+            max_error = std::max(max_error, error);
+        }
+        return max_error;
+    }
+};
+```
+
+#### Step 2: Stochastic Volatility Parameters
+```cpp
+// Calibration des paramètres de volatilité stochastique
+class FXStochasticVolatilityCalibrator {
+public:
+    struct SVParameters {
+        double vol_of_vol;           // ν
+        double mean_reversion_speed; // κ
+        double long_term_variance;   // θ
+        double correlation;          // ρ
+    };
+    
+    struct SVCalibrationResult {
+        SVParameters parameters;
+        double objective_value;
+        bool convergence_achieved;
+        std::vector<double> residuals;
+    };
+    
+    SVCalibrationResult calibrate_sv_parameters(
+        const FXMarketData& market_data,
+        const std::vector<std::vector<double>>& local_vol_surface) {
+        
+        SVCalibrationResult result;
+        
+        // Configuration de l'optimisation
+        auto objective_function = [&](const std::vector<double>& params) {
+            SVParameters sv_params;
+            sv_params.vol_of_vol = params[0];
+            sv_params.mean_reversion_speed = params[1];
+            sv_params.long_term_variance = params[2];
+            sv_params.correlation = params[3];
+            
+            return calculate_sv_objective(sv_params, market_data, local_vol_surface);
+        };
+        
+        // Optimisation par Levenberg-Marquardt
+        std::vector<double> initial_guess = {0.3, 2.0, 0.04, -0.7};
+        std::vector<double> lower_bounds = {0.1, 0.5, 0.01, -0.95};
+        std::vector<double> upper_bounds = {1.0, 10.0, 0.20, 0.95};
+        
+        auto optimization_result = levenberg_marquardt_optimize(
+            objective_function, initial_guess, lower_bounds, upper_bounds);
+        
+        // Extraction des résultats
+        result.parameters.vol_of_vol = optimization_result.solution[0];
+        result.parameters.mean_reversion_speed = optimization_result.solution[1];
+        result.parameters.long_term_variance = optimization_result.solution[2];
+        result.parameters.correlation = optimization_result.solution[3];
+        
+        result.objective_value = optimization_result.final_objective;
+        result.convergence_achieved = optimization_result.converged;
+        
+        return result;
+    }
+    
+private:
+    double calculate_sv_objective(
+        const SVParameters& params,
+        const FXMarketData& market_data,
+        const std::vector<std::vector<double>>& local_vol) {
+        
+        // Calcul de l'objectif de calibration SV
+        double total_error = 0.0;
+        
+        // Pricing avec paramètres SV candidats
+        for (size_t i = 0; i < market_data.option_specs.size(); ++i) {
+            double model_price = price_with_sv_params(
+                market_data.option_specs[i], params, local_vol);
+            double market_price = market_data.option_prices[i];
+            
+            double relative_error = (model_price - market_price) / market_price;
+            total_error += relative_error * relative_error;
+        }
+        
+        return total_error;
+    }
+    
+    double price_with_sv_params(
+        const FXOptionSpec& option,
+        const SVParameters& params,
+        const std::vector<std::vector<double>>& local_vol) {
+        
+        // Pricing Monte Carlo avec paramètres SV
+        return 0.0; // Placeholder
+    }
+    
+    struct OptimizationResult {
+        std::vector<double> solution;
+        double final_objective;
+        bool converged;
+    };
+    
+    OptimizationResult levenberg_marquardt_optimize(
+        std::function<double(const std::vector<double>&)> objective,
+        const std::vector<double>& initial_guess,
+        const std::vector<double>& lower_bounds,
+        const std::vector<double>& upper_bounds) {
+        
+        // Implémentation Levenberg-Marquardt
+        return {{0.3, 2.0, 0.04, -0.7}, 0.001, true}; // Placeholder
+    }
+};
+```
+
+#### Step 3: Markov Switching Parameters
+```cpp
+// Calibration des paramètres Markov Switching
+class FXMarkovSwitchingCalibrator {
+public:
+    struct MarkovParameters {
+        int number_of_states;
+        std::vector<double> state_volatilities;
+        std::vector<std::vector<double>> transition_rates;
+        std::vector<double> initial_probabilities;
+    };
+    
+    struct MarkovCalibrationResult {
+        MarkovParameters parameters;
+        double log_likelihood;
+        std::vector<double> state_probabilities_history;
+        bool convergence_achieved;
+    };
+    
+    MarkovCalibrationResult calibrate_markov_parameters(
+        const std::vector<double>& fx_returns_history,
+        const std::vector<double>& volatility_history) {
+        
+        MarkovCalibrationResult result;
+        
+        // Détermination du nombre optimal d'états
+        int optimal_states = determine_optimal_number_of_states(
+            fx_returns_history, volatility_history);
+        
+        result.parameters.number_of_states = optimal_states;
+        
+        // Estimation par algorithme EM (Baum-Welch)
+        auto em_result = estimate_hmm_parameters(
+            fx_returns_history, volatility_history, optimal_states);
+        
+        result.parameters.state_volatilities = em_result.state_volatilities;
+        result.parameters.transition_rates = em_result.transition_matrix;
+        result.parameters.initial_probabilities = em_result.initial_probabilities;
+        
+        result.log_likelihood = em_result.log_likelihood;
+        result.state_probabilities_history = em_result.state_sequence;
+        result.convergence_achieved = em_result.converged;
+        
+        return result;
+    }
+    
+private:
+    int determine_optimal_number_of_states(
+        const std::vector<double>& returns,
+        const std::vector<double>& volatilities) {
+        
+        // Critères d'information (AIC, BIC) pour sélection du nombre d'états
+        std::vector<double> aic_scores;
+        std::vector<double> bic_scores;
+        
+        for (int n_states = 2; n_states <= 6; ++n_states) {
+            auto hmm_result = fit_hmm_with_n_states(returns, volatilities, n_states);
+            
+            int n_params = n_states * n_states + n_states; // Transitions + états
+            double aic = -2 * hmm_result.log_likelihood + 2 * n_params;
+            double bic = -2 * hmm_result.log_likelihood + n_params * std::log(returns.size());
+            
+            aic_scores.push_back(aic);
+            bic_scores.push_back(bic);
+        }
+        
+        // Sélection du nombre d'états minimisant BIC
+        auto min_bic_it = std::min_element(bic_scores.begin(), bic_scores.end());
+        int optimal_states = 2 + std::distance(bic_scores.begin(), min_bic_it);
+        
+        return optimal_states;
+    }
+    
+    struct HMMResult {
+        std::vector<double> state_volatilities;
+        std::vector<std::vector<double>> transition_matrix;
+        std::vector<double> initial_probabilities;
+        std::vector<double> state_sequence;
+        double log_likelihood;
+        bool converged;
+    };
+    
+    HMMResult estimate_hmm_parameters(
+        const std::vector<double>& observations,
+        const std::vector<double>& volatilities,
+        int n_states) {
+        
+        // Algorithme EM (Baum-Welch) pour estimation HMM
+        HMMResult result;
+        
+        // Initialisation
+        result.state_volatilities.resize(n_states);
+        result.transition_matrix.resize(n_states, std::vector<double>(n_states));
+        result.initial_probabilities.resize(n_states);
+        
+        // Initialisation des paramètres
+        initialize_hmm_parameters(result, n_states);
+        
+        // Itérations EM
+        double prev_log_likelihood = -std::numeric_limits<double>::infinity();
+        int max_iterations = 100;
+        double tolerance = 1e-6;
+        
+        for (int iter = 0; iter < max_iterations; ++iter) {
+            // E-step: Forward-Backward algorithm
+            auto fb_result = forward_backward_algorithm(
+                observations, result.state_volatilities,
+                result.transition_matrix, result.initial_probabilities);
+            
+            // M-step: Parameter update
+            update_hmm_parameters(result, observations, fb_result);
+            
+            // Convergence check
+            double log_likelihood_improvement = fb_result.log_likelihood - prev_log_likelihood;
+            if (log_likelihood_improvement < tolerance) {
+                result.converged = true;
+                break;
+            }
+            
+            prev_log_likelihood = fb_result.log_likelihood;
+        }
+        
+        result.log_likelihood = prev_log_likelihood;
+        
+        return result;
+    }
+    
+    void initialize_hmm_parameters(HMMResult& result, int n_states) {
+        // Initialisation des paramètres HMM
+        for (int i = 0; i < n_states; ++i) {
+            result.initial_probabilities[i] = 1.0 / n_states;
+            result.state_volatilities[i] = 0.5 + 0.5 * i; // Volatilités croissantes
+            
+            for (int j = 0; j < n_states; ++j) {
+                if (i == j) {
+                    result.transition_matrix[i][j] = 0.9; // Persistance élevée
+                } else {
+                    result.transition_matrix[i][j] = 0.1 / (n_states - 1);
+                }
+            }
+        }
+    }
+    
+    struct ForwardBackwardResult {
+        std::vector<std::vector<double>> forward_probs;
+        std::vector<std::vector<double>> backward_probs;
+        std::vector<std::vector<double>> state_probs;
+        double log_likelihood;
+    };
+    
+    ForwardBackwardResult forward_backward_algorithm(
+        const std::vector<double>& observations,
+        const std::vector<double>& state_vols,
+        const std::vector<std::vector<double>>& transitions,
+        const std::vector<double>& initial_probs) {
+        
+        // Algorithme Forward-Backward
+        ForwardBackwardResult result;
+        // Implémentation complète nécessaire
+        return result;
+    }
+    
+    void update_hmm_parameters(HMMResult& result,
+                              const std::vector<double>& observations,
+                              const ForwardBackwardResult& fb_result) {
+        // Mise à jour des paramètres (M-step)
+        // Implémentation complète nécessaire
+    }
+    
+    HMMResult fit_hmm_with_n_states(const std::vector<double>& returns,
+                                   const std::vector<double>& volatilities,
+                                   int n_states) {
+        return estimate_hmm_parameters(returns, volatilities, n_states);
+    }
+};
+```
+
+## Data Processing Pipeline
+
+### Real-Time Data Processing
+- **Stream Processing** : Traitement en temps réel des flux de données
+- **Data Normalization** : Normalisation des formats de données
+- **Quality Filtering** : Filtrage automatique des données aberrantes
+- **Latency Optimization** : Minimisation de la latence de traitement
+
+### Historical Data Management
+- **Data Storage** : Base de données optimisée pour séries temporelles
+- **Data Cleaning** : Nettoyage et correction des données historiques
+- **Gap Filling** : Interpolation des données manquantes
+- **Version Control** : Gestion des versions de données
+
+### Cross-Validation Framework
+- **Out-of-Sample Testing** : Tests sur données non utilisées pour calibration
+- **Rolling Window Validation** : Validation sur fenêtres glissantes
+- **Stress Period Testing** : Tests sur périodes de stress historiques
+- **Model Comparison** : Comparaison avec modèles alternatifs
+
+Le framework de traitement des données et calibration FX LSV Markov Switching Monte Carlo dans Our project assure une calibration robuste et précise avec validation complète de la qualité des données et des paramètres.

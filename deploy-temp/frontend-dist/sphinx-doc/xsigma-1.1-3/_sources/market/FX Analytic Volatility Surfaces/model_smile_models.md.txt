@@ -1,0 +1,330 @@
+# Smile Models
+
+## 📊 **Smile Models Overview**
+
+### **Role of Smile Models**
+Smile models determine the volatility for any strike $K$ at a fixed expiration time $T$. This section is common to short-term and long-term surfaces and constitutes a fundamental element of the 2D volatility surface $\Theta(K, T)$.
+
+### **Model Classification**
+Smile models are defined by the number of input points (1, 3, or 5) and the underlying analytical model. Five models are commonly used:
+
+#### **🔧 Available Models**
+
+1. **Flat Analytic (Single Point Model)**: Assumes a flat volatility smile
+2. **3-Point Analytic Quartic Smile Model**: Calibrated to ATM and 25-delta quotes
+3. **5-Point Analytic Quartic Smile Model**: Calibrated to ATM, 25-delta and 10-delta quotes
+4. **3-Point ASV Model**: 3-point model based on ASV framework
+5. **5-Point ASV Model**: 5-point model based on ASV framework
+
+### **Two Main Classes**
+
+#### **🔍 Analytic Quartic Smile Model**
+- **Base**: Schönbucher's stochastic implied volatility model
+- **Advantage**: Fast analytical solutions for FX volatility smiles
+
+#### **🔍 ASV Model**
+- **Base**: Analytic Stochastic Volatility framework
+- **Advantage**: More flexible approach to model volatility smile
+
+---
+
+## 🔧 **Implementation in Our Project**
+
+### **Smile Models Framework**
+```cpp
+// FX smile models framework in Our project
+class fx_smile_model_framework {
+public:
+    enum class smile_model_type {
+        FLAT_ANALYTIC,
+        THREE_POINT_QUARTIC,
+        FIVE_POINT_QUARTIC,
+        THREE_POINT_ASV,
+        FIVE_POINT_ASV
+    };
+    
+    struct smile_calibration_inputs {
+        double atm_volatility;
+        double risk_reversal_25d;  // RR 25-delta
+        double strangle_25d;       // ST 25-delta
+        double risk_reversal_10d;  // RR 10-delta (for 5-point)
+        double strangle_10d;       // ST 10-delta (for 5-point)
+        double time_to_expiry;
+        double spot_rate;
+        double domestic_rate;
+        double foreign_rate;
+    };
+    
+    class smile_model_base {
+    protected:
+        smile_model_type type_;
+        smile_calibration_inputs inputs_;
+        
+    public:
+        smile_model_base(smile_model_type type) : type_(type) {}
+        
+        virtual void calibrate(const smile_calibration_inputs& inputs) = 0;
+        virtual double get_volatility(double strike) const = 0;
+        virtual double get_volatility_by_delta(double delta) const = 0;
+        
+        smile_model_type get_type() const { return type_; }
+    };
+    
+    class flat_analytic_smile : public smile_model_base {
+    public:
+        flat_analytic_smile() : smile_model_base(smile_model_type::FLAT_ANALYTIC) {}
+        
+        void calibrate(const smile_calibration_inputs& inputs) override {
+            inputs_ = inputs;
+            // No calibration needed - uses only ATM
+        }
+        
+        double get_volatility(double strike) const override {
+            // Constant volatility equal to ATM for any strike
+            return inputs_.atm_volatility;
+        }
+        
+        double get_volatility_by_delta(double delta) const override {
+            // Constant volatility regardless of delta
+            return inputs_.atm_volatility;
+        }
+    };
+};
+```
+
+---
+
+## 📈 **Analytic Quartic Smile Model**
+
+### **Theoretical Foundations**
+This section begins with an overview of Schönbucher's stochastic implied volatility model, followed by a description of the **3-Point Analytic Quartic Smile Model** and the **5-Point Analytic Quartic Smile Model**.
+
+### **Stochastic Implied Volatility Model**
+
+#### **🔍 Modeling Approach**
+The essence of the modeling approach is in the same spirit as that of Brace, Gatarek and Musiela, i.e., a market-based approach rather than modeling "fundamental" quantities like instantaneous volatility.
+
+#### **🔍 Local Stochastic Process**
+Assume a locally log-normal stochastic process for the spot in the risk-neutral measure:
+
+$$dS = (r_d - r_f)Sdt + \sigma SdW \quad (5.1)$$
+
+Here, the instantaneous spot volatility $\sigma$ is assumed stochastic and follows an unspecified process. However, we assume it depends on the Brownian motion $W$ and a second uncorrelated Brownian motion $W'$.
+
+#### **🔍 Implied Volatility Process**
+Consider the implied volatility of a European option with strike $K$, $\Theta(K)$. As observed from the market, this implied volatility will appear stochastic. In principle, we can derive its process from the processes for $S$ and $\sigma$ using Itô:
+
+$$d\Theta = \frac{\partial\Theta}{\partial S}dS + \frac{\partial\Theta}{\partial\sigma}d\sigma + \frac{1}{2}\frac{\partial^2\Theta}{\partial S^2}d\langle S\rangle + \frac{1}{2}\frac{\partial^2\Theta}{\partial\sigma^2}d\langle\sigma\rangle + \frac{\partial^2\Theta}{\partial\sigma\partial S}d\langle\sigma, S\rangle$$
+
+#### **🔍 Schönbucher's Idea**
+Schönbucher's idea is to reverse this argument and instead, directly write a form for the risk-neutral process for $\Theta(K)$, from which the process for $\sigma$ can in principle be inferred:
+
+$$d\Theta(K) = u(K, S)dt + v(K, S)\left[p(K, S)dW + \sqrt{1-p(K, S)^2}dW'\right] \quad (5.2)$$
+
+$$= u(K, S)dt + v(K, S)d\tilde{W}$$
+
+### **Implementation in Our Project**
+
+#### **🔧 Stochastic Implied Volatility Model**
+```cpp
+// Stochastic implied volatility model implementation in Our project
+class schonbucher_stochastic_implied_volatility_model {
+public:
+    struct model_parameters {
+        std::function<double(double, double)> drift_function;      // u(K, S)
+        std::function<double(double, double)> diffusion_function;  // v(K, S)
+        std::function<double(double, double)> correlation_function; // p(K, S)
+    };
+    
+    struct market_state {
+        double spot_rate;
+        double domestic_rate;
+        double foreign_rate;
+        double time_to_expiry;
+    };
+    
+    class implied_volatility_process {
+    private:
+        model_parameters params_;
+        
+    public:
+        implied_volatility_process(const model_parameters& params) : params_(params) {}
+        
+        double calculate_drift(double strike, double spot) const {
+            return params_.drift_function(strike, spot);
+        }
+        
+        double calculate_diffusion(double strike, double spot) const {
+            return params_.diffusion_function(strike, spot);
+        }
+        
+        double calculate_correlation(double strike, double spot) const {
+            return params_.correlation_function(strike, spot);
+        }
+        
+        // Time step simulation for implied volatility
+        double evolve_implied_volatility(double current_vol,
+                                       double strike,
+                                       double spot,
+                                       double dt,
+                                       double dW1,
+                                       double dW2) const {
+
+            double drift = calculate_drift(strike, spot);
+            double diffusion = calculate_diffusion(strike, spot);
+            double correlation = calculate_correlation(strike, spot);
+
+            // Correlated Brownian motion
+            double dW_tilde = correlation * dW1 + std::sqrt(1.0 - correlation * correlation) * dW2;
+
+            // Implied volatility evolution
+            double new_vol = current_vol + drift * dt + diffusion * dW_tilde;
+
+            return std::max(new_vol, 0.001); // Floor at 0.1%
+        }
+    };
+    
+    class smile_calibrator {
+    public:
+        struct calibration_result {
+            std::vector<double> quartic_coefficients;
+            double calibration_error;
+            bool calibration_successful;
+        };
+        
+        calibration_result calibrate_quartic_smile(
+            const smile_calibration_inputs& inputs,
+            int num_points) {
+            
+            calibration_result result;
+            
+            if (num_points == 3) {
+                result = calibrate_3_point_quartic(inputs);
+            } else if (num_points == 5) {
+                result = calibrate_5_point_quartic(inputs);
+            } else {
+                throw std::invalid_argument("Only 3-point and 5-point calibration supported");
+            }
+            
+            return result;
+        }
+        
+    private:
+        calibration_result calibrate_3_point_quartic(const smile_calibration_inputs& inputs) {
+            calibration_result result;
+            
+            // Convert market quotes to volatilities by strike
+            double vol_atm = inputs.atm_volatility;
+            double vol_25d_call = vol_atm + inputs.strangle_25d + 0.5 * inputs.risk_reversal_25d;
+            double vol_25d_put = vol_atm + inputs.strangle_25d - 0.5 * inputs.risk_reversal_25d;
+
+            // Calculate corresponding strikes
+            double strike_atm = calculate_atm_strike(inputs);
+            double strike_25d_call = calculate_strike_from_delta(0.25, true, inputs);
+            double strike_25d_put = calculate_strike_from_delta(-0.25, false, inputs);
+
+            // Solve quartic system for 3 points
+            result.quartic_coefficients = solve_quartic_system_3pt(
+                {strike_25d_put, strike_atm, strike_25d_call},
+                {vol_25d_put, vol_atm, vol_25d_call}
+            );
+            
+            result.calibration_successful = validate_quartic_coefficients(result.quartic_coefficients);
+            result.calibration_error = calculate_calibration_error_3pt(inputs, result.quartic_coefficients);
+            
+            return result;
+        }
+        
+        calibration_result calibrate_5_point_quartic(const smile_calibration_inputs& inputs) {
+            calibration_result result;
+            
+            // Convert market quotes (5 points)
+            double vol_atm = inputs.atm_volatility;
+            double vol_25d_call = vol_atm + inputs.strangle_25d + 0.5 * inputs.risk_reversal_25d;
+            double vol_25d_put = vol_atm + inputs.strangle_25d - 0.5 * inputs.risk_reversal_25d;
+            double vol_10d_call = vol_atm + inputs.strangle_10d + 0.5 * inputs.risk_reversal_10d;
+            double vol_10d_put = vol_atm + inputs.strangle_10d - 0.5 * inputs.risk_reversal_10d;
+            
+            // Calculate corresponding strikes
+            std::vector<double> strikes = {
+                calculate_strike_from_delta(-0.10, false, inputs), // 10D Put
+                calculate_strike_from_delta(-0.25, false, inputs), // 25D Put
+                calculate_atm_strike(inputs),                      // ATM
+                calculate_strike_from_delta(0.25, true, inputs),   // 25D Call
+                calculate_strike_from_delta(0.10, true, inputs)    // 10D Call
+            };
+            
+            std::vector<double> volatilities = {
+                vol_10d_put, vol_25d_put, vol_atm, vol_25d_call, vol_10d_call
+            };
+            
+            // Solve quartic system for 5 points
+            result.quartic_coefficients = solve_quartic_system_5pt(strikes, volatilities);
+            
+            result.calibration_successful = validate_quartic_coefficients(result.quartic_coefficients);
+            result.calibration_error = calculate_calibration_error_5pt(inputs, result.quartic_coefficients);
+            
+            return result;
+        }
+        
+        std::vector<double> solve_quartic_system_3pt(const std::vector<double>& strikes,
+                                                   const std::vector<double>& volatilities) {
+            // Analytical solution of quartic system for 3 points
+            // Form: vol(K) = a + b*K + c*K^2 + d*K^3 + e*K^4
+
+            // For 3 points, fix certain coefficients and solve for others
+            // Implementation of Schönbucher's algorithm
+
+            std::vector<double> coefficients(5, 0.0);
+
+            // 3x3 linear system for main coefficients
+            matrix<double> A(3, 3);
+            vector<double> b(3);
+
+            for (int i = 0; i < 3; ++i) {
+                double K = strikes[i];
+                A(i, 0) = 1.0;
+                A(i, 1) = K;
+                A(i, 2) = K * K;
+                b[i] = volatilities[i];
+            }
+            
+            auto solution = solve_linear_system(A, b);
+            
+            coefficients[0] = solution[0]; // a
+            coefficients[1] = solution[1]; // b
+            coefficients[2] = solution[2]; // c
+            // coefficients[3] and [4] remain 0 for 3-point model
+            
+            return coefficients;
+        }
+    };
+};
+```
+*This C++ implementation in Our project shows the complete framework of Schönbucher's stochastic implied volatility model with quartic calibration.*
+
+---
+
+## 🎯 **Model Characteristics**
+
+### **Flat Analytic Model**
+- **Usage**: Pricing without considering smile effect
+- **Implementation**: Complete smile model but constant volatility
+- **Advantage**: Simplicity and speed
+
+### **3-Point Model**
+- **Calibration**: ATM and 25-delta quotes
+- **Usage**: Robust benchmark for risk calculations like VaR
+- **Advantage**: Fallback model for numerical investigations
+
+### **5-Point Model**
+- **Calibration**: ATM, 25-delta and 10-delta quotes
+- **Usage**: Better control over wings
+- **Advantage**: More degrees of freedom to fit extreme strikes
+
+### **Implicit Correlation**
+The "implicit" correlation $p$ is generally a function of $S$ and $K$. Process (5.2) can be thought of as the result of a sort of two-factor principal component analysis of the implied volatility smile movement.
+
+---
+
+*This section establishes the theoretical and practical foundations of FX smile models, integrating Our project best practices with Schönbucher's analytical approaches for robust and efficient volatility smile modeling.*

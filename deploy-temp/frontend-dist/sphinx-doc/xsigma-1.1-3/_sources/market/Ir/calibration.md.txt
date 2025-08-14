@@ -1,0 +1,456 @@
+# Calibration
+
+## Vue d'ensemble de la Calibration
+
+**N/A** - Les swaps de taux d'intérêt linéaires ne nécessitent pas de calibration de modèle au sens traditionnel. Ils sont des instruments de pricing déterministe qui utilisent les courbes de taux d'intérêt calibrées par le New Curve Framework (CMD1746).
+
+Cependant, les swaps jouent un rôle crucial **comme instruments de calibration** pour la construction des courbes de taux d'intérêt elles-mêmes. Cette section décrit ce rôle inverse et les considérations associées.
+
+```cpp
+// Implémentation Our project du rôle des swaps dans la calibration de courbes
+namespace xsigma {
+    // Interface pour instruments de calibration
+    class CalibrationInstrument {
+    public:
+        virtual ~CalibrationInstrument() = default;
+        
+        // Calcul de la valeur théorique vs. cotation de marché
+        virtual double calculate_model_value(
+            const any_container_precomputed& market_data) const = 0;
+        
+        // Cotation de marché observée
+        virtual double get_market_quote() const = 0;
+        
+        // Erreur de calibration
+        virtual double calibration_error(
+            const any_container_precomputed& market_data) const {
+            return calculate_model_value(market_data) - get_market_quote();
+        }
+        
+        // Sensibilité aux paramètres de courbe
+        virtual std::map<std::string, double> calculate_sensitivities(
+            const any_container_precomputed& market_data) const = 0;
+    };
+    
+    // Swap utilisé comme instrument de calibration
+    class SwapCalibrationInstrument : public CalibrationInstrument {
+    public:
+        SwapCalibrationInstrument(
+            ptr_const<ir_swap> swap,
+            double market_quote,
+            const std::string& quote_type = "PAR_RATE")
+            : swap_(swap), market_quote_(market_quote), quote_type_(quote_type) {}
+        
+        double calculate_model_value(
+            const any_container_precomputed& market_data) const override {
+            
+            if (quote_type_ == "PAR_RATE") {
+                return swap_->price(market_data, option_output_enum::PAR);
+            } else if (quote_type_ == "PV") {
+                return swap_->price(market_data, option_output_enum::PV);
+            } else {
+                XSIGMA_THROW("Unsupported quote type: " + quote_type_);
+            }
+        }
+        
+        double get_market_quote() const override {
+            return market_quote_;
+        }
+        
+        std::map<std::string, double> calculate_sensitivities(
+            const any_container_precomputed& market_data) const override {
+            
+            std::map<std::string, double> sensitivities;
+            
+            // Calcul des sensibilités par différences finies
+            const double bump_size = 1e-6;
+            
+            // Sensibilité à la courbe d'actualisation
+            sensitivities["discount_curve"] = calculate_curve_sensitivity(
+                market_data, swap_->get_discount_curve_id(), bump_size);
+            
+            // Sensibilité à la courbe de forecast
+            sensitivities["forecast_curve"] = calculate_curve_sensitivity(
+                market_data, swap_->get_forecast_curve_id(), bump_size);
+            
+            return sensitivities;
+        }
+        
+    private:
+        ptr_const<ir_swap> swap_;
+        double market_quote_;
+        std::string quote_type_;
+        
+        double calculate_curve_sensitivity(
+            const any_container_precomputed& market_data,
+            const curve_id& curve_id,
+            double bump_size) const;
+    };
+}
+```
+*Cette implémentation C++ dans Our project montre comment les swaps servent d'instruments de calibration pour la construction de courbes.*
+
+## Rôle dans la Construction de Courbes
+
+### Instruments de Calibration Standards
+
+Les swaps de taux d'intérêt sont des instruments de calibration primaires pour :
+
+#### Courbes de Taux d'Intérêt
+- **Swaps Fixed/Float** : Calibration des courbes de forecast (SOFR, EURIBOR, etc.)
+- **Basis Swaps** : Calibration des spreads entre différents index
+- **OIS Swaps** : Calibration des courbes d'actualisation (taux sans risque)
+
+#### Courbes Cross-Currency
+- **Cross-Currency Swaps** : Calibration des courbes FX forward et basis cross-currency
+
+```cpp
+// Implémentation Our project du processus de calibration de courbes
+namespace xsigma {
+    class CurveCalibrationEngine {
+    public:
+        // Structure pour définir un problème de calibration
+        struct CalibrationProblem {
+            std::vector<ptr_const<CalibrationInstrument>> instruments;
+            std::vector<std::string> curve_parameters;
+            std::map<std::string, double> parameter_bounds;
+            double tolerance = 1e-8;
+            int max_iterations = 100;
+        };
+        
+        // Résultat de calibration
+        struct CalibrationResult {
+            bool converged;
+            int iterations;
+            double final_error;
+            std::map<std::string, double> calibrated_parameters;
+            std::vector<double> instrument_errors;
+        };
+        
+        // Calibration principale utilisant Newton-Raphson
+        CalibrationResult calibrate_curves(
+            const CalibrationProblem& problem,
+            const any_container_precomputed& initial_market_data) {
+            
+            CalibrationResult result;
+            auto current_market_data = initial_market_data;
+            
+            for (int iter = 0; iter < problem.max_iterations; ++iter) {
+                // Calcul des erreurs actuelles
+                auto errors = calculate_calibration_errors(problem.instruments, current_market_data);
+                
+                // Vérification de convergence
+                double total_error = calculate_total_error(errors);
+                if (total_error < problem.tolerance) {
+                    result.converged = true;
+                    result.iterations = iter;
+                    result.final_error = total_error;
+                    result.instrument_errors = errors;
+                    break;
+                }
+                
+                // Calcul de la matrice jacobienne
+                auto jacobian = calculate_jacobian(problem.instruments, current_market_data);
+                
+                // Résolution du système linéaire pour les corrections
+                auto parameter_corrections = solve_linear_system(jacobian, errors);
+                
+                // Application des corrections avec bounds checking
+                apply_parameter_corrections(current_market_data, parameter_corrections, problem.parameter_bounds);
+            }
+            
+            return result;
+        }
+        
+    private:
+        std::vector<double> calculate_calibration_errors(
+            const std::vector<ptr_const<CalibrationInstrument>>& instruments,
+            const any_container_precomputed& market_data) const {
+            
+            std::vector<double> errors;
+            errors.reserve(instruments.size());
+            
+            for (const auto& instrument : instruments) {
+                errors.push_back(instrument->calibration_error(market_data));
+            }
+            
+            return errors;
+        }
+        
+        double calculate_total_error(const std::vector<double>& errors) const {
+            double total = 0.0;
+            for (double error : errors) {
+                total += error * error;
+            }
+            return std::sqrt(total);
+        }
+        
+        std::vector<std::vector<double>> calculate_jacobian(
+            const std::vector<ptr_const<CalibrationInstrument>>& instruments,
+            const any_container_precomputed& market_data) const;
+        
+        std::vector<double> solve_linear_system(
+            const std::vector<std::vector<double>>& jacobian,
+            const std::vector<double>& errors) const;
+        
+        void apply_parameter_corrections(
+            any_container_precomputed& market_data,
+            const std::vector<double>& corrections,
+            const std::map<std::string, double>& bounds) const;
+    };
+}
+```
+*Cette implémentation C++ dans Our project fournit un moteur de calibration complet utilisant les swaps comme instruments.*
+
+## Types de Calibration
+
+### Bootstrap Séquentiel
+
+Méthode traditionnelle où les instruments sont calibrés séquentiellement par maturité croissante.
+
+#### Avantages
+- **Simplicité** : Algorithme direct et rapide
+- **Stabilité** : Pas de problèmes de convergence
+- **Transparence** : Relation claire entre instrument et point de courbe
+
+#### Inconvénients
+- **Propagation d'erreurs** : Les erreurs s'accumulent le long de la courbe
+- **Pas d'optimisation globale** : Chaque point est calibré indépendamment
+
+### Calibration Globale
+
+Méthode où tous les instruments sont calibrés simultanément pour minimiser l'erreur globale.
+
+#### Avantages
+- **Optimisation globale** : Minimisation de l'erreur totale
+- **Cohérence** : Tous les instruments sont traités de manière équitable
+- **Flexibilité** : Peut gérer des contraintes complexes
+
+#### Inconvénients
+- **Complexité** : Algorithmes plus sophistiqués requis
+- **Convergence** : Risque de non-convergence ou convergence locale
+- **Performance** : Plus lent que le bootstrap
+
+```cpp
+// Implémentation Our project des différentes méthodes de calibration
+namespace xsigma {
+    class CalibrationMethodFactory {
+    public:
+        // Bootstrap séquentiel
+        class SequentialBootstrap {
+        public:
+            CalibrationResult calibrate(
+                const std::vector<ptr_const<SwapCalibrationInstrument>>& swaps,
+                any_container_precomputed& market_data) {
+                
+                CalibrationResult result;
+                result.converged = true;
+                
+                // Tri des swaps par maturité
+                auto sorted_swaps = sort_by_maturity(swaps);
+                
+                for (const auto& swap : sorted_swaps) {
+                    // Calibration de ce point de courbe
+                    double target_rate = swap->get_market_quote();
+                    
+                    // Recherche du taux zéro qui donne le bon taux par
+                    double zero_rate = find_zero_rate_for_par_rate(swap, target_rate, market_data);
+                    
+                    // Mise à jour de la courbe
+                    update_curve_point(market_data, swap->get_maturity(), zero_rate);
+                }
+                
+                return result;
+            }
+            
+        private:
+            std::vector<ptr_const<SwapCalibrationInstrument>> sort_by_maturity(
+                const std::vector<ptr_const<SwapCalibrationInstrument>>& swaps) const;
+            
+            double find_zero_rate_for_par_rate(
+                const ptr_const<SwapCalibrationInstrument>& swap,
+                double target_rate,
+                const any_container_precomputed& market_data) const;
+            
+            void update_curve_point(
+                any_container_precomputed& market_data,
+                const datetime& maturity,
+                double zero_rate) const;
+        };
+        
+        // Calibration globale par moindres carrés
+        class GlobalLeastSquares {
+        public:
+            CalibrationResult calibrate(
+                const std::vector<ptr_const<SwapCalibrationInstrument>>& swaps,
+                any_container_precomputed& market_data) {
+                
+                CalibrationProblem problem;
+                problem.instruments.assign(swaps.begin(), swaps.end());
+                problem.tolerance = 1e-10;
+                problem.max_iterations = 50;
+                
+                // Extraction des paramètres de courbe à calibrer
+                extract_curve_parameters(market_data, problem);
+                
+                // Calibration via Newton-Raphson
+                CurveCalibrationEngine engine;
+                return engine.calibrate_curves(problem, market_data);
+            }
+            
+        private:
+            void extract_curve_parameters(
+                const any_container_precomputed& market_data,
+                CalibrationProblem& problem) const;
+        };
+        
+        // Factory method
+        static std::unique_ptr<CalibrationMethodFactory> create_method(
+            const std::string& method_name) {
+            
+            if (method_name == "bootstrap") {
+                return std::make_unique<SequentialBootstrap>();
+            } else if (method_name == "global") {
+                return std::make_unique<GlobalLeastSquares>();
+            } else {
+                XSIGMA_THROW("Unknown calibration method: " + method_name);
+            }
+        }
+    };
+}
+```
+*Cette implémentation C++ dans Our project fournit différentes méthodes de calibration avec factory pattern.*
+
+## Validation de Calibration
+
+### Métriques de Qualité
+
+#### Erreur RMS (Root Mean Square)
+$$RMS = \sqrt{\frac{1}{n}\sum_{i=1}^{n}(model_i - market_i)^2}$$
+
+#### Erreur Maximale
+$$MaxError = \max_i |model_i - market_i|$$
+
+#### R-Squared
+Mesure de la qualité d'ajustement entre valeurs modèle et marché.
+
+### Tests de Cohérence
+
+#### Test de Non-Arbitrage
+Vérification que la courbe calibrée ne présente pas d'opportunités d'arbitrage.
+
+#### Test de Smoothness
+Vérification que la courbe est suffisamment lisse (pas de variations erratiques).
+
+```cpp
+// Implémentation Our project de la validation de calibration
+namespace xsigma {
+    class CalibrationValidator {
+    public:
+        // Métriques de qualité de calibration
+        struct QualityMetrics {
+            double rms_error;
+            double max_error;
+            double r_squared;
+            std::vector<double> individual_errors;
+            bool passes_arbitrage_test;
+            bool passes_smoothness_test;
+        };
+        
+        // Validation complète de la calibration
+        QualityMetrics validate_calibration(
+            const std::vector<ptr_const<CalibrationInstrument>>& instruments,
+            const any_container_precomputed& calibrated_market_data) const {
+            
+            QualityMetrics metrics;
+            
+            // Calcul des erreurs individuelles
+            std::vector<double> model_values, market_values;
+            for (const auto& instrument : instruments) {
+                double model_val = instrument->calculate_model_value(calibrated_market_data);
+                double market_val = instrument->get_market_quote();
+                
+                model_values.push_back(model_val);
+                market_values.push_back(market_val);
+                metrics.individual_errors.push_back(model_val - market_val);
+            }
+            
+            // Calcul des métriques
+            metrics.rms_error = calculate_rms_error(metrics.individual_errors);
+            metrics.max_error = calculate_max_error(metrics.individual_errors);
+            metrics.r_squared = calculate_r_squared(model_values, market_values);
+            
+            // Tests de cohérence
+            metrics.passes_arbitrage_test = test_no_arbitrage(calibrated_market_data);
+            metrics.passes_smoothness_test = test_smoothness(calibrated_market_data);
+            
+            return metrics;
+        }
+        
+    private:
+        double calculate_rms_error(const std::vector<double>& errors) const {
+            double sum_squares = 0.0;
+            for (double error : errors) {
+                sum_squares += error * error;
+            }
+            return std::sqrt(sum_squares / errors.size());
+        }
+        
+        double calculate_max_error(const std::vector<double>& errors) const {
+            double max_err = 0.0;
+            for (double error : errors) {
+                max_err = std::max(max_err, std::abs(error));
+            }
+            return max_err;
+        }
+        
+        double calculate_r_squared(
+            const std::vector<double>& model_values,
+            const std::vector<double>& market_values) const {
+            
+            // Calcul de la moyenne des valeurs de marché
+            double market_mean = 0.0;
+            for (double val : market_values) {
+                market_mean += val;
+            }
+            market_mean /= market_values.size();
+            
+            // Calcul de SS_tot et SS_res
+            double ss_tot = 0.0, ss_res = 0.0;
+            for (size_t i = 0; i < market_values.size(); ++i) {
+                ss_tot += std::pow(market_values[i] - market_mean, 2);
+                ss_res += std::pow(market_values[i] - model_values[i], 2);
+            }
+            
+            return 1.0 - (ss_res / ss_tot);
+        }
+        
+        bool test_no_arbitrage(const any_container_precomputed& market_data) const;
+        bool test_smoothness(const any_container_precomputed& market_data) const;
+    };
+}
+```
+*Cette implémentation C++ dans Our project fournit une validation complète de calibration avec métriques de qualité et tests de cohérence.*
+
+## Considérations Pratiques
+
+### Sélection d'Instruments
+
+#### Critères de Qualité
+- **Liquidité** : Instruments activement tradés
+- **Spreads** : Bid-ask spreads serrés
+- **Représentativité** : Couverture adéquate de la courbe des taux
+
+#### Gestion des Outliers
+- **Détection automatique** : Identification des cotations aberrantes
+- **Exclusion conditionnelle** : Retrait temporaire d'instruments problématiques
+- **Pondération** : Réduction du poids des instruments moins fiables
+
+### Stabilité Temporelle
+
+#### Continuité des Courbes
+- **Évolution graduelle** : Éviter les sauts importants jour-à-jour
+- **Filtrage** : Application de filtres pour lisser les variations excessives
+- **Validation historique** : Vérification de cohérence avec l'historique
+
+Cette section illustre le rôle crucial des swaps linéaires dans l'écosystème de calibration des courbes de taux, bien qu'ils ne nécessitent pas eux-mêmes de calibration de modèle.

@@ -1,0 +1,443 @@
+# Model / Methodology
+
+## Description du Modèle
+
+Dans le modèle LV, le spot FX est modélisé à travers la dynamique :
+
+$$
+\frac{dS_t}{S_t} = \mu_t dt + \sigma(S_t, t) d\overline{W}_t
+$$
+
+Ici $\sigma(S_t, t)$ est la fonction de volatilité locale introduite dans la Section 1 et est une fonction déterministe du temps futur $t$ et du spot sous-jacent $S_t$ à ce moment. $\overline{W}_t$ est un mouvement brownien standard sous la mesure objective (ou "monde réel").
+
+Le modèle LV assume que les taux d'actualisation domestiques et étrangers ($r_d(t)$ et $r_f(t)$) sont des fonctions déterministes du temps $t$. Les comptes du marché monétaire domestique et étranger ($\beta_d(t)$ et $\beta_f(t)$) évoluent selon :
+
+$$
+d\beta_d = r_d \beta_d dt \\
+d\beta_f = r_f \beta_f dt
+$$
+
+```cpp
+// Implémentation Our project du modèle Local Volatility
+namespace xsigma {
+    // Classe principale du modèle Local Volatility
+    class LocalVolatilityModel {
+    public:
+        // Structure pour les paramètres du modèle
+        struct ModelParameters {
+            double spot_rate;               // Taux de change spot S_0
+            double domestic_rate;           // Taux domestique r_d
+            double foreign_rate;           // Taux étranger r_f
+            double time_horizon;           // Horizon temporel
+            LocalVolatilitySurface vol_surface; // Surface de volatilité locale
+        };
+        
+        // Constructeur
+        LocalVolatilityModel(const ModelParameters& params)
+            : params_(params) {
+            validate_parameters();
+            initialize_model();
+        }
+        
+        // Simulation d'un chemin sous la mesure risque-neutre
+        std::vector<double> simulate_path(double time_step, size_t num_steps) const {
+            std::vector<double> path(num_steps + 1);
+            path[0] = params_.spot_rate;
+            
+            std::random_device rd;
+            std::mt19937 gen(rd());
+            std::normal_distribution<double> normal(0.0, 1.0);
+            
+            for (size_t i = 1; i <= num_steps; ++i) {
+                double t = i * time_step;
+                double S_t = path[i-1];
+                
+                // Volatilité locale au point (S_t, t)
+                double local_vol = params_.vol_surface.get_volatility(S_t, t);
+                
+                // Drift sous la mesure risque-neutre
+                double drift = (params_.domestic_rate - params_.foreign_rate) * time_step;
+                
+                // Terme de diffusion
+                double diffusion = local_vol * std::sqrt(time_step) * normal(gen);
+                
+                // Évolution du spot : dS/S = (r_d - r_f)dt + σ(S,t)dW
+                path[i] = S_t * std::exp(drift - 0.5 * local_vol * local_vol * time_step + diffusion);
+            }
+            
+            return path;
+        }
+        
+        // Calcul de la fonction de volatilité locale selon Dupire
+        double compute_local_volatility(double strike, double expiry) const {
+            // Implémentation de l'équation de Dupire
+            // σ²(K,T) = (∂C/∂T + (r_d - r_f)K∂C/∂K + r_d C) / (½K²∂²C/∂K²)
+            
+            double call_price = get_market_call_price(strike, expiry);
+            double dC_dT = compute_time_derivative(strike, expiry);
+            double dC_dK = compute_strike_derivative(strike, expiry);
+            double d2C_dK2 = compute_second_strike_derivative(strike, expiry);
+            
+            double numerator = dC_dT + (params_.domestic_rate - params_.foreign_rate) * strike * dC_dK 
+                             + params_.domestic_rate * call_price;
+            double denominator = 0.5 * strike * strike * d2C_dK2;
+            
+            if (std::abs(denominator) < 1e-12) {
+                XSIGMA_THROW("Division par zéro dans le calcul de volatilité locale");
+            }
+            
+            double local_variance = numerator / denominator;
+            return std::sqrt(std::max(local_variance, 1e-6)); // Assurer positivité
+        }
+        
+        // Évolution des comptes du marché monétaire
+        double domestic_money_market_account(double time) const {
+            // β_d(t) = exp(∫₀ᵗ r_d(s) ds)
+            return std::exp(params_.domestic_rate * time);
+        }
+        
+        double foreign_money_market_account(double time) const {
+            // β_f(t) = exp(∫₀ᵗ r_f(s) ds)
+            return std::exp(params_.foreign_rate * time);
+        }
+        
+    private:
+        ModelParameters params_;
+        
+        void validate_parameters() const {
+            if (params_.spot_rate <= 0) {
+                XSIGMA_THROW("Le taux de change spot doit être positif");
+            }
+            if (params_.time_horizon <= 0) {
+                XSIGMA_THROW("L'horizon temporel doit être positif");
+            }
+        }
+        
+        void initialize_model() {
+            // Initialisation des structures internes du modèle
+        }
+        
+        double get_market_call_price(double strike, double expiry) const {
+            // Récupération du prix de marché pour calibration
+            return 0.0; // Placeholder
+        }
+        
+        double compute_time_derivative(double strike, double expiry) const {
+            // Calcul de ∂C/∂T par différences finies
+            return 0.0; // Placeholder
+        }
+        
+        double compute_strike_derivative(double strike, double expiry) const {
+            // Calcul de ∂C/∂K par différences finies
+            return 0.0; // Placeholder
+        }
+        
+        double compute_second_strike_derivative(double strike, double expiry) const {
+            // Calcul de ∂²C/∂K² par différences finies
+            return 0.0; // Placeholder
+        }
+    };
+}
+```
+*Cette implémentation C++ dans Our project modélise la dynamique du spot FX selon le modèle Local Volatility avec simulation de chemins et calibration.*
+
+### Mesure Risque-Neutre
+
+En utilisant le compte du marché monétaire domestique $\beta_d$ comme numéraire, il peut être montré par des arguments de pricing d'arbitrage standard (Shreve, 2010) que, en l'absence d'arbitrage, il doit exister une mesure risque-neutre, équivalente à la mesure objective, sous laquelle le processus de spot FX évolue selon la dynamique ci-dessous :
+
+$$
+\frac{dS_t}{S_t} = (r_d - r_f) dt + \sigma(S_t, t) dW_t
+$$
+
+Ici $W_t$ est un mouvement brownien standard sous la mesure risque-neutre.
+
+### Interprétation Pratique
+
+Notez que les praticiens voient rarement le modèle LV comme un mécanisme d'évolution des volatilités. Plutôt, ils voient le modèle LV comme une "théorie effective" qui capture le smile implicite actuel en moyennant sur toutes les volatilités instantanées futures possibles. Ceci est cohérent avec le théorème de Gyöngy (Gyöngy, 1986), qui montre que les distributions marginales d'un processus de volatilité stochastique arbitraire peuvent être récupérées à travers un modèle LV équivalent.
+
+```cpp
+// Implémentation Our project du théorème de Gyöngy
+namespace xsigma {
+    // Classe pour l'équivalence entre modèles stochastiques et Local Volatility
+    class GyongyEquivalence {
+    public:
+        // Structure pour un processus stochastique général
+        struct StochasticProcess {
+            std::function<double(double, double)> drift;      // φ(t,ω)
+            std::function<double(double, double)> diffusion;  // ψ(t,ω)
+        };
+        
+        // Structure pour le modèle LV équivalent
+        struct EquivalentLVModel {
+            std::function<double(double, double)> local_vol;  // σ(t,x)
+            std::function<double(double, double)> local_drift; // μ(t,x)
+        };
+        
+        // Calcul du modèle LV équivalent selon Gyöngy
+        EquivalentLVModel compute_equivalent_lv_model(
+            const StochasticProcess& stoch_process,
+            const std::vector<double>& time_grid,
+            const std::vector<double>& spot_grid) const {
+            
+            EquivalentLVModel lv_model;
+            
+            // Calcul des coefficients selon le théorème de Gyöngy
+            lv_model.local_drift = [this, &stoch_process](double t, double x) {
+                // μ(t,x) = E[φ(t,ω)|ξ(t) = x]
+                return compute_conditional_expectation_drift(stoch_process, t, x);
+            };
+            
+            lv_model.local_vol = [this, &stoch_process](double t, double x) {
+                // σ(t,x)σᵀ(t,x) = E[ψ(t,ω)ψᵀ(t,ω)|ξ(t) = x]
+                double conditional_variance = compute_conditional_expectation_variance(stoch_process, t, x);
+                return std::sqrt(conditional_variance);
+            };
+            
+            return lv_model;
+        }
+        
+        // Vérification de l'équivalence des distributions marginales
+        bool verify_marginal_equivalence(
+            const StochasticProcess& stoch_process,
+            const EquivalentLVModel& lv_model,
+            const std::vector<double>& test_times) const {
+            
+            for (double t : test_times) {
+                // Simulation du processus stochastique original
+                auto stoch_distribution = simulate_marginal_distribution(stoch_process, t);
+                
+                // Simulation du modèle LV équivalent
+                auto lv_distribution = simulate_lv_marginal_distribution(lv_model, t);
+                
+                // Test de Kolmogorov-Smirnov pour l'équivalence
+                if (!kolmogorov_smirnov_test(stoch_distribution, lv_distribution)) {
+                    return false;
+                }
+            }
+            
+            return true;
+        }
+        
+    private:
+        double compute_conditional_expectation_drift(
+            const StochasticProcess& process, double t, double x) const {
+            // Calcul de E[φ(t,ω)|ξ(t) = x] par méthodes numériques
+            return 0.0; // Placeholder
+        }
+        
+        double compute_conditional_expectation_variance(
+            const StochasticProcess& process, double t, double x) const {
+            // Calcul de E[ψ(t,ω)ψᵀ(t,ω)|ξ(t) = x] par méthodes numériques
+            return 0.0; // Placeholder
+        }
+        
+        std::vector<double> simulate_marginal_distribution(
+            const StochasticProcess& process, double t) const {
+            // Simulation Monte Carlo du processus stochastique
+            return {}; // Placeholder
+        }
+        
+        std::vector<double> simulate_lv_marginal_distribution(
+            const EquivalentLVModel& lv_model, double t) const {
+            // Simulation Monte Carlo du modèle LV
+            return {}; // Placeholder
+        }
+        
+        bool kolmogorov_smirnov_test(
+            const std::vector<double>& sample1,
+            const std::vector<double>& sample2) const {
+            // Test statistique d'équivalence des distributions
+            return true; // Placeholder
+        }
+    };
+}
+```
+*Cette implémentation C++ dans Our project illustre l'équivalence théorique entre processus stochastiques et modèles Local Volatility selon le théorème de Gyöngy.*
+
+**Énoncé du théorème de Gyöngy** : Soit $\xi(t)$ un processus stochastique avec différentielle d'Ito $d\xi(t) = \varphi(t,\omega)dt + \psi(t,\omega)dW_t$, où $(W_t, F_t)$ est un processus de Wiener et sa filtration associée, $\varphi$ et $\psi$ sont des processus $F_t$ non-anticipatifs bornés tels que $\psi\psi^T$ est uniformément définie positive. Alors il peut être montré qu'il existe une EDS $dx(t) = \mu(t,x(t)) dt + \sigma(t,x(t)) dW_t$, avec des coefficients non-aléatoires, qui admet une solution faible $x(t)$ ayant la même distribution de probabilité unidimensionnelle que $\xi(t)$ pour tout $t$. Les coefficients $\mu$ et $\sigma$ ont une interprétation simple :
+
+$$
+\mu(t,x) = E\left[\varphi(t,\omega)\left|\xi(t) = x\right]\right] \text{ et } \sigma(t,x)\sigma^T(t,x) = E\left[\psi(t,\omega)\psi^T(t,\omega)\left|\xi(t) = x\right]\right]
+$$
+
+## Conception et Développement du Modèle
+
+Ce modèle est basé sur (Dupire, Pricing With a Smile, 1994). Un développement indépendant du framework de volatilité locale, se concentrant sur une approche d'arbre implicite, a été présenté par (Derman & Kani, 1994).
+
+## Hypothèses, Limitations et Cas Particuliers
+
+Le modèle assume que les volatilités instantanées futures (les volatilités locales) sont une fonction déterministe du temps futur $t$ et du spot sous-jacent $S_t$ à ce moment. Comme décrit dans la Section 6, ces volatilités locales sont fixées par la calibration au smile de volatilité implicite.
+
+Le modèle de volatilité locale est capable de reproduire parfaitement les prix d'entrée auxquels il a été calibré, sous réserve de la mise en garde sur les entrées incohérentes discutée dans la Section 6.5.
+
+### Limitations Principales
+
+Comme souligné dans la Section 4.2, le modèle de volatilité locale assume que les volatilités instantanées futures (les volatilités locales) sont une fonction déterministe du temps futur $t$ et du spot sous-jacent $S_t$ à ce moment. De plus, il assume que les taux d'actualisation domestiques et étrangers sont des fonctions déterministes du temps. Ces hypothèses impacteraient la valorisation de produits tels que les accords de volatilité forward ou les produits avec de longues échéances.
+
+```cpp
+// Implémentation Our project de l'analyse des limitations
+namespace xsigma {
+    // Classe pour analyser les limitations du modèle LV
+    class LVLimitationAnalyzer {
+    public:
+        // Énumération des types de limitations
+        enum class LimitationType {
+            DETERMINISTIC_VOLATILITY,    // Volatilité déterministe
+            DETERMINISTIC_RATES,         // Taux déterministes
+            FORWARD_SMILE_DYNAMICS,      // Dynamique du smile forward
+            LONG_MATURITY_PRODUCTS,      // Produits à long terme
+            CALIBRATION_CONSISTENCY      // Cohérence de calibration
+        };
+        
+        // Structure pour l'analyse d'impact
+        struct LimitationImpact {
+            LimitationType type;
+            double severity_score;        // Score de sévérité (0-1)
+            std::vector<std::string> affected_products;
+            std::vector<std::string> mitigation_strategies;
+            std::string description;
+        };
+        
+        // Analyse des limitations pour un produit donné
+        std::vector<LimitationImpact> analyze_limitations(
+            const ProductCharacteristics& product,
+            const MarketConditions& market) const {
+            
+            std::vector<LimitationImpact> impacts;
+            
+            // Analyse de la limitation de volatilité déterministe
+            if (product.is_volatility_sensitive()) {
+                LimitationImpact impact;
+                impact.type = LimitationType::DETERMINISTIC_VOLATILITY;
+                impact.severity_score = assess_volatility_limitation_severity(product);
+                impact.affected_products = {"Cliquet Options", "Forward Vol Agreements", "Variance Swaps"};
+                impact.mitigation_strategies = {
+                    "Utiliser un modèle LSV (Local Stochastic Volatility)",
+                    "Appliquer des ajustements de fair value",
+                    "Hedging dynamique avec instruments de volatilité"
+                };
+                impact.description = "Volatilité déterministe inadéquate pour produits sensibles à la dynamique de volatilité";
+                impacts.push_back(impact);
+            }
+            
+            // Analyse de la limitation de taux déterministes
+            if (product.is_rates_sensitive() || product.has_long_maturity()) {
+                LimitationImpact impact;
+                impact.type = LimitationType::DETERMINISTIC_RATES;
+                impact.severity_score = assess_rates_limitation_severity(product, market);
+                impact.affected_products = {"Long-dated FX Options", "Cross-Currency Swaps", "FX Forwards"};
+                impact.mitigation_strategies = {
+                    "Utiliser un modèle 3-Factor avec taux stochastiques",
+                    "Calibration sur instruments sensibles aux taux",
+                    "Ajustements de convexité"
+                };
+                impact.description = "Taux déterministes inadéquats pour produits sensibles aux taux d'intérêt";
+                impacts.push_back(impact);
+            }
+            
+            // Analyse de la dynamique du smile forward
+            if (product.depends_on_forward_smile()) {
+                LimitationImpact impact;
+                impact.type = LimitationType::FORWARD_SMILE_DYNAMICS;
+                impact.severity_score = 0.8; // Haute sévérité
+                impact.affected_products = {"Forward Starting Options", "Cliquet Options", "Barrier Options with Reset"};
+                impact.mitigation_strategies = {
+                    "Modèle LSV avec dynamique stochastique",
+                    "Calibration sur options forward starting",
+                    "Modèles de corrélation locale"
+                };
+                impact.description = "Dynamique de smile forward non réaliste";
+                impacts.push_back(impact);
+            }
+            
+            return impacts;
+        }
+        
+        // Recommandations de modèles alternatifs
+        std::string recommend_alternative_model(const std::vector<LimitationImpact>& impacts) const {
+            double max_severity = 0.0;
+            LimitationType dominant_limitation = LimitationType::DETERMINISTIC_VOLATILITY;
+            
+            for (const auto& impact : impacts) {
+                if (impact.severity_score > max_severity) {
+                    max_severity = impact.severity_score;
+                    dominant_limitation = impact.type;
+                }
+            }
+            
+            switch (dominant_limitation) {
+                case LimitationType::DETERMINISTIC_VOLATILITY:
+                case LimitationType::FORWARD_SMILE_DYNAMICS:
+                    return "Local Stochastic Volatility (LSV) Model";
+                    
+                case LimitationType::DETERMINISTIC_RATES:
+                case LimitationType::LONG_MATURITY_PRODUCTS:
+                    return "Three Factor (3F) Model with Stochastic Rates";
+                    
+                case LimitationType::CALIBRATION_CONSISTENCY:
+                    return "Improved calibration with regularization";
+                    
+                default:
+                    return "Local Volatility Model (limitations acceptable)";
+            }
+        }
+        
+    private:
+        double assess_volatility_limitation_severity(const ProductCharacteristics& product) const {
+            if (product.is_cliquet_type()) return 0.9;
+            if (product.is_forward_vol_sensitive()) return 0.8;
+            if (product.has_volatility_barriers()) return 0.6;
+            return 0.3;
+        }
+        
+        double assess_rates_limitation_severity(
+            const ProductCharacteristics& product,
+            const MarketConditions& market) const {
+            
+            double base_severity = 0.0;
+            
+            if (product.get_maturity() > 5.0) base_severity += 0.3; // Long terme
+            if (market.has_volatile_rates()) base_severity += 0.4;  // Taux volatils
+            if (product.is_cross_currency()) base_severity += 0.3;  // Multi-devises
+            
+            return std::min(base_severity, 1.0);
+        }
+    };
+}
+```
+*Cette implémentation C++ dans Our project analyse les limitations du modèle Local Volatility et recommande des alternatives appropriées.*
+
+## Facteurs de Risque
+
+Le modèle de volatilité locale est sensible aux données de marché d'entrée listées dans la Section 4.3. Il ne tient pas compte de la stochasticité de la volatilité ou de la stochasticité des taux d'intérêt (domestiques ou étrangers).
+
+## Modèles Alimentés
+
+Comme indiqué dans la Section 4.8, la fonction de volatilité locale calibrée produite par le modèle de volatilité locale est un input pour la calibration de modèles plus complexes tels que Local Stochastic Volatility (Sadiq, 2012), Three Factor (Fritz, 2012) et Local Correlation (Austing, 2012).
+
+## Justification contre les Approches Alternatives
+
+Le modèle LV conduit à une implémentation rapide et computationnellement simple qui calibre sur l'ensemble du smile de volatilité implicite. En tant que tel, sous réserve des limitations de la Section 4.2, il peut être utilisé comme un modèle de pricing d'options efficace et numériquement stable.
+
+Le modèle LV forme également la fondation sur laquelle des modèles plus complexes sont construits. Ces modèles visent à atténuer certaines des lacunes du modèle LV. Comme indiqué précédemment, ils utilisent la calibration LV comme input pour leur propre calibration.
+
+### Exemples de modèles développés sur LV :
+
+- **Modèles Local Stochastic Volatility (LSV)** : Utilisent un processus stochastique (diffusion ou chaîne de Markov) pour mettre à l'échelle dynamiquement les volatilités locales déterministes.
+- **Modèles Three Factor (3F)** : Augmentent le processus de spot FX avec des facteurs de taux d'intérêt stochastiques (domestiques et étrangers).
+- **Modèle Local Correlation (LC)** : Joint plusieurs processus de spot FX, chacun modélisé comme un processus LV, en utilisant une fonction de Corrélation Locale.
+
+### Alternatives au modèle LV :
+
+- **Modèle de volatilité Term Structure (TS)** : Ignore complètement le smile et est donc inadapté comme modèle général pour les payoffs sur mesure.
+- **Modèles LSV, 3F, et LC** : Comme décrit ci-dessus, ceux-ci s'appuient sur le modèle LV pour fournir la fonction de volatilité locale pour la calibration.
+
+## Conditions d'Utilisation
+
+### Conditions de Marché Stressées
+
+La performance du modèle de volatilité locale sous des conditions de données de marché stressées est démontrée dans la Section 8.2. Il est montré que le modèle continue de bien performer sous une gamme de scénarios de stress appliqués aux données d'entrée de spot et de volatilité implicite.
+
+### Autres Considérations
+
+Comme décrit dans la Section 4.2, de la prudence est requise lorsque le produit à valoriser est fortement sensible à la volatilité stochastique ou aux taux stochastiques. De plus, comme discuté dans la Section 6.5, une entrée de marché de volatilité implicite incohérente donnera lieu à des échecs de calibration.

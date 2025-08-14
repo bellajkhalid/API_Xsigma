@@ -1,0 +1,489 @@
+# Risk Measures
+
+## Overview
+
+Cette section décrit les mesures de risque spécifiques au modèle **FX LSV Markov Switching Monte Carlo**, incluant les Greeks FX, les métriques de risque de marché et les techniques d'agrégation de risques multi-devises.
+
+## FX-Specific Risk Metrics
+
+### Primary FX Greeks
+
+#### Delta FX (∂V/∂S)
+Sensibilité au taux de change spot :
+- **Interprétation** : Montant de devise étrangère équivalent à la position
+- **Hedging** : Hedge via spot FX ou forwards
+- **Calculation** : Différences finies ou méthode pathwise
+
+#### Gamma FX (∂²V/∂S²)
+Convexité par rapport au taux de change :
+- **Risk Implication** : Risque de delta hedging
+- **Monitoring** : Surveillance pour positions importantes
+- **Management** : Hedge via options vanilles
+
+#### Dual Rho (∂V/∂r_d, ∂V/∂r_f)
+Sensibilités aux taux d'intérêt domestique et étranger :
+- **Domestic Rho** : Impact du taux domestique
+- **Foreign Rho** : Impact du taux étranger
+- **Net Interest Rate Risk** : Exposition nette aux taux
+
+### Advanced FX Greeks
+
+#### Cross Gamma (∂²V/∂S∂r)
+Sensibilité croisée spot-taux :
+- **Interpretation** : Interaction entre mouvements FX et taux
+- **Importance** : Critique pour options long terme
+- **Hedging** : Instruments hybrides FX-rates
+
+#### Correlation Sensitivity (∂V/∂ρ)
+Impact des corrélations spot-volatilité :
+- **Model Risk** : Sensibilité aux paramètres de corrélation
+- **Calibration Risk** : Impact de l'incertitude de calibration
+- **Monitoring** : Surveillance des changements de régime
+
+## Multi-Currency Risk Framework
+
+### Currency Exposure Decomposition
+
+```cpp
+// Décomposition de l'exposition multi-devises
+class MultiCurrencyRiskAnalyzer {
+public:
+    struct CurrencyExposure {
+        std::string currency;
+        double net_exposure;
+        double delta_equivalent;
+        double option_exposure;
+        double forward_exposure;
+    };
+    
+    struct MultiCurrencyRisk {
+        std::vector<CurrencyExposure> currency_exposures;
+        std::map<std::pair<std::string, std::string>, double> cross_correlations;
+        double total_var;
+        double diversification_benefit;
+        std::map<std::string, double> component_var;
+    };
+    
+    MultiCurrencyRisk analyze_portfolio_risk(
+        const std::vector<FXPosition>& positions,
+        const FXCorrelationMatrix& correlations) {
+        
+        MultiCurrencyRisk risk_analysis;
+        
+        // Calcul des expositions par devise
+        auto currency_exposures = calculate_currency_exposures(positions);
+        risk_analysis.currency_exposures = currency_exposures;
+        
+        // Calcul de la VaR totale
+        risk_analysis.total_var = calculate_portfolio_var(
+            currency_exposures, correlations);
+        
+        // Calcul du bénéfice de diversification
+        double undiversified_var = calculate_undiversified_var(currency_exposures);
+        risk_analysis.diversification_benefit = undiversified_var - risk_analysis.total_var;
+        
+        // VaR par composant
+        risk_analysis.component_var = calculate_component_var(
+            currency_exposures, correlations);
+        
+        return risk_analysis;
+    }
+    
+private:
+    std::vector<CurrencyExposure> calculate_currency_exposures(
+        const std::vector<FXPosition>& positions) {
+        
+        std::map<std::string, CurrencyExposure> exposure_map;
+        
+        for (const auto& position : positions) {
+            auto& exposure = exposure_map[position.currency];
+            exposure.currency = position.currency;
+            exposure.net_exposure += position.notional;
+            exposure.delta_equivalent += position.delta * position.notional;
+            
+            if (position.is_option) {
+                exposure.option_exposure += position.notional;
+            } else {
+                exposure.forward_exposure += position.notional;
+            }
+        }
+        
+        std::vector<CurrencyExposure> exposures;
+        for (const auto& pair : exposure_map) {
+            exposures.push_back(pair.second);
+        }
+        
+        return exposures;
+    }
+    
+    double calculate_portfolio_var(
+        const std::vector<CurrencyExposure>& exposures,
+        const FXCorrelationMatrix& correlations) {
+        
+        // Calcul de la VaR portfolio avec corrélations
+        double portfolio_variance = 0.0;
+        
+        for (size_t i = 0; i < exposures.size(); ++i) {
+            for (size_t j = 0; j < exposures.size(); ++j) {
+                double correlation = (i == j) ? 1.0 : 
+                    correlations.get_correlation(exposures[i].currency, exposures[j].currency);
+                
+                double vol_i = get_currency_volatility(exposures[i].currency);
+                double vol_j = get_currency_volatility(exposures[j].currency);
+                
+                portfolio_variance += exposures[i].delta_equivalent * 
+                                    exposures[j].delta_equivalent * 
+                                    vol_i * vol_j * correlation;
+            }
+        }
+        
+        // VaR 95% (1.65 pour distribution normale)
+        return 1.65 * std::sqrt(portfolio_variance);
+    }
+    
+    double calculate_undiversified_var(const std::vector<CurrencyExposure>& exposures) {
+        double total_var = 0.0;
+        
+        for (const auto& exposure : exposures) {
+            double vol = get_currency_volatility(exposure.currency);
+            double individual_var = 1.65 * std::abs(exposure.delta_equivalent) * vol;
+            total_var += individual_var;
+        }
+        
+        return total_var;
+    }
+    
+    std::map<std::string, double> calculate_component_var(
+        const std::vector<CurrencyExposure>& exposures,
+        const FXCorrelationMatrix& correlations) {
+        
+        std::map<std::string, double> component_vars;
+        double total_var = calculate_portfolio_var(exposures, correlations);
+        
+        for (const auto& exposure : exposures) {
+            // Calcul de la contribution marginale à la VaR
+            double marginal_var = calculate_marginal_var(exposure, exposures, correlations);
+            component_vars[exposure.currency] = 
+                exposure.delta_equivalent * marginal_var / total_var;
+        }
+        
+        return component_vars;
+    }
+    
+    double calculate_marginal_var(
+        const CurrencyExposure& target_exposure,
+        const std::vector<CurrencyExposure>& all_exposures,
+        const FXCorrelationMatrix& correlations) {
+        
+        // Calcul de la VaR marginale
+        return 0.0; // Placeholder
+    }
+    
+    double get_currency_volatility(const std::string& currency) {
+        // Récupération de la volatilité de la devise
+        return 0.15; // Placeholder
+    }
+};
+```
+
+### Risk Aggregation Methods
+
+#### Parametric VaR
+Calcul basé sur les volatilités et corrélations :
+$$\text{VaR} = z_\alpha \sqrt{\mathbf{w}^T \boldsymbol{\Sigma} \mathbf{w}}$$
+
+où $\mathbf{w}$ est le vecteur des expositions et $\boldsymbol{\Sigma}$ la matrice de covariance.
+
+#### Historical VaR
+Utilisation des données historiques :
+- **Lookback Period** : 250 jours ouvrés (1 an)
+- **Confidence Level** : 95% ou 99%
+- **Weighting Scheme** : Pondération exponentielle possible
+
+#### Monte Carlo VaR
+Simulation de scénarios futurs :
+- **Scenario Generation** : Modèle LSV MS pour projections
+- **Path Dependency** : Capture des effets de chemin
+- **Tail Risk** : Analyse des queues de distribution
+
+## Scenario Analysis Framework
+
+### Standard Market Scenarios
+
+#### FX Stress Scenarios
+```cpp
+// Scénarios de stress FX standardisés
+class FXStressScenarios {
+public:
+    enum class ScenarioType {
+        USD_STRENGTH,           // Renforcement USD généralisé
+        USD_WEAKNESS,           // Affaiblissement USD généralisé
+        VOLATILITY_SPIKE,       // Pic de volatilité
+        CORRELATION_BREAKDOWN,  // Rupture des corrélations
+        EMERGING_MARKET_CRISIS, // Crise marchés émergents
+        SAFE_HAVEN_FLOW        // Flux vers valeurs refuges
+    };
+    
+    struct StressScenario {
+        ScenarioType type;
+        std::map<std::string, double> fx_shocks;      // Chocs sur taux de change
+        std::map<std::string, double> vol_shocks;     // Chocs sur volatilités
+        std::map<std::string, double> rate_shocks;    // Chocs sur taux d'intérêt
+        std::map<std::pair<std::string, std::string>, double> corr_shocks; // Chocs corrélations
+    };
+    
+    std::vector<StressScenario> generate_standard_scenarios() {
+        std::vector<StressScenario> scenarios;
+        
+        // Scénario 1: Renforcement USD
+        StressScenario usd_strength;
+        usd_strength.type = ScenarioType::USD_STRENGTH;
+        usd_strength.fx_shocks["EURUSD"] = -0.10;  // EUR faiblit de 10%
+        usd_strength.fx_shocks["GBPUSD"] = -0.12;  // GBP faiblit de 12%
+        usd_strength.fx_shocks["USDJPY"] = 0.08;   // JPY faiblit de 8%
+        usd_strength.vol_shocks["EURUSD"] = 0.50;  // Vol augmente de 50%
+        scenarios.push_back(usd_strength);
+        
+        // Scénario 2: Pic de volatilité
+        StressScenario vol_spike;
+        vol_spike.type = ScenarioType::VOLATILITY_SPIKE;
+        vol_spike.vol_shocks["EURUSD"] = 1.00;     // Vol double
+        vol_spike.vol_shocks["GBPUSD"] = 1.20;     // Vol augmente de 120%
+        vol_spike.vol_shocks["USDJPY"] = 0.80;     // Vol augmente de 80%
+        scenarios.push_back(vol_spike);
+        
+        // Scénario 3: Rupture des corrélations
+        StressScenario corr_breakdown;
+        corr_breakdown.type = ScenarioType::CORRELATION_BREAKDOWN;
+        corr_breakdown.corr_shocks[{"EURUSD", "GBPUSD"}] = -0.50; // Corrélation devient négative
+        corr_breakdown.corr_shocks[{"EURUSD", "USDJPY"}] = -0.30;
+        scenarios.push_back(corr_breakdown);
+        
+        return scenarios;
+    }
+    
+    double calculate_scenario_pnl(
+        const std::vector<FXPosition>& portfolio,
+        const StressScenario& scenario) {
+        
+        double total_pnl = 0.0;
+        
+        for (const auto& position : portfolio) {
+            double position_pnl = 0.0;
+            
+            // Impact des chocs FX
+            auto fx_shock_it = scenario.fx_shocks.find(position.currency_pair);
+            if (fx_shock_it != scenario.fx_shocks.end()) {
+                position_pnl += position.delta * position.notional * fx_shock_it->second;
+                position_pnl += 0.5 * position.gamma * position.notional * 
+                               fx_shock_it->second * fx_shock_it->second;
+            }
+            
+            // Impact des chocs de volatilité
+            auto vol_shock_it = scenario.vol_shocks.find(position.currency_pair);
+            if (vol_shock_it != scenario.vol_shocks.end()) {
+                position_pnl += position.vega * position.notional * vol_shock_it->second;
+            }
+            
+            // Impact des chocs de taux
+            auto rate_shock_it = scenario.rate_shocks.find(position.base_currency);
+            if (rate_shock_it != scenario.rate_shocks.end()) {
+                position_pnl += position.rho * position.notional * rate_shock_it->second;
+            }
+            
+            total_pnl += position_pnl;
+        }
+        
+        return total_pnl;
+    }
+};
+```
+
+### Custom Scenario Generation
+
+#### Historical Event Replication
+- **Brexit Referendum** : 24 juin 2016
+- **Swiss Franc Unpegging** : 15 janvier 2015
+- **COVID-19 Market Stress** : Mars 2020
+- **Turkish Lira Crisis** : Août 2018
+
+#### Forward-Looking Scenarios
+- **Central Bank Policy Changes** : Changements de politique monétaire
+- **Geopolitical Events** : Tensions commerciales, conflits
+- **Economic Data Surprises** : Publications économiques inattendues
+- **Market Structure Changes** : Évolutions de la microstructure
+
+## Real-Time Risk Monitoring
+
+### Risk Dashboard Metrics
+
+#### Key Risk Indicators (KRIs)
+```cpp
+// Indicateurs clés de risque en temps réel
+struct RealTimeRiskMetrics {
+    // Expositions
+    double total_fx_exposure;
+    double largest_single_exposure;
+    std::map<std::string, double> exposure_by_currency;
+    
+    // Greeks
+    double portfolio_delta;
+    double portfolio_gamma;
+    double portfolio_vega;
+    double portfolio_theta;
+    
+    // Mesures de risque
+    double current_var_95;
+    double current_var_99;
+    double expected_shortfall;
+    double maximum_drawdown;
+    
+    // Ratios de risque
+    double sharpe_ratio;
+    double information_ratio;
+    double calmar_ratio;
+    
+    // Indicateurs de stress
+    double stress_test_worst_case;
+    double correlation_stress_impact;
+    double volatility_stress_impact;
+    
+    // Limites et utilisation
+    std::map<std::string, double> limit_utilization;
+    std::vector<std::string> limit_breaches;
+    
+    // Qualité du modèle
+    double model_confidence_score;
+    double calibration_quality_score;
+    double backtesting_performance;
+};
+```
+
+#### Alert System
+- **Level 1** : Approche des limites (80% utilisation)
+- **Level 2** : Dépassement de limites (100% utilisation)
+- **Level 3** : Dépassement critique (120% utilisation)
+- **Emergency** : Risque systémique détecté
+
+### Performance Attribution
+
+#### P&L Decomposition
+```cpp
+// Décomposition du P&L par facteur de risque
+class FXPnLAttribution {
+public:
+    struct PnLComponents {
+        double spot_pnl;           // P&L dû aux mouvements spot
+        double volatility_pnl;     // P&L dû aux changements de volatilité
+        double time_decay_pnl;     // P&L dû au passage du temps
+        double interest_rate_pnl;  // P&L dû aux mouvements de taux
+        double correlation_pnl;    // P&L dû aux changements de corrélation
+        double residual_pnl;       // P&L résiduel (modèle, autres)
+    };
+    
+    PnLComponents decompose_daily_pnl(
+        const std::vector<FXPosition>& positions_start,
+        const std::vector<FXPosition>& positions_end,
+        const FXMarketData& market_data_start,
+        const FXMarketData& market_data_end) {
+        
+        PnLComponents components;
+        
+        // P&L spot
+        components.spot_pnl = calculate_spot_pnl(
+            positions_start, market_data_start, market_data_end);
+        
+        // P&L volatilité
+        components.volatility_pnl = calculate_volatility_pnl(
+            positions_start, market_data_start, market_data_end);
+        
+        // P&L time decay
+        components.time_decay_pnl = calculate_theta_pnl(positions_start);
+        
+        // P&L taux d'intérêt
+        components.interest_rate_pnl = calculate_rate_pnl(
+            positions_start, market_data_start, market_data_end);
+        
+        // P&L corrélation
+        components.correlation_pnl = calculate_correlation_pnl(
+            positions_start, market_data_start, market_data_end);
+        
+        // P&L résiduel
+        double total_pnl = calculate_total_pnl(positions_start, positions_end);
+        components.residual_pnl = total_pnl - 
+            (components.spot_pnl + components.volatility_pnl + 
+             components.time_decay_pnl + components.interest_rate_pnl + 
+             components.correlation_pnl);
+        
+        return components;
+    }
+    
+private:
+    double calculate_spot_pnl(const std::vector<FXPosition>& positions,
+                             const FXMarketData& data_start,
+                             const FXMarketData& data_end) {
+        double spot_pnl = 0.0;
+        
+        for (const auto& position : positions) {
+            double spot_change = data_end.get_fx_rate(position.currency_pair) - 
+                               data_start.get_fx_rate(position.currency_pair);
+            
+            // Contribution linéaire (delta)
+            spot_pnl += position.delta * position.notional * spot_change;
+            
+            // Contribution quadratique (gamma)
+            spot_pnl += 0.5 * position.gamma * position.notional * 
+                       spot_change * spot_change;
+        }
+        
+        return spot_pnl;
+    }
+    
+    double calculate_volatility_pnl(const std::vector<FXPosition>& positions,
+                                   const FXMarketData& data_start,
+                                   const FXMarketData& data_end) {
+        double vol_pnl = 0.0;
+        
+        for (const auto& position : positions) {
+            double vol_change = data_end.get_implied_vol(position.currency_pair) - 
+                              data_start.get_implied_vol(position.currency_pair);
+            
+            vol_pnl += position.vega * position.notional * vol_change;
+        }
+        
+        return vol_pnl;
+    }
+    
+    double calculate_theta_pnl(const std::vector<FXPosition>& positions) {
+        double theta_pnl = 0.0;
+        
+        for (const auto& position : positions) {
+            theta_pnl += position.theta * position.notional; // 1 jour
+        }
+        
+        return theta_pnl;
+    }
+    
+    double calculate_rate_pnl(const std::vector<FXPosition>& positions,
+                             const FXMarketData& data_start,
+                             const FXMarketData& data_end) {
+        // Calcul du P&L dû aux mouvements de taux
+        return 0.0; // Placeholder
+    }
+    
+    double calculate_correlation_pnl(const std::vector<FXPosition>& positions,
+                                    const FXMarketData& data_start,
+                                    const FXMarketData& data_end) {
+        // Calcul du P&L dû aux changements de corrélation
+        return 0.0; // Placeholder
+    }
+    
+    double calculate_total_pnl(const std::vector<FXPosition>& positions_start,
+                              const std::vector<FXPosition>& positions_end) {
+        // Calcul du P&L total
+        return 0.0; // Placeholder
+    }
+};
+```
+
+Le framework de mesures de risque FX LSV Markov Switching Monte Carlo dans Our project fournit une solution complète pour l'évaluation, le monitoring et la gestion des risques FX avec des métriques spécialisées et des capacités d'analyse avancées.

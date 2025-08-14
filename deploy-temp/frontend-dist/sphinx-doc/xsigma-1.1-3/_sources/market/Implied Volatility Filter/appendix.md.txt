@@ -1,0 +1,270 @@
+# Appendix: Quality of bid/ask quotes
+
+## Quote Quality Overview
+
+In order to have a stable and reliable fit, the volatility fitter tries to move only on maturities with rich data. The model below defines a measure for quote quality for a given maturity and satisfies the following properties:
+
+- **The higher the number of market quotes**, the better the quality
+- **The tighter the spreads**, the better the quality
+- **For an equal number of quotes**, the best quality is achieved for more uniformly distributed strikes
+
+```cpp
+// Our project implementation of quote quality system
+namespace xsigma {
+    class QuoteQualityAssessment {
+    public:
+        struct QualityMetrics {
+            int num_quotes;                    // Number of quotes
+            double avg_bid_ask_spread;         // Average bid/ask spread
+            double strike_distribution_score;  // Strike distribution score
+            double overall_quality_score;      // Overall quality score
+        };
+
+        struct QualityConfig {
+            double alpha = 1.0;               // Confidence parameter
+            double lambda = 10.0;             // Uncertainty perception
+            double gamma = 0.2;               // Density parameter
+            std::vector<double> spread_factors = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
+        };
+        
+        QualityMetrics assessQuoteQuality(
+            const std::vector<OptionQuote>& quotes,
+            double maturity,
+            const VolatilitySurface& reference_surface,
+            const QualityConfig& config) {
+            
+            QualityMetrics metrics;
+            
+            // Calcul du nombre de cotations
+            metrics.num_quotes = quotes.size();
+            
+            // Calculate average spread
+            metrics.avg_bid_ask_spread = calculateAverageBidAskSpread(quotes);
+
+            // Evaluate strike distribution
+            metrics.strike_distribution_score = evaluateStrikeDistribution(quotes, maturity);
+
+            // Calculate overall quality
+            metrics.overall_quality_score = calculateOverallQuality(
+                quotes, maturity, reference_surface, config);
+            
+            return metrics;
+        }
+        
+    private:
+        double calculateAverageBidAskSpread(const std::vector<OptionQuote>& quotes);
+        double evaluateStrikeDistribution(const std::vector<OptionQuote>& quotes, double maturity);
+        double calculateOverallQuality(const std::vector<OptionQuote>& quotes,
+                                     double maturity,
+                                     const VolatilitySurface& reference_surface,
+                                     const QualityConfig& config);
+    };
+}
+```
+*This C++ implementation in Our project provides a comprehensive quote quality assessment system with detailed metrics.*
+
+## Data Quality
+
+### Brownian Bridge Interpolation
+
+Because quotes are discrete, the indication of where the fair value lies is only available for a finite number of strikes. To establish a continuous measure of the fair value confidence zone, a specific type of interpolation is used that is based on the Brownian Bridge (linear structure plus noise):
+
+$$BS(k)_{bid,ask} = v_1 + (v_2 - v_1)\frac{k-k_1}{k_2-k_1} +W((k-k_1)(W(k_2-k_1) - W(k-k_1))$$
+
+Where:
+- $k = strike/anchor\ strike$ is the relative strike
+- $k_1$ and $k_2$ correspond to the listed strikes
+- $W$ is a Brownian motion
+
+### Confidence Intervals
+
+Since the value of the interpolated fair value is stochastic, we can define one-sided confidence intervals for bids and asks that constitute the lower and upper bounds:
+
+$$Ask(k)_{bid,ask} \leq v_1 + (v_2 - v_1)\frac{k-k_1}{k_2-k_1} + \alpha\sqrt{(k-k_1)(k_2-k)}$$
+
+$$Bid(k)_{bid,ask} \geq v_1 + (v_2 - v_1)\frac{k-k_1}{k_2-k_1} - \alpha\sqrt{(k-k_1)(k_2-k)}$$
+
+Where the parameter $\alpha$ controls a degree of confidence and a measure of randomness for the maturity.
+
+### Uncertainty Measure
+
+The width of the confidence spread is a measure of uncertainty for a fair value between listed strikes:
+
+$$CI_{\alpha}(k)_{bid,ask} = v_1 - b_1 + (v_2 - v_1 - b_2 + b_1)\frac{k-k_1}{k_2-k_1} + 2\alpha\sqrt{(k-k_1)(k_2-k)}$$
+
+```cpp
+// Our project implementation of confidence interval calculation
+namespace xsigma {
+    class ConfidenceIntervalCalculator {
+    public:
+        struct InterpolationPoint {
+            double strike;
+            double bid_vol;
+            double ask_vol;
+            double confidence_width;
+        };
+        
+        std::vector<InterpolationPoint> calculateConfidenceIntervals(
+            const std::vector<OptionQuote>& quotes,
+            double alpha,
+            double anchor_strike) {
+            
+            std::vector<InterpolationPoint> intervals;
+            
+            for (size_t i = 0; i < quotes.size() - 1; ++i) {
+                const auto& quote1 = quotes[i];
+                const auto& quote2 = quotes[i + 1];
+                
+                // Relative strikes
+                double k1 = quote1.strike / anchor_strike;
+                double k2 = quote2.strike / anchor_strike;
+                
+                // Brownian Bridge interpolation
+                for (double k = k1; k <= k2; k += 0.01) {  // Fine grid
+                    InterpolationPoint point;
+                    point.strike = k * anchor_strike;
+                    
+                    // Basic linear interpolation
+                    double weight = (k - k1) / (k2 - k1);
+                    double v_interp = quote1.mid_vol + (quote2.mid_vol - quote1.mid_vol) * weight;
+                    
+                    // Brownian Bridge noise term
+                    double noise_term = alpha * std::sqrt((k - k1) * (k2 - k));
+                    
+                    point.bid_vol = v_interp - noise_term;
+                    point.ask_vol = v_interp + noise_term;
+                    point.confidence_width = 2 * noise_term;
+                    
+                    intervals.push_back(point);
+                }
+            }
+            
+            return intervals;
+        }
+        
+    private:
+        double calculateBrownianBridgeNoise(double k, double k1, double k2, double alpha);
+    };
+}
+```
+*This C++ implementation in Our project calculates confidence intervals with Brownian Bridge interpolation for quality assessment.*
+
+### Integrated Quality Measure
+
+To define a measure of quote quality, the uncertainty measure $CI_{\alpha}(k)$ is integrated over all available strikes. To achieve the property "higher uncertainty - lower quality", the function $\exp(-\Lambda CI_{\alpha}(k))$ is used, where $\Lambda$ denotes uncertainty perception.
+
+The parameter $\Lambda$ allows controlling how quickly quality degrades with increasing $CI_{\alpha}(k)$. Finally, for a given maturity, the quote quality measure is given by:
+
+$$Q = \int_{k_{min}}^{k_{max}} \exp(-\Lambda CI_{\alpha}(k))dk$$
+
+## Reference Data Case
+
+### Benchmark Definition
+
+To represent the quality measure as a percentage of good quality, it is scaled relative to a reference data case. The quality of a reference data case is the reference quality.
+
+The reference data case is a market state-independent benchmark for data quality. It is defined by:
+- **Quote distribution** (i.e., strike density)
+- **Bid/ask spread width**
+
+### Factor Model for Spreads
+
+The first characteristic of the reference data case is the spread width denoted $spread^{ref}(T,K)$ which is defined using a factor model for spreads:
+
+$$spread^{ref}(T,K) = \sum_{i=1}^{7}a_i Factor_i$$
+
+Where $a_i$ is the input spread parameter and:
+
+$$k = \frac{\tanh(Ctrl \times \ln(\frac{K}{anchorK}))}{Ctrl \times \sqrt{T}}$$
+
+#### Spread Factors
+
+$$Factor_1 = \frac{AnchorVol^2}{2 \times ASV(T,K)}$$
+
+$$Factor_2 = \frac{AnchorVol}{ASV(T,K)}|Skew \times k|$$
+
+$$Factor_3 = \frac{Smile}{2 \times ASV(T,K)} \left(\frac{k}{ASV(T,K)}\right)^2$$
+
+$$Factor_4 = 1(k \geq 0)\frac{|CallWing|}{2 \times ASV(T,K)} \left(\frac{k}{ASV(T,K)}\right)^4$$
+
+$$Factor_5 = 1(k < 0)\frac{|PutWing|}{2 \times ASV(T,K)} \left(\frac{k}{ASV(T,K)}\right)^4$$
+
+$$Factor_6 = \frac{1}{Vega(T,K)}$$
+
+$$Factor_7 = \frac{Delta(T,K)}{Vega(T,K)}$$
+
+Where $Delta(T,K)$ and $Vega(T,K)$ correspond to European OTM Call/Put options expiring at $T$ with forward equal to 1 and strike $K/F(T)$ given by Black-Scholes formulas.
+
+### Reference Quote Density
+
+The second characteristic of the reference data case is the quote density. The density is parameterized using the log-scale volatility standard deviation denoted $sd(T) = \gamma \sqrt{T}$.
+
+The reference strike grid is extended across the interval $k \in [1-5\times sd(T), 1+4\times sd(T)]$ and for the number of quotes within each standard deviation zone, a linear function of $sd(T)$ is used:
+
+$$\sum^{3}\{|k_i \in O_1^T|\} = \gamma_1^T + \beta_1^T \times sd(T)$$
+
+$$\sum\{|k_i \in O_2^T|\} = \gamma_2^T + \beta_2^T \times sd(T)$$
+
+Where $\gamma_1^T, \beta_1^T, \gamma_2^T, \beta_2^T$ are input parameters for each of the standard deviation zones.
+
+### Reference Quality
+
+Once spreads are defined for each reference strike point, the continuous measure is defined using:
+
+$$CI_{\alpha}(k)_{k_1^{ref}, k_2^{ref}}^{ref} = spread_1^{ref} + (spread_2^{ref} - spread_1^{ref})\frac{k-k_1^{ref}}{k_2^{ref}-k_1^{ref}} + 2\alpha\sqrt{(k-k_1^{ref})(k_2^{ref}-k)}$$
+
+The reference quality is then calculated as:
+
+$$Q^{ref} = \int_{k=1-5 \times sd}^{k=1+4 \times sd} \exp(-\Lambda CI_{\alpha}^{ref}(k))dk$$
+
+```cpp
+// Our project implementation of reference quality calculation
+namespace xsigma {
+    class ReferenceQualityCalculator {
+    public:
+        struct ReferenceConfig {
+            std::vector<double> spread_coefficients = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
+            double gamma = 0.2;               // Density parameter
+            double gamma1 = 5.0, beta1 = 2.0; // Zone 1 parameters
+            double gamma2 = 3.0, beta2 = 1.5; // Zone 2 parameters
+            double lambda = 10.0;             // Uncertainty perception
+            double alpha = 1.0;               // Confidence parameter
+        };
+
+        double calculateReferenceQuality(
+            double maturity,
+            const ASVParameters& asv_params,
+            const ReferenceConfig& config) {
+
+            // Calculate reference standard deviation
+            double sd = config.gamma * std::sqrt(maturity);
+
+            // Define reference strike grid
+            auto reference_strikes = generateReferenceStrikeGrid(sd, config);
+
+            // Calculate reference spreads
+            auto reference_spreads = calculateReferenceSpreads(
+                reference_strikes, maturity, asv_params, config);
+
+            // Integrate quality measure
+            double quality = integrateQualityMeasure(
+                reference_strikes, reference_spreads, config);
+
+            return quality;
+        }
+        
+    private:
+        std::vector<double> generateReferenceStrikeGrid(double sd, const ReferenceConfig& config);
+        std::vector<double> calculateReferenceSpreads(
+            const std::vector<double>& strikes,
+            double maturity,
+            const ASVParameters& asv_params,
+            const ReferenceConfig& config);
+        double integrateQualityMeasure(
+            const std::vector<double>& strikes,
+            const std::vector<double>& spreads,
+            const ReferenceConfig& config);
+    };
+}
+```
+*This C++ implementation in Our project calculates reference quality with complete factor model and numerical integration.*

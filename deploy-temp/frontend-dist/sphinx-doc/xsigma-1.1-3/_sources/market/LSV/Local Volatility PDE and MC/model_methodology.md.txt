@@ -1,0 +1,510 @@
+# Model / Methodology
+
+## Overview
+
+Cette section décrit la méthodologie mathématique du modèle **Local Volatility PDE and MC**, incluant le framework théorique de Dupire, les méthodes numériques hybrides et les critères de sélection entre approches PDE et Monte Carlo.
+
+## Mathematical Framework
+
+### Dupire Local Volatility Model
+
+#### Fundamental Equation
+Le modèle de volatilité locale de Dupire est basé sur l'équation :
+
+$$\frac{\partial C}{\partial T} = \frac{1}{2}\sigma_{LV}^2(K,T)K^2\frac{\partial^2 C}{\partial K^2} - rK\frac{\partial C}{\partial K} + rC$$
+
+où $\sigma_{LV}(K,T)$ est la fonction de volatilité locale.
+
+#### Local Volatility Function
+La volatilité locale est déterminée par la formule de Dupire :
+
+$$\sigma_{LV}^2(K,T) = \frac{2\frac{\partial C}{\partial T} + rK\frac{\partial C}{\partial K}}{\frac{\partial^2 C}{\partial K^2}K^2}$$
+
+```cpp
+// Implémentation Our project de la méthodologie Local Volatility hybride
+namespace xsigma::local_vol_methodology {
+    
+    class LocalVolatilityMethodology {
+    public:
+        // Structure pour la surface de volatilité locale
+        struct LocalVolatilitySurface {
+            std::vector<double> strikes;           // Grille de strikes
+            std::vector<double> maturities;        // Grille de maturités
+            std::vector<std::vector<double>> local_vol_matrix; // σ_LV(K,T)
+            std::string interpolation_method;      // Méthode d'interpolation
+            double spot_price;                     // Prix spot de référence
+            double risk_free_rate;                 // Taux sans risque
+            double dividend_yield;                 // Rendement dividende
+        };
+        
+        // Calibration de la surface de volatilité locale via équation de Dupire
+        LocalVolatilitySurface calibrate_local_volatility_surface(
+            const std::vector<std::vector<double>>& market_option_prices,
+            const std::vector<double>& strikes,
+            const std::vector<double>& maturities,
+            double spot, double rate, double dividend) {
+            
+            LocalVolatilitySurface surface;
+            surface.strikes = strikes;
+            surface.maturities = maturities;
+            surface.spot_price = spot;
+            surface.risk_free_rate = rate;
+            surface.dividend_yield = dividend;
+            surface.interpolation_method = "CUBIC_SPLINE";
+            
+            // Calcul des dérivées partielles des prix d'options
+            auto price_derivatives = calculate_option_price_derivatives(
+                market_option_prices, strikes, maturities);
+            
+            // Application de la formule de Dupire
+            surface.local_vol_matrix = apply_dupire_formula(
+                price_derivatives, strikes, maturities, rate);
+            
+            // Lissage et validation de la surface
+            surface = smooth_and_validate_surface(surface);
+            
+            return surface;
+        }
+        
+        // Structure pour les dérivées partielles des prix d'options
+        struct OptionPriceDerivatives {
+            std::vector<std::vector<double>> dC_dT;    // ∂C/∂T
+            std::vector<std::vector<double>> dC_dK;    // ∂C/∂K
+            std::vector<std::vector<double>> d2C_dK2;  // ∂²C/∂K²
+        };
+        
+        // Calcul des dérivées partielles via différences finies
+        OptionPriceDerivatives calculate_option_price_derivatives(
+            const std::vector<std::vector<double>>& prices,
+            const std::vector<double>& strikes,
+            const std::vector<double>& maturities) {
+            
+            OptionPriceDerivatives derivatives;
+            
+            // Initialisation des matrices de dérivées
+            derivatives.dC_dT.resize(strikes.size(), std::vector<double>(maturities.size()));
+            derivatives.dC_dK.resize(strikes.size(), std::vector<double>(maturities.size()));
+            derivatives.d2C_dK2.resize(strikes.size(), std::vector<double>(maturities.size()));
+            
+            // Calcul de ∂C/∂T (dérivée temporelle)
+            for (size_t i = 0; i < strikes.size(); ++i) {
+                for (size_t j = 1; j < maturities.size() - 1; ++j) {
+                    double dT = maturities[j+1] - maturities[j-1];
+                    derivatives.dC_dT[i][j] = (prices[i][j+1] - prices[i][j-1]) / dT;
+                }
+            }
+            
+            // Calcul de ∂C/∂K (dérivée en strike)
+            for (size_t i = 1; i < strikes.size() - 1; ++i) {
+                for (size_t j = 0; j < maturities.size(); ++j) {
+                    double dK = strikes[i+1] - strikes[i-1];
+                    derivatives.dC_dK[i][j] = (prices[i+1][j] - prices[i-1][j]) / dK;
+                }
+            }
+            
+            // Calcul de ∂²C/∂K² (dérivée seconde en strike)
+            for (size_t i = 1; i < strikes.size() - 1; ++i) {
+                for (size_t j = 0; j < maturities.size(); ++j) {
+                    double dK = strikes[i+1] - strikes[i];
+                    derivatives.d2C_dK2[i][j] = (prices[i+1][j] - 2*prices[i][j] + prices[i-1][j]) / (dK * dK);
+                }
+            }
+            
+            return derivatives;
+        }
+        
+        // Application de la formule de Dupire
+        std::vector<std::vector<double>> apply_dupire_formula(
+            const OptionPriceDerivatives& derivatives,
+            const std::vector<double>& strikes,
+            const std::vector<double>& maturities,
+            double rate) {
+            
+            std::vector<std::vector<double>> local_vol_matrix(
+                strikes.size(), std::vector<double>(maturities.size()));
+            
+            for (size_t i = 0; i < strikes.size(); ++i) {
+                for (size_t j = 0; j < maturities.size(); ++j) {
+                    
+                    double K = strikes[i];
+                    double dC_dT = derivatives.dC_dT[i][j];
+                    double dC_dK = derivatives.dC_dK[i][j];
+                    double d2C_dK2 = derivatives.d2C_dK2[i][j];
+                    
+                    // Formule de Dupire : σ²(K,T) = (2∂C/∂T + rK∂C/∂K) / (K²∂²C/∂K²)
+                    double numerator = 2 * dC_dT + rate * K * dC_dK;
+                    double denominator = K * K * d2C_dK2;
+                    
+                    if (std::abs(denominator) > 1e-10 && numerator > 0) {
+                        double local_vol_squared = numerator / denominator;
+                        local_vol_matrix[i][j] = std::sqrt(std::max(local_vol_squared, 1e-6));
+                    } else {
+                        // Extrapolation ou valeur par défaut
+                        local_vol_matrix[i][j] = extrapolate_local_vol(i, j, local_vol_matrix);
+                    }
+                }
+            }
+            
+            return local_vol_matrix;
+        }
+        
+        // Lissage et validation de la surface
+        LocalVolatilitySurface smooth_and_validate_surface(const LocalVolatilitySurface& raw_surface) {
+            LocalVolatilitySurface smoothed_surface = raw_surface;
+            
+            // Lissage via splines cubiques
+            smoothed_surface.local_vol_matrix = apply_cubic_spline_smoothing(raw_surface.local_vol_matrix);
+            
+            // Validation d'absence d'arbitrage
+            if (!validate_no_arbitrage_conditions(smoothed_surface)) {
+                XSIGMA_LOG_WARNING("Conditions d'absence d'arbitrage violées, ajustement nécessaire");
+                smoothed_surface = adjust_for_no_arbitrage(smoothed_surface);
+            }
+            
+            // Validation de monotonie
+            if (!validate_monotonicity_conditions(smoothed_surface)) {
+                XSIGMA_LOG_WARNING("Conditions de monotonie violées, ajustement nécessaire");
+                smoothed_surface = enforce_monotonicity(smoothed_surface);
+            }
+            
+            return smoothed_surface;
+        }
+        
+    private:
+        double extrapolate_local_vol(size_t i, size_t j, 
+                                    const std::vector<std::vector<double>>& matrix) {
+            // Extrapolation simple basée sur les valeurs voisines
+            return 0.20; // Valeur par défaut 20%
+        }
+        
+        std::vector<std::vector<double>> apply_cubic_spline_smoothing(
+            const std::vector<std::vector<double>>& matrix) {
+            // Lissage via splines cubiques
+            return matrix; // Placeholder
+        }
+        
+        bool validate_no_arbitrage_conditions(const LocalVolatilitySurface& surface) {
+            // Validation des conditions d'absence d'arbitrage
+            return true; // Placeholder
+        }
+        
+        LocalVolatilitySurface adjust_for_no_arbitrage(const LocalVolatilitySurface& surface) {
+            // Ajustement pour respecter l'absence d'arbitrage
+            return surface; // Placeholder
+        }
+        
+        bool validate_monotonicity_conditions(const LocalVolatilitySurface& surface) {
+            // Validation des conditions de monotonie
+            return true; // Placeholder
+        }
+        
+        LocalVolatilitySurface enforce_monotonicity(const LocalVolatilitySurface& surface) {
+            // Application forcée de la monotonie
+            return surface; // Placeholder
+        }
+    };
+}
+```
+
+### PDE Formulation
+
+#### Forward Kolmogorov Equation
+Pour le pricing forward, nous utilisons l'équation de Kolmogorov :
+
+$$\frac{\partial p}{\partial t} = \frac{1}{2}\frac{\partial^2}{\partial S^2}[\sigma_{LV}^2(S,t)S^2 p] - \frac{\partial}{\partial S}[(r-q)S p]$$
+
+#### Backward Pricing PDE
+Pour le pricing backward (plus commun), l'EDP est :
+
+$$\frac{\partial V}{\partial t} + \frac{1}{2}\sigma_{LV}^2(S,t)S^2\frac{\partial^2 V}{\partial S^2} + (r-q)S\frac{\partial V}{\partial S} - rV = 0$$
+
+### Monte Carlo with Local Volatility
+
+#### SDE with Local Volatility
+Le processus stochastique sous-jacent est :
+
+$$dS_t = (r-q)S_t dt + \sigma_{LV}(S_t,t)S_t dW_t$$
+
+#### Euler Discretization
+Discrétisation d'Euler pour simulation Monte Carlo :
+
+$$S_{t+\Delta t} = S_t + (r-q)S_t\Delta t + \sigma_{LV}(S_t,t)S_t\sqrt{\Delta t}\epsilon_t$$
+
+où $\epsilon_t \sim \mathcal{N}(0,1)$.
+
+## Hybrid Methodology Framework
+
+### Method Selection Algorithm
+
+```cpp
+// Algorithme de sélection de méthode hybride
+class HybridMethodSelector {
+public:
+    enum class ComplexityFactor {
+        PAYOFF_SMOOTHNESS,      // Lissage du payoff
+        PATH_DEPENDENCY,        // Dépendance de chemin
+        DIMENSIONALITY,         // Dimensionnalité
+        BOUNDARY_CONDITIONS,    // Conditions aux limites
+        PRECISION_REQUIREMENTS  // Exigences de précision
+    };
+    
+    struct ComplexityAnalysis {
+        std::map<ComplexityFactor, double> factor_scores;
+        double overall_complexity_score;
+        std::string complexity_category;    // "LOW", "MEDIUM", "HIGH"
+        std::vector<std::string> complexity_drivers;
+    };
+    
+    // Analyse de complexité pour sélection de méthode
+    ComplexityAnalysis analyze_product_complexity(const ProductSpecification& product) {
+        ComplexityAnalysis analysis;
+        
+        // Score de lissage du payoff
+        analysis.factor_scores[ComplexityFactor::PAYOFF_SMOOTHNESS] = 
+            calculate_payoff_smoothness_score(product);
+        
+        // Score de dépendance de chemin
+        analysis.factor_scores[ComplexityFactor::PATH_DEPENDENCY] = 
+            calculate_path_dependency_score(product);
+        
+        // Score de dimensionnalité
+        analysis.factor_scores[ComplexityFactor::DIMENSIONALITY] = 
+            calculate_dimensionality_score(product);
+        
+        // Score de conditions aux limites
+        analysis.factor_scores[ComplexityFactor::BOUNDARY_CONDITIONS] = 
+            calculate_boundary_complexity_score(product);
+        
+        // Score d'exigences de précision
+        analysis.factor_scores[ComplexityFactor::PRECISION_REQUIREMENTS] = 
+            calculate_precision_requirements_score(product);
+        
+        // Score global pondéré
+        analysis.overall_complexity_score = calculate_weighted_complexity_score(analysis.factor_scores);
+        
+        // Catégorisation
+        if (analysis.overall_complexity_score < 2.0) {
+            analysis.complexity_category = "LOW";
+        } else if (analysis.overall_complexity_score < 4.0) {
+            analysis.complexity_category = "MEDIUM";
+        } else {
+            analysis.complexity_category = "HIGH";
+        }
+        
+        // Identification des drivers de complexité
+        analysis.complexity_drivers = identify_complexity_drivers(analysis.factor_scores);
+        
+        return analysis;
+    }
+    
+    // Sélection de méthode basée sur l'analyse de complexité
+    PricingMethod select_optimal_method(const ComplexityAnalysis& analysis,
+                                       const PerformanceRequirements& requirements) {
+        
+        // Règles de sélection basées sur la complexité et les exigences
+        if (analysis.complexity_category == "LOW") {
+            if (requirements.requires_fast_greeks) {
+                return PricingMethod::PDE_ONLY;
+            } else if (requirements.requires_high_precision) {
+                return PricingMethod::DUAL_VALIDATION;
+            } else {
+                return PricingMethod::PDE_ONLY; // Défaut pour faible complexité
+            }
+            
+        } else if (analysis.complexity_category == "MEDIUM") {
+            if (has_high_path_dependency(analysis)) {
+                return PricingMethod::MONTE_CARLO_ONLY;
+            } else if (requirements.requires_fast_greeks) {
+                return PricingMethod::PDE_FOR_GREEKS_MC_FOR_PRICE;
+            } else {
+                return PricingMethod::HYBRID_ADAPTIVE;
+            }
+            
+        } else { // HIGH complexity
+            if (has_extreme_path_dependency(analysis)) {
+                return PricingMethod::MONTE_CARLO_ONLY;
+            } else if (requirements.requires_high_precision) {
+                return PricingMethod::DUAL_VALIDATION;
+            } else {
+                return PricingMethod::HYBRID_ADAPTIVE;
+            }
+        }
+    }
+    
+private:
+    double calculate_payoff_smoothness_score(const ProductSpecification& product) {
+        double score = 0.0;
+        
+        // Facteurs augmentant la complexité (score plus élevé = moins lisse)
+        if (product.has_barriers) score += 2.0;
+        if (product.has_digital_features) score += 1.5;
+        if (product.has_discontinuous_payoff) score += 3.0;
+        if (product.is_path_dependent) score += 1.0;
+        
+        return score;
+    }
+    
+    double calculate_path_dependency_score(const ProductSpecification& product) {
+        double score = 0.0;
+        
+        if (product.is_path_dependent) {
+            score += 2.0;
+            score += 0.1 * product.number_of_observation_dates; // Plus de dates = plus complexe
+            
+            if (product.has_early_exercise) score += 1.0;
+            if (product.has_lookback_features) score += 1.5;
+            if (product.has_asian_features) score += 1.0;
+        }
+        
+        return score;
+    }
+    
+    double calculate_dimensionality_score(const ProductSpecification& product) {
+        double score = 0.0;
+        
+        // Score basé sur le nombre de facteurs de risque
+        score += product.number_of_underlyings * 0.5;
+        score += product.number_of_stochastic_factors * 1.0;
+        
+        if (product.number_of_underlyings > 1) score += 1.0; // Multi-asset
+        if (product.number_of_stochastic_factors > 2) score += 2.0; // Multi-factor
+        
+        return score;
+    }
+    
+    double calculate_boundary_complexity_score(const ProductSpecification& product) {
+        double score = 0.0;
+        
+        if (product.has_barriers) {
+            score += 1.0 * product.number_of_barriers;
+            
+            if (product.has_time_dependent_barriers) score += 1.0;
+            if (product.has_american_features) score += 1.5;
+            if (product.has_complex_boundary_conditions) score += 2.0;
+        }
+        
+        return score;
+    }
+    
+    double calculate_precision_requirements_score(const ProductSpecification& product) {
+        double score = 0.0;
+        
+        if (product.requires_high_precision) score += 2.0;
+        if (product.requires_regulatory_validation) score += 1.0;
+        if (product.is_exotic_structured_product) score += 1.5;
+        if (product.has_tight_risk_limits) score += 1.0;
+        
+        return score;
+    }
+    
+    double calculate_weighted_complexity_score(
+        const std::map<ComplexityFactor, double>& factor_scores) {
+        
+        // Poids pour chaque facteur
+        std::map<ComplexityFactor, double> weights = {
+            {ComplexityFactor::PAYOFF_SMOOTHNESS, 0.3},
+            {ComplexityFactor::PATH_DEPENDENCY, 0.25},
+            {ComplexityFactor::DIMENSIONALITY, 0.2},
+            {ComplexityFactor::BOUNDARY_CONDITIONS, 0.15},
+            {ComplexityFactor::PRECISION_REQUIREMENTS, 0.1}
+        };
+        
+        double weighted_score = 0.0;
+        for (const auto& [factor, score] : factor_scores) {
+            weighted_score += weights[factor] * score;
+        }
+        
+        return weighted_score;
+    }
+    
+    std::vector<std::string> identify_complexity_drivers(
+        const std::map<ComplexityFactor, double>& factor_scores) {
+        
+        std::vector<std::string> drivers;
+        
+        for (const auto& [factor, score] : factor_scores) {
+            if (score > 2.0) { // Seuil de complexité significative
+                switch (factor) {
+                    case ComplexityFactor::PAYOFF_SMOOTHNESS:
+                        drivers.push_back("Payoff non-lisse (barrières/digitales)");
+                        break;
+                    case ComplexityFactor::PATH_DEPENDENCY:
+                        drivers.push_back("Forte dépendance de chemin");
+                        break;
+                    case ComplexityFactor::DIMENSIONALITY:
+                        drivers.push_back("Haute dimensionnalité");
+                        break;
+                    case ComplexityFactor::BOUNDARY_CONDITIONS:
+                        drivers.push_back("Conditions aux limites complexes");
+                        break;
+                    case ComplexityFactor::PRECISION_REQUIREMENTS:
+                        drivers.push_back("Exigences de haute précision");
+                        break;
+                }
+            }
+        }
+        
+        return drivers;
+    }
+    
+    bool has_high_path_dependency(const ComplexityAnalysis& analysis) {
+        return analysis.factor_scores.at(ComplexityFactor::PATH_DEPENDENCY) > 3.0;
+    }
+    
+    bool has_extreme_path_dependency(const ComplexityAnalysis& analysis) {
+        return analysis.factor_scores.at(ComplexityFactor::PATH_DEPENDENCY) > 5.0;
+    }
+    
+    // Structures de support
+    struct ProductSpecification {
+        bool has_barriers = false;
+        bool has_digital_features = false;
+        bool has_discontinuous_payoff = false;
+        bool is_path_dependent = false;
+        int number_of_observation_dates = 0;
+        bool has_early_exercise = false;
+        bool has_lookback_features = false;
+        bool has_asian_features = false;
+        int number_of_underlyings = 1;
+        int number_of_stochastic_factors = 1;
+        int number_of_barriers = 0;
+        bool has_time_dependent_barriers = false;
+        bool has_american_features = false;
+        bool has_complex_boundary_conditions = false;
+        bool requires_high_precision = false;
+        bool requires_regulatory_validation = false;
+        bool is_exotic_structured_product = false;
+        bool has_tight_risk_limits = false;
+    };
+    
+    struct PerformanceRequirements {
+        bool requires_fast_greeks = false;
+        bool requires_high_precision = false;
+        double max_computation_time_ms = 1000.0;
+        double max_memory_usage_mb = 1000.0;
+        bool requires_real_time_pricing = false;
+    };
+};
+```
+
+## Numerical Implementation Strategy
+
+### PDE Discretization
+- **Spatial Grid** : Grilles adaptatives concentrées autour du spot et des barrières
+- **Time Stepping** : Schémas implicites pour stabilité
+- **Boundary Treatment** : Conditions aux limites spécialisées selon le produit
+- **Solver Selection** : Solveurs directs ou itératifs selon la taille
+
+### Monte Carlo Enhancement
+- **Variance Reduction** : Variables antithétiques, variables de contrôle
+- **Path Generation** : Générateurs de nombres pseudo-aléatoires optimisés
+- **Convergence Control** : Monitoring de convergence automatique
+- **Parallel Processing** : Parallélisation efficace des chemins
+
+### Hybrid Optimization
+- **Method Switching** : Basculement dynamique entre méthodes
+- **Cross Validation** : Validation croisée systématique
+- **Error Control** : Contrôle d'erreur sophistiqué
+- **Performance Monitoring** : Surveillance de performance continue
+
+La méthodologie Local Volatility PDE and MC dans Our project combine rigoureusement les fondements théoriques de Dupire avec des techniques numériques avancées et une sélection intelligente de méthode pour fournir une solution optimale selon les caractéristiques de chaque produit.

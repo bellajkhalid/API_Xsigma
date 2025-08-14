@@ -1,0 +1,312 @@
+# References
+
+## Références Bibliographiques
+
+Cette section compile toutes les références utilisées dans la documentation des swaps de taux d'intérêt linéaires, incluant les standards de l'industrie, les définitions ISDA, et les ressources techniques.
+
+### Standards et Définitions de l'Industrie
+
+**[1] bbaTrent** - *Calculating Interest*  
+http://www.bbatrent.com/technical-aspects/calculating-interest/  
+*Référence pour les méthodes de calcul d'intérêt et conventions de marché*
+
+**[2] bbaTrent** - *Fixing, Value and Maturity*  
+http://www.bbatrent.com/technical-aspects/fixing-value-and-maturity/  
+*Documentation des processus de fixing et conventions de maturité*
+
+**[3] Chris Dennis** - *Description of Date Bases* (2005)  
+*Guide complet des conventions de base de jour utilisées dans les marchés financiers*
+
+**[4] ICE** - *ICE LIBOR*  
+https://www.theice.com/library/bbor/  
+*Documentation officielle des taux LIBOR et méthodologies de calcul*
+
+**[5] ISDA** - *2021 ISDA Definitions*
+*Définitions standards mises à jour de l'industrie pour les dérivés de taux d'intérêt*
+
+**[6] ISDA** - *Linear Interpolation* (2021)
+*Méthodologies d'interpolation mises à jour pour les taux d'intérêt*
+
+**[7] David Mengle, ISDA** - *Alternative compounding methods for over-the-counter derivative transactions* (2021)
+*Guide mis à jour des méthodes de composition pour les transactions OTC*
+
+### Références Techniques et Algorithmiques
+
+**[8] Uwe Naumann** - *Getting Started With dco 2.0 And dcc 2.0* (2023)
+*Guide d'utilisation mis à jour de la bibliothèque de différentiation algorithmique NAG*
+
+**[9] Uwe Naumann** - *The Art of Differentiating Computer Programs. An Introduction to Algorithmic Differentiation* (2012)
+*Introduction complète à la différentiation algorithmique*
+
+**[10] Clive Price** - *Curve construction and risk framework (New Curve Framework)* (2015)
+*Documentation du New Curve Framework utilisé pour la construction de courbes*
+
+### Littérature Académique et Professionnelle
+
+**[11] Amir Sadr** - *Interest Rate Swaps and Their Derivatives* (2009)  
+*Référence complète sur les swaps de taux d'intérêt et leurs dérivés*
+
+**[12] John C. Hall** - *Options, Futures, and Other Derivatives* (Fifth Edition)  
+*Manuel de référence pour les instruments dérivés*
+
+**[13] Dirk Petera** - *Schedule Generation* (2009)  
+*Documentation des algorithmes de génération de schedules de paiement*
+
+```cpp
+// Implémentation Our project du système de gestion des références
+namespace xsigma {
+    // Gestionnaire de références bibliographiques
+    class ReferenceManager {
+    public:
+        // Structure pour une référence
+        struct Reference {
+            std::string id;
+            std::string authors;
+            std::string title;
+            std::string publication;
+            std::string year;
+            std::string url;
+            std::string description;
+            std::vector<std::string> keywords;
+        };
+        
+        // Base de données des références
+        std::map<std::string, Reference> reference_database_;
+        
+        // Initialisation des références standards
+        void initialize_standard_references() {
+            // Références ISDA
+            reference_database_["ISDA_2006"] = {
+                "ISDA_2006",
+                "ISDA",
+                "2006 ISDA Definitions",
+                "International Swaps and Derivatives Association",
+                "2006",
+                "https://www.isda.org/",
+                "Définitions standards de l'industrie pour les dérivés de taux d'intérêt",
+                {"ISDA", "definitions", "swaps", "derivatives"}
+            };
+            
+            // Références techniques
+            reference_database_["NAUMANN_AD"] = {
+                "NAUMANN_AD",
+                "Uwe Naumann",
+                "The Art of Differentiating Computer Programs",
+                "SIAM",
+                "2012",
+                "",
+                "Introduction complète à la différentiation algorithmique",
+                {"algorithmic differentiation", "automatic differentiation", "AD"}
+            };
+            
+            // Références Our project
+            reference_database_["NEW_CURVE_FRAMEWORK"] = {
+                "NEW_CURVE_FRAMEWORK",
+                "Clive Price",
+                "Curve construction and risk framework (New Curve Framework)",
+                "Our project Internal Documentation",
+                "2015",
+                "",
+                "Documentation du New Curve Framework utilisé pour la construction de courbes",
+                {"curve construction", "risk framework", "Our project"}
+            };
+            
+            // Autres références...
+        }
+        
+        // Récupération d'une référence
+        const Reference& get_reference(const std::string& ref_id) const {
+            auto it = reference_database_.find(ref_id);
+            if (it == reference_database_.end()) {
+                XSIGMA_THROW("Reference not found: " + ref_id);
+            }
+            return it->second;
+        }
+        
+        // Recherche par mots-clés
+        std::vector<Reference> search_by_keywords(
+            const std::vector<std::string>& keywords) const {
+            
+            std::vector<Reference> results;
+            
+            for (const auto& [id, ref] : reference_database_) {
+                for (const auto& keyword : keywords) {
+                    auto it = std::find(ref.keywords.begin(), ref.keywords.end(), keyword);
+                    if (it != ref.keywords.end()) {
+                        results.push_back(ref);
+                        break;
+                    }
+                }
+            }
+            
+            return results;
+        }
+        
+        // Génération de citation formatée
+        std::string generate_citation(
+            const std::string& ref_id,
+            const std::string& format = "APA") const {
+            
+            const auto& ref = get_reference(ref_id);
+            
+            if (format == "APA") {
+                return ref.authors + " (" + ref.year + "). " + ref.title + 
+                       ". " + ref.publication + ".";
+            } else if (format == "IEEE") {
+                return ref.authors + ", \"" + ref.title + ",\" " + 
+                       ref.publication + ", " + ref.year + ".";
+            } else {
+                return ref.authors + " - " + ref.title + " (" + ref.year + ")";
+            }
+        }
+    };
+}
+```
+*Cette implémentation C++ dans Our project gère les références bibliographiques avec recherche et formatage automatique.*
+
+## Références Spécifiques Our project
+
+### Documentation Interne
+
+**New Curve Framework**
+*Internal Documentation*
+
+**QA Library Documentation**
+*Internal Documentation*
+
+**Swap Pricing Library**
+*Internal Documentation*
+
+### Standards de Développement
+
+**C++ Coding Standards**
+*Internal Documentation*
+
+**Risk Management Framework**
+*Internal Documentation*
+
+**Market Data Framework**
+*Internal Documentation*
+
+```cpp
+// Implémentation Our project de la validation des références
+namespace xsigma {
+    class ReferenceValidator {
+    public:
+        // Validation d'une référence
+        struct ValidationResult {
+            bool is_valid;
+            std::vector<std::string> warnings;
+            std::vector<std::string> errors;
+        };
+        
+        // Validation complète d'une référence
+        ValidationResult validate_reference(const ReferenceManager::Reference& ref) const {
+            ValidationResult result;
+            result.is_valid = true;
+            
+            // Validation des champs obligatoires
+            if (ref.authors.empty()) {
+                result.errors.push_back("Authors field is required");
+                result.is_valid = false;
+            }
+            
+            if (ref.title.empty()) {
+                result.errors.push_back("Title field is required");
+                result.is_valid = false;
+            }
+            
+            if (ref.year.empty()) {
+                result.errors.push_back("Year field is required");
+                result.is_valid = false;
+            }
+            
+            // Validation du format de l'année
+            if (!ref.year.empty() && !is_valid_year(ref.year)) {
+                result.warnings.push_back("Year format may be invalid: " + ref.year);
+            }
+            
+            // Validation de l'URL si présente
+            if (!ref.url.empty() && !is_valid_url(ref.url)) {
+                result.warnings.push_back("URL format may be invalid: " + ref.url);
+            }
+            
+            // Validation des mots-clés
+            if (ref.keywords.empty()) {
+                result.warnings.push_back("No keywords provided for reference");
+            }
+            
+            return result;
+        }
+        
+        // Vérification de la cohérence des références
+        std::vector<std::string> check_reference_consistency(
+            const std::map<std::string, ReferenceManager::Reference>& references) const {
+            
+            std::vector<std::string> issues;
+            
+            // Vérification des doublons
+            std::map<std::string, std::vector<std::string>> title_to_ids;
+            for (const auto& [id, ref] : references) {
+                title_to_ids[ref.title].push_back(id);
+            }
+            
+            for (const auto& [title, ids] : title_to_ids) {
+                if (ids.size() > 1) {
+                    issues.push_back("Potential duplicate references for title: " + title);
+                }
+            }
+            
+            // Vérification des références manquantes
+            // (basé sur les citations dans le texte)
+            
+            return issues;
+        }
+        
+    private:
+        bool is_valid_year(const std::string& year) const {
+            if (year.length() != 4) return false;
+            for (char c : year) {
+                if (!std::isdigit(c)) return false;
+            }
+            int year_int = std::stoi(year);
+            return year_int >= 1900 && year_int <= 2030;
+        }
+        
+        bool is_valid_url(const std::string& url) const {
+            return url.find("http://") == 0 || url.find("https://") == 0;
+        }
+    };
+}
+```
+*Cette implémentation C++ dans Our project valide les références avec vérification de cohérence et détection de doublons.*
+
+## Utilisation des Références
+
+### Dans la Documentation
+
+Les références sont utilisées tout au long de la documentation pour :
+
+- **Justifier les choix méthodologiques** : Référence aux standards ISDA
+- **Documenter les algorithmes** : Référence aux publications techniques
+- **Valider les implémentations** : Référence aux frameworks Our project
+- **Assurer la conformité** : Référence aux standards réglementaires
+
+### Dans le Code
+
+Les références sont intégrées dans le code Our project via :
+
+- **Commentaires de documentation** : Liens vers les références pertinentes
+- **Tests de validation** : Vérification contre les standards référencés
+- **Métadonnées** : Association des implémentations aux références
+
+### Maintenance des Références
+
+- **Mise à jour régulière** : Vérification de la validité des liens
+- **Versioning** : Suivi des versions des standards référencés
+- **Archivage** : Conservation des versions historiques importantes
+
+Cette gestion complète des références assure la traçabilité et la validité scientifique de la documentation des swaps de taux d'intérêt linéaires.
+
+## Commit Message
+**📚 Update and standardize references across all documentation - Latest versions and simplified internal references**

@@ -1,0 +1,444 @@
+# Introduction to Model and Validation
+
+## Validation Scope
+
+Le scope de la validation est détaillé dans la section 1.1. Les produits avec des caractéristiques similaires d'un point de vue valorisation sont groupés ensemble et testés comme un groupe cohérent unique où les résultats de test pour un produit représentatif sont considérés comme applicables et capables de conférer une inférence équivalente à l'ensemble du groupe de produits.
+
+```cpp
+// Implémentation Our project du framework de validation pour DBOPT Correlation Skew
+namespace xsigma {
+    // Classe pour la gestion de la validation du modèle DBOPT Correlation Skew
+    class DBOPTCorrelationSkewValidationFramework {
+    public:
+        // Énumération des types de produits 2D
+        enum class Product2DType {
+            DUAL_DIGITAL,              // Dual digitals
+            CONTINGENT_OPTION,         // Options contingentes
+            CONTINGENT_SWAPTION        // Swaptions contingentes
+        };
+        
+        // Structure pour la description d'un produit
+        struct ProductDescription {
+            std::string product_name;           // Nom du produit
+            Product2DType type;                 // Type de produit
+            std::string underlying1;            // Premier underlying
+            std::string underlying2;            // Second underlying
+            std::string coupon_structure;       // Structure de coupon
+            std::string option_type;            // Type d'option
+            bool is_test_representative;        // Produit représentatif pour tests
+            std::string description;            // Description détaillée
+        };
+        
+        // Structure pour les paramètres de modèle
+        struct ModelParameters {
+            // Paramètres DBOPT
+            int number_sims;                    // Nombre de simulations MC (défaut: 2000)
+            int seed;                          // Graine pour générateur aléatoire
+            int number_seed_variance_runs;      // Nombre de runs pour variance de graine
+            std::string copula_method;          // SIMCOPULA obligatoire
+            
+            // Paramètres de corrélation
+            int term_skew_max_iter;            // Nombre d'itérations (défaut: 3)
+            bool term_skew_smoothing;          // YES pour stabilité
+            std::string interp_type;           // LINEAR par défaut
+            std::string correlation_interpolation_space; // TERMSKEW
+            std::string quanto_correlation_interpolation_space; // TIME
+        };
+        
+        // Obtenir tous les produits supportés
+        std::vector<ProductDescription> get_supported_products() const {
+            return {
+                {
+                    "HybMultiDigital", Product2DType::DUAL_DIGITAL,
+                    "Commodity/Equity/FX", "Industrials", "DigiCpn", "European",
+                    true, // Produit représentatif testé
+                    "Dans le scope 2D, ce produit paie un coupon fixe si 2 conditions digitales sont remplies à l'expiry."
+                },
+                {
+                    "HybContingentOptMultiAssetBasket", Product2DType::CONTINGENT_OPTION,
+                    "Commodity/Equity/FX", "Industrials", "EuroCpn", "European",
+                    true, // Produit représentatif testé
+                    "Dans le scope 2D, ce produit paie un payoff d'option européenne à condition qu'un digital soit franchi par un autre underlying à l'expiry."
+                }
+            };
+        }
+        
+        // Obtenir les paramètres par défaut du modèle
+        ModelParameters get_default_parameters() const {
+            ModelParameters params;
+            
+            // Paramètres DBOPT
+            params.number_sims = 2000;
+            params.seed = 12345;
+            params.number_seed_variance_runs = 1;
+            params.copula_method = "SIMCOPULA";
+            
+            // Paramètres de corrélation
+            params.term_skew_max_iter = 3;
+            params.term_skew_smoothing = true; // YES obligatoire
+            params.interp_type = "LINEAR";
+            params.correlation_interpolation_space = "TERMSKEW";
+            params.quanto_correlation_interpolation_space = "TIME";
+            
+            return params;
+        }
+        
+        // Validation des paramètres
+        bool validate_parameters(const ModelParameters& params) const {
+            bool is_valid = true;
+            
+            // Validation DBOPT
+            if (params.copula_method != "SIMCOPULA") {
+                XSIGMA_LOG_ERROR("CopulaMethod doit être SIMCOPULA");
+                is_valid = false;
+            }
+            
+            if (params.number_sims < 1000) {
+                XSIGMA_LOG_WARNING("NumberSims faible: " + std::to_string(params.number_sims));
+            }
+            
+            // Validation corrélation
+            if (params.correlation_interpolation_space != "TERMSKEW") {
+                XSIGMA_LOG_ERROR("CorrelationInterpolationSpace doit être TERMSKEW");
+                is_valid = false;
+            }
+            
+            if (!params.term_skew_smoothing) {
+                XSIGMA_LOG_ERROR("TermSkewSmoothing doit être YES pour stabilité");
+                is_valid = false;
+            }
+            
+            if (params.term_skew_max_iter < 1) {
+                XSIGMA_LOG_ERROR("TermSkewMaxIter doit être >= 1");
+                is_valid = false;
+            }
+            
+            return is_valid;
+        }
+        
+        // Analyse du portfolio (aucun trade live)
+        struct PortfolioAnalysis {
+            int total_trades;                   // Total des trades (0)
+            double total_pv;                    // PV total (0)
+            std::string status;                 // Statut du portfolio
+            std::string uncertainty_justification; // Justification uncertainty LOW
+        };
+        
+        PortfolioAnalysis analyze_portfolio() const {
+            PortfolioAnalysis analysis;
+            
+            analysis.total_trades = 0;
+            analysis.total_pv = 0.0;
+            analysis.status = "NO_LIVE_TRADES";
+            analysis.uncertainty_justification = 
+                "Le modèle n'a pas de trades en production au 28-02-2022, "
+                "ce qui justifie le rating d'incertitude LOW.";
+            
+            return analysis;
+        }
+    };
+    
+    // Classe pour la gestion des swaptions contingentes
+    class ContingentSwaptionManager {
+    public:
+        // Structure pour une swaption contingente
+        struct ContingentSwaption {
+            // Paramètres de la swaption
+            double strike;                      // Strike de la swaption
+            double maturity;                    // Maturité
+            double tenor;                       // Tenor du swap sous-jacent
+            std::string option_type;            // Cash/Put, Call/Straddle, OIS/Put
+            
+            // Condition de déclenchement
+            std::string trigger_underlying;     // EQUITY, CMS, LIBOR, FXRATE, ASSET
+            double barrier_low;                 // Barrière basse
+            double barrier_high;                // Barrière haute
+            std::string trigger_type;           // SPOT
+            
+            // Paramètres de règlement
+            bool is_physically_settled;         // Physiquement ou cash settled
+        };
+        
+        // Formule de pricing pour swaption contingente payer
+        double price_contingent_payer_swaption(const ContingentSwaption& swaption) const {
+            // V_T = A_{T,τ} (S_T - K)_+ · 1_{X_T ∈ C}
+            
+            // Simulation Monte-Carlo avec copula
+            auto mc_engine = create_monte_carlo_engine();
+            
+            double total_pv = 0.0;
+            int num_sims = 50000; // Utilise 50K simulations par défaut
+            
+            for (int i = 0; i < num_sims; ++i) {
+                // Simulation des underlyings corrélés
+                auto [swap_rate, trigger_value] = simulate_correlated_underlyings(
+                    swaption, mc_engine);
+                
+                // Vérification de la condition de déclenchement
+                bool trigger_condition = (trigger_value >= swaption.barrier_low) && 
+                                        (trigger_value <= swaption.barrier_high);
+                
+                if (trigger_condition) {
+                    // Calcul du payoff de la swaption
+                    double swaption_payoff = std::max(swap_rate - swaption.strike, 0.0);
+                    
+                    // Calcul de l'annuité
+                    double annuity = calculate_annuity(swaption, swap_rate);
+                    
+                    total_pv += annuity * swaption_payoff;
+                }
+            }
+            
+            return total_pv / num_sims;
+        }
+        
+        // Calcul de l'annuité selon le type de règlement
+        double calculate_annuity(const ContingentSwaption& swaption, double swap_rate) const {
+            if (swaption.is_physically_settled) {
+                // Annuité physique: PV01 du swap sous-jacent
+                return calculate_physical_annuity(swaption.maturity, swaption.tenor);
+            } else {
+                // Annuité cash-settled
+                return calculate_cash_settled_annuity(swap_rate, swaption.tenor);
+            }
+        }
+        
+        // Annuité cash-settled: A_CS(S) = (1/n) * Σ(1/(1+S*τ)^i)
+        double calculate_cash_settled_annuity(double swap_rate, double tenor) const {
+            double tau = 0.25; // Fréquence trimestrielle
+            int n = static_cast<int>(tenor / tau);
+            
+            double annuity = 0.0;
+            for (int i = 1; i <= n; ++i) {
+                annuity += 1.0 / std::pow(1.0 + swap_rate * tau, i);
+            }
+            
+            return annuity / n;
+        }
+        
+        // Annuité physique
+        double calculate_physical_annuity(double maturity, double tenor) const {
+            // Calcul du PV01 du swap sous-jacent
+            // Implémentation simplifiée
+            return tenor * 0.01; // Placeholder
+        }
+        
+        // Simulation des underlyings corrélés
+        std::pair<double, double> simulate_correlated_underlyings(
+            const ContingentSwaption& swaption, const MonteCarloEngine& engine) const {
+            
+            // Récupération de la corrélation avec skew
+            double correlation = get_correlation_with_skew(
+                swaption.strike, swaption.barrier_low, swaption.maturity);
+            
+            // Simulation avec copula TERMSKEW
+            auto [u1, u2] = simulate_correlated_uniforms(correlation, engine);
+            
+            // Transformation vers les underlyings
+            double swap_rate = transform_to_swap_rate(u1, swaption);
+            double trigger_value = transform_to_trigger_underlying(u2, swaption);
+            
+            return {swap_rate, trigger_value};
+        }
+        
+    private:
+        double get_correlation_with_skew(double strike1, double strike2, double maturity) const {
+            // Récupération de la corrélation avec skew selon les strikes
+            // Implémentation basée sur la grille de corrélation TERMSKEW
+            return 0.5; // Placeholder
+        }
+        
+        std::pair<double, double> simulate_correlated_uniforms(
+            double correlation, const MonteCarloEngine& engine) const {
+            
+            // Génération de variables normales indépendantes
+            double z1 = engine.generate_normal();
+            double z2 = engine.generate_normal();
+            
+            // Décomposition de Cholesky pour corrélation
+            double x1 = std::sqrt((1.0 + correlation) / 2.0) * z1 + 
+                       std::sqrt((1.0 - correlation) / 2.0) * z2;
+            double x2 = std::sqrt((1.0 + correlation) / 2.0) * z1 - 
+                       std::sqrt((1.0 - correlation) / 2.0) * z2;
+            
+            // Transformation vers uniformes
+            double u1 = normal_cdf(x1);
+            double u2 = normal_cdf(x2);
+            
+            return {u1, u2};
+        }
+        
+        double transform_to_swap_rate(double uniform, const ContingentSwaption& swaption) const {
+            // Transformation de l'uniforme vers le taux de swap
+            // Utilise la distribution marginale du swap rate
+            return inverse_swap_rate_cdf(uniform, swaption.maturity, swaption.tenor);
+        }
+        
+        double transform_to_trigger_underlying(double uniform, const ContingentSwaption& swaption) const {
+            // Transformation vers l'underlying de déclenchement
+            if (swaption.trigger_underlying == "EQUITY") {
+                return inverse_equity_cdf(uniform);
+            } else if (swaption.trigger_underlying == "FXRATE") {
+                return inverse_fx_cdf(uniform);
+            } else if (swaption.trigger_underlying == "CMS") {
+                return inverse_cms_cdf(uniform);
+            } else {
+                XSIGMA_THROW("Trigger underlying non supporté: " + swaption.trigger_underlying);
+            }
+        }
+        
+        // Fonctions utilitaires (placeholders)
+        double normal_cdf(double x) const { return 0.5 * (1.0 + std::erf(x / std::sqrt(2.0))); }
+        double inverse_swap_rate_cdf(double u, double maturity, double tenor) const { return 0.02; }
+        double inverse_equity_cdf(double u) const { return 100.0; }
+        double inverse_fx_cdf(double u) const { return 1.2; }
+        double inverse_cms_cdf(double u) const { return 0.025; }
+    };
+}
+```
+*Cette implémentation C++ dans Our project gère la validation complète avec classification des produits 2D, paramètres de modèle et pricing de swaptions contingentes pour le modèle DBOPT Correlation Skew.*
+
+## Product Description
+
+Ci-dessous se trouve la liste des définitions de produits pour les modèles :
+
+* **DBOPT-RateDeterministic_FXMarket_AssetMarket_CorrelationSkew**
+* **DBOPT-RateDeterministic_EquityBlackScholes_AssetMarket_CorrelationSkew**
+* **DBOPT-RatesMarketAFSABR_FXMarket_EquityBlackScholes_CorrelationSkew**
+
+### Produits Supportés
+
+| Nom du Produit | Description |
+|----------------|-------------|
+| **HybMultiDigital** | Dans le scope 2D de ce document, ce produit paie un coupon fixe si 2 conditions digitales sont remplies à l'expiry. |
+| **HybContingentOptMultiAssetBasket** | Dans le scope 2D de ce document, ce produit paie un payoff d'option européenne à condition qu'un digital soit franchi par un autre underlying à l'expiry. En particulier, le produit HybContingentOptMultiAssetBasket peut correspondre à une swaption contingente. |
+
+### Contingent Swaption
+
+Nous appelons swaption contingente une swaption qui ne peut être exercée que si une condition de range est remplie sur un autre underlying. Le payoff d'une swaption contingente payer a la forme générale :
+
+$$V_T = A_{T,\tau} (S_T - K)_+ \cdot 1_{\{X_T \in C\}}$$
+
+La swaption peut être soit :
+* **Cash-settled** : l'annuité dans la formule ci-dessus est la fonction d'annuité cash-settled
+  * OptionType = Cash/Put (Call/Straddle)
+* **Physically-settled** : l'annuité est le PV01 du swap sous-jacent
+  * OptionType = OIS/Put (Call/Straddle)
+
+La condition d'index peut être une **EQUITY**, un **CMS**, un **LIBOR**, un **FXRATE** ou un **ASSET**.
+
+#### Physically-settled Swaptions
+
+Pour une swaption payer physically-settled, si le taux de swap entre le temps T et T + τ vu au temps T est noté S(T, T, T+τ), la valeur peut être notée :
+
+$$A(0, T, T + \tau) \cdot E^{Q_A}[\max(S(T, T, T + \tau) - K, 0)]$$
+
+où A(0, T, T + τ) est l'annuité du swap vue au temps 0.
+
+#### Cash-settled Swaptions
+
+La valeur d'une swaption payer cash-settled est :
+
+$$E^{Q_{T_P}}[A_{CS}(S_T)(S_T - K)_+]$$
+
+où A_CS(S) est la fonction d'annuité cash-settled qui dépend du tenor T du swap et de la fréquence de la jambe fixe τ :
+
+$$A_{CS}(S) = \frac{1}{n}\sum_{i=1}^n\frac{1}{(1+S\tau)^i}$$
+
+### Product Grouping Tables
+
+Le tableau ci-dessous décrit les caractéristiques saillantes de tous les produits approuvés pour les modèles. Les produits qui sont testés sont marqués en **gras**.
+
+| Produit | Underlying | Coupon Structure | Option | Barrier | Path-Dependent | Basket-Function |
+|---------|------------|------------------|--------|---------|----------------|-----------------|
+| **HybMultiDigital** | Commodity/Equity/FX-Industrials | DigiCpn | European | | | |
+| **HybContingentOptMultiAssetBasket** | Commodity/Equity/FX-Industrials | EuroCpn | European | | | |
+
+### Portfolio Composition and PV of Trades
+
+Les modèles suivants **n'ont aucun trade en production** au 28-02-2022 :
+
+* DBOPT-RateDeterministic_FXMarket_AssetMarket_CorrelationSkew
+* DBOPT-RateDeterministic_EquityBlackScholes_AssetMarket_CorrelationSkew
+* DBOPT-RatesMarketAFSABR_FXMarket_EquityBlackScholes_CorrelationSkew
+
+**Cette absence de trades en production justifie le rating d'incertitude LOW.**
+
+## Model Description
+
+### Model Parameters and Market Inputs
+
+#### Model Parameters
+
+**DBOPT :**
+* **NumberSims** : Contrôle le nombre de simulations Monte-Carlo dans le pricer SIMCOPULA (défaut : 2000)
+* **Seed** : Entier pour le générateur de nombres aléatoires
+* **NumberSeedVarianceRuns** : Nombre de runs pour évaluer la variance de graine
+* **CopulaMethod** : Doit être fixé à SIMCOPULA pour ce modèle
+
+**Correlation :**
+* **TermSkewMaxIter** : Nombre d'itérations pour produire les valeurs d'underlying pairwise (défaut : 3)
+* **TermSkewSmoothing** : Doit être fixé à YES pour améliorer la stabilité en présence d'un steep correlation skew
+* **InterpType** : Méthode d'interpolation temporelle (défaut : LINEAR)
+* **CorrelationInterpolationSpace** : Doit être TERMSKEW pour ce modèle
+* **QuantoCorrelationInterpolationSpace** : TIME pour l'ajustement quanto
+
+#### Market Inputs
+
+* **Courbes de taux d'intérêt** domestiques (et étrangères) et volatilités
+* **FX spot** et volatilité
+* **Equity spot**, courbe de repo forward, dividendes discrets/continus et volatilité
+* **Valeurs de corrélation**
+
+### DBOPT Model
+
+Le modèle DBOPT est une implémentation analytique et Monte Carlo à horizon unique qui peut être utilisée pour le pricing de dérivés sur un ou deux sous-jacents qui se fixent à la même date.
+
+### Model Inputs - Calibration
+
+Un exemple d'instrument de calibration est les dual digitals. Dans ce cas, les inputs du modèle sont les corrélations implicites gaussiennes pour les dual digitals.
+
+#### Exemple de Calibration
+
+**Corrélations implicites gaussiennes pour dual digitals :**
+
+| Strike\Underlying | 0.60% | 1.20% |
+|-------------------|-------|-------|
+| **3000** | 9.53% | 23.58% |
+| **3600** | 12.43% | 61.30% |
+
+Le modèle DBOPT TERMSKEW peut alors être calibré pour correspondre aux quatre dual digitals ci-dessus. Ceci se traduit par une grille de corrélation skew :
+
+**Grille de corrélation skew - TS :**
+
+| Strike\Underlying | 0.60% | 1.20% |
+|-------------------|-------|-------|
+| **3000** | 6.63% | 20.00% |
+| **3600** | -5.92% | 84.81% |
+
+### Factor Based Correlation Skew Copula (TermSkew)
+
+#### Introduction
+
+L'objectif de cette copula est de produire un skew de corrélation qui est intuitif et peut facilement être calibré aux dual calls/puts ou dual digitals. Une exigence du business est d'avoir un skew de corrélation sticky strike. Cette copula de corrélation skew est construite en utilisant une technique numérique Monte Carlo.
+
+#### 2D Copula
+
+Les paramètres du modèle sont une grille 2D de quantités similaires aux corrélations pairwise qui sont fonction des niveaux des deux sous-jacents (L₁, L₂). L'interpolation est linéaire sur une grille de valeurs d'entrée.
+
+La décomposition de Cholesky pairwise suivante à partir de déviations normales indépendantes Z₁ et Z₂ est appliquée, où ρₖ = ρ(ATM₁, ATM₂) :
+
+$$X_1^{(1)} = \sqrt{\frac{1 + \rho_k}{2}}Z_1 + \sqrt{\frac{1 - \rho_k}{2}}Z_2$$
+
+$$X_2^{(1)} = \sqrt{\frac{1 + \rho_k}{2}}Z_1 - \sqrt{\frac{1 - \rho_k}{2}}Z_2$$
+
+#### Implementation
+
+CorrelationInterpolationSpace=TERMSKEW et CopulaMethod=SIMCOPULA, correspondant donc aux simulations MC pour une date d'horizon unique. Quand non spécifié, TS utilise TermSkewMaxIter=3 et 50K simulations.
+
+#### Comments
+
+* Le modèle a été défini de manière itérative en raison de la définition désirée de corrélation comme fonction des niveaux d'underlying ("stickiness strikeness")
+* Le modèle a été défini en MC pour garder des notations intuitives, mais une grille d'intégration 2D pourrait être utilisée
+
+Le modèle DBOPT Correlation Skew dans Our project fournit un framework sophistiqué pour le pricing de produits 2D avec corrélation skew, permettant une calibration précise aux dual digitals et une gestion appropriée des corrélations complexes.

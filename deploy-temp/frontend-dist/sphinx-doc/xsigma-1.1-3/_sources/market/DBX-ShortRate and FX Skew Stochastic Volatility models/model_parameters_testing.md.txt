@@ -1,0 +1,634 @@
+# Model Parameters Testing
+
+## 📊 **Vue d'Ensemble des Tests de Paramètres**
+
+### **Objectif des Tests**
+Cette section présente les tests détaillés des paramètres du modèle **DBX-ShortRate_FXSkewStochVol**, incluant la validation des modèles Hull-White, la calibration PIV AutoFit, la correction DLVIR, et les tests de stabilité des corrélations IR-FX sous différents scénarios de marché.
+
+### **Paramètres Couverts**
+- **Modèles Hull-White** (taux domestiques et étrangers)
+- **Volatilité FX Locale Stochastique** (LSV)
+- **Corrélations IR-FX** multi-facteurs
+- **Calibration PIV AutoFit** automatique
+- **Correction DLVIR** (Dupire Local Volatility IR)
+- **Configuration AUTO** vs Standard
+
+---
+
+## 🔧 **Hull-White Model Testing**
+
+### **Tests des Modèles Hull-White**
+
+#### **🔍 Hull-White Parameter Validation**
+
+##### **Tests de Validation des Paramètres Hull-White**
+```cpp
+// Tests de validation pour modèles Hull-White dans Our project
+class hull_white_parameter_tester {
+public:
+    struct hull_white_validation_results {
+        std::map<std::string, double> mean_reversion_errors;
+        std::map<std::string, double> volatility_calibration_errors;
+        std::map<std::string, double> theta_function_errors;
+        bool parameters_stable;
+        bool calibration_successful;
+        double max_calibration_error;
+    };
+
+    hull_white_validation_results test_hull_white_parameter_validation(
+        const hull_white_short_rate_model& hw_model,
+        const std::vector<bond_market_quote>& market_quotes) {
+
+        hull_white_validation_results results;
+
+        // Tests de calibration des paramètres
+        test_mean_reversion_calibration(hw_model, market_quotes, results);
+        test_volatility_calibration(hw_model, market_quotes, results);
+        test_theta_function_calibration(hw_model, market_quotes, results);
+
+        // Tests de stabilité des paramètres
+        test_parameter_stability(hw_model, results);
+
+        // Tests de cohérence économique
+        test_economic_coherence(hw_model, results);
+
+        // Analyse globale
+        analyze_hull_white_calibration_results(results);
+
+        return results;
+    }
+
+private:
+    void test_mean_reversion_calibration(const hull_white_short_rate_model& hw_model,
+                                        const std::vector<bond_market_quote>& market_quotes,
+                                        hull_white_validation_results& results) {
+
+        auto hw_params = hw_model.get_parameters();
+
+        // Tests de calibration pour différentes maturités
+        std::vector<double> test_maturities = {1.0, 2.0, 5.0, 10.0, 30.0};
+
+        for (double maturity : test_maturities) {
+            // Prix de marché
+            double market_price = get_market_bond_price(market_quotes, maturity);
+
+            // Prix modèle
+            double model_price = hw_model.calculate_bond_price(maturity,
+                                                              hw_params.current_short_rate);
+
+            // Erreur de calibration
+            double calibration_error = std::abs(market_price - model_price);
+            double relative_error = calibration_error / market_price;
+
+            std::string maturity_key = "BOND_" + std::to_string(maturity) + "Y";
+            results.mean_reversion_errors[maturity_key] = relative_error;
+
+            // Validation de précision de calibration
+            EXPECT_LT(relative_error, 1e-4); // 1bp de tolérance
+        }
+
+        // Tests de sensibilité au paramètre de mean reversion
+        test_mean_reversion_sensitivity(hw_model, results);
+    }
+
+    void test_mean_reversion_sensitivity(const hull_white_short_rate_model& hw_model,
+                                        hull_white_validation_results& results) {
+
+        const double mr_shock = 0.01; // 1% de choc sur mean reversion
+        auto base_params = hw_model.get_parameters();
+
+        // Modèle avec mean reversion choqué
+        auto shocked_params = base_params;
+        shocked_params.mean_reversion_speeds[0] += mr_shock;
+        hull_white_short_rate_model shocked_model(shocked_params);
+
+        // Tests sur différentes maturités
+        for (double maturity : {1.0, 5.0, 10.0}) {
+            double base_price = hw_model.calculate_bond_price(maturity, base_params.current_short_rate);
+            double shocked_price = shocked_model.calculate_bond_price(maturity, base_params.current_short_rate);
+
+            double sensitivity = (shocked_price - base_price) / mr_shock;
+
+            // Validation que la sensibilité est cohérente
+            // Mean reversion plus élevé -> prix d'obligations long terme plus élevé
+            if (maturity >= 5.0) {
+                EXPECT_GT(sensitivity, 0.0);
+            }
+
+            std::string sens_key = "MR_SENS_" + std::to_string(maturity) + "Y";
+            results.mean_reversion_errors[sens_key] = std::abs(sensitivity);
+        }
+    }
+
+    void test_volatility_calibration(const hull_white_short_rate_model& hw_model,
+                                    const std::vector<bond_market_quote>& market_quotes,
+                                    hull_white_validation_results& results) {
+
+        // Tests de calibration de la volatilité Hull-White
+        auto hw_params = hw_model.get_parameters();
+
+        // Calibration aux caps/floors de taux
+        std::vector<caplet_market_quote> caplet_quotes = extract_caplet_quotes(market_quotes);
+
+        for (const auto& caplet_quote : caplet_quotes) {
+            // Prix de marché du caplet
+            double market_caplet_price = caplet_quote.market_price;
+
+            // Prix modèle Hull-White
+            double model_caplet_price = hw_model.calculate_caplet_price(
+                caplet_quote.strike, caplet_quote.expiry, caplet_quote.tenor);
+
+            double calibration_error = std::abs(market_caplet_price - model_caplet_price);
+            double relative_error = calibration_error / market_caplet_price;
+
+            std::string caplet_key = "CAPLET_" + std::to_string(caplet_quote.expiry) +
+                                   "_" + std::to_string(caplet_quote.strike);
+            results.volatility_calibration_errors[caplet_key] = relative_error;
+
+            // Validation de précision
+            EXPECT_LT(relative_error, 5e-4); // 5bp de tolérance pour caplets
+        }
+    }
+
+    void test_theta_function_calibration(const hull_white_short_rate_model& hw_model,
+                                        const std::vector<bond_market_quote>& market_quotes,
+                                        hull_white_validation_results& results) {
+
+        // Tests de la fonction theta(t) pour fit parfait de la courbe initiale
+        auto hw_params = hw_model.get_parameters();
+
+        std::vector<double> test_times = {0.25, 0.5, 1.0, 2.0, 5.0, 10.0};
+
+        for (double time : test_times) {
+            // Forward rate de marché
+            double market_forward = get_market_instantaneous_forward(market_quotes, time);
+
+            // Forward rate modèle (doit matcher exactement)
+            double model_forward = hw_model.calculate_instantaneous_forward(time);
+
+            double theta_error = std::abs(market_forward - model_forward);
+
+            std::string time_key = "THETA_" + std::to_string(time);
+            results.theta_function_errors[time_key] = theta_error;
+
+            // Validation de fit parfait de la courbe initiale
+            EXPECT_LT(theta_error, 1e-10); // Précision machine
+        }
+    }
+
+    void test_parameter_stability(const hull_white_short_rate_model& hw_model,
+                                 hull_white_validation_results& results) {
+
+        // Tests de stabilité des paramètres sous perturbations
+        const double market_perturbation = 1e-4; // 1bp de perturbation
+
+        auto base_params = hw_model.get_parameters();
+
+        // Perturbation des données de marché
+        auto perturbed_market = create_perturbed_market_data(market_perturbation);
+
+        // Recalibration avec données perturbées
+        auto recalibrated_params = recalibrate_hull_white_model(perturbed_market);
+
+        // Mesure de la stabilité
+        double mr_stability = std::abs(recalibrated_params.mean_reversion_speeds[0] -
+                                     base_params.mean_reversion_speeds[0]);
+        double vol_stability = std::abs(recalibrated_params.volatilities[0] -
+                                      base_params.volatilities[0]);
+
+        // Validation de stabilité
+        EXPECT_LT(mr_stability, 10.0 * market_perturbation); // Amplification < 10x
+        EXPECT_LT(vol_stability, 10.0 * market_perturbation);
+
+        results.parameters_stable = (mr_stability < 10.0 * market_perturbation) &&
+                                  (vol_stability < 10.0 * market_perturbation);
+    }
+};
+```
+
+#### **🔍 Multi-Currency Hull-White Testing**
+
+##### **Tests Hull-White Multi-Devises**
+```cpp
+// Tests Hull-White multi-devises dans Our project
+class multicurrency_hull_white_tester {
+public:
+    struct multicurrency_hw_results {
+        std::map<std::string, double> currency_calibration_errors;
+        std::map<std::string, double> cross_currency_consistency_errors;
+        matrix<double> correlation_matrix_validation;
+        bool multicurrency_coherence_validated;
+    };
+
+    multicurrency_hw_results test_multicurrency_hull_white_consistency(
+        const std::map<std::string, hull_white_short_rate_model>& currency_models,
+        const multicurrency_market_data& market_data) {
+
+        multicurrency_hw_results results;
+
+        // Tests de calibration par devise
+        test_individual_currency_calibration(currency_models, market_data, results);
+
+        // Tests de cohérence cross-currency
+        test_cross_currency_consistency(currency_models, market_data, results);
+
+        // Tests de matrice de corrélation
+        test_correlation_matrix_properties(currency_models, results);
+
+        // Tests de no-arbitrage cross-currency
+        test_cross_currency_arbitrage_freedom(currency_models, market_data, results);
+
+        return results;
+    }
+
+private:
+    void test_individual_currency_calibration(
+        const std::map<std::string, hull_white_short_rate_model>& currency_models,
+        const multicurrency_market_data& market_data,
+        multicurrency_hw_results& results) {
+
+        for (const auto& [currency, hw_model] : currency_models) {
+            // Données de marché pour cette devise
+            auto currency_market_data = market_data.get_currency_data(currency);
+
+            // Tests de calibration spécifiques à la devise
+            auto currency_quotes = currency_market_data.bond_quotes;
+
+            double total_calibration_error = 0.0;
+            int quote_count = 0;
+
+            for (const auto& quote : currency_quotes) {
+                double market_price = quote.price;
+                double model_price = hw_model.calculate_bond_price(quote.maturity,
+                                                                 quote.current_rate);
+
+                double error = std::abs(market_price - model_price) / market_price;
+                total_calibration_error += error;
+                quote_count++;
+            }
+
+            double avg_calibration_error = total_calibration_error / quote_count;
+            results.currency_calibration_errors[currency] = avg_calibration_error;
+
+            // Validation de qualité de calibration
+            EXPECT_LT(avg_calibration_error, 1e-4); // 1bp moyenne
+        }
+    }
+
+    void test_cross_currency_consistency(
+        const std::map<std::string, hull_white_short_rate_model>& currency_models,
+        const multicurrency_market_data& market_data,
+        multicurrency_hw_results& results) {
+
+        // Tests de cohérence entre devises
+        std::vector<std::string> currencies;
+        for (const auto& [currency, model] : currency_models) {
+            currencies.push_back(currency);
+        }
+
+        // Tests de cohérence des forwards cross-currency
+        for (size_t i = 0; i < currencies.size(); ++i) {
+            for (size_t j = i + 1; j < currencies.size(); ++j) {
+                std::string ccy1 = currencies[i];
+                std::string ccy2 = currencies[j];
+
+                double consistency_error = test_cross_currency_forward_consistency(
+                    currency_models.at(ccy1), currency_models.at(ccy2),
+                    market_data, ccy1, ccy2);
+
+                std::string pair_key = ccy1 + "_" + ccy2;
+                results.cross_currency_consistency_errors[pair_key] = consistency_error;
+
+                // Validation de cohérence
+                EXPECT_LT(consistency_error, 1e-6);
+            }
+        }
+    }
+
+    double test_cross_currency_forward_consistency(
+        const hull_white_short_rate_model& model1,
+        const hull_white_short_rate_model& model2,
+        const multicurrency_market_data& market_data,
+        const std::string& ccy1,
+        const std::string& ccy2) {
+
+        // Test de cohérence des forwards entre devises
+        std::vector<double> test_maturities = {1.0, 2.0, 5.0, 10.0};
+
+        double total_inconsistency = 0.0;
+
+        for (double maturity : test_maturities) {
+            // Forward rates des deux modèles
+            double forward1 = model1.calculate_forward_rate(0.0, maturity);
+            double forward2 = model2.calculate_forward_rate(0.0, maturity);
+
+            // Forward rate de marché cross-currency
+            double market_cross_forward = market_data.get_cross_currency_forward(
+                ccy1, ccy2, maturity);
+
+            // Calcul de l'inconsistance
+            double model_cross_forward = forward1 - forward2; // Approximation
+            double inconsistency = std::abs(model_cross_forward - market_cross_forward);
+
+            total_inconsistency += inconsistency;
+        }
+
+        return total_inconsistency / test_maturities.size();
+    }
+};
+```
+
+---
+
+## 📈 **FX Local Stochastic Volatility Testing**
+
+### **Tests de Volatilité FX Locale Stochastique**
+
+#### **🔍 LSV Model Validation**
+
+##### **Tests de Validation du Modèle LSV**
+```cpp
+// Tests de validation pour modèle LSV FX dans Our project
+class fx_lsv_model_tester {
+public:
+    struct lsv_validation_results {
+        std::map<std::string, double> local_volatility_calibration_errors;
+        std::map<std::string, double> stochastic_volatility_calibration_errors;
+        std::map<std::string, double> forward_smile_reproduction_errors;
+        bool lsv_model_validated;
+        double max_smile_error;
+    };
+
+    lsv_validation_results test_fx_lsv_model_validation(
+        const fx_local_stochastic_volatility_model& lsv_model,
+        const fx_market_data& market_data) {
+
+        lsv_validation_results results;
+
+        // Tests de calibration de la volatilité locale
+        test_local_volatility_calibration(lsv_model, market_data, results);
+
+        // Tests de calibration de la volatilité stochastique
+        test_stochastic_volatility_calibration(lsv_model, market_data, results);
+
+        // Tests de reproduction du forward smile
+        test_forward_smile_reproduction(lsv_model, market_data, results);
+
+        // Tests de propriétés du modèle LSV
+        test_lsv_model_properties(lsv_model, results);
+
+        return results;
+    }
+
+private:
+    void test_local_volatility_calibration(
+        const fx_local_stochastic_volatility_model& lsv_model,
+        const fx_market_data& market_data,
+        lsv_validation_results& results) {
+
+        // Tests de calibration de la surface de volatilité locale
+        auto lv_surface = lsv_model.get_local_volatility_surface();
+
+        // Grille de test pour la surface locale
+        std::vector<double> test_spots = {0.8, 0.9, 1.0, 1.1, 1.2};
+        std::vector<double> test_times = {0.25, 0.5, 1.0, 2.0, 5.0};
+
+        for (double spot : test_spots) {
+            for (double time : test_times) {
+                // Volatilité locale du modèle
+                double model_local_vol = lv_surface->get_local_volatility(spot, time);
+
+                // Volatilité locale théorique (Dupire)
+                double theoretical_local_vol = calculate_dupire_local_volatility(
+                    market_data, spot, time);
+
+                double calibration_error = std::abs(model_local_vol - theoretical_local_vol);
+                double relative_error = calibration_error / theoretical_local_vol;
+
+                std::string point_key = "LV_" + std::to_string(spot) + "_" + std::to_string(time);
+                results.local_volatility_calibration_errors[point_key] = relative_error;
+
+                // Validation de précision de calibration
+                EXPECT_LT(relative_error, 1e-3); // 0.1% de tolérance
+            }
+        }
+    }
+
+    void test_forward_smile_reproduction(
+        const fx_local_stochastic_volatility_model& lsv_model,
+        const fx_market_data& market_data,
+        lsv_validation_results& results) {
+
+        // Tests de reproduction du forward smile
+        std::vector<double> forward_expiries = {1.0, 2.0, 5.0, 10.0};
+
+        for (double forward_expiry : forward_expiries) {
+            // Strikes pour le forward smile
+            std::vector<double> forward_strikes = generate_forward_strikes(
+                market_data, forward_expiry);
+
+            for (double strike : forward_strikes) {
+                // Volatilité implicite de marché pour forward start
+                double market_forward_vol = market_data.get_forward_start_volatility(
+                    strike, forward_expiry, forward_expiry + 1.0);
+
+                // Volatilité implicite du modèle LSV
+                double model_forward_vol = lsv_model.calculate_forward_start_volatility(
+                    strike, forward_expiry, forward_expiry + 1.0);
+
+                double smile_error = std::abs(market_forward_vol - model_forward_vol);
+                double relative_error = smile_error / market_forward_vol;
+
+                std::string smile_key = "FORWARD_SMILE_" + std::to_string(forward_expiry) +
+                                      "_" + std::to_string(strike);
+                results.forward_smile_reproduction_errors[smile_key] = relative_error;
+
+                // Validation de reproduction du forward smile
+                EXPECT_LT(relative_error, 5e-3); // 0.5% de tolérance
+            }
+        }
+
+        // Calcul de l'erreur maximale de smile
+        if (!results.forward_smile_reproduction_errors.empty()) {
+            results.max_smile_error = std::max_element(
+                results.forward_smile_reproduction_errors.begin(),
+                results.forward_smile_reproduction_errors.end(),
+                [](const auto& a, const auto& b) { return a.second < b.second; })->second;
+        }
+    }
+
+    void test_lsv_model_properties(const fx_local_stochastic_volatility_model& lsv_model,
+                                  lsv_validation_results& results) {
+
+        // Tests des propriétés du modèle LSV
+
+        // Test 1 : Positivité de la volatilité locale
+        test_local_volatility_positivity(lsv_model);
+
+        // Test 2 : Cohérence avec volatilité stochastique
+        test_stochastic_volatility_coherence(lsv_model);
+
+        // Test 3 : Stabilité numérique
+        test_lsv_numerical_stability(lsv_model);
+
+        // Validation globale
+        results.lsv_model_validated = validate_lsv_model_overall(results);
+    }
+
+    void test_local_volatility_positivity(const fx_local_stochastic_volatility_model& lsv_model) {
+        // Test que la volatilité locale reste positive
+        auto lv_surface = lsv_model.get_local_volatility_surface();
+
+        std::vector<double> test_spots = {0.5, 0.8, 1.0, 1.2, 1.5, 2.0};
+        std::vector<double> test_times = {0.1, 0.5, 1.0, 2.0, 5.0, 10.0};
+
+        for (double spot : test_spots) {
+            for (double time : test_times) {
+                double local_vol = lv_surface->get_local_volatility(spot, time);
+
+                // Validation de positivité
+                EXPECT_GT(local_vol, 0.0);
+
+                // Validation de bornes raisonnables
+                EXPECT_LT(local_vol, 5.0); // < 500% de volatilité locale
+            }
+        }
+    }
+};
+```
+
+---
+
+## 🔧 **PIV AutoFit Calibration Testing**
+
+### **Tests de Calibration PIV AutoFit**
+
+#### **🔍 PIV AutoFit Validation**
+
+##### **Tests de Validation PIV AutoFit**
+```cpp
+// Tests de calibration PIV AutoFit dans Our project
+class piv_autofit_calibration_tester {
+public:
+    struct piv_autofit_results {
+        std::map<std::string, double> pillar_calibration_errors;
+        std::map<std::string, double> interpolated_point_errors;
+        std::map<std::string, double> autofit_convergence_metrics;
+        bool autofit_successful;
+        std::string selected_method;
+        double calibration_time_seconds;
+    };
+
+    piv_autofit_results test_piv_autofit_calibration(
+        const std::vector<fx_option_market_quote>& market_quotes,
+        const piv_autofit_calibrator& calibrator) {
+
+        piv_autofit_results results;
+
+        // Tests de calibration automatique
+        test_automatic_method_selection(market_quotes, calibrator, results);
+
+        // Tests de qualité de calibration
+        test_calibration_quality(market_quotes, calibrator, results);
+
+        // Tests de convergence
+        test_convergence_properties(market_quotes, calibrator, results);
+
+        // Tests de performance
+        test_calibration_performance(market_quotes, calibrator, results);
+
+        return results;
+    }
+
+private:
+    void test_automatic_method_selection(
+        const std::vector<fx_option_market_quote>& market_quotes,
+        const piv_autofit_calibrator& calibrator,
+        piv_autofit_results& results) {
+
+        // Test de sélection automatique de méthode
+        auto calibration_result = calibrator.auto_calibrate(market_quotes);
+
+        results.selected_method = calibration_result.selected_method;
+        results.autofit_successful = calibration_result.calibration_successful;
+
+        // Validation que la méthode sélectionnée est appropriée
+        validate_method_selection_logic(market_quotes, calibration_result, results);
+
+        // Tests de qualité de la méthode sélectionnée
+        test_selected_method_quality(market_quotes, calibration_result, results);
+    }
+
+    void validate_method_selection_logic(
+        const std::vector<fx_option_market_quote>& market_quotes,
+        const piv_autofit_calibration_result& calibration_result,
+        piv_autofit_results& results) {
+
+        // Analyse des caractéristiques du marché
+        double smile_complexity = analyze_smile_complexity(market_quotes);
+        double data_quality = analyze_data_quality(market_quotes);
+
+        // Validation de la logique de sélection
+        if (smile_complexity < 0.3 && data_quality > 0.9) {
+            // Marché simple et données de qualité -> méthode simple attendue
+            EXPECT_TRUE(calibration_result.selected_method == "INTERPOLATION" ||
+                       calibration_result.selected_method == "SA4");
+        } else if (smile_complexity > 0.7) {
+            // Smile complexe -> méthode sophistiquée attendue
+            EXPECT_TRUE(calibration_result.selected_method == "LABGD" ||
+                       calibration_result.selected_method == "LSV");
+        }
+
+        // Enregistrement des métriques de sélection
+        results.autofit_convergence_metrics["SMILE_COMPLEXITY"] = smile_complexity;
+        results.autofit_convergence_metrics["DATA_QUALITY"] = data_quality;
+    }
+
+    void test_calibration_quality(
+        const std::vector<fx_option_market_quote>& market_quotes,
+        const piv_autofit_calibrator& calibrator,
+        piv_autofit_results& results) {
+
+        auto calibration_result = calibrator.auto_calibrate(market_quotes);
+        auto calibrated_surface = calibration_result.calibrated_surface;
+
+        // Tests aux piliers
+        for (const auto& quote : market_quotes) {
+            if (quote.is_pillar) {
+                double model_vol = calibrated_surface->get_volatility(
+                    quote.strike, quote.expiry);
+
+                double calibration_error = std::abs(model_vol - quote.market_volatility);
+
+                std::string pillar_key = "PILLAR_" + std::to_string(quote.strike) +
+                                       "_" + std::to_string(quote.expiry);
+                results.pillar_calibration_errors[pillar_key] = calibration_error;
+
+                // Validation de précision aux piliers
+                EXPECT_LT(calibration_error, 1e-4); // 1bp de tolérance
+            }
+        }
+
+        // Tests aux points interpolés
+        for (const auto& quote : market_quotes) {
+            if (!quote.is_pillar) {
+                double model_vol = calibrated_surface->get_volatility(
+                    quote.strike, quote.expiry);
+
+                double interpolation_error = std::abs(model_vol - quote.market_volatility);
+
+                std::string interp_key = "INTERP_" + std::to_string(quote.strike) +
+                                       "_" + std::to_string(quote.expiry);
+                results.interpolated_point_errors[interp_key] = interpolation_error;
+
+                // Validation de qualité d'interpolation
+                EXPECT_LT(interpolation_error, 5e-4); // 5bp de tolérance
+            }
+        }
+    }
+};
+```
+
+---
+
+*Cette section fournit une documentation complète des tests de paramètres de modèle pour DBX-ShortRate_FXSkewStochVol, intégrant les implémentations C++ de Our project avec des méthodologies de validation spécialisées pour les modèles Hull-White multi-devises, volatilité FX locale stochastique et calibration PIV AutoFit.*

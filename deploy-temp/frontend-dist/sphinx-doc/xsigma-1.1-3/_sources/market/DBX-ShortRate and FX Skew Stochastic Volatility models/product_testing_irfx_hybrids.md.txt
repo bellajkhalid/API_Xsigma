@@ -1,0 +1,549 @@
+# Product Testing: IR-FX Hybrid Derivatives
+
+## 📊 **Vue d'Ensemble des Produits IR-FX Hybrids**
+
+### **Description des Trades**
+Nous considérons les trades **IR-FX Hybrid** dans le framework DBX-ShortRate_FXSkewStochVol avec les caractéristiques suivantes :
+
+#### **Structure des Produits Hybrides**
+- **IRFXDualDigitalOpt** : Options digitales dépendant de taux et FX
+- **IRFXSwapFXOpt** : Swaps de taux avec options FX intégrées
+- **IRSwapQuanto** : Swaps de taux avec exposition FX quanto
+
+### **Spécificités Hybrides IR-FX**
+- **Double exposition** : Sensibilité aux taux ET au change
+- **Corrélations critiques** : Dépendance forte aux corrélations IR-FX
+- **Optionalité complexe** : Barrières et triggers multi-facteurs
+- **Pricing sophistiqué** : Nécessite modélisation jointe IR-FX
+
+### **Implémentation dans Our project**
+
+#### **🔧 Classe IRFXDualDigitalOpt**
+```cpp
+// Implémentation du produit IRFXDualDigitalOpt dans Our project
+class IRFXDualDigitalOpt : public ir_fx_hybrid_derivative_base {
+private:
+    struct dual_digital_specification {
+        std::string currency_pair;
+        double fx_barrier;
+        std::string interest_rate_index;
+        double ir_barrier;
+        double expiry;
+        double payout;
+        digital_condition_type condition; // AND, OR, XOR
+        barrier_type fx_barrier_type; // UP_AND_IN, DOWN_AND_IN, etc.
+        barrier_type ir_barrier_type;
+    };
+
+    dual_digital_specification spec_;
+
+public:
+    IRFXDualDigitalOpt(const dual_digital_specification& spec) : spec_(spec) {
+        validate_dual_digital_specification();
+    }
+
+    double calculate_pv(const market_data& market) const override {
+        return calculate_dual_digital_pv_monte_carlo(market);
+    }
+
+    ir_fx_sensitivities calculate_sensitivities(const market_data& market) const override {
+        ir_fx_sensitivities sens;
+
+        // Sensibilités FX
+        sens.fx_delta = calculate_dual_digital_fx_delta(market);
+        sens.fx_gamma = calculate_dual_digital_fx_gamma(market);
+        sens.fx_vega = calculate_dual_digital_fx_vega(market);
+
+        // Sensibilités IR
+        sens.ir_delta = calculate_dual_digital_ir_delta(market);
+        sens.ir_gamma = calculate_dual_digital_ir_gamma(market);
+        sens.ir_vega = calculate_dual_digital_ir_vega(market);
+
+        // Sensibilités croisées (critiques pour hybrides)
+        sens.fx_ir_cross_gamma = calculate_fx_ir_cross_gamma(market);
+        sens.fx_ir_correlation_sensitivity = calculate_correlation_sensitivity(market);
+
+        return sens;
+    }
+
+private:
+    double calculate_dual_digital_pv_monte_carlo(const market_data& market) const {
+        const int num_simulations = 150000;
+
+        monte_carlo_engine mc_engine(num_simulations);
+
+        // Modèles corrélés IR-FX
+        auto correlated_models = create_correlated_ir_fx_models(market);
+
+        double payoff_sum = 0.0;
+
+        for (int sim = 0; sim < num_simulations; ++sim) {
+            // Génération de path corrélé
+            auto path = mc_engine.generate_correlated_ir_fx_path(correlated_models);
+
+            // Évaluation des conditions digitales
+            bool fx_condition = evaluate_fx_barrier_condition(path);
+            bool ir_condition = evaluate_ir_barrier_condition(path);
+
+            // Application de la logique de condition
+            bool payout_triggered = apply_digital_condition_logic(fx_condition, ir_condition);
+
+            if (payout_triggered) {
+                // Actualisation avec taux stochastique
+                double discount_factor = path.get_discount_factor_at_expiry();
+                payoff_sum += spec_.payout * discount_factor;
+            }
+        }
+
+        return payoff_sum / num_simulations;
+    }
+
+    bool evaluate_fx_barrier_condition(const monte_carlo_ir_fx_path& path) const {
+        double final_fx = path.fx_values.back();
+
+        switch (spec_.fx_barrier_type) {
+            case barrier_type::UP_AND_IN:
+                return final_fx >= spec_.fx_barrier;
+            case barrier_type::DOWN_AND_IN:
+                return final_fx <= spec_.fx_barrier;
+            case barrier_type::UP_AND_OUT:
+                return final_fx < spec_.fx_barrier;
+            case barrier_type::DOWN_AND_OUT:
+                return final_fx > spec_.fx_barrier;
+            default:
+                XSIGMA_THROW("Unsupported FX barrier type");
+        }
+    }
+
+    bool evaluate_ir_barrier_condition(const monte_carlo_ir_fx_path& path) const {
+        double final_rate = path.interest_rates.back();
+
+        switch (spec_.ir_barrier_type) {
+            case barrier_type::UP_AND_IN:
+                return final_rate >= spec_.ir_barrier;
+            case barrier_type::DOWN_AND_IN:
+                return final_rate <= spec_.ir_barrier;
+            case barrier_type::UP_AND_OUT:
+                return final_rate < spec_.ir_barrier;
+            case barrier_type::DOWN_AND_OUT:
+                return final_rate > spec_.ir_barrier;
+            default:
+                XSIGMA_THROW("Unsupported IR barrier type");
+        }
+    }
+
+    bool apply_digital_condition_logic(bool fx_condition, bool ir_condition) const {
+        switch (spec_.condition) {
+            case digital_condition_type::AND:
+                return fx_condition && ir_condition;
+            case digital_condition_type::OR:
+                return fx_condition || ir_condition;
+            case digital_condition_type::XOR:
+                return fx_condition != ir_condition;
+            default:
+                XSIGMA_THROW("Unsupported digital condition type");
+        }
+    }
+
+    void validate_dual_digital_specification() const {
+        XSIGMA_CHECK(spec_.fx_barrier > 0, "FX barrier must be positive");
+        XSIGMA_CHECK(spec_.ir_barrier >= 0, "IR barrier must be non-negative");
+        XSIGMA_CHECK(spec_.expiry > 0, "Expiry must be positive");
+        XSIGMA_CHECK(spec_.payout > 0, "Payout must be positive");
+        XSIGMA_CHECK(!spec_.currency_pair.empty(), "Currency pair required");
+        XSIGMA_CHECK(!spec_.interest_rate_index.empty(), "Interest rate index required");
+    }
+};
+```
+*Cette implémentation C++ dans Our project montre la structure complète d'une option digitale hybride IR-FX avec évaluation de conditions multiples et pricing Monte Carlo corrélé.*
+
+---
+
+## 🧪 **EOD Testing**
+
+### **Tests de Fin de Journée**
+
+#### **🔍 Hybrid Payoff Validation**
+
+##### **Validation des Payoffs Hybrides**
+```cpp
+// Tests de validation des payoffs pour IRFXDualDigitalOpt dans Our project
+class irfx_hybrid_payoff_validation_tester {
+public:
+    struct hybrid_test_case {
+        double final_fx;
+        double final_ir;
+        double fx_barrier;
+        double ir_barrier;
+        barrier_type fx_barrier_type;
+        barrier_type ir_barrier_type;
+        digital_condition_type condition;
+        double payout;
+        bool expected_payout_triggered;
+        std::string description;
+    };
+
+    struct validation_results {
+        std::vector<double> condition_evaluation_errors;
+        std::vector<double> payoff_calculation_errors;
+        bool logic_gates_validated;
+        bool barrier_conditions_validated;
+    };
+
+    validation_results test_hybrid_payoff_logic() {
+        validation_results results;
+
+        // Cas de test pour logique de conditions
+        std::vector<hybrid_test_case> test_cases = {
+            // Tests AND logic
+            {1.1, 0.05, 1.0, 0.04, barrier_type::UP_AND_IN, barrier_type::UP_AND_IN,
+             digital_condition_type::AND, 1000.0, true, "AND: Both conditions met"},
+            {0.9, 0.05, 1.0, 0.04, barrier_type::UP_AND_IN, barrier_type::UP_AND_IN,
+             digital_condition_type::AND, 1000.0, false, "AND: FX condition not met"},
+
+            // Tests OR logic
+            {1.1, 0.03, 1.0, 0.04, barrier_type::UP_AND_IN, barrier_type::UP_AND_IN,
+             digital_condition_type::OR, 1000.0, true, "OR: FX condition met"},
+            {0.9, 0.05, 1.0, 0.04, barrier_type::UP_AND_IN, barrier_type::UP_AND_IN,
+             digital_condition_type::OR, 1000.0, true, "OR: IR condition met"},
+
+            // Tests XOR logic
+            {1.1, 0.03, 1.0, 0.04, barrier_type::UP_AND_IN, barrier_type::UP_AND_IN,
+             digital_condition_type::XOR, 1000.0, true, "XOR: Only FX condition met"},
+            {1.1, 0.05, 1.0, 0.04, barrier_type::UP_AND_IN, barrier_type::UP_AND_IN,
+             digital_condition_type::XOR, 1000.0, false, "XOR: Both conditions met"}
+        };
+
+        for (const auto& test_case : test_cases) {
+            // Configuration de l'option hybride
+            IRFXDualDigitalOpt::dual_digital_specification spec;
+            spec.currency_pair = "EURUSD";
+            spec.fx_barrier = test_case.fx_barrier;
+            spec.interest_rate_index = "USD3M";
+            spec.ir_barrier = test_case.ir_barrier;
+            spec.expiry = 1.0;
+            spec.payout = test_case.payout;
+            spec.condition = test_case.condition;
+            spec.fx_barrier_type = test_case.fx_barrier_type;
+            spec.ir_barrier_type = test_case.ir_barrier_type;
+
+            IRFXDualDigitalOpt hybrid_option(spec);
+
+            // Création d'un path déterministe
+            monte_carlo_ir_fx_path deterministic_path = create_deterministic_hybrid_path(test_case);
+
+            // Évaluation des conditions
+            bool fx_condition = hybrid_option.evaluate_fx_barrier_condition(deterministic_path);
+            bool ir_condition = hybrid_option.evaluate_ir_barrier_condition(deterministic_path);
+            bool final_condition = hybrid_option.apply_digital_condition_logic(fx_condition, ir_condition);
+
+            // Validation de la logique
+            EXPECT_EQ(final_condition, test_case.expected_payout_triggered);
+
+            // Tests détaillés des conditions individuelles
+            test_individual_barrier_conditions(test_case, fx_condition, ir_condition, results);
+        }
+
+        // Validation globale
+        results.logic_gates_validated = validate_logic_gates_comprehensive();
+        results.barrier_conditions_validated = validate_barrier_conditions_comprehensive();
+
+        return results;
+    }
+
+private:
+    void test_individual_barrier_conditions(const hybrid_test_case& test_case,
+                                           bool fx_condition,
+                                           bool ir_condition,
+                                           validation_results& results) {
+
+        // Test de la condition FX
+        bool expected_fx_condition = evaluate_expected_fx_condition(test_case);
+        EXPECT_EQ(fx_condition, expected_fx_condition);
+
+        // Test de la condition IR
+        bool expected_ir_condition = evaluate_expected_ir_condition(test_case);
+        EXPECT_EQ(ir_condition, expected_ir_condition);
+
+        // Enregistrement des erreurs
+        double fx_error = (fx_condition == expected_fx_condition) ? 0.0 : 1.0;
+        double ir_error = (ir_condition == expected_ir_condition) ? 0.0 : 1.0;
+
+        results.condition_evaluation_errors.push_back(fx_error);
+        results.condition_evaluation_errors.push_back(ir_error);
+    }
+
+    bool evaluate_expected_fx_condition(const hybrid_test_case& test_case) {
+        switch (test_case.fx_barrier_type) {
+            case barrier_type::UP_AND_IN:
+                return test_case.final_fx >= test_case.fx_barrier;
+            case barrier_type::DOWN_AND_IN:
+                return test_case.final_fx <= test_case.fx_barrier;
+            case barrier_type::UP_AND_OUT:
+                return test_case.final_fx < test_case.fx_barrier;
+            case barrier_type::DOWN_AND_OUT:
+                return test_case.final_fx > test_case.fx_barrier;
+            default:
+                return false;
+        }
+    }
+};
+```
+
+#### **🔍 Cross-Sensitivity Testing**
+
+##### **Tests de Sensibilités Croisées**
+```cpp
+// Tests de sensibilités croisées pour produits hybrides dans Our project
+class irfx_cross_sensitivity_tester {
+public:
+    struct cross_sensitivity_results {
+        std::map<std::string, double> cross_gammas;
+        std::map<std::string, double> correlation_sensitivities;
+        double fx_ir_interaction_strength;
+        bool cross_effects_significant;
+    };
+
+    cross_sensitivity_results test_ir_fx_cross_sensitivities(
+        const ir_fx_hybrid_derivative_base& hybrid_derivative,
+        const market_data& market) {
+
+        cross_sensitivity_results results;
+
+        // Tests de cross-gamma FX-IR
+        test_fx_ir_cross_gamma(hybrid_derivative, market, results);
+
+        // Tests de sensibilité aux corrélations
+        test_correlation_sensitivities(hybrid_derivative, market, results);
+
+        // Tests d'interaction non-linéaire
+        test_nonlinear_interactions(hybrid_derivative, market, results);
+
+        // Analyse de l'intensité des interactions
+        analyze_interaction_strength(results);
+
+        return results;
+    }
+
+private:
+    void test_fx_ir_cross_gamma(const ir_fx_hybrid_derivative_base& hybrid_derivative,
+                               const market_data& market,
+                               cross_sensitivity_results& results) {
+
+        const double fx_shock = 1e-4;
+        const double ir_shock = 1e-6;
+
+        // PV de base
+        double pv_base = hybrid_derivative.calculate_pv(market);
+
+        // Chocs individuels
+        auto market_fx_up = shock_fx_spot(market, +fx_shock);
+        auto market_fx_down = shock_fx_spot(market, -fx_shock);
+        auto market_ir_up = shock_interest_rates(market, +ir_shock);
+        auto market_ir_down = shock_interest_rates(market, -ir_shock);
+
+        // Chocs combinés
+        auto market_fx_up_ir_up = shock_fx_spot(shock_interest_rates(market, +ir_shock), +fx_shock);
+        auto market_fx_up_ir_down = shock_fx_spot(shock_interest_rates(market, -ir_shock), +fx_shock);
+        auto market_fx_down_ir_up = shock_fx_spot(shock_interest_rates(market, +ir_shock), -fx_shock);
+        auto market_fx_down_ir_down = shock_fx_spot(shock_interest_rates(market, -ir_shock), -fx_shock);
+
+        // Calcul des PV
+        double pv_fx_up = hybrid_derivative.calculate_pv(market_fx_up);
+        double pv_fx_down = hybrid_derivative.calculate_pv(market_fx_down);
+        double pv_ir_up = hybrid_derivative.calculate_pv(market_ir_up);
+        double pv_ir_down = hybrid_derivative.calculate_pv(market_ir_down);
+
+        double pv_fx_up_ir_up = hybrid_derivative.calculate_pv(market_fx_up_ir_up);
+        double pv_fx_up_ir_down = hybrid_derivative.calculate_pv(market_fx_up_ir_down);
+        double pv_fx_down_ir_up = hybrid_derivative.calculate_pv(market_fx_down_ir_up);
+        double pv_fx_down_ir_down = hybrid_derivative.calculate_pv(market_fx_down_ir_down);
+
+        // Calcul du cross-gamma FX-IR
+        double cross_gamma = (pv_fx_up_ir_up - pv_fx_up_ir_down - pv_fx_down_ir_up + pv_fx_down_ir_down) /
+                           (4.0 * fx_shock * ir_shock);
+
+        results.cross_gammas["FX_IR_CROSS_GAMMA"] = cross_gamma;
+
+        // Validation que le cross-gamma est significatif pour hybrides
+        EXPECT_GT(std::abs(cross_gamma), 1e-8);
+    }
+
+    void test_correlation_sensitivities(const ir_fx_hybrid_derivative_base& hybrid_derivative,
+                                       const market_data& market,
+                                       cross_sensitivity_results& results) {
+
+        const double correlation_shock = 0.01; // 1% de corrélation
+
+        // PV de base
+        double pv_base = hybrid_derivative.calculate_pv(market);
+
+        // Choc de corrélation FX-IR
+        auto market_corr_up = shock_fx_ir_correlation(market, +correlation_shock);
+        auto market_corr_down = shock_fx_ir_correlation(market, -correlation_shock);
+
+        double pv_corr_up = hybrid_derivative.calculate_pv(market_corr_up);
+        double pv_corr_down = hybrid_derivative.calculate_pv(market_corr_down);
+
+        // Sensibilité à la corrélation
+        double correlation_sensitivity = (pv_corr_up - pv_corr_down) / (2.0 * correlation_shock);
+
+        results.correlation_sensitivities["FX_IR_CORRELATION"] = correlation_sensitivity;
+
+        // Validation que la sensibilité à la corrélation est mesurable
+        EXPECT_GT(std::abs(correlation_sensitivity), 1e-6);
+
+        // Tests de sensibilité aux corrélations entre différentes maturités IR
+        test_ir_term_structure_correlation_sensitivities(hybrid_derivative, market, results);
+    }
+
+    void test_nonlinear_interactions(const ir_fx_hybrid_derivative_base& hybrid_derivative,
+                                    const market_data& market,
+                                    cross_sensitivity_results& results) {
+
+        // Tests d'interactions non-linéaires entre FX et IR
+
+        // Scénario 1 : FX élevé + IR élevé
+        auto market_high_fx_high_ir = create_high_fx_high_ir_scenario(market);
+        double pv_high_high = hybrid_derivative.calculate_pv(market_high_fx_high_ir);
+
+        // Scénario 2 : FX faible + IR faible
+        auto market_low_fx_low_ir = create_low_fx_low_ir_scenario(market);
+        double pv_low_low = hybrid_derivative.calculate_pv(market_low_fx_low_ir);
+
+        // Scénarios croisés
+        auto market_high_fx_low_ir = create_high_fx_low_ir_scenario(market);
+        auto market_low_fx_high_ir = create_low_fx_high_ir_scenario(market);
+
+        double pv_high_low = hybrid_derivative.calculate_pv(market_high_fx_low_ir);
+        double pv_low_high = hybrid_derivative.calculate_pv(market_low_fx_high_ir);
+
+        // Mesure de l'interaction non-linéaire
+        double interaction_measure = std::abs((pv_high_high + pv_low_low) - (pv_high_low + pv_low_high));
+
+        results.fx_ir_interaction_strength = interaction_measure;
+
+        // Validation que les interactions sont significatives pour hybrides
+        EXPECT_GT(interaction_measure, 1e-6);
+    }
+};
+```
+
+---
+
+## 🏛️ **Stability Testing**
+
+### **Tests de Stabilité sous Stress**
+
+#### **🔍 Multi-Factor Stress Testing**
+
+##### **Tests de Stress Multi-Facteurs**
+```cpp
+// Tests de stress multi-facteurs pour produits hybrides dans Our project
+class irfx_multifactor_stress_tester {
+public:
+    void test_multifactor_stress_scenarios(const ir_fx_hybrid_derivative_base& hybrid_derivative,
+                                          const market_data& base_market) {
+
+        // Tests de stress spécifiques aux produits hybrides
+        test_simultaneous_fx_ir_stress(hybrid_derivative, base_market);
+        test_correlation_regime_stress(hybrid_derivative, base_market);
+        test_volatility_surface_stress(hybrid_derivative, base_market);
+        test_extreme_market_conditions(hybrid_derivative, base_market);
+    }
+
+private:
+    void test_simultaneous_fx_ir_stress(const ir_fx_hybrid_derivative_base& hybrid_derivative,
+                                       const market_data& base_market) {
+
+        std::cout << "=== Simultaneous FX-IR Stress Testing ===" << std::endl;
+
+        // Scénarios de stress simultanés
+        std::vector<multifactor_stress_scenario> scenarios = {
+            {"FX_UP_IR_UP", create_fx_up_ir_up_scenario()},
+            {"FX_DOWN_IR_DOWN", create_fx_down_ir_down_scenario()},
+            {"FX_UP_IR_DOWN", create_fx_up_ir_down_scenario()},
+            {"FX_DOWN_IR_UP", create_fx_down_ir_up_scenario()},
+            {"EXTREME_VOLATILITY", create_extreme_volatility_scenario()}
+        };
+
+        for (const auto& scenario : scenarios) {
+            auto stressed_market = apply_multifactor_stress(base_market, scenario);
+
+            // Calcul des métriques sous stress
+            double pv = hybrid_derivative.calculate_pv(stressed_market);
+            auto sensitivities = hybrid_derivative.calculate_sensitivities(stressed_market);
+
+            // Validation de stabilité
+            EXPECT_TRUE(std::isfinite(pv));
+            EXPECT_TRUE(std::isfinite(sensitivities.fx_delta));
+            EXPECT_TRUE(std::isfinite(sensitivities.ir_delta));
+            EXPECT_TRUE(std::isfinite(sensitivities.fx_ir_cross_gamma));
+
+            // Validation de cohérence économique
+            validate_hybrid_behavior_under_multifactor_stress(
+                hybrid_derivative, stressed_market, scenario);
+
+            std::cout << "Multifactor Stress: " << scenario.name
+                      << ", PV: " << pv
+                      << ", FX Delta: " << sensitivities.fx_delta
+                      << ", IR Delta: " << sensitivities.ir_delta << std::endl;
+        }
+    }
+
+    void test_correlation_regime_stress(const ir_fx_hybrid_derivative_base& hybrid_derivative,
+                                       const market_data& base_market) {
+
+        std::cout << "=== Correlation Regime Stress Testing ===" << std::endl;
+
+        // Tests de changement de régime de corrélation
+        std::vector<correlation_regime_scenario> scenarios = {
+            {"HIGH_CORRELATION_REGIME", create_high_correlation_regime()},
+            {"LOW_CORRELATION_REGIME", create_low_correlation_regime()},
+            {"NEGATIVE_CORRELATION_REGIME", create_negative_correlation_regime()},
+            {"CORRELATION_BREAKDOWN", create_correlation_breakdown_regime()}
+        };
+
+        for (const auto& scenario : scenarios) {
+            auto stressed_market = apply_correlation_regime(base_market, scenario);
+
+            double pv = hybrid_derivative.calculate_pv(stressed_market);
+            auto sensitivities = hybrid_derivative.calculate_sensitivities(stressed_market);
+
+            // Validation de robustesse sous changement de régime
+            EXPECT_TRUE(std::isfinite(pv));
+            EXPECT_TRUE(std::isfinite(sensitivities.fx_ir_correlation_sensitivity));
+
+            // Tests spécifiques aux hybrides sous changement de corrélation
+            validate_hybrid_correlation_regime_behavior(
+                hybrid_derivative, stressed_market, scenario);
+
+            std::cout << "Correlation Regime: " << scenario.name
+                      << ", PV: " << pv
+                      << ", Corr Sensitivity: " << sensitivities.fx_ir_correlation_sensitivity
+                      << std::endl;
+        }
+    }
+
+    void validate_hybrid_behavior_under_multifactor_stress(
+        const ir_fx_hybrid_derivative_base& hybrid_derivative,
+        const market_data& stressed_market,
+        const multifactor_stress_scenario& scenario) {
+
+        auto sensitivities = hybrid_derivative.calculate_sensitivities(stressed_market);
+
+        // Validation que les sensibilités croisées restent cohérentes
+        EXPECT_TRUE(std::isfinite(sensitivities.fx_ir_cross_gamma));
+
+        // Pour produits hybrides, cross-gamma doit être mesurable
+        EXPECT_GT(std::abs(sensitivities.fx_ir_cross_gamma), 1e-10);
+
+        // Validation de cohérence des signes sous stress
+        validate_sensitivity_sign_coherence(sensitivities, scenario);
+    }
+};
+```
+
+---
+
+*Cette section fournit une documentation complète des tests de produit pour IR-FX Hybrid Derivatives, intégrant les implémentations C++ de Our project avec des méthodologies de validation spécialisées pour les dérivés hybrides, incluant les tests de payoffs multi-conditions, sensibilités croisées et stabilité sous stress multi-facteurs.*

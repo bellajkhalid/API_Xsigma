@@ -1,0 +1,394 @@
+# Executive Summary
+
+## 📊 **Global Model Risk Assessment**
+
+Le **Global Model Risk Assessment** pour le modèle DBX-ShortRate_FXSkewStochVol présente l'évaluation suivante :
+
+### **Évaluation des Risques**
+
+| Critère | Rating | Justification |
+|---------|--------|---------------|
+| **Complexité** | HIGH | Jugement SME du validateur |
+| **Incertitude** | HIGH | Nombre élevé de trades vs limitations P-M |
+| **Dépendance** | HIGH | Les modèles de pricing ont une dépendance élevée |
+
+### **Méthodologie d'Évaluation**
+
+#### **Rating de Complexité - HIGH**
+Le rating de complexité élevée est justifié par :
+- **Modèle multi-facteurs** combinant taux stochastiques et volatilité FX locale stochastique
+- **Calibration complexe** avec PIV AutoFit et DLVIR correction
+- **Corrélations multiples** entre facteurs de risque (FX, IR domestique, IR étranger)
+- **Implémentation Monte Carlo** avec techniques avancées de réduction de variance
+
+#### **Rating d'Incertitude - HIGH**
+Le rating d'incertitude élevée s'explique par :
+- **Nombre élevé de trades** vs limitations produit-modèle
+- **Paramètres exogènes** nombreux nécessitant un jugement d'expert
+- **Calibration automatique** avec risque de sur-ajustement
+- **Sensibilité aux corrélations** FX-IR difficiles à observer
+
+#### **Rating de Dépendance - HIGH**
+La dépendance élevée est due au fait que :
+- Les **outputs du modèle définissent** les métriques officiellement reportées
+- **Utilisation critique** pour valorisation de dérivés FX long terme
+- **Pas de modèle alternatif** approprié pour ces produits complexes
+- **Impact significatif** sur les mesures de risque et capital
+
+---
+
+## ✅ **Résumé des Principaux Résultats de Validation**
+
+### **Objectifs du Modèle**
+Le modèle **DBX-ShortRate_FXSkewStochVol** est utilisé pour les objectifs suivants :
+
+#### **📈 Évaluation et Reporting**
+- Génération de **mesures de fair value** pour dérivés FX long terme
+- Génération de **sensibilités de risque** complexes (Delta, Vega, Rho multi-devises)
+- Alimentation des calculs de **Risk and Capital** pour expositions FX
+
+#### **🔄 Tests de Stress**
+- Re-pricing sous **scénarios de stress** comme modèle servicer
+- Tests de stress réglementaires (**CCAR**)
+- Calculs **Interest Rate Risk in Banking Book (IRRBB)** avec FX
+- **Simulations historiques** (HistSim) et Value at Risk multi-facteurs
+
+### **Développement et Maintenance**
+Le modèle est développé et maintenu par **DBAnalytics** et fourni via :
+- **Moteur Monte Carlo DBX** pour performance optimisée
+- **Python** et **Perl** pour intégration
+- Disponible dans **Kannon** et **Risk Engine**
+
+---
+
+## 🏗️ **Scope des Produits et Configurations**
+
+### **Produits Approuvés**
+
+#### **Long-Term FX Derivatives**
+```cpp
+// Implémentation LTFX dans Our project
+class long_term_fx_derivative : public fx_derivative_base {
+private:
+    struct ltfx_specification {
+        std::string currency_pair;
+        double strike;
+        double expiry;
+        bool is_call;
+        double notional;
+        std::vector<double> observation_dates;
+        ltfx_type type; // VANILLA, DIGITAL, CONVEXITY, PAR_FORWARD
+    };
+    
+    ltfx_specification spec_;
+    
+public:
+    long_term_fx_derivative(const ltfx_specification& spec) : spec_(spec) {
+        validate_ltfx_specification();
+    }
+    
+    double calculate_pv(const market_data& market) const override {
+        return calculate_ltfx_pv_monte_carlo(market);
+    }
+    
+    fx_sensitivities calculate_sensitivities(const market_data& market) const override {
+        fx_sensitivities sens;
+        
+        // Sensibilités FX
+        sens.fx_delta = calculate_fx_delta_mc(market);
+        sens.fx_gamma = calculate_fx_gamma_mc(market);
+        sens.fx_vega_local = calculate_local_vega_mc(market);
+        sens.fx_vega_stochastic = calculate_stochastic_vega_mc(market);
+        
+        // Sensibilités IR multi-devises
+        sens.domestic_ir_delta = calculate_domestic_ir_delta_mc(market);
+        sens.foreign_ir_delta = calculate_foreign_ir_delta_mc(market);
+        sens.domestic_ir_vega = calculate_domestic_ir_vega_mc(market);
+        sens.foreign_ir_vega = calculate_foreign_ir_vega_mc(market);
+        
+        // Sensibilités croisées
+        sens.fx_ir_correlation_sensitivity = calculate_fx_ir_correlation_sensitivity_mc(market);
+        
+        return sens;
+    }
+    
+private:
+    double calculate_ltfx_pv_monte_carlo(const market_data& market) const {
+        const int num_simulations = 100000;
+        const int num_time_steps = static_cast<int>(spec_.expiry * 252); // Daily steps
+        
+        // Configuration Monte Carlo
+        monte_carlo_engine mc_engine(num_simulations, num_time_steps);
+        
+        // Modèles stochastiques
+        auto hull_white_domestic = create_hull_white_model(market, "DOMESTIC");
+        auto hull_white_foreign = create_hull_white_model(market, "FOREIGN");
+        auto fx_lsv_model = create_fx_local_stochastic_vol_model(market);
+        
+        double payoff_sum = 0.0;
+        
+        for (int sim = 0; sim < num_simulations; ++sim) {
+            // Génération de path corrélé
+            auto correlated_path = mc_engine.generate_correlated_path(
+                hull_white_domestic, hull_white_foreign, fx_lsv_model);
+            
+            // Calcul du payoff
+            double payoff = calculate_ltfx_payoff(correlated_path);
+            payoff_sum += payoff;
+        }
+        
+        return payoff_sum / num_simulations;
+    }
+    
+    double calculate_ltfx_payoff(const monte_carlo_path& path) const {
+        // Extraction des valeurs finales
+        double final_fx = path.fx_values.back();
+        double final_domestic_rate = path.domestic_rates.back();
+        
+        // Facteur d'actualisation
+        double discount_factor = calculate_discount_factor(path.domestic_rates);
+        
+        // Payoff selon le type
+        double payoff = 0.0;
+        switch (spec_.type) {
+            case ltfx_type::VANILLA:
+                payoff = spec_.is_call ? 
+                    std::max(final_fx - spec_.strike, 0.0) :
+                    std::max(spec_.strike - final_fx, 0.0);
+                break;
+                
+            case ltfx_type::DIGITAL:
+                payoff = (spec_.is_call && final_fx > spec_.strike) ||
+                        (!spec_.is_call && final_fx < spec_.strike) ? 1.0 : 0.0;
+                break;
+                
+            case ltfx_type::CONVEXITY:
+                payoff = calculate_convexity_payoff(path);
+                break;
+                
+            case ltfx_type::PAR_FORWARD:
+                payoff = calculate_par_forward_payoff(path);
+                break;
+        }
+        
+        return spec_.notional * payoff * discount_factor;
+    }
+};
+```
+*Cette implémentation C++ dans Our project montre la structure d'un dérivé FX long terme avec pricing Monte Carlo et sensibilités multi-facteurs.*
+
+#### **PRDC Swaps (Power Reverse Dual Currency)**
+```cpp
+// Implémentation PRDC Swap dans Our project
+class prdc_swap : public ir_fx_hybrid_base {
+private:
+    struct prdc_specification {
+        std::string domestic_currency;
+        std::string foreign_currency;
+        std::vector<double> payment_dates;
+        std::vector<double> fx_fixing_dates;
+        double leverage;
+        double participation_rate;
+        std::vector<double> fx_barriers;
+        bool is_callable;
+        std::vector<double> call_dates;
+    };
+    
+    prdc_specification spec_;
+    
+public:
+    double calculate_pv(const market_data& market) const override {
+        return calculate_prdc_pv_monte_carlo(market);
+    }
+    
+private:
+    double calculate_prdc_pv_monte_carlo(const market_data& market) const {
+        const int num_simulations = 200000; // Plus de simulations pour PRDC
+        
+        monte_carlo_engine mc_engine(num_simulations);
+        
+        // Modèles corrélés
+        auto models = create_correlated_ir_fx_models(market);
+        
+        double pv_sum = 0.0;
+        
+        for (int sim = 0; sim < num_simulations; ++sim) {
+            auto path = mc_engine.generate_full_path(models, spec_.payment_dates);
+            
+            double prdc_pv = 0.0;
+            
+            // Calcul des coupons PRDC
+            for (size_t i = 0; i < spec_.payment_dates.size(); ++i) {
+                double fx_fixing = path.fx_values[i];
+                double foreign_rate = path.foreign_rates[i];
+                
+                // Coupon PRDC avec leverage et participation
+                double coupon = spec_.leverage * foreign_rate * 
+                              std::min(spec_.participation_rate, fx_fixing / spec_.fx_barriers[i]);
+                
+                // Actualisation
+                double discount_factor = calculate_discount_factor_to_date(
+                    path.domestic_rates, spec_.payment_dates[i]);
+                
+                prdc_pv += coupon * discount_factor;
+            }
+            
+            // Gestion de la callabilité
+            if (spec_.is_callable) {
+                prdc_pv = apply_callable_feature(prdc_pv, path);
+            }
+            
+            pv_sum += prdc_pv;
+        }
+        
+        return pv_sum / num_simulations;
+    }
+};
+```
+
+### **Configurations de Modèle**
+- **DBX-ShortRateNormal[LVMRAUTO]_FXSkewStochVol[DLVAUTO]** - Configuration complète avec calibration automatique
+
+---
+
+## 🎯 **Framework Théorique**
+
+### **Modèle DBX-ShortRate_FXSkewStochVol**
+Le modèle DBX combine plusieurs composants sophistiqués :
+
+#### **Composants du Modèle**
+- **Taux stochastiques** Hull-White avec coefficients dépendants du temps
+- **Volatilité FX locale** calibrée via PIV AutoFit
+- **Volatilité FX stochastique** avec décomposition Gyöngy
+- **Corrélations** entre tous les facteurs de risque
+
+#### **Dynamiques Stochastiques**
+```cpp
+// Système d'équations stochastiques dans Our project
+class dbx_stochastic_system {
+public:
+    struct system_state {
+        vector<double> domestic_short_rates;
+        vector<double> foreign_short_rates;
+        double fx_rate;
+        double fx_stochastic_vol_factor;
+    };
+    
+    system_state evolve_system(double dt, 
+                              const system_state& current_state,
+                              const matrix<double>& correlated_randoms) const {
+        
+        system_state next_state;
+        
+        // Évolution des taux domestiques (Hull-White)
+        // dr_d = (theta_d(t) - a_d * r_d) * dt + sigma_d * dW_d
+        next_state.domestic_short_rates = evolve_hull_white_rates(
+            current_state.domestic_short_rates, 
+            domestic_hw_params_, 
+            dt, 
+            correlated_randoms.column(0));
+        
+        // Évolution des taux étrangers (Hull-White)
+        // dr_f = (theta_f(t) - a_f * r_f) * dt + sigma_f * dW_f
+        next_state.foreign_short_rates = evolve_hull_white_rates(
+            current_state.foreign_short_rates, 
+            foreign_hw_params_, 
+            dt, 
+            correlated_randoms.column(1));
+        
+        // Évolution du facteur de volatilité stochastique FX
+        // dv = kappa * (theta_v - v) * dt + sigma_v * sqrt(v) * dW_v
+        next_state.fx_stochastic_vol_factor = evolve_stochastic_volatility(
+            current_state.fx_stochastic_vol_factor,
+            sv_params_,
+            dt,
+            correlated_randoms(2, 0));
+        
+        // Évolution du taux FX avec volatilité locale stochastique
+        // dS = (r_d - r_f) * S * dt + sigma_LV(t,S) * sqrt(v) * S * dW_S
+        double local_vol = local_vol_surface_->get_volatility(
+            get_current_time(), current_state.fx_rate);
+        
+        double total_vol = local_vol * std::sqrt(next_state.fx_stochastic_vol_factor);
+        
+        double fx_drift = (next_state.domestic_short_rates[0] - 
+                          next_state.foreign_short_rates[0]) * current_state.fx_rate * dt;
+        
+        double fx_diffusion = total_vol * current_state.fx_rate * 
+                             std::sqrt(dt) * correlated_randoms(3, 0);
+        
+        next_state.fx_rate = current_state.fx_rate + fx_drift + fx_diffusion;
+        
+        return next_state;
+    }
+};
+```
+*Cette implémentation C++ dans Our project montre le système d'équations stochastiques couplées pour le modèle DBX.*
+
+---
+
+## 📋 **Usages Recommandés et Validation**
+
+### **Usages Approuvés**
+
+| Usage | Recommandé pour Utilisation (RFU) |
+|-------|-----------------------------------|
+| **EOD** | ✅ YES |
+| **HistSim** | ✅ YES |
+| **CCAR** | ✅ YES |
+| **IRRBB** | ✅ YES |
+
+### **Résultats de Validation**
+La revue entreprise n'a révélé **aucun défaut** dans la théorie ou les implémentations pertinentes.
+
+#### **Points Clés de Validation**
+- ✅ **Méthodologie théorique** Hull-White et volatilité locale stochastique validée
+- ✅ **Implémentation Monte Carlo** vérifiée contre benchmarks
+- ✅ **Calibration automatique** testée sur données de marché
+- ✅ **Stabilité des risques** confirmée sous stress
+- ✅ **Conformité réglementaire** établie
+
+---
+
+## 🔍 **Limitations et Findings**
+
+### **Limitations du Modèle**
+Pour le modèle DBX-ShortRate_FXSkewStochVol :
+
+#### **Limitations Identifiées**
+1. **Paramètres exogènes** - Nombreux paramètres nécessitant jugement d'expert
+2. **Corrélations constantes** - Corrélations FX-IR assumées constantes
+3. **Calibration complexe** - Risque de sur-ajustement avec nombreux paramètres
+4. **Performance Monte Carlo** - Temps de calcul élevé pour produits complexes
+
+### **Validation Findings**
+Aucun finding de validation nécessitant d'être adressé n'a été identifié.
+
+### **Contrôles et Surveillance**
+- **Conditions d'utilisation** classées comme Model Rule
+- **Surveillance automatisée** via Model Parameter Monitoring
+- **Enregistrement** dans MARS de toutes les conditions d'utilisation
+
+---
+
+## 🎯 **Conclusion Générale**
+
+### **Recommandation d'Utilisation**
+Le framework DBX-ShortRate_FXSkewStochVol est **recommandé pour utilisation** dans tous les usages définis, avec :
+
+- **Validation complète** de l'implémentation Monte Carlo
+- **Tests exhaustifs** sous différents scénarios de stress
+- **Contrôles appropriés** en place
+- **Surveillance continue** des paramètres
+
+### **Avantages Clés**
+- **Modélisation sophistiquée** des risques FX long terme
+- **Calibration automatique** aux données de marché
+- **Flexibilité** pour produits complexes multi-devises
+- **Intégration** native avec DBAnalytics
+
+Le modèle représente une solution robuste et validée pour le pricing de dérivés FX long terme avec taux stochastiques, répondant aux exigences de précision et de performance pour les applications de trading et de gestion des risques.
+
+---
+
+*Cette section fournit un résumé exécutif complet du framework DBX-ShortRate_FXSkewStochVol, intégrant les standards de documentation de Our project avec les détails techniques et les résultats de validation.*

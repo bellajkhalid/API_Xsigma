@@ -1,0 +1,263 @@
+# Calibration
+
+
+
+## Description
+
+The CLV model uses analytical approximations for swaption volatility and skew to achieve efficient calibration. There are 2 different calibration types:
+
+- Co-terminal
+- V-fit
+
+## Swaption Volatility/Skew Approximation
+
+### Approximation Step 1: Swap Rate Time Dependent Dynamics
+
+In the first approximation step, we assume swap rate is time dependent shifted lognormal diffusion:
+
+$$ds(t) = \sigma_s(t)\left(1 + b_s(t)\left(\frac{s(t)-s_0}{s_0}\right)\right)dw^A(t)$$
+
+As shown previously, zero bond has analytical reconstruction formula and is a function of $r_1(t)$ and $\Phi(t)$, therefore we can also represent swap rate as an explicit function:
+
+$$s(t) = s(t,r_1(t),\Phi(t))$$
+
+Since $s(t)$ is martingale under annuity measure and only $dr_1(t)$ has stochastic term, applying Itô's lemma:
+
+$$ds(t) = s_{r_1}(t)\sigma_r(t,r_1(t))dw^A(t)$$
+
+The RHS is an explicit function of $r_1(t)$ and $\Phi(t)$. Considering short rate vol is usually less than 1% and $\Phi(t)$ is of second order of short rate, the variation of $\Phi(t)$ is less significant, so we will freeze it at its expectation under annuity measure, i.e., $\Phi'(t) = E^A[\Phi(t)]$.
+
+Once freezing $\Phi(t)$, the RHS is now an explicit function of $r_1(t)$, hence an implicit function of $s(t)$. To derive $\sigma_s(t)$ and $b_s(t)$, we use 1st order Taylor expansion to RHS around initial swap rate $s_0$, with $|_0$ indicating evaluation at $s(t) = s_0$:
+
+$$s_{r_1}(t)\sigma_r(t,r_1(t))dw^A(t) = \left[s_{r_1}(t)\sigma_r(t)|_{s_0} + (s(t) - s_0)\left.\frac{\partial (s_{r_1}(t)\sigma_r(t))}{\partial s(t)}\right|_{s_0}\right]dw^A(t)$$
+
+After comparing with the assumed shifted lognormal diffusion in the beginning, we then get below:
+
+$$\sigma_s(t) = s_{r_1}(t)\sigma_r(t)|_0$$
+
+$$b_s(t) = s_0\left.\frac{s_{r_1r_1}(t)}{s_{r_1}^2(t)}\right|_0 + \frac{s_0}{s_{r_1}(t)}\left.\frac{b_r(t)}{1 + b_r(t)r_1(t)}\right|_0$$
+
+Notice that via zero bond reconstruction, swap rate $s(t)$ can be expressed as an explicit function of $r_1(t)$. Therefore its derivative to $r_1(t)$ in above formula can be computed analytically.
+
+### Approximation Step 2: Averaging Volatility and Skew
+
+In the second approximation step, we will use the swap rate volatility and skew derived above, reduce the time dependency and derive the flat volatility and skew of the process.
+
+$$\sigma_T = \sqrt{\frac{1}{T}\int_0^T \sigma_s^2(t)dt}$$
+
+$$b_T = \int_0^T b_s(t)w_s(t)dt, \text{ where weight function } w_s(t) = \frac{\sigma_s^2(t)\int_0^t\sigma_s^2(s)ds}{\int_0^T(\sigma_s^2(t)\int_0^t\sigma_s^2(s)ds)dt}$$
+
+Both values are computed by numerical integration across the model curve nodes and assuming the model curve is piecewise constant. Further details can be referred in below document - "Time to Smile" [15].
+
+With the blended vol and skew, we can calculate the model swaption/caplet prices V(0) using the shifted lognormal pricing formula:
+
+
+
+$$V(0) = A(0)[S'N(d_+) - K'N(d_-)]$$
+
+where A(0) = annuity of the caplet/swaption
+
+$$S' = \frac{S_0}{b_T}, K' = K + (1-b_T)\frac{S_0}{b_T}$$
+
+$$d_\pm = \frac{\ln(\frac{S'}{K'}) \pm \frac{1}{2}\Sigma^2T}{\Sigma\sqrt{T}} \text{ where } \Sigma = \frac{\sigma_T b_T}{S_0}$$
+
+## Calibration Implementation in Our Project
+
+The Cheyette calibration process is implemented through several key classes that work together to fit model parameters to market swaption volatilities.
+
+**Main Calibration Class**:
+```cpp
+namespace xsigma {
+    class calibration_ir_cheyette {
+    public:
+        // Constructor
+        ANALYTICS_API calibration_ir_cheyette(
+            const datetime& valuation_date,
+            const ptr_const<discount_curve>& curve,
+            const ptr_const<calibration_ir_targets_configuration>& targets_config,
+            const ptr_const<day_count_convention>& convention
+        );
+
+        ANALYTICS_API ~calibration_ir_cheyette();
+
+        // Main calibration method implementing the optimization process
+        ANALYTICS_API ptr_const<parameter_cheyette> calibrate(
+            const ptr_const<ir_volatility_data>& volatility_surface,
+            const ptr_const<calibration_cheyette_settings>& settings,
+            const ptr_const<parameter_markovian_hjm>& parameter_hjm
+        ) const;
+
+        // Access to swaption instruments used in calibration
+        const std::vector<ptr_const<calibration_ir_cheyette_swaption>>& swaptions() const;
+
+    private:
+        // Parameter mapping functions for optimization
+        static size_t number_of_parameter(const ptr_mutable<parameter_cheyette>& parameter);
+
+        static void map_from_R(
+            const vector<double>& x,
+            parameter_cheyette& parameter,
+            const std::vector<double>& decay_bounds,
+            const std::vector<double>& volatility_bounds,
+            const std::vector<double>& skew_bounds
+        );
+
+        static void map_to_R(
+            vector<double>& x,
+            const parameter_cheyette& parameter,
+            const std::vector<double>& decay_bounds,
+            const std::vector<double>& volatility_bounds,
+            const std::vector<double>& skew_bounds
+        );
+
+        datetime valuation_date_;
+        ptr_const<discount_curve> curve_;
+        std::vector<ptr_const<calibration_ir_cheyette_swaption>> swaptions_;
+    };
+}
+```
+
+*The main calibration class orchestrates the parameter fitting process by setting up an optimization problem that minimizes the difference between market and model swaption volatilities. The parameter mapping functions handle the transformation between the constrained optimization space and the model parameter space.*
+
+**Swaption Calibration Helper Class**:
+```cpp
+namespace xsigma {
+    class calibration_ir_cheyette_swaption {
+    public:
+        // Constructor for swaption calibration instrument
+        ANALYTICS_API calibration_ir_cheyette_swaption(
+            bool is_call,
+            const ptr_const<discount_curve>& curve,
+            const datetime& expiry,
+            const datetime& maturity,
+            const tenor& frequency,
+            const ptr_const<day_count_convention>& convention,
+            const std::vector<double>& strikes,
+            bool is_ratios
+        );
+
+        ANALYTICS_API ~calibration_ir_cheyette_swaption();
+
+        // Calculate model values for given Cheyette model
+        ANALYTICS_API void values(
+            std::vector<double>& outputs,
+            const ptr_const<model_cheyette>& model,
+            double tau
+        ) const;
+
+        // Individual swaption pricing using analytical approximation
+        ANALYTICS_API double value(
+            double& root,
+            const double z_tau,
+            const double strike,
+            const matrix<double>& integral_decays,
+            bool call_option,
+            size_t max_iteration = 20,
+            double tolerance = 1e-10
+        ) const;
+
+    private:
+        bool is_call_;
+        ptr_const<discount_curve> curve_;
+        datetime expiry_;
+        datetime maturity_;
+        tenor frequency_;
+        ptr_const<day_count_convention> convention_;
+        std::vector<double> strikes_;
+        bool is_ratios_;
+
+        // Internal calculation components
+        ptr_const<calibration_ir_swap> swap_;
+        std::vector<double> fixed_leg_weights_;
+        std::vector<double> float_leg_weights_;
+    };
+}
+```
+
+*The swaption helper class implements the analytical approximation formulas described above. It calculates model swaption values using the time-dependent swap rate dynamics and the shifted lognormal pricing formula, enabling efficient calibration without requiring Monte Carlo simulation.*
+
+## Calibration Types
+
+### Co-terminal Calibration
+
+In co-terminal calibration, the model is calibrated to a set of co-terminal swaptions (swaptions with the same maturity but different expiries). This calibration type is particularly useful when:
+
+- The portfolio has exposure to a specific maturity point
+- Market data is most liquid for co-terminal structures
+- Simplified calibration is preferred
+
+**Key Features:**
+- Mean reversion $\lambda(t)$ is provided as market input
+- Short rate volatility $\sigma(t)$ is always calibrated
+- Short rate skew $b_r(t)$ calibration is optional (user input)
+
+### V-fit Calibration
+
+V-fit calibration is a more comprehensive approach that calibrates to a broader set of market instruments across different expiries and tenors. This method:
+
+- Provides better coverage of the volatility surface
+- Captures forward volatility dynamics more accurately
+- Is suitable for portfolios with diverse maturity exposures
+
+**Key Features:**
+- Mean reversion $\lambda(t)$ (or $b(t)$ in Formulation 2) is calibrated
+- Short rate volatility $\sigma(t)$ is always calibrated
+- Short rate skew $b_r(t)$ calibration is optional (user input)
+
+## Model Parameters and Variables
+
+There are 3 model curves in CLV model, all are assumed to be piecewise constant.
+
+### Formulation 1
+
+1) **Short rate volatility $\sigma(t)$** controls overall volatility level; $\sigma(t)$ is always calibrated.
+
+2) **Short rate mean reversion $\lambda(t)$**, which controls how volatility is distributed over time, is calibrated depending on calibration type.
+   - For Co-terminal calibration, $\lambda(t)$ is market input.
+   - For V-fit calibration, $\lambda(t)$ is calibrated.
+
+3) **Short rate skew $b_r(t)$**, which controls the slope of swaption vol; whether $b_r(t)$ is calibrated is user input.
+
+### Formulation 2
+
+1) **Short rate volatility $\sigma(t)$** controls overall volatility level; $\sigma(t)$ is always calibrated.
+
+2) **Integrated mean reversion curve $b(t)$**, which controls how volatility is distributed over time, $b(t)$ will be calibrated for specific kinds of calibration types
+   - For Co-terminal calibration, $\lambda(t)$ is market input, and $b(t)$ is internally integrated from $\lambda(t)$
+   - for V-fit calibration, $b(t)$ is calibrated.
+
+3) **Short rate skew $b_r(t)$**, which controls the slope of swaption vol; whether $b_r(t)$ is calibrated is user input (for more on this refer to Section 6).
+
+In addition, the initial forward curve $f(0;t)$ is inferred from the input yield curve which is a feeder model.
+
+### Formulation Comparison
+
+The key difference between two formulations boils down to whether $\lambda(t)$ or $b(t)$ is piecewise constant, because piecewise $\lambda(t)$ implies non-piecewise constant $b(t)$, and vice versa. The primary advantage of piecewise constant $b(t)$ is that it improves interpolation of calibration instruments which are not part of calibration set, thanks to the fact that the zero bond reconstruction formula is more explicitly dependent on $b(t)$. 
+
+For example, if we calibrate 10y10y and 12y10y European swaption and price 11y10y swaption from the calibrated model, we will get smoother volatility of 11y swaption compared with 10y and 12y with this improved interpolation. The model will ultimately give us smoother PV/risk of exotic trades. As a result, it reduces artificial oscillations in risk backtests due to interpolation and helps to produce smoother risks.
+
+## Feeder Models
+
+| Name | GMD ID | Description |
+|------|---------|-------------|
+| New curve framework | GMD1746 | Used for initial yield curve construction in calibration, pricing and risk calculation. |
+| Black-Scholes pricer | GMD4104 | Used for pricing European instruments with respective black and/or normal volatility in calibration, pricing and risk calculation. |
+| Vanilla pricing model | GMD4105 | Used for underlying adjustment in pricing. |
+
+## Justification Against Alternative Approaches
+
+Compared with IRV model, CLV can price options with more exotics options such as Bermudan options, while IRV is only able to price vanilla instruments.
+
+Compared with LMM model, CLV can be priced with PDE which is faster and more accurate, while LMM has to resort to Monte Carlo.
+
+More specification about above models can be referred to below documents:
+- IRV Model Framework [5]
+- LMM Model [10]
+
+## Conditions of Use
+
+As mentioned above, CLV model is one factor short rate model, it will be primarily used with payoffs with single rate such as Bermudan swaption.
+
+We don't recommend using it for payoffs related to correlation such as spread options.
+
+We don't recommend using it under very high volatility conditions. High volatility makes the rate process very diffusive and affects the numerical stability and accuracy. The high volatility limitation exists for HJM family of models, including LMM and Hull White. We also don't recommend using Cheyette under very high skew conditions.

@@ -1,0 +1,1838 @@
+# Interest Rate Volatility Model GSABR
+
+## Table of Contents
+
+- [Interest Rate Volatility Model GSABR](#interest-rate-volatility-model-gsabr)
+  - [Table of Contents](#table-of-contents)
+  - [1. Executive Summary](#1-executive-summary)
+    - [Key Differences Between GSABR and SABR(D):](#key-differences-between-gsabr-and-sabrd)
+    - [Main Assumptions:](#main-assumptions)
+    - [Limitations of the Model:](#limitations-of-the-model)
+    - [Validation and Testing:](#validation-and-testing)
+    - [Key Findings:](#key-findings)
+  - [2. Scope and Use](#2-scope-and-use)
+    - [**Direct Applications**](#direct-applications)
+    - [**Indirect Applications**](#indirect-applications)
+    - [**Model Classification**](#model-classification)
+    - [**Dependencies on Other Models**](#dependencies-on-other-models)
+      - [**Explanation of Dependencies**](#explanation-of-dependencies)
+    - [**Summary**](#summary)
+  - [3. Product and Portfolio](#3-product-and-portfolio)
+    - [**1. Single Index LIBOR/CMS Trades**](#1-single-index-liborcms-trades)
+    - [**2. Simple LIBOR/CMS Spread Option Trades**](#2-simple-liborcms-spread-option-trades)
+    - [**3. Single and Multi-Index Structured LIBOR/CMS Trades**](#3-single-and-multi-index-structured-liborcms-trades)
+    - [**Implied Distribution from Call Prices**](#implied-distribution-from-call-prices)
+      - [Cumulative Distribution Function (CDF):](#cumulative-distribution-function-cdf)
+      - [Probability Density Function (PDF):](#probability-density-function-pdf)
+    - [**Conclusion**](#conclusion)
+  - [4 Methodology](#4-methodology)
+    - [4.1 Design Consideration \& Development Process](#41-design-consideration--development-process)
+    - [4.2 Description](#42-description)
+      - [4.2.1 Risk Factor Identification](#421-risk-factor-identification)
+      - [4.2.2 Model Dynamics](#422-model-dynamics)
+        - [4.2.2.1. Local Volatility Parametrization](#4221-local-volatility-parametrization)
+      - [4.2.3. Summary](#423-summary)
+      - [4.2.4. Outline](#424-outline)
+      - [4.2.5. Deriving the diffusion condition on x for small maturities](#425-deriving-the-diffusion-condition-on-x-for-small-maturities)
+      - [4.2.6. Reduction to a local volatility model](#426-reduction-to-a-local-volatility-model)
+      - [4.2.7. The one step finite difference approach for solving the Dupire PDE](#427-the-one-step-finite-difference-approach-for-solving-the-dupire-pde)
+      - [4.2.8. Boundary conditions for the resulting ODE and a method to solve it](#428-boundary-conditions-for-the-resulting-ode-and-a-method-to-solve-it)
+      - [4.2.9. Finding x satisfying the diffusion condition](#429-finding-x-satisfying-the-diffusion-condition)
+    - [4.3. Model Justification and alternative approaches](#43-model-justification-and-alternative-approaches)
+    - [4.4 Model Assumptions](#44-model-assumptions)
+    - [4.5 Model Limitations](#45-model-limitations)
+      - [4.5.1 Term Structure](#451-term-structure)
+    - [4.6 Model Inputs and Parameters](#46-model-inputs-and-parameters)
+    - [4.7 Model Outputs](#47-model-outputs)
+    - [4.8 Feeder Models](#48-feeder-models)
+        - [Conceptual Soundness and Model Selection](#conceptual-soundness-and-model-selection)
+  - [5 Data Processing and Calibration](#5-data-processing-and-calibration)
+    - [5.5 Limitations](#55-limitations)
+      - [5.5.1 Stressed Market Conditions](#551-stressed-market-conditions)
+        - [5.5.1.1 Parameter Space Transformation](#5511-parameter-space-transformation)
+        - [5.5.1.2 Optimization Function](#5512-optimization-function)
+    - [Summary of Key Points](#summary-of-key-points)
+  - [6. Numerical Implementation](#6-numerical-implementation)
+    - [6.1. Description](#61-description)
+      - [6.1.1. Cumulative Normal function](#611-cumulative-normal-function)
+      - [6.1.2. Implied normal volatility](#612-implied-normal-volatility)
+      - [6.1.3. The one step finite difference approach for solving the Dupire PDE](#613-the-one-step-finite-difference-approach-for-solving-the-dupire-pde)
+      - [6.1.4. Boundary conditions for the resulting ODE and a method to solve it](#614-boundary-conditions-for-the-resulting-ode-and-a-method-to-solve-it)
+- [\\end{pmatrix}](#endpmatrix)
+- [\\end{pmatrix}](#endpmatrix-1)
+      - [6.1.5. Strike grid generation](#615-strike-grid-generation)
+    - [6.2. Inputs](#62-inputs)
+      - [6.2.1. NAG function](#621-nag-function)
+      - [6.2.2. Implied volatility](#622-implied-volatility)
+      - [6.2.3. Strike Grid](#623-strike-grid)
+    - [6.3. Limitations](#63-limitations)
+  - [7 Risk Metrics](#7-risk-metrics)
+    - [7.1 Description](#71-description)
+    - [7.2 Limitations](#72-limitations)
+  - [8 Testing and Outcome Analyses](#8-testing-and-outcome-analyses)
+    - [8.1 Accuracy, Robustness, and Stability Testing](#81-accuracy-robustness-and-stability-testing)
+      - [8.1.1 Grid Convergence](#811-grid-convergence)
+      - [8.1.2 Monotonicity and Call-Put Parity](#812-monotonicity-and-call-put-parity)
+    - [8.2 Scenario and Stress-Testing](#82-scenario-and-stress-testing)
+      - [8.2.1 ATM Surface](#821-atm-surface)
+        - [GSABR Model: ATM Error Analysis](#gsabr-model-atm-error-analysis)
+          - [Scaling Impact on ATM Error Rates](#scaling-impact-on-atm-error-rates)
+    - [Figure 8.4: ATM Error - 25% Scaling - 15/06/2021](#figure-84-atm-error---25-scaling---15062021)
+    - [Figure 8.5: ATM Error - 50% Scaling - 15/06/2021](#figure-85-atm-error---50-scaling---15062021)
+    - [Figure 8.6: ATM Error - 75% Scaling - 15/06/2021](#figure-86-atm-error---75-scaling---15062021)
+    - [Figure 8.7: ATM Error - 100% Scaling - 15/06/2021](#figure-87-atm-error---100-scaling---15062021)
+          - [Analysis of Scaling Effects](#analysis-of-scaling-effects)
+      - [8.2.2 CCAR Stress Testing Results](#822-ccar-stress-testing-results)
+        - [8.2.2.1 USD 10y10y](#8221-usd-10y10y)
+        - [8.2.2.2 USD 2y2y](#8222-usd-2y2y)
+    - [8.2.3. Conclusion](#823-conclusion)
+    - [8.3 Sensitivity Analysis](#83-sensitivity-analysis)
+      - [8.3.1 GSABR Beta Mixture Parameters](#831-gsabr-beta-mixture-parameters)
+    - [8.3.2. β₂, β₁ and d impact on the backbone](#832-β-β-and-d-impact-on-the-backbone)
+      - [β₁ Effect Analysis](#β-effect-analysis)
+      - [Speed Parameter (d) Effect Analysis](#speed-parameter-d-effect-analysis)
+    - [8.3.3. Threshold Parameter Impact](#833-threshold-parameter-impact)
+      - [Effect on Smile Shape](#effect-on-smile-shape)
+      - [Effect on CMS Pricing](#effect-on-cms-pricing)
+  - [8.4. Output Analysis](#84-output-analysis)
+    - [EUR 5Y5Y Analysis](#eur-5y5y-analysis)
+    - [EUR 10Y10Y Analysis](#eur-10y10y-analysis)
+    - [EUR 30Y10Y Analysis](#eur-30y10y-analysis)
+  - [Analysis Conclusions](#analysis-conclusions)
+  - [9 Assumptions and Limitations](#9-assumptions-and-limitations)
+    - [Model Assumptions](#model-assumptions)
+    - [Model Limitations](#model-limitations)
+  - [11 Model Monitoring – KPIs](#11-model-monitoring--kpis)
+  - [References](#references)
+  - [11 Model Monitoring – KPIs](#11-model-monitoring--kpis-1)
+  - [References](#references-1)
+
+## 1. Executive Summary
+
+Interest rate volatility models provide the foundation for pricing all interest rate exotics. These models enable explicit valuation through implied volatility for vanilla interest rate options, such as swaptions and caplets, at any strike (commonly referred to as the volatility smile). The resulting implied volatilities are used either to price vanilla payoffs directly or to calibrate exotic interest rate models.
+
+The new volatility model introduced is **GSABR**, a stochastic volatility model proposed by Jesper Andreasen and Brian Huge in [2]. GSABR extends the widely adopted SABR model. Specifically, the GSABR model describes the dynamics of a single forward rate, such as a forward LIBOR or forward swap rate. It is important to note that GSABR does not model the entire yield curve; instead, we have a distinct GSABR model for each individual forward rate.
+
+### Key Differences Between GSABR and SABR(D):
+1. **Approximation Methodology**: GSABR employs a different approximation technique to derive results for implied volatility.
+2. **Arbitrage-Free Pricing**: GSABR computes arbitrage-free option prices using a more sophisticated approach compared to SABR(D).
+3. **Local Volatility Function**: In GSABR, the local volatility function is generic, whereas in SABR(D), it follows a Constant Elasticity of Variance (CEV) specification.
+
+To derive the local volatility function, we use a short-time expansion. This function is then incorporated into a single time-step finite difference equation to calculate option prices.
+
+In this document, we present the theoretical framework of GSABR with a generic local volatility function, consistent with the approach outlined in [2]. However, in our practical implementation, we utilize a specific local volatility function, which we refer to as the **"GSABR Beta Mixture"** model.
+
+### Main Assumptions:
+- **No Arbitrage Opportunities**: The market is assumed to be free of arbitrage.
+- **Frictionless Trading**: Trading is assumed to occur without transaction costs or other frictions.
+
+### Limitations of the Model:
+1. **Limited Control Over CMS Prices**: The accuracy of CMS (Constant Maturity Swap) prices depends heavily on the goodness of fit of the additional parameters in the local volatility function.
+2. **Independent Dynamics**: Each expiry/tenor is modeled independently, lacking a consistent term structure across forward rates.
+
+### Validation and Testing:
+To ensure the conceptual soundness of the GSABR Beta Mixture model, we conducted the following tests:
+1. **Convergence Testing**: Verified the stability and accuracy of the numerical solutions.
+2. **CCAR Stress-Testing**: Evaluated the model's performance under stressed market conditions.
+3. **Sensitivity Analysis**: Examined the impact of key parameters on model outputs.
+4. **Comparison to Monte Carlo (MC)**: Compared results with those obtained from Monte Carlo simulations to validate the model's accuracy.
+
+### Key Findings:
+- The GSABR Beta Mixture model successfully computes arbitrage-free option prices and implied volatilities.
+- It addresses many limitations of the SABR(D) model and enhances the capabilities of the GSABR L4L model.
+
+This summary provides an overview of the GSABR model's purpose, methodology, assumptions, limitations, and validation efforts. Detailed discussions of these aspects are presented in subsequent sections of the document.
+
+## 2. Scope and Use
+
+The **GSABR Interest Rate Volatility Model** is designed for use in pricing and risk management of vanilla interest rate options, where the underlying is a standard LIBOR rate or swap rate. It provides forward prices for specific instruments based on key inputs such as the forward of the underlying, expiry, tenor, strike, and model parameters. The model relies on a combination of theoretical approximations and numerical solving techniques to deliver accurate results.
+
+### **Direct Applications**
+
+The primary direct application of the GSABR model is in the marking and risk management of **caplets** and **swaptions**. These vanilla interest rate options are priced using the volatility smile generated by the model, enabling precise valuation and hedging.
+
+### **Indirect Applications**
+
+Beyond its direct use, the GSABR model plays a critical role in several indirect contexts:
+
+1. **CMS (Constant Maturity Swap) and Structured Vanilla Trades**:
+   - Provides an implied probability distribution for LIBOR and swap rates, which is essential for pricing structured products such as:
+     - Non-callable range accruals.
+     - Conditional spread options.
+     - Other CMS-related trades.
+
+2. **Exotic Trades**:
+   - Serves as a foundation for calibrating more complex models, such as the **Libor Market Model (LMM)** and **short-rate models** (e.g., Cheyette).
+   - Provides calibration targets for these models, ensuring consistency in pricing exotic derivatives.
+   - Adjusts structured coupons and CMS components within exotic trades.
+
+3. **Calibration for Exotic Models**:
+   - Supplies swaption/caplet values used in the calibration of exotic models like **Cheyette** and **LMM**.
+   - During the calibration process of other models, the GSABR model generates target prices (and/or implied volatilities) for instruments in the calibration set.
+
+### **Model Classification**
+
+The GSABR model is classified as **Tier 1**, indicating its high materiality and complexity. Its importance stems from its wide-ranging impact on both direct and indirect product pricing and risk management.
+
+---
+
+### **Dependencies on Other Models**
+
+The GSABR model interacts with other models in the pricing and risk management ecosystem. Below is a summary of its dependencies:
+
+| **CMD ID** | **Model Name**         | **Nature of Dependence**                              |
+|------------|------------------------|------------------------------------------------------|
+| CMD4014    | Black Prices           | Analytical payoff prices - Dependent                 |
+| CMD3794    | Libor Market Model     | Term structure multi-factor model - Dependent        |
+| CMD2258    | Cheyette Local Vol     | Local volatility short rate model - Dependent        |
+
+#### **Explanation of Dependencies**
+
+1. **Black Prices (CMD4014)**:
+   - The GSABR model relies on Black's analytical formulas for pricing vanilla options. These formulas serve as a baseline for comparing and validating the results produced by the GSABR model.
+
+2. **Libor Market Model (CMD3794)**:
+   - The LMM is a term-structure multi-factor model that depends on the GSABR model for providing consistent calibration targets. The GSABR model ensures that the LMM accurately reflects market conditions.
+
+3. **Cheyette Local Volatility Model (CMD2258)**:
+   - The Cheyette model, a local volatility short-rate framework, uses the GSABR model to provide inputs for calibration and ensure consistency in pricing structured products.
+
+---
+
+### **Summary**
+The GSABR model is a cornerstone for pricing and risk management in the interest rate derivatives space. Its applications span both vanilla and exotic products, making it a critical component of the broader financial modeling ecosystem. By providing arbitrage-free prices and implied volatilities, the GSABR model supports accurate valuation, robust calibration, and effective risk management across a wide range of financial instruments.
+
+## 3. Product and Portfolio
+
+Interest rate volatility models, such as the GSABR model, are explicitly used to price **interest rate swaptions** and **caplets** for any combination of expiry, tenor, and strike. These models enable the generation of a continuum of prices, which facilitates the use of numerical methods (e.g., replication, integration, Monte Carlo simulations) to price both single-index and multi-index payoffs. Below is a detailed breakdown of the products and portfolios supported by these models:
+
+---
+
+### **1. Single Index LIBOR/CMS Trades**
+
+These include vanilla and structured trades based on a single underlying index, such as LIBOR or CMS rates. Examples include:
+
+- **Caps/Floors and Swaps**: Vanilla interest rate caps, floors, and swaps.
+- **Decompounding and Quarto Adjustments**: Adjustments for trades where the payment currency differs from the observable currency (quarto).
+- **Swaptions**: Options to enter into a swap at a future date.
+
+The ability to price these instruments accurately is crucial for risk management and hedging in portfolios involving single-index derivatives.
+
+---
+
+### **2. Simple LIBOR/CMS Spread Option Trades**
+
+These involve options on the spread between two indices, such as two different LIBOR rates or a LIBOR rate and a CMS rate. Examples include:
+
+- **Calls/Puts**: Vanilla options on the spread.
+- **Digital Calls/Puts**: Binary options that pay a fixed amount if the spread exceeds or falls below a certain threshold.
+- **Quarto Adjustments**: Incorporating adjustments for differences in payment and observable currencies.
+
+These trades are commonly used in portfolio strategies to hedge against changes in the relative levels of interest rates.
+
+---
+
+### **3. Single and Multi-Index Structured LIBOR/CMS Trades**
+
+These are more complex structured products that depend on one or more underlying indices. Examples include:
+
+- **Fixed and Floating Range Accruals**: Products that accrue interest only when the underlying rate falls within a specified range.
+- **Complete Spread Options**: Options on the spread between two indices, with additional features such as barriers or caps.
+- **Complete Range Accruals**: Products that combine range accrual logic with other exotic features.
+- **CMS Steepeners**: Products that benefit from an increase in the slope of the yield curve, often incorporating quarto adjustments.
+
+These structured products are widely used in portfolio management to achieve specific risk-reward profiles.
+
+For more details on the payoffs mentioned above, please refer to [8].
+
+---
+
+### **Implied Distribution from Call Prices**
+
+Having call prices, denoted as $ C $, for a continuous set of strikes allows us to derive the implied probability distribution of the underlying rate using the following relationships:
+
+#### Cumulative Distribution Function (CDF):
+
+$$
+\text{cdf}(K) = 1 + \frac{\partial C}{\partial K}
+$$
+More precisely, the risk-neutral CDF is given by:
+
+$$
+\text{cdf}(K) = 1 + e^{rT} \frac{\partial C}{\partial K}
+$$
+where $r$ is the risk-free rate and $T$ is the time to maturity.
+
+#### Probability Density Function (PDF):
+
+$$
+\text{pdf}(K) = \frac{\partial^2 C}{\partial K^2}
+$$
+With the complete risk-neutral formulation:
+
+$$
+\text{pdf}(K) = e^{rT} \frac{\partial^2 C}{\partial K^2}
+$$
+This computed distribution can then be used to price multi-index, non-callable payoffs by employing copulas. For example:
+
+- **Midcurve Pricing**: Copulas can be used to model the joint behavior of multiple underlying rates, enabling accurate pricing of midcurve options and other multi-index products.
+
+---
+
+### **Conclusion**
+
+The GSABR interest rate volatility model plays a pivotal role in pricing and risk management across a wide range of interest rate derivatives. Its ability to generate a continuum of prices for various strikes, expiries, and tenors makes it indispensable for:
+
+1. Pricing vanilla and structured single-index products.
+2. Pricing multi-index products using advanced techniques like copulas.
+3. Deriving implied distributions for complex payoff structures.
+
+By providing arbitrage-free prices and implied volatilities, the model ensures consistency and accuracy in the valuation of both simple and exotic derivatives.
+
+## 4 Methodology
+
+This section describes the model methodology and evaluates its conceptual soundness.
+
+---
+
+### 4.1 Design Consideration & Development Process
+
+The interest rate volatility model is designed to describe the dynamics of a single observable, such as a LIBOR or swap rate, independently of others, under its own pricing measure. 
+
+The Rates Options and Structured Trades trading desk sponsored the development of the GSABR model as a replacement for the Displaced SABR model due to the latter's limitations and approximation issues. The design process involved constant collaboration with traders to ensure the model met their needs (e.g., no negative density, no upper bound on volatility, intuitive parameters).
+
+Key design considerations include:
+- **Ability to fit the market**
+- **Numerical convergence related to the strikes grid**
+- **Stability of risks**
+
+---
+
+### 4.2 Description
+
+#### 4.2.1 Risk Factor Identification
+
+The main risk factors driving the GSABR Beta Mixture model are the local volatility parameters:
+- $\alpha$: Overall smile level
+- $\beta_1$: Controls ATM skew
+- $\beta_2$: High Strike skew
+- $\rho$: Correlation
+- $\nu$: Volatility of volatility
+- $v_L$: Volatility level on the left part of the strike $x_0$
+- $d$: Speed parameter
+
+The model calculates the sensitivity of option prices to these parameters. Tests related to these risk factors are detailed in subsequent sections.
+
+The model covers the implied volatility smile and risks associated with the above factors.
+
+---
+
+#### 4.2.2 Model Dynamics
+
+The stochastic differential equations (SDEs) for the forward rate $f(t)$ and its associated volatility $z(t)$ are:
+
+$$
+\begin{aligned}
+df(t) &= z(t) \sigma(f(t)) \, dW(t), \quad f(0) = f_0, \\
+dz(t) &= \nu z(t) \, dZ(t), \quad z(0) = 1,
+\end{aligned}
+$$
+
+where:
+- $W$ and $Z$ are Brownian motions with correlation $\rho$,
+- $\sigma$ is the local volatility function,
+- $\sigma$ includes a constant linear scaling factor $\alpha$.
+
+For small maturities, the model derives a diffusion condition instead of a drift condition due to a change of variables. The details are provided later in the document.
+
+---
+
+
+##### 4.2.2.1. Local Volatility Parametrization
+
+The parametrization of the local volatility under the GSABR Beta Mixture model is:
+
+$$
+\sigma(x) =
+\begin{cases}
+a (e^{-E}\tanh(x)+(1-e^{-E})\tanh(x)^{\beta_2/\beta_1})^{\beta_1}, & \text{if } x \geq x_0. \\
+v_L + p \exp \left( \frac{d_1}{p}(x-x_0)+\frac{1}{2}\left(\frac{d_2}{p} - \left(\frac{d_1}{p}\right)^2\right)(x-x_0)^2 \right), & \text{if } x < x_0.
+\end{cases}
+\tag{4.2}
+$$
+
+Where:
+
+- $\beta_1$ controls ATM skew
+- $\beta_2$ is the High Strike skew
+- E Effective Speed controls the speed of transition from $\beta_1$ to $\beta_2$
+- a controls the overall smile level
+- $x_0$ is a strike level where $x_0 > 0$
+- $v_L$ is the volatility level on the left part of the strike $x_0$
+- $p = \sigma(x_0) - v_L$
+
+The parametrization can be rewritten as:
+
+$$
+\sigma(x) =
+\begin{cases}
+a.e^{U\beta_1 d^w} \left(e^{-Ud^w}\tanh(x)+(1-e^{-Ud^w})\tanh(x)^{\beta_2/\beta_1}\right)^{\beta_1}, & \text{if } x \geq x_0. \\
+v_L + p.\exp \left( \frac{d_1}{p}(x-x_0)+\frac{1}{2}\left(\frac{d_2}{p} - \left(\frac{d_1}{p}\right)^2\right)(x-x_0)^2 \right), & \text{if } x < x_0.
+\end{cases}
+\tag{4.3}
+$$
+
+In order to improve CMS pricing convergence and stability, a local volatility cap has been introduced. The input is a strike threshold at which the local volatility is capped to the last computed local volatility. See section 8.3.3 for impact of the threshold parameter.
+
+In the case where a local volatility cap strike is specified the local volatility becomes:
+
+$$
+\sigma_c(x) =
+\begin{cases}
+\sigma(x), & \text{if } x \leq x_U - S. \\
+\sigma(x_U), & \text{if } x > x_U. \\
+\sigma(x)(1 - K(\frac{x-x_U+S}{S}))+\sigma(x_U).K(\frac{x-x_U+S}{S}), & \text{else}
+\end{cases}
+\tag{4.4}
+$$
+
+Where:
+
+- $w$ - speed exponent: $w \in (0, 1)$. We set $w = \frac{1}{4}$.
+- $d$ - speed: $d \in (0, 1)$
+- $U$ - speed upper bound: $U \in (0, \infty)$.
+- $α$ - alpha
+- $x_U$ - strike threshold
+- $S$ - smoothing
+- $K(x)$ - the smooth step function described below
+
+And:
+
+- $a = a.e^{U\beta_1d^w}$
+- $E = Ud^w$
+
+In what comes, we will use the notation $\sigma(x)$ to denote the local volatility.
+
+In order to give a parametrization of the local volatility for strike values $x < x_0$, we consider the function:
+
+$$
+I(x) = \ln \left( \frac{\sigma(x)- v_L}{p} \right) , x < x_0
+\tag{4.5}
+$$
+
+Where we consider the general parametrization of $\sigma(x)$ i.e.:
+
+$$
+\sigma(x) = a.e^{U\beta_1d^w} \left(e^{-Ud^w}\tanh(x)+(1-e^{-Ud^w})\tanh(x)^{\beta_2/\beta_1}\right)^{\beta_1}
+\tag{4.6}
+$$
+
+Using a 2nd order approximation for $I(x)$ in order to ensure regularity around $x_0$:
+
+$$
+I(x) = I(x_0)+I'(x_0)(x-x_0)+\frac{1}{2}I''(x_0)(x-x_0)^2
+\tag{4.7}
+$$
+
+$$
+I'(x) = \frac{\sigma'(x)}{\sigma(x) - v_L}, \quad I''(x) = \frac{\sigma''(x)(\sigma(x) - v_L) - \sigma'(x)^2}{(\sigma(x) - v_L)^2}
+\tag{4.8}
+$$
+
+$$
+I(x_0) = 0, \quad I'(x_0) = \frac{\sigma'(x_0)}{p} \approx \frac{1}{p} \frac{\sigma(x_0+s) - \sigma(x_0-s)}{2s}, \quad s = 1e^{-4}
+\tag{4.9}
+$$
+
+$$
+I''(x_0) = \frac{\sigma''(x_0)}{(\sigma(x_0) - v_L)} - \frac{\sigma'(x_0)^2}{(\sigma(x_0) - v_L)^2}
+\tag{4.10}
+$$
+
+$$
+I''(x_0) \approx \frac{1}{p} \frac{\sigma(x_0+s)+\sigma(x_0-s)-2\sigma(x_0)}{s^2} - I'(x_0)^2
+\tag{4.11}
+$$
+
+Let:
+
+$$
+I'(x_0) = \frac{d_1}{p}, \quad I''(x_0) = \frac{d_2}{p} - \left(\frac{d_1}{p}\right)^2
+\tag{4.12}
+$$
+
+Where:
+
+$$
+d_1 = \frac{(\sigma(x_0+s) - \sigma(x_0-s))}{2s}, \quad d_2 = \frac{\sigma(x_0+s)+\sigma(x_0-s)-2\sigma(x_0)}{s^2}
+\tag{4.13}
+$$
+
+Then:
+
+$$
+I(x) = \frac{d_1}{p}(x-x_0)+\frac{1}{2}\left(\frac{d_2}{p} - \left(\frac{d_1}{p}\right)^2\right)(x-x_0)^2
+\tag{4.14}
+$$
+
+This can be rewritten as:
+
+$$
+I(x) = B \cdot (x-x_0)+A \cdot (x-x_0)^2
+\tag{4.15}
+$$
+
+Where:
+
+$$
+\begin{cases}
+B = \frac{d_1}{p} \\
+A = \min(\frac{1}{2} \left(\frac{d_2}{p} - B^2\right), C_A) \\
+C_A = 25
+\end{cases}
+\tag{4.16}
+$$
+
+With $C_A$ is a cap for the value of A.
+
+To define the upper bound speed U, we consider a level where the local volatility is independent of $\beta_2$ (i.e ATM) and we limit the lower value of the forward "f" by introducing a cutoff level "C" and a smoothing value "S" following the equation 4.17:
+
+$$
+f = 
+\begin{cases}
+C.(1-K_2) + f_0.K_2, & \text{if } C < f_0 \leq C + S \\
+C, & \text{if } f_0 \leq C
+\end{cases}
+\tag{4.17}
+$$
+
+Where
+
+$$
+K_2 = K\left(\frac{f_0-C}{S}\right)
+\tag{4.18}
+$$
+
+$$
+K(x) = 6x^5 - 15x^4 + 10x^3
+\tag{4.19}
+$$
+
+The smoothstep function $K(x)$ applies a sigmoid like interpolation and it is a convenient alternative to using more sophisticated interpolation techniques.
+
+The use of the parameters C, S and the transformed forward is only applied to define an Upper Bound for the speed and ensure stability of the numerical transformations.
+
+Considering that $\tanh(x) \approx x$ and for $d = 1$, we have ATM:
+
+$$
+\sigma(x = f) = a.e^{U\beta_1} \left(e^{-U}f+(1-e^{-U})f^{\beta_2/\beta_1}\right)^{\beta_1}
+\tag{4.20}
+$$
+
+$$
+\sigma(x = f) = a.f^{\beta_1} \left(1+(e^U-1)f^{\frac{\beta_2-\beta_1}{\beta_1}}\right)^{\beta_1}
+\tag{4.21}
+$$
+
+In the case of SABR, we can consider that the local volatility is equivalent to:
+
+$$
+I_{sabr}(x = f) = a.f^{\beta_1}
+\tag{4.22}
+$$
+
+In order to keep GSABR ATM local volatility from varying too much and similar to the SABR local volatility parametrization, the quantity $g(U)$ (4.23) should be such that $g(U) \approx 1$.
+
+$$
+g(U) = \left(1+(e^U-1)f^{\frac{\beta_2-\beta_1}{\beta_1}}\right)^{\beta_1}
+\tag{4.23}
+$$
+
+Let $\epsilon << 1$ to be determined later. The condition (4.24) should be satisfied:
+
+$$
+\left(e^U-1\right)f^{\frac{\beta_2-\beta_1}{\beta_1}} < \epsilon
+\tag{4.24}
+$$
+
+The upper bound U could be defined as:
+
+$$
+U = \ln \left(1+\epsilon f^{\frac{\beta_1-\beta_2}{\beta_1}}\right)
+\tag{4.25}
+$$
+
+Where $\epsilon$ is such:
+
+$$
+\frac{I_{gsabr}(f)}{I_{sabr}(f)} = \frac{I_{gsabr}(f)}{a.f^{\beta_1}} < (1+\delta), \delta << 1
+\tag{4.26}
+$$
+
+Then:
+
+$$
+\epsilon < (1+\delta)^{\frac{1}{\beta_1}} - 1
+\tag{4.27}
+$$
+
+$\epsilon$ is chosen such that $\epsilon = (1+\delta)^{\frac{1}{\beta_1}} - 1$ and we set $\delta = 0.01$.
+
+#### 4.2.3. Summary
+
+First, a PDE is deduced and solved that gives us approximate Hagan like implied volatilities for short expiries for the G-SABR model (4.1). Then a function $\theta(.)$ is found such that for short expiries the 
+
+$$
+df = \theta(f) dW, \quad f(0) = f_0
+\tag{4.28}
+$$
+
+has the same approximate Hagan like implied volatilities as G-SABR.
+
+Once $\theta$ has been found, it can be used in Dupire's PDE to find approximate call prices. Instead of doing this in the standard way, we will use the so called one step finite difference method to solve the PDE. This method turns the PDE into an ODE, and the solution to the ODE is guaranteed to be an arbitrage free set of prices. Not only this, but the ODE is such that solving it involves only inverting a tridiagonal matrix. Since the short expiry PDE mentioned above may be solved in linear time as well, the whole process takes only linear time and gives us the prices for all strikes at once.
+
+#### 4.2.4. Outline
+
+The process of finding $\theta$ begins by defining
+
+$$
+x(K, f, z) = \frac{f - K}{v(K, f, z)}
+$$
+
+where $v(K, f, z)$ is the implied normal volatility of the European call option with expiry $\tau$ and strike $K$ noted $c(\tau, K)$, which must be a function of the two state variables $f$ and $z$. At time zero, $v(K) := v(K, f_0, 1)$ such that
+
+$$
+c(\tau, K) = (f_0 - K)\Phi \left( \frac{(f_0 - K)}{v(K)\sqrt{\tau}} \right) + v\Phi' \left( \frac{(f_0 - K)}{v(K)\sqrt{\tau}} \right)
+$$
+
+For a fixed $K$, $x$ is a diffusion process, and by applying Itô's formula to $x$, using well known properties of the partial derivatives of the Bachelier pricing formula (the formula just given), using the fact that the price of a European option must be a martingale under the risk neutral measure, and taking the small expiry limit $\tau \to 0$, it is possible to derive the following condition on the diffusion coefficient of $x$ at time 0:
+
+$$ 
+\sigma_x^2 = \sigma(f_0)^2 \left( \frac{\partial x}{\partial f} \right)^2 + \nu^2 \left( \frac{\partial x}{\partial z} \right)^2 + 2\rho\nu\sigma(f_0) \left( \frac{\partial x}{\partial f} \frac{\partial x}{\partial z} \right) = 1.
+\tag{4.29}
+$$
+
+Given $\sigma$ and $\nu$, for a fixed $K$ this is a non-linear first order partial differential equation for $x$ as a function of $f$ and $z$, with boundary condition $x(f = K, z) = 0$. Having found $x$, the time zero implied volatility $v(K)$ can be approximated by
+
+$$
+ v(K) = \frac{f_0 - K}{x(K, f_0, 1)}.
+$$
+
+Now, for the local volatility model equation (4.28) we have $\sigma = \theta$ and $\nu = 0$ and the implied volatilities will not depend on $z$.
+
+Let's set $w(K, f) = (f - K)/v_l(K, f)$ where $v_l$ is the implied volatility from a Dupire local volatility model. (4.3) is true for any local stochastic volatility model, in particular for a local volatility model with a deterministic volatility where $\nu = \rho = 0$. The ODE in this case is:
+
+$$
+(\partial w/ \partial f)^2 \theta(f)^2 = 1,
+\tag{4.30}
+$$
+
+and its solution is:
+
+$$
+w(K, f_0) = \int_K^{f_0} \theta(u)^{-1},
+\tag{4.31}
+$$
+
+Suppose we have found $x(K, f_0, 1)$ for the versions of $\sigma$ in our chosen G-SABR model. If we set
+
+$$
+\theta(f) = - \left( \frac{\partial x}{\partial K}(f, f_0, 1) \right)^{-1},
+$$
+
+We obtain:
+
+$$
+w(K, f_0) = x(K, f_0, 1),
+\tag{4.32}
+$$
+
+and hence the small time approximate implied volatilities for the two models (4.28) and (4.1) will be the same: $v_l = v$.
+
+Now consider again the model (4.28). Dupire's PDE for the time zero price of a European call with maturity $\tau$ and strike $K$ under this model is [5]
+
+$$
+c_\tau(\tau, K) = \frac{1}{2}\theta(K)^2c_{KK}(\tau, K),
+\tag{4.33}
+$$
+
+$$
+c(0, K) = (f - K)^+.
+$$
+
+Taking the limit as $\tau \to 0$ suggests approximating $c_\tau(\tau, K)$ by $(c(\tau, K) - c(0, K))/\tau$, resulting in the ODE
+
+$$
+c(\tau, K) - \frac{1}{2}\tau\theta(K)^2c_{KK}(\tau, K) = (f - K)^+.
+$$
+
+Andreasen and Huge show (in a paper published prior to the ZABR paper [4]) that for any function $\theta$, if $c$ is found by solving the ODE
+
+$$
+c(\tau, K) - \frac{1}{2}\tau\theta(K)^2c_{KK}(\tau, K) = (f - K)^+,
+\tag{4.34}
+$$
+
+then the resulting prices are arbitrage free, in that $c_{KK} > 0$ and $c_\tau > 0$. We also want the resulting prices to be a solution to Dupire's PDE as well. That is, by forcing $c_{KK}$ to be the same in both equations, we obtain the right $\theta$:
+
+$$
+\theta(K)^2 = \theta^2(K) \frac{c(\tau, K) - (f - K)^+}{\tau c_{KK}(\tau, K)}
+$$
+
+and hence if an estimate is available for $c(\tau, K)$ then it can be used to improve the accuracy of the approach, and in this case an estimate is already available – we just need to put the approximate implied volatility $v = (f - K)/x$ into the Bachelier pricing formula.
+
+A missing but important ingredient is how to find $x$ satisfying the diffusion condition. $x$ is found by solving:
+
+$$
+\frac{\partial x}{\partial K} = -\sigma(K)^{-1} \sqrt{1 + \nu^2 y^2 - 2\rho \nu y}
+\tag{4.35}
+$$
+
+with boundary conditions $x(f) = 0$ and $y$ is such $y = y(K, f, z) = \frac{1}{z} \int_K^f \frac{1}{\sigma(u)} du$.
+
+Hence:
+
+$$
+x = \int_K^f \frac{du}{\sigma(u)\sqrt{1 - 2\rho y(u) + \nu^2 y(u)^2}}
+\tag{4.36}
+$$
+
+This integral has a closed form as a function of $y = y(k)$ where k is the strike:
+
+$$
+x = \frac{1}{\nu} \ln \left( \frac{\nu y - \rho + \sqrt{1 - 2\rho y + \nu^2 y^2}}{1 - \rho} \right)
+\tag{4.37}
+$$
+
+$y$ is an integral which depends on the local volatility function $\sigma$, its computation will depend on the $\sigma$ formula. This quantity is computed using numerical integration of the inverse of the local volatility function.
+
+#### 4.2.5. Deriving the diffusion condition on x for small maturities
+
+Let $c(t)$ be the price of a European call option on the underlying with maturity $T$ and strike $K$, so that
+
+$$
+c(t) = \mathbb{E}_t \{(f(T) - K)^+ \} = b(T - t, f(t), v(t))
+$$
+
+where $v(t)$ is the implied normal volatility and $b$ is the normal (Bachelier) option pricing formula
+
+$$
+b(\tau, f, v) = (f - K)\Phi \left( \frac{f - K}{v \sqrt{\tau}} \right) + v\phi \left( \frac{f - K}{v \sqrt{\tau}} \right),
+\tag{4.38}
+$$
+
+where $\tau = T - t$.
+
+Recall that $df(t) = \sigma_f(f(t), z(t))dW(t)$ with $\sigma_f(f(t), z(t)) = z(t)v(f(t))$, and note that there exist functions $w_v$ and $v_v$, a constant $\eta$ with $|\eta| \leq 1$, and an independent Brownian motion $V$ such that
+
+$$
+dv(t) = w_v(v)dt + v_v(v) \left( \eta dW(t) + \sqrt{1 - \eta^2}dV(t) \right). \text{ Dropping the dependencies of all these functions on their parameters, the notation simplifies to consideration of the following system:}
+$$
+
+$$
+df = \sigma_f dW
+$$
+
+$$
+dv = w_v dt + v_v \left( \eta dW + \sqrt{1 - \eta^2}dV \right).
+$$
+
+Applying Itô's formula to (4.38) gives us
+
+$$
+\begin{align}
+dc &= -\frac{\partial b}{\partial \tau}dt + \frac{\partial b}{\partial f}df + \frac{1}{2}\frac{\partial^2 b}{\partial f^2}\sigma_f^2dt + \frac{\partial b}{\partial v}dv + \frac{1}{2}\frac{\partial^2 b}{\partial v^2}v_v^2dt + \frac{\partial^2 b}{\partial f \partial v}\eta\sigma_f v_v dt \\
+&= \left( -\frac{1}{2}\frac{\partial^2 b}{\partial f^2}\sigma_f^2 + \frac{\partial b}{\partial v}w_v + \frac{1}{2}\frac{\partial^2 b}{\partial v^2}v_v^2 + \frac{\partial^2 b}{\partial f \partial v}\eta\sigma_f v_v - \frac{\partial b}{\partial \tau} \right) dt \tag{4.39} \\
+&+ \left( \frac{\partial b}{\partial f}\sigma_f + \eta \frac{\partial b}{\partial v}v_v \right) dW + \frac{\partial b}{\partial v}v_v \sqrt{1-\eta^2}dV.
+\end{align}
+$$
+
+Define $x = \frac{f-K}{v}$ and use Itô again to get that
+
+$$
+\begin{align}
+dx &= \frac{1}{v}df - \frac{f-K}{v^2}dv - \frac{1}{v}dfdv + \frac{f-K}{v^3}dv^2dt, \\
+&= \frac{1}{v}df - \frac{1}{v}xdv - \frac{1}{v}dfdv + \frac{1}{v^2}xv_v^2dt, \tag{4.40} \\
+&= \frac{1}{v} \left( \frac{1}{v}x\sigma_f^2 - \eta\sigma_f v_v - xw_v \right) dt + \frac{1}{v} \left( \sigma_f - xv_v\eta \right) dW - \frac{1}{v}xv_v\sqrt{1-\eta^2}dV.
+\end{align}
+$$
+
+Thus $dx = w_x dt + \sigma_x dU$ where $U$ is some Brownian motion and
+
+$$
+\sigma_x^2 = \frac{1}{v^2} \left( \sigma_f^2 - 2x\sigma_f v_v\eta + x^2 v_v^2\eta^2 \right) + \frac{1}{v^2}x^2v_v^2(1-\eta^2) = \frac{1}{v^2} \left( \sigma_f^2 - 2x\sigma_f v_v\eta + x^2v_v^2 \right) \tag{4.41}
+$$
+
+It is easy to deduce the following four PDE:
+
+$$
+\frac{\partial b}{\partial v} = v\tau \frac{\partial^2 b}{\partial f^2}, \quad \frac{\partial^2 b}{\partial v^2} = \tau^2 \frac{\partial^2 b}{\partial f^2}, \quad \frac{\partial^2 b}{\partial f \partial v} = -\tau \frac{\partial^2 b}{\partial f^2}, \quad 0 = \frac{\partial b}{\partial \tau} - \frac{1}{2}v^2\frac{\partial^2 b}{\partial f^2}
+$$
+
+Using these PDE and the fact that the drift term in (4.39) must be zero (since $c$ is a martingale), we get
+
+$$
+0 = \sigma_f^2 + 2\tau v w_v + \tau^2 v_v^2 - 2\tau\eta\sigma_f v_v - v^2.
+$$
+
+But substituting in the value of $\sigma_x$ in (4.41) we see that $0 = v^2\sigma_x^2 + 2\tau v w_v - v^2$, i.e.
+
+$$
+\sigma_x^2 = 1 - \left( \frac{2}{v}w_v \right) \tau
+$$
+
+Thus, taking the small time limit, i.e. taking the limit as $\tau \to 0$, we get the diffusion condition
+
+$$
+\sigma_x^2 \equiv 1 \tag{4.42}
+$$
+
+We now reintroduce the dependence on time. Note that $x(t)$ is in fact a function of time, strike and the two state variables, i.e. $x(t) = x(t, K, f(t), z(t))$. Itô's formula therefore implies that
+
+$$
+dx(t, K, f(t), z(t)) = w_x(x(t), K, f(t), z(t))dt + \frac{\partial x(t, K, f, z)}{\partial f}z(t)^2\sigma(f(t))dW(t) + \frac{\partial x(t, K, f, z)}{\partial z}z(t)dZ(t).
+$$
+
+We are only interested in the value of $x$ at $t = 0$. Recall that $f(0) = f_0$ and $z(0) = 1$, so that
+
+$$
+dx(0, K, f(0), z(0)) = w_x(x(0), K, f_0, 1)dt + \frac{\partial x(0, K, f, z)}{\partial f}\sigma(f_0)dW(0) + \frac{\partial x(0, K, f, z)}{\partial z}dZ(0).
+$$
+
+Thus the small time diffusion condition (4.42) becomes
+
+$$
+1 = \sigma_x (x(0))^2
+$$
+
+$$
+= \sigma(f_0)^2 \left( \frac{\partial x(0, K, f, z)}{\partial f} \right)^2 + \nu^2 \left( \frac{\partial x(0, K, f, z)}{\partial z} \right)^2 + 2\rho\nu \sigma(f_0)\nu \left( \frac{\partial x(0, K, f, z)}{\partial f} \cdot \frac{\partial x(0, K, f, z)}{\partial z} \right).
+\tag{4.43}
+$$
+
+Given the functions $\sigma$, for a fixed $K$ this is a non-linear first order differential equation for $x$ as a function of $f$ and $z$, with boundary condition $x(0, K, f = K, z) = 0$.
+
+Having found $x$ at time $t = 0$ by solving (4.43) for all values of $K$, we could find implied volatility by inverting the definition of $x$, i.e. we could say that implied volatility at time zero for any strike $K$ is given by
+
+$$
+v(K) = \frac{f_0 - K}{x(0, K, f_0, 1)}.
+\tag{4.44}
+$$
+
+#### 4.2.6. Reduction to a local volatility model
+
+Suppose we have found $x(0, K, f_0, 1)$ by solving (4.43) for every value of $K$. We now define the
+
+$$
+\theta(f) = - \left( \frac{\partial x}{\partial K}(0, f, f_0, 1) \right)^{-1}
+$$
+
+and consider the GSABR model with $\nu = 0$ and $\sigma = \theta$, i.e. a standard non-stochastic local volatility model with local volatility function $\theta$. Setting $w(t, K, f) = (f - K)/v_l(t, K, f, z)$ (note that the implied volatilities cannot depend on $z$ in this case), the diffusion condition (4.43) (now for $w$ rather than $x$) would just be $(\partial w/\partial f)^2\theta(f)^2 = 1$, i.e.
+
+$$
+\frac{\partial w}{\partial f}(0, K, f) = \frac{1}{\theta(f)}
+$$
+
+Using the boundary condition $w(0, K, f = K) = 0$ and then the definition of $\theta$, we see that this has solution
+
+$$
+w(0, K, f) = \int_K^f \frac{1}{\theta(u)} du = -x(0, f, f_0, 1) + x(0, K, f_0, 1) = x(0, K, f_0, 1),
+$$
+
+and hence
+
+$$
+w(0, K, f_0) = x(0, K, f_0, 1).
+$$
+
+Thus in the short maturity limit, the local volatility model $df(t) = \theta(f(t))dW(t)$ has the same time zero implied volatilities as the original stochastic volatility G-SABR model, $v_l = v$.
+
+#### 4.2.7. The one step finite difference approach for solving the Dupire PDE
+
+Please refer to the numerical implementation section for the one step finite difference approach for solving the Dupire PDE and a method to solve the resulting ODE.
+
+#### 4.2.8. Boundary conditions for the resulting ODE and a method to solve it
+
+Please refer to the numerical implementation section.
+
+#### 4.2.9. Finding x satisfying the diffusion condition
+
+So far it has been assumed that $x$ has already been found. We can find $x$ by introducing an intermediate variable $y$, partly motivated by considering the solution if volatility was fixed rather than stochastic. Define
+
+$$
+y(K, f, z) = \frac{1}{z} \int_K^f \frac{1}{\sigma(u)} du
+$$
+
+We will use condition (4.43) to characterise $x$ this function at time $t = 0$.
+
+Applying Itô to the definition of $y$ results in
+
+$$
+dy(K, f(t), z(t)) = (dW(t) - \nu y(K, f(t), z(t)) dZ(t)) + O(dt)
+$$
+
+Thus
+
+$$
+dx(t, K, f(t), z(t)) = \frac{\partial x}{\partial y}(t, y(K, f(t), z(t)))dy(K, f(t), z(t)) + O(dt) \tag{4.45}
+$$
+
+$$
+= \frac{\partial x}{\partial y}(t, y(K, f(t), z(t))) dW(t) \tag{4.46}
+$$
+
+$$
++ \left\{ -\nu y(K, f(t), z(t))\frac{\partial x}{\partial y}(t, y(K, f(t), z(t)))\right\} dZ(t) + O(dt) \tag{4.47}
+ \tag{4.48} $$
+
+Using the notation $x(y) = x(0, y)$ and $x'(y) = dx(y)/dy = \partial x(0, y)/\partial y$, at time $t = 0$ this becomes
+
+$$
+dx = x'(y)dW - \nu yx'(y)dZ + O(dt)
+$$
+
+and hence the diffusion condition 4.43 is satisfied if $x'(y)$ is the solution to
+
+$$
+1 = A(y)x'(y)^2,
+$$
+
+with $A(y) = 1 + \nu^2y^2 - 2\rho\nu y$,
+
+with initial condition $x(0) = 0$. This can be rearranged as
+
+$$
+x'(y) = \sqrt{\frac{1}{A(y)}}
+$$
+
+We find $x(0, K, f_0, 1)$ for all $K$ by solving
+
+$$
+\frac{\partial y}{\partial K}(K, f_0, 1) = -\sigma(K)^{-1}
+$$
+
+$$
+\frac{\partial x}{\partial K}(0, K, f_0, 1) = -\frac{\partial x}{\partial K}(y(K, f_0, 1)) = x'(y(K, f_0, 1))\frac{\partial y}{\partial K}(K, f_0, 1) = -\frac{1}{\sqrt{A(y)}\sigma(K)}
+$$
+
+with initial conditions $x(f_0, f_0, 1) = y(f_0, f_0, 1) = 0$.
+
+To simplify matters, we can think of $x$ and $y$ as functions of $K$ only, and the two equalities above become
+
+$$
+\frac{\partial y(K)}{\partial K} = -\sigma(K)^{-1} \tag{4.49}
+$$
+
+$$
+\frac{\partial x(K)}{\partial K} = -\frac{1}{\sqrt{A(y)}\sigma(K)}
+$$
+
+with initial conditions $x(f_0) = y(f_0) = 0$.
+
+Finally,
+
+$$
+\theta(K) = - \left( \frac{\partial x}{\partial K} \right)^{-1} = \sigma(K) (x'(y))^{-1} = \sigma(K) \sqrt{A(y)}.
+$$
+
+### 4.3. Model Justification and alternative approaches
+
+Alternative models were explored such as GSABR L4L or SABR/SABRD. The model GSABR BM as described previously provides considerable advantages such as the absence of the shift and better control over the smile wings.
+
+The default alternative methodology used in production at the time of developing the model is SABRD.
+
+---
+
+### 4.4 Model Assumptions
+
+| **Type**       | **Description**           | **Comments**                                                                 |
+|----------------|---------------------------|-----------------------------------------------------------------------------|
+| Assumption     | No Arbitrage              | Fundamental assumption in mathematical finance.                            |
+| Assumption     | Frictionless Trading      | Fundamental assumption in mathematical finance.                            |
+
+---
+
+### 4.5 Model Limitations
+
+| **Type**       | **Description**                                                                 | **Comments**                                                                  |
+|----------------|---------------------------------------------------------------------------------|-----------------------------------------------------------------------------|
+| Limitation     | Independent dynamics for each expiry/tenor pair                                | See section 4.5.1                                                            |
+| Limitation     | Unstable correlation parameter in stressed conditions                          | Explicitly limited in production.                                           |
+| Limitation     | Limited Control over CMS prices                                                | Dependent on the goodness of fit of $\beta_2$ and the Speed parameter.       |
+| Limitation     | Calibration relies on non-linear optimization                                  | Continuously evaluated by QA and Trading teams.                             |
+
+#### 4.5.1 Term Structure
+
+GSABR Beta Mixture models each expiry/tenor asset separately, which may not guarantee a consistent term structure. This limitation is mitigated when used for calibration targets in exotic models.
+
+---
+
+### 4.6 Model Inputs and Parameters
+
+| Parameter / Variable Name | Description                 | Type        | Impact                  | Range                     |
+|---------------------------|----------------------------|-------------|-------------------------|---------------------------|
+| $F_0$                   | Rate forward               | Market data |                         |                           |
+| $K$                     | Strike                     | Input       |                         |                           |
+| $\alpha$                | SABR alpha                 | Input       | Overall smile level     | $(0, \infty)$             |
+| $\beta_1$               | ATM beta                   | Input       | ATM Skew                | $(0, 1)$                  |
+| $\beta_2$               | High strike beta           | Input       | High strike skew        | $(0, \infty)$             |
+| $d$                     | Speed                      | Input       | Transition speed        | $(0, 1)$                  |
+| $\rho$                  | Correlation                | Input       | Skew                    | $(-1, 1)$                 |
+| $\nu$                   | Volatility of volatility   | Input       | Convexity               | $(0, \infty)$             |
+| $\tau$                  | Time to expiry             | Input       |                         |                           |
+| $x_0$                   | Strike threshold           | Input       | Rates space transition  | $(0, \infty)$             |
+| $\nu_L$                 | Asymptotic volatility      | Input       | Left-side volatility    | $(0, \sigma(x_0))$        |
+| $C$                     | Forward Cut-off            | Input       |                         | $(0, \infty)$             |
+| $S$                     | Forward Smoothing          | Input       |                         | $(0, \infty)$             |
+| $x_L$                   | Strike Threshold           | Input       | CMS-related             | $(x_0, \infty)$           |
+| $w$                     | Speed Exponent             | Input       | Effective Speed         | $(0, \infty)$, default = $\frac{1}{4}$ |
+| $s_{r0}$                | Scaler for Vol0 cap        | Input       | Vol0 maximum value      | $(0, \infty)$, default = $\frac{1}{2}$ |
+
+---
+
+### 4.7 Model Outputs
+
+The model produces option prices, which are used in the Bachelier or Black formula to calculate implied normal/lognormal volatilities.
+
+| Model Output Name | Description                |
+|-------------------|----------------------------|
+| Present Value     | Options Prices             |
+
+The PDF and CDF can be computed from the prices using numerical methods.
+
+![Figure 8.10: Impact of weight adjustment power](./Fig/1.png)
+
+**Figure 4.7:** Example of real GSABR BM PDF and CDF
+
+
+### 4.8 Feeder Models
+
+##### Conceptual Soundness and Model Selection
+
+While generic local volatility models are self-consistent and arbitrage-free, they are not ideal for hedging volatility risk due to:
+1. Assumption of observed option prices at a continuum of strikes and maturities.
+2. Opposite dynamic behavior of smiles compared to market observations.
+
+The SABR model, introduced by Hagan et al. (2002), addresses these issues with its simplicity, tractability, and ability to derive analytical approximations for implied volatilities. However, SABRD has limitations, prompting the development of GSABR as a more robust alternative.
+
+## 5 Data Processing and Calibration
+
+### 5.5 Limitations
+
+#### 5.5.1 Stressed Market Conditions
+
+In stressed market conditions, the calibration process for the GSABR model can encounter challenges due to the constraints on parameter values and the need for robust optimization techniques. Below is a detailed explanation of how these challenges are addressed.
+
+---
+
+##### 5.5.1.1 Parameter Space Transformation
+
+To facilitate unconstrained optimization during the calibration process, we employ a parameter space transformation. This transformation maps the original constrained parameter space into an unconstrained one, allowing us to use standard optimization algorithms effectively.
+
+The original parameter vector is defined as:
+$$
+x = \begin{pmatrix}
+a \\
+\rho \\
+\nu \\
+d \\
+\nu_L
+\end{pmatrix}
+$$
+
+The transformation function $ y = r(x) $ is defined as:
+$$
+y = r(x) = 
+\begin{cases}
+a: x \Rightarrow \ln x & \text{(maps } a \in (0, \infty) \text{ to } (-\infty, \infty)\text{)} \\
+\rho: x \Rightarrow \arccos \frac{2x - \rho_{max} - \rho_{min}}{\rho_{max} - \rho_{min}} & \text{(maps } \rho \in [\rho_{min}, \rho_{max}] \text{ to } [0, \pi]\text{)} \\
+\nu: x \Rightarrow \ln x & \text{(maps } \nu \in (0, \infty) \text{ to } (-\infty, \infty)\text{)} \\
+d: x \Rightarrow \arccos(2x - 1) & \text{(maps } d \in [0, 1] \text{ to } [0, \pi]\text{)} \\
+\nu_L: x \Rightarrow \ln x & \text{(maps } \nu_L \in (0, \infty) \text{ to } (-\infty, \infty)\text{)}
+\end{cases}
+$$
+
+The inverse transformation $ x = r^{-1}(y) $ is given by:
+$$
+x = r^{-1}(y) = 
+\begin{cases}
+a: y \Rightarrow \exp y & \in (0, \infty) \\
+\rho: y \Rightarrow \frac{\rho_{min} + \rho_{max}}{2} + \frac{\rho_{max} - \rho_{min}}{2} \cos y & \in [\rho_{min}, \rho_{max}] \\
+\nu: y \Rightarrow \exp y & \in (0, \infty) \\
+d: y \Rightarrow 0.5(1 + \cos y) & \in [0, 1] \\
+\nu_L: y \Rightarrow \exp y & \in (0, \infty)
+\end{cases}
+$$
+
+This transformation ensures that while the search space is unconstrained in the transformed domain, the actual parameter values remain within their natural limits. Specifically:
+- $ a, \nu, \nu_L $ are strictly positive.
+- $ \rho $ is bounded between $ \rho_{min} $ and $ \rho_{max} $.
+- $ d $ is constrained to the interval $[0, 1]$.
+
+---
+
+##### 5.5.1.2 Optimization Function
+
+The calibration problem is formulated as an unconstrained least-squares minimization problem in the transformed parameter space. The objective function is defined as:
+$$
+\min_y \sum_i \omega_i \left( \sigma(F_{numped}, K_i(F_{numped}), r^{-1}(y)) - \sigma_i \right)^2
+$$
+
+Where:
+- $ F_{numped} $: The forward rate after applying any necessary adjustments (e.g., cutoffs or smoothing).
+- $ K_i(F_{numped}) $: The strike corresponding to the $ i $-th option.
+- $ \sigma(F_{numped}, K_i(F_{numped}), r^{-1}(y)) $: The implied volatility computed using the GSABR model with parameters transformed back to the original space.
+- $ \sigma_i $: The market-implied volatility for the $ i $-th option.
+- $ \omega_i $: Weights assigned to each data point.
+
+By default, we use an equiweighted function ($ \omega_i = 1 $ for all $ i $). However, if the calibration results in an at-the-money (ATM) error exceeding 2 basis points (bps), we repeat the calibration with higher weights assigned to the ATM strike to ensure better fitting at this critical point.
+
+The optimization is performed using a generic multidimensional solver, such as the NAG E04FCF routine [7], which computes the Jacobian numerically. This ensures that the solution converges efficiently even in complex or stressed market scenarios.
+
+---
+
+### Summary of Key Points
+
+1. **Parameter Space Transformation**:
+   - Transforms the constrained parameter space into an unconstrained one to simplify the optimization process.
+   - Ensures that parameter values remain within their natural limits during calibration.
+
+2. **Optimization Function**:
+   - Formulates the calibration as an unconstrained least-squares minimization problem.
+   - Uses equiweights by default but adjusts weights dynamically to prioritize ATM accuracy if necessary.
+
+3. **Robustness in Stressed Markets**:
+   - Employs advanced numerical solvers to handle challenging market conditions.
+   - Ensures stable and accurate calibration even when market data exhibits extreme behavior.
+
+This approach provides a robust framework for calibrating the GSABR model under both normal and stressed market conditions, ensuring consistent performance across a wide range of scenarios.
+
+## 6. Numerical Implementation
+
+### 6.1. Description
+
+#### 6.1.1. Cumulative Normal function
+
+Among the numerical methods used is the routine to calculate the cumulative Normal function. The NAG implementation is used as such:
+
+$$\mathcal{N}(x) = \frac{1}{2} \cdot S15ADF\left(\frac{-x}{\sqrt{2}}\right)$$
+
+where S15ADF is the complementary error function erfc(x). As a reminder:
+
+$$erfc(x) = 1 - erf(x) = \frac{2}{\sqrt{\pi}} \int_{x}^{\infty} e^{-t^2} dt$$
+
+#### 6.1.2. Implied normal volatility
+
+To find the implied normal / Bachelier volatility from the price computed by the model, we use a Newton root-finding algorithm. In the QA library, the problem is defined as follows:
+
+Solve for $v$: $f(v) = C$
+
+where: $f(v) = (F - K) \cdot \mathcal{N}(d) + v \cdot \text{n}(d)$
+
+$d = \frac{F - K}{v}$
+
+$v = \sigma\sqrt{\tau}$
+
+The iteration algorithm is as follows:
+
+$$v_0 = \text{guess} \cdot \sqrt{\tau}$$
+$$v_{n+1} = v_n - \frac{f(v_n)-C}{f'(v_n)}$$
+
+which simplifies to:
+
+$$v_{n+1} = \frac{C - (F - K)\mathcal{N}(d_n)}{\text{n}(d_n)}$$
+
+where:
+
+$$d_n = \frac{F - K}{v_n}$$
+
+If the input is a put option price:
+
+$$v_{n+1} = \frac{P + (F - K)\mathcal{N}(-d_n)}{\text{n}(d_n)}$$
+
+After 8 iterations of Newton's algorithm, we do a test on the obtained volatility to see if it respects the monotonicity of an European option with respect to the volatility, and if it isn't the case, we use a bisection algorithm on the volatility. It uses the monotonicity property of an option price with respect to the volatility, and takes as input an option price, as well as a tolerance that serves as a criteria to stop the iterations (the maximum number of iterations is set to 10000):
+
+* Initialization: set the variables $low = 0$ and $high = 4.0 * OptionPrice + 3.0|F - K|$
+
+* Evaluate the midpoint $mid = \frac{low+high}{2}$ and calculate the corresponding option price for $mid$
+
+* If it is lower than OptionPrice then we should look into values to the right of $mid$ and therefore we set $low = mid$. If not then we look into values to the left and we set $high = mid$
+
+* Iterate the previous steps until we reach 10000 iterations or until $high - low < tolerance$
+
+#### 6.1.3. The one step finite difference approach for solving the Dupire PDE
+
+Having found the local volatility function $\theta$, we can use it in the local volatility forward pricing PDE of Dupire [3] for the time zero price of a call option with maturity $\tau$ and strike $K$:
+
+$$c_{\tau}(\tau, K) = \frac{1}{2}\theta(K)^2 c_{KK}(\tau, K),$$
+$$c(0, K) = (f_0 - K)^+.$$
+
+Instead of solving this in the usual fashion by setting up a time discretisation and using a finite difference solver, we use the 1 step finite difference approach introduced by Andreasen and Huge. The idea is to first replace $c_{\tau}(\tau, K)$ by $(c(\tau, K) - c(0, K))/\tau$, then decide on a sensible alteration of $\theta$ (which they call $\tilde{\theta}$. The resulting ODE is
+
+$$c(\tau, K) - \frac{1}{2}\tau\theta(K)^2 c_{KK}(\tau, K) = (f_0 - K)^+,$$
+
+and in [4] it is proven that this approach generates a set of arbitrage free call prices for any choice of $\tilde{\theta}$, although obviously more reasonable choices of $\tilde{\theta}$ will result in prices closer to those implied by the Dupire PDE (6.1).
+
+That is, we want the solution of (6.2) to be also a solution to (6.1), but by substituting the PDE $c_{KK} = 2c_\tau/\theta^2$ from (6.1) into (6.2), we see that
+
+$$\theta(K)^2 = \theta^2(K)\frac{c(\tau, K)-(f_0 - K)^+}{\tau c_\tau(\tau, K)}$$
+
+is the right $\theta$ to have the same solution for both equations. We can use an estimate for $c(\tau, K)$ to improve the accuracy of the approach. Having found $x = x(0, K, f_0, 1)$ we have the estimate (4.44) for the implied volatility, $v(K) = (f_0 - K)/x$, so we replace $c(\tau, K)$ above by $b(\tau, f_0, v(K))$ to get
+
+$$\theta(K)^2 \approx \theta(K)^2 \frac{b(\tau, f_0, v(K)) - (f_0 - K)^+}{\partial b(\tau, f_0, v(K))/\partial\tau}$$
+
+$$= \theta(K)^2 \cdot 2 \left(1 - \frac{x/\sqrt{\tau}}{\phi(x/\sqrt{\tau})}\Phi(-x/\sqrt{\tau} - 1, <0) \right)$$
+
+$$= \theta(K)^2 \cdot 2 \left(1 - \xi\frac{\Phi(-\xi)}{\phi(\xi)} \right)$$
+
+where $\xi = |x|/\sqrt{\tau}$. To simplify notation we define $P(\xi) = \sqrt{2 \left(1 - \xi\frac{\Phi(-\xi)}{\phi(\xi)}\right)^{1/2}}$ so that
+
+$$\theta(K) = \theta(K) \cdot P(\xi)$$
+
+#### 6.1.4. Boundary conditions for the resulting ODE and a method to solve it
+
+The finite difference discretisation of (6.2) is:
+
+$$\left[1 - \frac{1}{2}\tau\theta(K)^2\delta_{KK}\right] c(\tau, K) = (f_0 - K)^$$
+
+where $\delta_{KK}$ is the standard second order finite difference operator. This can only be solved on some finite range $$[K_{min}, K_{max}]$$ and boundary conditions $$c(\tau, K_{min}), c(\tau, K_{max})$$ must be chosen.
+
+We set $$c_{KK} (\tau, K_{min}) = c_{KK} (\tau, K_{max}) = 0$$ so that in this case we would have (assuming of course that $K_{min} < f$)
+
+$c(\tau, K_{min}) = (f_0 - K_{min})$   and   $c(\tau, K_{max}) = 0.$
+
+(6.4) can be represented as a tridiagonal matrix equation on some grid $\{K_0 = K_{min}, K_1, \ldots, K_{n-1}, K_n = K_{max}\}$. For example, if we use a uniform grid with step size $\delta K$ and boundary conditions (6.5), it would be necessary to solve
+
+$$
+\begin{bmatrix} 
+1 & 0 & & & & \\
+-z_1 & 1 + 2z_1 & -z_1 & & & \\
+& -z_2 & 1 + 2z_2 & -z_2 & & \\
+& & \ddots & \ddots & \ddots & \\
+& & & -z_{n-1} & 1 + 2z_{n-1} & -z_{n-1} \\
+& & & & 0 & 1
+\end{bmatrix}
+\begin{pmatrix}
+c(\tau, K_0) \\
+c(\tau, K_1) \\
+c(\tau, K_2) \\
+\vdots \\
+c(\tau, K_{n-1}) \\
+c(\tau, K_n)
+\end{pmatrix}
+=
+\begin{pmatrix}
+(f_0 - K_0)^+ \\
+(f_0 - K_1)^+ \\
+(f_0 - K_2)^+ \\
+\vdots \\
+(f_0 - K_{n-1})^+ \\
+(f_0 - K_n)^+
+\end{pmatrix}
+$$
+
+where $z_i = \frac{\tau}{2(\delta K)^2}\theta(K_i)^2$ and $K_i = K_{min} + i(\delta K)$.
+
+In our implementation we will not use a uniform grid, and the tridiagonal matrix becomes
+
+$$
+\begin{bmatrix} 
+1 & 0 & & & & \\
+-z_1^l & 1 + (z_1^l + z_1^r) & -z_1^r & & & \\
+& -z_2^l & 1 + (z_2^l + z_2^r) & -z_2^r & & \\
+& & \ddots & \ddots & \ddots & \\
+& & & -z_{n-1}^l & 1 + (z_{n-1}^l + z_{n-1}^r) & -z_{n-1}^r \\
+& & & & 0 & 1
+\end{bmatrix}
+\begin{pmatrix}
+c(\tau, K_0) \\
+c(\tau, K_1) \\
+c(\tau, K_2) \\
+\vdots \\
+c(\tau, K_{n-1}) \\
+c(\tau, K_n)
+\end{pmatrix}
+=
+\begin{pmatrix}
+(f_0 - K_0)^+ \\
+(f_0 - K_1)^+ \\
+(f_0 - K_2)^+ \\
+\vdots \\
+(f_0 - K_{n-1})^+ \\
+(f_0 - K_n)^+
+\end{pmatrix}
+$$
+
+where
+
+$$z_i^l = \tau \frac{1}{(K_i - K_{i-1})(K_{i+1} - K_{i-1})}\theta(K_i)^2, \quad z_i^r = \tau \frac{1}{(K_{i+1} - K_i)(K_{i+1} - K_{i-1})}\theta(K_i)^2$$
+
+and $(K_0, K_1, \ldots, K_{n-1}, K_n)$ is an arbitrary increasing vector of strikes.
+
+Note that once the values of $c(\tau, K_i)$ have been found it is possible to find $c_{KK}(\tau, K_i)$ by linear rearrangement of (6.4) rather than finite differences.
+
+For strikes not included in the strikes grid, call prices and the pdf are linearly interpolated.
+
+#### 6.1.5. Strike grid generation
+
+The generated strike grid is a non-uniform grid. The goal is to generate strike values $k \in [k_{min}, k_{max}]$ such that $k_{min}$ is small enough and $k_{max}$ is large enough in order to cover the whole distribution. The step size of the grid also needs to be of the right magnitude to get accurate results.
+
+The logic to the algorithm is to generate strikes around the forward value by assuming SABRD distribution in the region $\{f \leq k \leq k_{max}\}$ and a Normal distribution ($\beta = 0$) in the region $\{k_{min} \leq k < f\}$.
+
+To guarantee that the generated strikes are sparse enough to cover the whole distribution range, we set target normal CDF values $p_i \in [p_{min}, p_{max}], i = 0, .., n$ based on a uniform step (Figure 6.1).
+
+![Figure 6.1: Normal CDF target values](./Fig/2.png)  
+**Figure 6.1:** Normal CDF target values
+
+Let F denote the SABRD cumulative distribution function.
+In the region $\{k_{min} \leq k < f\}$ we assume that the underlying process is normal (SABRD $\beta = 0$)
+
+$
+\begin{cases}
+df(t) = z(t) dW(t), \quad f(0) = f_0 \\
+dz(t) = vz(t) dZ(t), \quad z(0) = z
+\end{cases}
+$
+
+Therefore
+
+$
+f(\tau) \sim \mathcal{N}\left(f_0, \left(\frac{z}{v}\sqrt{e^{v^2\tau} - 1}\right)^2\right)
+$
+
+And the corresponding Inverse CDF is
+
+$
+F^{-1}_{\beta=0}(p_i) = f_0 + \mathcal{N}^{-1}(p_i) \cdot \left(\frac{z}{v}\sqrt{e^{v^2\tau} - 1}\right), \quad p_i \in [p_{min}, \frac{1}{2}], i = 0, .., n
+$
+
+The strikes are generated as
+
+$
+k_i = F^{-1}_{\beta=0}(p_i), \quad i = 0, .., n
+$
+
+In the region $\{f \leq k \leq k_{max}\}$ we assume that the underlying process is SABRD ($0 < \beta < 1$). The matching to the normal CDF targets can be done either through a bisection search within a tolerance or by using a Brent solver. The Brent solver provides a performance benefit compared to bisection search. In the case where Brent solver is used and fails the search reverts to bisection.
+The purpose is to search for strike values such that the SABRD CDF matches target values $p_i \in [\frac{1}{2}, p_{max}]$. The strikes are generated as
+
+$
+k_i = F^{-1}(p_i), \quad p_i \in [\frac{1}{2}, p_{max}], \quad i = 0, .., n
+$
+
+![Figure 6.2: Mapping of SABRD CDF to target normal CDF points](./Fig/3.png)  
+**Figure 6.2:** Mapping of SABRD CDF to target normal CDF points
+
+The strike grid is made finer by generating uniformly distributed points between each 2 strikes in the coarse grid. Figure 6.3 shows an example of the generated strike grid for 30 points.
+
+![Figure 6.3: Strike grid, 30 points](./Fig/4.png)  
+**Figure 6.3:** Strike grid, 30 points
+
+The SABRD parameters ($\alpha, \beta, \rho, v, \Delta f$) used for the computation of the CDF are fixed for all (expiry / tenor) pairs as per table in 6.2.3.
+
+The forward value is adjusted based on 6.12
+
+$f_0 = F + (1 - e^{-\rho\tau}) (F_r - F)$
+
+The parameter $v$ is dampened based on input parameters in 6.13
+
+$\begin{cases}
+v' = \left(1 - e^{-\frac{2m\tau}{2\nu\tau}}\right)^{p_v} \\
+v = v_L + v_C v'
+\end{cases}$
+
+### 6.2. Inputs
+
+#### 6.2.1. NAG function
+
+There are no input parameters to the NAG function, only the input argument x.
+
+#### 6.2.2. Implied volatility
+
+The input parameters for the implied normal volatility algorithm are those used to evaluate the lognormal volatility, namely $\alpha, \beta_1, \beta_2, \rho, \nu, \tau, x_0, v_L, d, C, S$, the forward $F$ and the strike $K$, as well as the discount factor, a boolean indicating if the option is a call or not, the initial value $guess$ for the Newton algorithm and the tolerance for the bisection algorithm.
+
+| Input | Description | Default |
+|-------|-------------|---------|
+| $\alpha$ | Volatility | |
+| $\beta_1$ | Beta 1 | |
+| $\beta_2$ | Beta 2 | |
+| $\rho$ | Correlation | |
+| $\nu$ | Vol of vol | |
+| $d$ | Speed | |
+| $v_L$ | Asymptotic volatility | |
+| $x_0$ | Strike threshold | 0.02 |
+| $F$ | Forward | |
+| $K$ | Strike | |
+| $\tau$ | Expiry | |
+| $C$ | Cutoff | 0.02 |
+| $S$ | Smoothing | 0.001 |
+| Guess | Initial value of the volatility for Newton's algorithm | |
+| Tolerance | Tolerance for the bisection algorithm | |
+| MaxIterations | Maximum number of iterations in the bisection algorithm | 10000 |
+
+#### 6.2.3. Strike Grid
+
+The input parameters for the strike grid generation algorithm are used to: (1) evaluate the SABRD cumulative distribution function and compute its inverse and to (2) adjust the forward value to generate strike points around it. The parameters are described below:
+
+| Input | Description | Default |
+|-------|-------------|---------|
+| $\alpha$ | Grid Volatility | 0.01 |
+| $\beta$ | Grid Beta | 0.5 |
+| $\rho$ | Grid Correlation | 0.0 |
+| $v_G$ | Grid Vol of vol | 1.2 |
+| $v_L$ | Grid Vol of vol floor | 0.1 |
+| $s_v$ | Grid Vol of vol decay | 1.0 |
+| $p_v$ | Grid Vol of vol power | 1.0 |
+| $\Delta f$ | Grid Displacement | -0.02 |
+| $F_r$ | Grid Forward reference | 0.01 |
+| $s_F$ | Grid Forward decay | 12.0 |
+| $p_{min}$ | Grid minimum probability | 0.01 |
+| $p_{max}$ | Grid maximum probability | 0.9999 |
+| Tolerance | Tolerance for the bisection algorithm | 1e-7 |
+
+### 6.3. Limitations
+
+The implied normal volatility function will return 0 for very out-of-the-money options due to numerical precision of the time value of the option.
+
+## 7 Risk Metrics
+
+Only PV is calculated directly by the model. [10] has details on possible risk metrics produced.
+
+### 7.1 Description
+
+Not applicable.
+
+### 7.2 Limitations
+
+Not applicable.
+
+## 8 Testing and Outcome Analyses
+
+### 8.1 Accuracy, Robustness, and Stability Testing
+
+#### 8.1.1 Grid Convergence
+
+It is clear from figures (8.1, 8.2, 8.3) above that the model converges with a grid size of 400 points since the implied volatility difference between 400 points and 600 points is almost 0 for all strikes.
+
+#### 8.1.2 Monotonicity and Call-Put Parity
+
+We consider the sanity checks of the monotonicity of the call price with respect to forward rates and strikes, we check the validity of the Call-Put Parity, and finally, the monotonicity of the right wing with respect to parameters $\beta_2$ and $d$.
+
+We consider a EUR 10Y 10Y with ATMByVol of 0.5543% and a forward of 0.5729%.
+
+![Figure 8.10: Impact of weight adjustment power](./Fig/5.png)
+
+**Figure 8.3:** Grid convergence - EUR 30Y30Y - 29/09/2020
+
+
+### 8.2 Scenario and Stress-Testing
+
+For dependent models, the only relevant output provided to downstream models is implied volatility, so all testing was conducted with that output. Furthermore, there's a one-to-one correspondence between PV and the implied volatility via BS/Bachelier formulas, so one can consider just implied volatility in general.
+
+We examine the CCAR 2021 stress scenarios using the SABR bumping methodology. As a reminder, that means:
+
+- The bumped model is centered around a new at-the-money by a parallel shift in strike space.
+- The bumped model is shifted in volatility space according to the vol bump.
+
+![Figure 8.10: Impact of weight adjustment power](./Fig/6.png)
+
+
+The stressed model is achieved by recalibration of a GSABR model using $\alpha$, $\rho$, speed, and $\nu_L$. The tests may be rerun in case of marked market conditions change or very different CCAR scenarios. Calibration is a best fit, so no precise error threshold can be specified, but as discussed, we are explicitly guaranteeing that the error on ATM is less than 2bp. In practice, though, the error is much smaller, with an average of 0.1bp and a maximum of 1.1bp on the tested scenarios.
+
+![Figure 8.10: Impact of weight adjustment power](./Fig/7.png)
+
+![Figure 8.10: Impact of weight adjustment power](./Fig/8.png)
+
+
+
+#### 8.2.1 ATM Surface
+
+We have looked at the impact of stress on the implied ATM normal volatility on the surface with scalings of 0%, 25%, 50%, 75%, and 100%, and the implied surface is smoothly approaching the full stress as the scaling is increased.
+
+![Figure 8.10: Impact of weight adjustment power](./Fig/9.png)
+
+##### GSABR Model: ATM Error Analysis
+
+###### Scaling Impact on ATM Error Rates
+
+The following tables present ATM (At-The-Money) error measurements for the GSABR Beta Mixture model under different scaling factors. These measurements were taken on June 15, 2021, and demonstrate how the model's accuracy changes with different parameter scaling values.
+
+### Figure 8.4: ATM Error - 25% Scaling - 15/06/2021
+
+This table shows the error measurements with a 25% scaling factor applied to the model parameters. The red cells indicate error values exceeding the acceptable threshold.
+
+| Tenor | 0.083 | 0.250 | 0.500 | 1.000 | 2.000 | 3.000 | 5.000 | 7.000 | 10.00 | 15.00 | 20.00 | 30.00 | 50.00 |
+|-------|-------|-------|-------|-------|-------|-------|-------|-------|-------|-------|-------|-------|-------|
+| 0.050 | -0.01 | -0.01 | -0.11 | -0.13 | -0.16 | -0.19 | -0.20 | -0.21 | -0.22 | -0.22 | -0.22 | -0.23 | -0.23 |
+| 0.250 | -0.12 | -0.08 | -0.06 | -0.04 | -0.03 | -0.02 | -0.01 | -0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 |
+| 1.000 | -0.10 | -0.11 | -0.10 | -0.09 | -0.08 | -0.07 | -0.05 | -0.04 | -0.03 | -0.03 | -0.02 | -0.02 | -0.01 |
+| 2.000 | -0.06 | -0.06 | -0.06 | -0.05 | -0.05 | -0.04 | -0.03 | -0.03 | -0.02 | -0.02 | -0.02 | -0.01 | -0.01 |
+| 3.000 | -0.03 | -0.03 | -0.03 | -0.03 | -0.02 | -0.02 | -0.01 | -0.01 | -0.01 | -0.01 | -0.01 | -0.00 | -0.00 |
+| 5.000 | -0.01 | -0.01 | -0.01 | -0.01 | -0.01 | -0.01 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 | 0.00 |
+| 7.000 | -0.01 | -0.01 | -0.01 | -0.01 | -0.01 | -0.01 | -0.01 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 | 0.00 |
+| 10.000 | -0.01 | -0.01 | -0.01 | -0.01 | -0.01 | -0.01 | -0.01 | -0.01 | -0.00 | -0.00 | -0.00 | -0.00 | 0.00 |
+| 20.000 | -0.01 | -0.01 | -0.01 | -0.01 | -0.01 | -0.01 | -0.01 | -0.01 | -0.01 | -0.00 | -0.00 | -0.00 | 0.00 |
+| 30.000 | -0.01 | -0.01 | -0.01 | -0.01 | -0.01 | -0.01 | -0.01 | -0.01 | -0.01 | -0.00 | -0.00 | -0.00 | -0.00 |
+
+### Figure 8.5: ATM Error - 50% Scaling - 15/06/2021
+
+This table shows the error measurements with a 50% scaling factor applied to the model parameters.
+
+| Tenor | 0.083 | 0.250 | 0.500 | 1.000 | 2.000 | 3.000 | 5.000 | 7.000 | 10.00 | 15.00 | 20.00 | 30.00 | 50.00 |
+|-------|-------|-------|-------|-------|-------|-------|-------|-------|-------|-------|-------|-------|-------|
+| 0.050 | -0.01 | -0.01 | -0.10 | -0.12 | -0.15 | -0.18 | -0.20 | -0.20 | -0.21 | -0.21 | -0.21 | -0.22 | -0.22 |
+| 0.250 | -0.11 | -0.07 | -0.06 | -0.04 | -0.02 | -0.01 | -0.01 | -0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 |
+| 1.000 | -0.09 | -0.10 | -0.09 | -0.08 | -0.07 | -0.06 | -0.05 | -0.04 | -0.03 | -0.02 | -0.02 | -0.01 | -0.01 |
+| 2.000 | -0.05 | -0.05 | -0.05 | -0.05 | -0.04 | -0.04 | -0.03 | -0.02 | -0.02 | -0.01 | -0.01 | -0.01 | -0.01 |
+| 3.000 | -0.02 | -0.02 | -0.02 | -0.02 | -0.02 | -0.02 | -0.01 | -0.01 | -0.01 | -0.01 | -0.00 | -0.00 | -0.00 |
+| 5.000 | -0.01 | -0.01 | -0.01 | -0.01 | -0.01 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 | 0.00 | 0.00 |
+| 7.000 | -0.01 | -0.01 | -0.01 | -0.01 | -0.01 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 | 0.00 | 0.00 |
+| 10.000 | -0.01 | -0.01 | -0.01 | -0.01 | -0.01 | -0.01 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 | 0.00 | 0.00 |
+| 20.000 | -0.01 | -0.01 | -0.01 | -0.01 | -0.01 | -0.01 | -0.01 | -0.01 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 |
+| 30.000 | -0.01 | -0.01 | -0.01 | -0.01 | -0.01 | -0.01 | -0.01 | -0.01 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 |
+
+### Figure 8.6: ATM Error - 75% Scaling - 15/06/2021
+
+This table shows the error measurements with a 75% scaling factor applied to the model parameters.
+
+| Tenor | 0.083 | 0.250 | 0.500 | 1.000 | 2.000 | 3.000 | 5.000 | 7.000 | 10.00 | 15.00 | 20.00 | 30.00 | 50.00 |
+|-------|-------|-------|-------|-------|-------|-------|-------|-------|-------|-------|-------|-------|-------|
+| 0.050 | -0.01 | -0.01 | -0.10 | -0.11 | -0.14 | -0.17 | -0.19 | -0.19 | -0.20 | -0.20 | -0.20 | -0.21 | -0.21 |
+| 0.250 | -0.10 | -0.07 | -0.05 | -0.03 | -0.02 | -0.01 | -0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 |
+| 1.000 | -0.08 | -0.09 | -0.08 | -0.07 | -0.06 | -0.05 | -0.04 | -0.03 | -0.02 | -0.02 | -0.01 | -0.01 | -0.01 |
+| 2.000 | -0.04 | -0.04 | -0.04 | -0.04 | -0.03 | -0.03 | -0.02 | -0.02 | -0.01 | -0.01 | -0.01 | -0.01 | -0.00 |
+| 3.000 | -0.02 | -0.02 | -0.02 | -0.02 | -0.02 | -0.01 | -0.01 | -0.01 | -0.01 | -0.00 | -0.00 | -0.00 | -0.00 |
+| 5.000 | -0.01 | -0.01 | -0.01 | -0.01 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 | 0.00 | 0.00 | 0.00 |
+| 7.000 | -0.01 | -0.01 | -0.01 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 | 0.00 | 0.00 | 0.00 |
+| 10.000 | -0.01 | -0.01 | -0.01 | -0.01 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 | 0.00 | 0.00 | 0.00 |
+| 20.000 | -0.01 | -0.01 | -0.01 | -0.01 | -0.01 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 |
+| 30.000 | -0.01 | -0.01 | -0.01 | -0.01 | -0.01 | -0.01 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 |
+
+### Figure 8.7: ATM Error - 100% Scaling - 15/06/2021
+
+This table shows the error measurements with a 100% scaling factor applied to the model parameters.
+
+| Tenor | 0.083 | 0.250 | 0.500 | 1.000 | 2.000 | 3.000 | 5.000 | 7.000 | 10.00 | 15.00 | 20.00 | 30.00 | 50.00 |
+|-------|-------|-------|-------|-------|-------|-------|-------|-------|-------|-------|-------|-------|-------|
+| 0.050 | -0.00 | -0.01 | -0.09 | -0.11 | -0.13 | -0.16 | -0.18 | -0.18 | -0.19 | -0.19 | -0.19 | -0.19 | -0.20 |
+| 0.250 | -0.10 | -0.06 | -0.04 | -0.03 | -0.01 | -0.01 | -0.00 | 0.00 | 0.00 | 0.01 | 0.01 | 0.01 | 0.01 |
+| 1.000 | -0.07 | -0.08 | -0.07 | -0.06 | -0.05 | -0.04 | -0.03 | -0.03 | -0.02 | -0.01 | -0.01 | -0.01 | -0.00 |
+| 2.000 | -0.04 | -0.04 | -0.04 | -0.03 | -0.03 | -0.02 | -0.02 | -0.01 | -0.01 | -0.01 | -0.01 | -0.00 | -0.00 |
+| 3.000 | -0.02 | -0.02 | -0.02 | -0.01 | -0.01 | -0.01 | -0.01 | -0.01 | -0.00 | -0.00 | -0.00 | -0.00 | 0.00 |
+| 5.000 | -0.01 | -0.01 | -0.01 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 | 0.00 | 0.00 | 0.00 | 0.00 |
+| 7.000 | -0.01 | -0.01 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 |
+| 10.000 | -0.01 | -0.01 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 |
+| 20.000 | -0.01 | -0.01 | -0.01 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 |
+| 30.000 | -0.01 | -0.01 | -0.01 | -0.01 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 | -0.00 |
+
+###### Analysis of Scaling Effects
+
+The tables above demonstrate how different scaling factors (25%, 50%, 75%, and 100%) affect the ATM error rates in the GSABR Beta Mixture model. Several observations can be made:
+
+1. **Error Magnitude**: As the scaling factor increases from 25% to 100%, there is a general trend of error reduction across most tenor-maturity combinations.
+
+2. **Short-Term Tenors**: The shortest tenor (0.050) consistently shows the largest errors across all scaling factors, particularly for medium to long maturities.
+
+3. **Error Distribution**: Negative errors (model underpricing) are predominant across all scaling factors, with very few positive errors.
+
+4. **Optimal Scaling**: Based on the error patterns, higher scaling factors (75% and 100%) appear to produce better overall results, with fewer cells showing significant errors.
+
+5. **Long-Term Behavior**: For longer tenors (10+ years), the errors become minimal across all scaling factors, suggesting the model is more robust for long-dated instruments.
+
+This error analysis helps in determining the optimal scaling factor for the GSABR Beta Mixture model implementation, balancing accuracy across different regions of the volatility surface.
+
+#### 8.2.2 CCAR Stress Testing Results
+
+This section presents the results of applying the GSABR Beta Mixture model to stress testing scenarios based on the Comprehensive Capital Analysis and Review (CCAR) requirements.
+
+##### 8.2.2.1 USD 10y10y
+
+We'll consider the 10y10y USD swaption on 15/06/2021 with the original forward of 2.27% and ATM volatility of 65 bps. The CCAR bump on 15/06/2021 results in a new forward of 1.89% and the target ATM vol of 68.9 bps.
+
+In the following graph we can see the comparison of the base smile vs the results of stressing the model vs the shift according to CCAR targets:
+
+![Figure 8.1: USD 10y10y CCAR Scenario - Base vs Full Stress vs Fed Shift](./Fig/10.png)
+
+*Figure 8.1: USD 10y10y CCAR Scenario - Base vs Full Stress vs Fed Shift - 15/06/2021*
+
+We can see from the graph above that the fully stressed calibration matches the target Fed bump. We also include 50% scaling of the stress to demonstrate the smooth move from base to stress:
+
+![Figure 8.2: USD 10y10y CCAR Scenario - Base vs Full Stress vs 50% Stress](./Fig/11.png)
+
+*Figure 8.2: USD 10y10y CCAR Scenario - Base vs Full Stress vs 50% Stress - 15/06/2021*
+
+There is a corresponding impact on the CDF and PDF and the move is smooth between the base case and the stress case:
+
+![Figure 8.3: USD 10y10y CCAR Scenario - CDF](./Fig/12.png)
+
+*Figure 8.3: USD 10y10y CCAR Scenario - CDF - 15/06/2021*
+
+
+##### 8.2.2.2 USD 2y2y
+
+We also examined a more short dated swaption. On 15/06/2021, original forward is at 1.07% and ATM Vol is at 64.8 bps. The CCAR bumps result in a new forward of 0.83% and a new ATM BP Vol of 68.4 bps.
+
+![Figure 8.5: USD 2y2y CCAR Scenario - Base vs Full Stress vs Fed Shift](./Fig/13.png)
+
+*Figure 8.5: USD 2y2y CCAR Scenario - Base vs Full Stress vs Fed Shift - 15/06/2021*
+
+We can see from the graph above that the fully stressed calibration matches the target Fed bump. We also include 50% scaling of the stress to demonstrate the smooth move from base to stress:
+
+![Figure 8.6: USD 2y2y CCAR Scenario - Base vs Full Stress vs 50% Stress](./Fig/14.png)
+
+*Figure 8.6: USD 2y2y CCAR Scenario - Base vs Full Stress vs 50% Stress - 15/06/2021*
+
+The corresponding PDF and CDF move smoothly as well from the base to the full stress:
+
+![Figure 8.7: USD 2y2y CCAR Scenario - CDF](./Fig/15.png)
+
+*Figure 8.7: USD 2y2y CCAR Scenario - CDF - 15/06/2021*
+
+
+
+### 8.2.3. Conclusion
+
+The model can match the desired bumps quite closely producing a consistent smile with an average best fit error less than 0.1 bp around ATM region. The results demonstrate that bumped vols produced by the model match the targets defined by the Fed within an acceptable margin.
+
+### 8.3 Sensitivity Analysis
+
+#### 8.3.1 GSABR Beta Mixture Parameters
+
+The purpose of this test is to examine the effect of the parameters $\alpha$, $\beta_1$, $\beta_2$, $\rho$, $\nu$, and the speed "d" on the implied volatility smile. The base parameters are:
+
+| **Parameter**      | **Value**       |
+|--------------------|-----------------|
+| Valuation date     | 12/08/2021      |
+| Currency           | EUR             |
+| Forward            | -0.07%          |
+| $\alpha$         | 1.32%           |
+| $\beta_1$        | 20.00%          |
+| $\beta_2$        | 125.00%         |
+| $\rho$           | -44.40%         |
+| $\nu$            | 19.78%          |
+| Speed              | 20.00%          |
+| $\nu_L$          | 0.01%           |
+| $x_0$            | 2.00%           |
+| $C$              | 2.00%           |
+| $S$              | 0.1%            |
+| Expiry             | 30Y             |
+| Tenor              | 10Y             |
+
+- **$\alpha$ (alpha)**: Controls the overall level of the volatility (figure 8.8).
+- **$\beta_1$ (beta1)**: Controls ATM smile skew (figures 8.9 and 8.10).
+- **$\beta_2$ (beta2)**: Controls high strike smile skew (figure 8.11).
+- **$d$ (speed)**: Controls the speed of transition from $\beta_1$ to $\beta_2$ (figure 8.12).
+- **$\rho$ (rho)**: Controls the overall smile skew (figure 8.13).
+- **$\nu$ (nu)**: Controls the smile convexity (figure 8.14).
+- **$x_0$**: Controls the strike threshold (figure 8.15).
+- **$\nu_L$**: Controls the asymptotic volatility on the left of the strike $x_0$ (figure 8.16).
+- **$C$ and $S$**: Static parameters used to determine the upper bound of the speed (figure 8.17).
+
+![Figure 8.7: USD 2y2y CCAR Scenario - CDF](./Fig/16.png)
+*Figure 8.7: $\alpha$ Influence*
+
+The parameters $C$ and $S$ are both used to determine the upper bound of the speed. The two parameters are supposed to be static, so they are not remarked by the desk. We can consider the smile sensitivity to these parameters as generally negligible, as a move in these parameters is compensated by a move in the speed parameter $d$.
+
+![Figure 8.7: USD 2y2y CCAR Scenario - CDF](./Fig/17.png)
+*Figure 8.7: $\beta_1$ Influence*
+
+![Figure 8.7: USD 2y2y CCAR Scenario - CDF](./Fig/18.png)
+*Figure 8.7: $\beta_1$ Influence*
+
+![Figure 8.7: USD 2y2y CCAR Scenario - CDF](./Fig/19.png)
+*Figure 8.7: $\beta_2$ Influence*
+
+We consider the following base parameters: EUR 10Y2Y with a base forward of 0.54% at 12/08/2021.
+
+![Figure 8.7: USD 2y2y CCAR Scenario - CDF](./Fig/20.png)
+*Figure 8.17: Speed Influence*
+
+![Figure 8.7: USD 2y2y CCAR Scenario - CDF](./Fig/21.png)
+*Figure 8.17: $\nu$ Influence*
+
+![Figure 8.7: USD 2y2y CCAR Scenario - CDF](./Fig/22.png)
+*Figure 8.17: $\nu_L$ Influence*
+
+| $\alpha$ | 1.41% | 1.41% | 1.41% | 1.41% |
+|------------|--------|--------|--------|--------|
+| $\beta_1$ | 20.00% | 20.00% | 20.00% | 20.00% |
+| $\beta_2$ | 100.00% | 100.00% | 100.00% | 100.00% |
+| $\rho$   | 10.58% | 10.58% | 10.58% | 10.58% |
+| $\nu$    | 20.86% | 20.86% | 20.86% | 20.86% |
+| Speed      | 0.98%  | 1.85%  | 3.88%  | 7.02%  |
+| $\nu_L$  | 0.01%  | 0.01%  | 0.01%  | 0.01%  |
+| $x_0$    | 2.00%  | 2.00%  | 2.00%  | 2.00%  |
+| $C$      | 0.50%  | 1.00%  | 2.00%  | 3.00%  |
+| $S$      | 0.1%   | 0.1%   | 0.1%   | 0.1%   |
+
+We can see that a change in $C$ mainly drives a change in the value of the speed.
+
+### 8.3.2. β₂, β₁ and d impact on the backbone
+
+The purpose of this test is to examine the impact of β₂, β₁ and d on the backbone. We consider the following base parameters:
+
+| Parameter | Value |
+|-----------|-------|
+| Valuation date | 12/08/2021 |
+| Currency | EUR |
+| Forward | 0.54% |
+| α | 1.40% |
+| β₁ | 20.00% |
+| β₂ | 100.00% |
+| ρ | 10.58% |
+| ν | 20.87% |
+| Speed | 3.88% |
+| vₗ | 0.01% |
+| x₀ | 2.00% |
+| C | 2.00% |
+| S | 0.1% |
+| Expiry | 10Y |
+| Tenor | 2Y |
+
+#### β₁ Effect Analysis
+
+Figure 8.18 shows the effect of varying β₁ on the volatility backbone:
+
+![Figure 8.18: β₁ effect](./Fig/23.png)
+
+*Figure 8.18: Influence of Beta1 on backbone*
+
+The graph demonstrates that β₁ primarily controls the ATM skew. As β₁ increases, the slope of the volatility curve in the ATM region changes, with higher values of β₁ resulting in steeper positive slopes for strikes above the ATM level. This parameter is crucial for fitting the market-observed skew at and around the ATM point.
+
+#### Speed Parameter (d) Effect Analysis
+
+Figure 8.19 illustrates the effect of the speed parameter d on the volatility backbone:
+
+![Figure 8.19: d effect](./Fig/24.png)
+
+*Figure 8.19: Influence of Speed on backbone*
+
+The analysis shows that the speed parameter has minimal impact on the overall shape of the volatility backbone. The curves for different speed values largely overlap, indicating that this parameter has a secondary effect compared to the primary parameters like β₁ and β₂. The speed parameter primarily controls the transition speed between the β₁ and β₂ regimes rather than the overall level or shape of the volatility curve.
+
+### 8.3.3. Threshold Parameter Impact
+
+#### Effect on Smile Shape
+
+Figure 8.21 demonstrates how different threshold values affect the volatility smile:
+
+![Figure 8.21: Smile for different Threshold values](./Fig/25.png)
+
+*Figure 8.21: Local Volatility Threshold Impact on Smile*
+
+The graph shows that varying the threshold parameter has minimal impact on the volatility smile for strikes below a certain level. However, for higher strikes, the differences become more pronounced, with higher threshold values allowing the smile to continue rising, while lower threshold values tend to flatten the curve.
+
+#### Effect on CMS Pricing
+
+Figure 8.22 shows the impact of threshold values on CMS pricing with β₂=150%:
+
+![Figure 8.22: CMS 10Y10Y for different threshold values](./Fig/26.png)
+
+*Figure 8.22: Local Volatility Threshold Impact on CMS - Beta2=150%*
+
+We note that the threshold strike if set is only relevant for higher values of β₂. The threshold parameter becomes particularly important when β₂ is high, as it helps control the behavior of the model for extreme strikes, which can significantly impact CMS pricing.
+
+Figure 8.23 presents the same analysis but with β₂=100%:
+
+![Figure 8.23: CMS 10Y10Y for different threshold values](./Fig/27.png)
+
+*Figure 8.23: Local Volatility Threshold Impact on CMS - Beta2=100%*
+
+The analysis confirms that for a lower value of β₂, the CMS prices are consistent between replication and integration across the same strike threshold values. This demonstrates that the threshold parameter becomes less critical when β₂ is lower, as the model naturally produces more stable pricing for extreme strikes.
+
+### 8.4. Output Analysis
+
+We compare in this section the outputs using Monte Carlo simulation of the SDE associated with GSABR Beta Mixture and those of using the One Step ODE approach. This would cover the accuracy of the short expiry expansion GSABR is based on as well as the convergence of the One Step ODE for computing prices.
+
+We consider different Swaption expiries at multiple strikes as below:
+
+### EUR 5Y5Y Analysis
+
+EUR 5Y5Y with base forward of −0.33% and base ATM Bp Vol of 0.28%
+
+![MC-One Step ODE PV Difference - 5Y5Y](./Fig/28.png)
+
+The left graph shows the difference between the Monte Carlo simulation and One Step ODE approach for the 5Y5Y swaption. The right graph displays the price values from both methods across different strikes. The close alignment of the curves indicates good agreement between the two approaches.
+
+### EUR 10Y10Y Analysis
+
+EUR 10Y10Y with base forward of 0.57% and base ATM Bp Vol of 0.55%
+
+![MC-One Step ODE PV Difference - 10Y10Y](./Fig/29.png)
+
+For the 10Y10Y swaption, we observe similar consistency between the Monte Carlo and ODE approaches. The difference plot shows some minor deviations around the ATM point, but the overall pricing remains closely aligned.
+
+### EUR 30Y10Y Analysis
+
+EUR 30Y10Y with base forward of −0.07% and base ATM Bp Vol of 0.48%
+
+![MC-One Step ODE PV Difference - 30Y10Y](./Fig/30.png)
+
+For the long-dated 30Y10Y swaption, the comparison shows slightly larger differences between the Monte Carlo and ODE approaches, particularly for strikes far from the ATM point. However, the pricing remains consistent for most of the strike range, validating the accuracy of the One Step ODE approach even for longer maturities.
+
+### Analysis Conclusions
+
+The parameter sensitivity tests demonstrate that:
+
+1. **β₁ Parameter**: Controls the ATM skew and has significant impact on the volatility backbone shape for strikes around and above the ATM level.
+
+2. **Speed Parameter (d)**: Has minimal impact on the overall volatility backbone shape, serving primarily as a fine-tuning parameter for the transition between different volatility regimes.
+
+3. **Threshold Parameter**: Becomes important primarily for high values of β₂, helping to control extreme strike behavior and ensuring consistent CMS pricing.
+
+The output analysis comparing Monte Carlo simulation with the One Step ODE approach validates that:
+
+1. The One Step ODE method provides accurate pricing across different swaption maturities and strikes.
+2. The short expiry expansion that GSABR is based on delivers reliable results.
+3. The convergence of the One Step ODE approach is satisfactory for practical pricing applications.
+
+These findings support the robustness and accuracy of the GSABR Beta Mixture model implementation for volatility modeling and option pricing in interest rate markets.
+
+## 9 Assumptions and Limitations
+
+### Model Assumptions
+| Assumption       | Justification                                                                 |
+|------------------|-------------------------------------------------------------------------------|
+| No Arbitrage     | Fundamental assumption in mathematical finance.                              |
+| Frictionless Trading | Fundamental assumption in mathematical finance.                           |
+
+### Model Limitations
+| Limitation                          | Explanation & Reference                                                       |
+|-------------------------------------|-------------------------------------------------------------------------------|
+| Independent Dynamics for Each Expiry/Tenor | CSABR provides independent dynamics for each expiry/tenor pair, lacking a consistent term structure (see Section 4.5.1). |
+| Limited Control Over CMS Prices     | Control over CMS prices depends on the goodness of fit for parameters $\beta_2$ and Speed. |
+| Approximate Market Input Reproduction | Calibration relies on non-linear optimization, reproducing market inputs approximately. Back-testing and scenario analysis validate performance. |
+
+---
+
+## 10 Model Monitoring – KPIs
+Not applicable for valuation models.
+
+---
+
+## References
+Key references include:
+- [1] Brigo, D., & Mercurio, F. (2006). *Interest Rate Models - Theory and Practice*.
+- [2] Andreasen, J., & Huge, B. (2011). *ZABR – Expansions for the Masses*.
+- [3] Hagan, P., Kumar, D., Lesniewski, A., & Woodward, D. (2002). *Managing Smile Risk*.
+- [4] Andreasen, J., & Huge, B. (2011). *Volatility Interpolation*.
+- [5] Dupire, B. (1994). *Pricing with a Smile*.
+- [6–11] Additional references for NAG functions, payoff structures, curve construction, risk metrics, and CCAR scenarios.
+
+## 11 Model Monitoring – KPIs
+
+Not applicable for valuation models.
+
+## References
+
+- [1] D. Brigo, F. Mercurio, *Interest Rate Models - Theory and Practice*, Second Edition.
+- [2] J. Andreasen, Brian Huge, *ZABR – Expansions for the Masses*, 2011.
+- [3] P. Hagan, D. Kumar, A. Lesniewski, D. Woodward, *Managing Smile Risk*, [Link](https://www.researchgate.net/publication/235622441_Managing_Smile_Risk), 2002.
+- [4] Jesper Andreasen and Brian Norsk Huge, *Volatility Interpolation*, Risk, pages 86-89, March 2011.
+- [5] B. Dupire, *Pricing with a Smile*, Risk, pages 18-20, July 1994.
+- [6] NAG S15ADF documentation, [Link](https://www.nag.co.uk/numeric/fl/nagdoc_fl25/html/s/s15adf.html).
+- [7] NAG E04FCF documentation, [Link](https://www.nag.co.uk/numeric/fl/nagdoc_fl25/pdf/e04/e04fcf.pdf).
+- [8] DIRExT Payoffs, Barclays Capital, 2015, [Link](http://qa.barcapint.com8081/docs/direct/general/direct_trade6.pdf).
+- [9] C. Price, *CMD 1746, Curve Construction and Risk Framework*, Barclays Capital, 2016.
+- [10] P. Poelvoorde, *Macro ROST Risk Metrics*, Barclays Capital, 2016.
+- [11] CCAR 2021 Severely Adverse Market Shocks, [Link](https://www.federalreserve.gov/supervisionreg/files/2021-stress-test-severely-adversemarket-shocks.xlsx).
+
+

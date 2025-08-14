@@ -1,0 +1,76 @@
+# Scope
+
+## Model Purpose and Intended Usage
+
+The motivation behind the CLV model is to better capture the skew effect of volatility surface while retaining the ability of fast calibration and pricing for simple exotic payoffs. Other models that are used in production include Interest Rate Vanilla (IRV) and Libor Market Model (LMM); compared to CLV, they both have their own limitations:
+
+- **IRV model** can only be used to price vanilla instruments such as European options; it does not support the pricing of instruments with exotic payoffs.
+- **LMM model** uses Monte Carlo simulations, which introduces numerical noise besides being expensive to use.
+
+### Target Applications
+
+The CLV model is specifically designed for:
+
+1. **Bermudan Swaptions**: Complex option structures with multiple exercise dates
+2. **Callable Inverse Floaters (CIF)**: Structured products with embedded call options
+3. **Callable Capped Floaters (CCF)**: Capped floating rate instruments with call features
+4. **Simple Exotic Payoffs**: Instruments requiring skew sensitivity but not correlation effects
+
+### Usage Constraints
+
+The model is **not recommended** for:
+- Payoffs related to correlation (e.g., spread options)
+- Multi-currency instruments
+- Products requiring multi-factor modeling
+
+## Conceptual Soundness
+
+While CLV is a short rate model, to achieve fast and accurate implementation, we have developed good analytical approximations of swaption volatility and skew. In addition, this model is primarily used with a custom PDE routine. Therefore the calibration and pricing in CLV model remain efficient and accurate.
+
+### Comparative Advantages
+
+In summary, CLV model has below advantages compared with other alternative models:
+
+- **Compared with IRV**: It has the ability to price more exotic payoffs from modeling the short rate.
+- **Compared with LMM**: It can be priced with PDE hence faster and more accurate.
+
+### Model Limitations
+
+However, CLV also has its own limitations. The main limitation is that it is still a one factor model: unlike multi-factor models such as LMM, it cannot be used to price payoffs related to correlation, for example spread options.
+
+### Technical Framework
+
+The model achieves its objectives through:
+
+1. **Analytical Approximations**: Efficient swaption volatility and skew calculations
+2. **Custom PDE Solver**: High-accuracy numerical implementation
+3. **Short Rate Dynamics**: Single-factor modeling with local volatility
+4. **Skew Parameterization**: Displaced diffusion framework for volatility surface fitting
+
+## Literature Review
+
+The idea for the Cheyette volatility short rate modeling framework can be found in:
+
+- **Interest Rate Modeling**, by V Piterbarg and L. Andersen [16]
+- **Quasi-Gaussian Model with Local and Stochastic Volatility**, by V Piterbarg [17]
+- **Efficient Simulation of the Heston Stochastic Volatility Model**, by L. Andersen [1]
+
+### Theoretical Foundation
+
+The CLV model builds upon established theoretical frameworks:
+
+1. **Cheyette Framework**: Extension of Heath-Jarrow-Morton models with local volatility
+2. **Displaced Diffusion**: Incorporation of skew effects through displaced lognormal dynamics
+3. **PDE Methods**: Numerical solution techniques for option pricing
+4. **Analytical Approximations**: Efficient calibration through closed-form approximations
+
+### Model Evolution
+
+The development of CLV represents an evolution in short rate modeling:
+
+- **First Generation**: Simple models like Vasicek and Hull-White
+- **Second Generation**: HJM framework with forward rate modeling
+- **Third Generation**: Multi-factor models like QG2 and LMM
+- **Current Generation**: CLV combining efficiency with skew capture
+
+In following sections, we will explain product/payoff, model methodology, numerical implementation, calibration, risks, test results and analysis, and assumptions/limitations of the model in details.

@@ -1,0 +1,433 @@
+# Risk Analysis
+
+
+
+
+
+## Overview
+
+The risk analysis component of the New Curve Framework (NCF) from Our project provides comprehensive risk calculation capabilities through analytical derivatives and efficient curve shocking procedures. The framework supports both traditional risk metrics and advanced scenario analysis through its sophisticated Jacobian transform methodology.
+
+## Risk Calculation Methodology
+
+### Analytical Risk Calculation
+
+The NCF employs analytical differentiation to compute exact risk sensitivities, providing several advantages over finite difference methods:
+
+**Accuracy**: Machine precision derivatives without approximation errors
+**Efficiency**: Single curve build provides all risk sensitivities
+**Consistency**: Identical base case for all risk calculations
+**Speed**: Significantly faster than bump-and-revalue approaches
+
+### Jacobian Transform Framework
+
+The core of the risk calculation is the Jacobian transform, which provides a linear approximation relating changes in market data to changes in curve values:
+
+$$\Delta \mathbf{C} = \mathbf{J} \cdot \Delta \mathbf{M}$$
+
+**Mathematical Components:**
+
+| Component | Dimension | Description |
+|-----------|-----------|-------------|
+| $\Delta \mathbf{C}$ | $n \times 1$ | Vector of curve value changes (PV impacts) |
+| $\mathbf{J}$ | $n \times m$ | Jacobian matrix of partial derivatives |
+| $\Delta \mathbf{M}$ | $m \times 1$ | Vector of market data changes (rate shocks) |
+
+**Key Properties:**
+- **Linearity**: Valid for small market moves (typically <50bp)
+- **Efficiency**: Single matrix multiplication for all risk scenarios
+- **Accuracy**: Exact derivatives through algorithmic differentiation
+
+## Risk Calculation Implementation in Our Project
+
+The mathematical framework described above is implemented through several key classes that provide efficient and accurate risk calculation capabilities.
+
+**Core Risk Calculator Class**:
+```cpp
+namespace xsigma {
+    // Risk calculation for curve-based instruments implementing the Jacobian framework
+    class curve_risk_calculator {
+    public:
+        // Constructor
+        curve_risk_calculator(
+            const ptr_const<discount_curve>& curve,
+            const datetime& valuation_date);
+
+        // Delta calculation using AAD implementing ∂PV/∂r_i
+        std::vector<double> calculate_delta_aad(
+            const ptr_const<instrument>& instrument,
+            const std::vector<datetime>& risk_dates,
+            double shift_size = 0.0001) const;
+
+        // Gamma calculation implementing ∂²PV/∂r_i²
+        matrix<double> calculate_gamma(
+            const ptr_const<instrument>& instrument,
+            const std::vector<datetime>& risk_dates,
+            double shift_size = 0.0001) const;
+
+        // Theta calculation implementing ∂PV/∂t
+        double calculate_theta(
+            const ptr_const<instrument>& instrument,
+            double time_shift = 1.0/365.0) const;
+
+        // Parallel shift sensitivity implementing ∂PV/∂r_parallel
+        double calculate_parallel_delta(
+            const ptr_const<instrument>& instrument,
+            double shift_size = 0.0001) const;
+
+        // Key rate duration calculation for HCT risk factors
+        std::vector<double> calculate_key_rate_durations(
+            const ptr_const<instrument>& instrument,
+            const std::vector<datetime>& key_dates,
+            double shift_size = 0.0001) const;
+
+    private:
+        ptr_const<discount_curve> curve_;
+        datetime valuation_date_;
+
+        // Helper functions for curve manipulation
+        ptr_const<discount_curve> create_shifted_curve(
+            const std::vector<datetime>& shift_dates,
+            const std::vector<double>& shifts) const;
+    };
+}
+```
+
+*This class implements the core risk calculation methods described in the mathematical framework. The AAD-based delta calculation provides exact derivatives without approximation errors, while the gamma calculation supports second-order risk analysis. All methods support the HCT risk factor framework for consistent risk reporting.*
+
+**Jacobian Transform Implementation**:
+```cpp
+namespace xsigma {
+    // Jacobian matrix calculation implementing ΔC = J·ΔM
+    class jacobian_transform_calculator {
+    public:
+        // Calculate Jacobian matrix: ∂Curves/∂MarketData
+        static matrix<double> calculate_jacobian(
+            const curve_calibration& calibrator,
+            const std::vector<datetime>& curve_dates,
+            const std::vector<datetime>& market_dates) {
+
+            const size_t num_curve_points = curve_dates.size();
+            const size_t num_market_points = market_dates.size();
+
+            matrix<double> jacobian(num_curve_points, num_market_points);
+
+            // Use AAD to calculate exact derivatives
+            for (size_t j = 0; j < num_market_points; ++j) {
+                // Set seed vector for market point j
+                std::vector<double> seed(num_market_points, 0.0);
+                seed[j] = 1.0;
+
+                // Recalibrate curves with AAD
+                auto curves_aad = calibrator.calibrate_with_aad(seed.data());
+
+                // Extract derivatives for all curve points
+                for (size_t i = 0; i < num_curve_points; ++i) {
+                    jacobian(i, j) = curves_aad[i].derivative();
+                }
+            }
+
+            return jacobian;
+        }
+
+        // Transform market shocks to curve impacts: ΔC = J·ΔM
+        static std::vector<double> transform_market_shocks(
+            const matrix<double>& jacobian,
+            const std::vector<double>& market_shocks) {
+
+            std::vector<double> curve_impacts(jacobian.rows());
+
+            // Matrix-vector multiplication
+            for (size_t i = 0; i < jacobian.rows(); ++i) {
+                curve_impacts[i] = 0.0;
+                for (size_t j = 0; j < jacobian.cols(); ++j) {
+                    curve_impacts[i] += jacobian(i, j) * market_shocks[j];
+                }
+            }
+
+            return curve_impacts;
+        }
+    };
+}
+```
+
+*The Jacobian transform calculator implements the mathematical relationship ΔC = J·ΔM described above. It uses AAD to compute exact partial derivatives and provides efficient transformation of market shocks to curve impacts. This enables fast scenario analysis and risk aggregation across multiple market factors.*
+
+### Risk Factor Definition
+
+**Hedge Curve Template (HCT)**:
+The HCT defines the risk factors for shocking and risk reporting:
+- Independent of curve construction instruments
+- Aligned with trading and hedging strategies
+- Standardized across different curves for consistency
+
+**Risk Factor Selection**:
+- Liquid, tradeable instruments preferred
+- Standard market tenors (1M, 3M, 6M, 1Y, 2Y, 5Y, 10Y, 30Y)
+- Consistent bucketing across related curves
+
+## Delta Risk Calculation
+
+### First-Order Sensitivities
+
+The framework calculates multiple types of delta sensitivities to provide comprehensive risk measurement:
+
+| Delta Type | Formula | Application |
+|------------|---------|-------------|
+| **Parallel Delta** | $\Delta_{\text{parallel}} = \sum_{i=1}^{n} \frac{\partial PV}{\partial r_i}$ | Overall interest rate sensitivity |
+| **Bucket Delta** | $\Delta_{\text{bucket},i} = \frac{\partial PV}{\partial r_i}$ | Tenor-specific rate sensitivity |
+| **Key Rate Delta** | $\Delta_{\text{key},i} = \sum_{j=1}^{n} \frac{\partial PV}{\partial r_j} \frac{\partial r_j}{\partial k_i}$ | Standard market risk buckets |
+
+**Key Rate Delta Methodology:**
+- $k_i$ represents the key rate at standard tenor $i$ (e.g., 1M, 3M, 6M, 1Y, 2Y, 5Y, 10Y, 30Y)
+- $\frac{\partial r_j}{\partial k_i}$ is the interpolation weight showing how curve node $j$ responds to key rate $i$
+- Enables consistent risk reporting across different curve construction methods
+- Facilitates portfolio risk aggregation and hedging strategies
+
+### Cross-Currency Delta
+
+For multi-currency portfolios, cross-currency delta captures sensitivity to foreign curve movements:
+
+$$\Delta_{cross} = \frac{\partial PV}{\partial r_{foreign}} \times FX_{spot}$$
+
+### Basis Delta
+
+Sensitivity to basis spread movements between related curves:
+
+$$\Delta_{basis} = \frac{\partial PV}{\partial basis_{spread}}$$
+
+## Gamma Risk Calculation
+
+### Second-Order Sensitivities
+
+**Diagonal Gamma**:
+Convexity with respect to individual risk factors:
+$$\Gamma_{ii} = \frac{\partial^2 PV}{\partial r_i^2}$$
+
+**Cross Gamma**:
+Mixed second derivatives between different risk factors:
+$$\Gamma_{ij} = \frac{\partial^2 PV}{\partial r_i \partial r_j}$$
+
+### Gamma Calculation Methods
+
+**Analytical Approach**:
+Second derivatives computed through automatic differentiation of the Jacobian
+
+**Semi-Analytical Approach**:
+$$\Gamma_{ij} \approx \frac{J_{ij}^{+} - J_{ij}^{-}}{2\epsilon}$$
+
+Where $J_{ij}^{\pm}$ are Jacobian elements computed with small perturbations $\pm\epsilon$
+
+## Vega Risk Calculation
+
+### Volatility Sensitivities
+
+While the curve construction framework primarily handles first-order rate sensitivities, it provides the foundation for volatility risk calculation in derivative pricing models:
+
+**Curve Vega**:
+Sensitivity to changes in volatility surfaces that affect curve construction (e.g., swaption volatilities used in convexity adjustments)
+
+**Model Vega**:
+Sensitivity to volatility parameters in models that consume the constructed curves
+
+## Advanced Risk Metrics
+
+### Value at Risk (VaR)
+
+**Parametric VaR**:
+Using the Jacobian matrix and market data covariance:
+$$VaR = z_{\alpha} \sqrt{\mathbf{J}^T \boldsymbol{\Sigma} \mathbf{J}}$$
+
+Where $z_{\alpha}$ is the confidence level quantile and $\boldsymbol{\Sigma}$ is the market data covariance matrix.
+
+**Historical VaR**:
+Using historical market data scenarios:
+$$VaR = \text{Quantile}_{\alpha}(\{\mathbf{J} \Delta \mathbf{M}_t\}_{t=1}^{T})$$
+
+### Expected Shortfall (ES)
+
+$$ES = E[Loss | Loss > VaR]$$
+
+Computed using the tail distribution of the P&L scenarios.
+
+### Stress Testing
+
+**Scenario Analysis**:
+Application of predefined stress scenarios:
+$$\Delta PV_{scenario} = \mathbf{J} \Delta \mathbf{M}_{scenario}$$
+
+**Historical Stress Tests**:
+Replay of historical market moves:
+$$\Delta PV_{historical} = \mathbf{J} \Delta \mathbf{M}_{historical}$$
+
+## Risk Aggregation
+
+### Portfolio Level Risk
+
+**Linear Aggregation**:
+For small moves, portfolio risk is the sum of individual position risks:
+$$\Delta PV_{portfolio} = \sum_{i=1}^{N} \Delta PV_i$$
+
+**Non-Linear Aggregation**:
+Including gamma effects for large moves:
+$$\Delta PV_{portfolio} = \sum_{i=1}^{N} \left( \Delta_i \Delta \mathbf{M} + \frac{1}{2} \Delta \mathbf{M}^T \boldsymbol{\Gamma}_i \Delta \mathbf{M} \right)$$
+
+### Cross-Asset Risk
+
+**FX Risk Integration**:
+Combining interest rate and FX risks:
+$$\Delta PV_{total} = \Delta PV_{IR} + \Delta PV_{FX} + \Delta PV_{cross}$$
+
+**Credit Risk Integration**:
+Including credit spread sensitivities where applicable
+
+## Jacobian Matrix Properties
+
+### Matrix Structure
+
+**Sparsity Pattern**:
+The Jacobian matrix is typically sparse, with non-zero elements concentrated around:
+- Diagonal elements (direct sensitivities)
+- Near-diagonal elements (neighboring tenor effects)
+- Block structures (curve interdependencies)
+
+**Conditioning**:
+Matrix conditioning affects numerical stability:
+- Well-conditioned for liquid market regions
+- Potential ill-conditioning in data-sparse regions
+- Regularization techniques applied when necessary
+
+### Computational Efficiency
+
+**Sparse Storage**:
+Compressed Sparse Row (CSR) format for memory efficiency
+
+**Matrix-Vector Operations**:
+Optimized sparse matrix-vector multiplication for risk calculations
+
+**Parallel Processing**:
+Parallelized Jacobian computation and risk aggregation
+
+## Risk Validation
+
+### Bump-and-Revalue Validation
+
+**Finite Difference Comparison**:
+$$\Delta_{FD} = \frac{PV(r + \epsilon) - PV(r - \epsilon)}{2\epsilon}$$
+
+Compared against analytical delta: $\Delta_{analytical}$
+
+**Convergence Testing**:
+Validation that finite difference converges to analytical result as $\epsilon \to 0$
+
+### Cross-Validation Methods
+
+**Alternative Model Comparison**:
+Comparison with risk calculations from alternative curve construction methods
+
+**Historical Backtesting**:
+Validation of risk predictions against actual P&L outcomes
+
+**Stress Test Validation**:
+Verification of risk behavior under extreme market conditions
+
+## Risk Reporting
+
+### Standard Risk Reports
+
+**Delta Ladder**:
+Risk sensitivities across standard tenor buckets
+- 1D, 1W, 1M, 3M, 6M, 1Y, 2Y, 5Y, 10Y, 30Y
+- Separate reporting for different curve types
+- Cross-currency exposure breakdown
+
+**Risk Summary**:
+- Total portfolio delta and gamma
+- Key risk concentrations
+- Largest individual position risks
+- Cross-asset risk correlations
+
+### Scenario Analysis Reports
+
+**Standard Scenarios**:
+- Parallel curve shifts (±25bp, ±100bp)
+- Steepening/flattening scenarios
+- Historical stress scenarios
+- Regulatory stress scenarios
+
+**Custom Scenarios**:
+- User-defined market scenarios
+- Crisis scenario replays
+- Forward-looking stress tests
+
+## Risk System Integration
+
+### Real-Time Risk Calculation
+
+**Incremental Updates**:
+Efficient recalculation when positions or market data change
+
+**Risk Limits Monitoring**:
+Real-time comparison against risk limits and thresholds
+
+**Alert Generation**:
+Automated alerts for limit breaches or unusual risk concentrations
+
+### Risk Data Distribution
+
+**Risk Database Integration**:
+Efficient storage and retrieval of risk data
+
+**Downstream System Feeds**:
+Standardized risk data feeds to consuming systems
+
+**Regulatory Reporting**:
+Formatted risk reports for regulatory submissions
+
+## Model Risk Considerations
+
+### Jacobian Accuracy
+
+**Numerical Precision**:
+Monitoring of numerical precision in Jacobian calculations
+
+**Model Sensitivity**:
+Analysis of risk sensitivity to model assumptions and parameters
+
+**Approximation Errors**:
+Quantification of errors from linearization assumptions
+
+### Risk Model Validation
+
+**Independent Validation**:
+Regular validation by independent risk management teams
+
+**Model Performance Monitoring**:
+Ongoing monitoring of risk model accuracy and stability
+
+**Limitation Documentation**:
+Clear documentation of model limitations and appropriate usage
+
+## Advanced Risk Applications
+
+### Dynamic Hedging
+
+**Hedge Ratio Calculation**:
+Optimal hedge ratios based on risk sensitivities
+
+**Hedge Effectiveness Monitoring**:
+Tracking of hedge performance over time
+
+**Rebalancing Triggers**:
+Automated triggers for hedge rebalancing
+
+### Portfolio Optimization
+
+**Risk-Adjusted Returns**:
+Portfolio optimization incorporating risk constraints
+
+**Risk Budgeting**:
+Allocation of risk budget across different strategies
+
+**Diversification Analysis**:
+Quantification of diversification benefits across risk factors

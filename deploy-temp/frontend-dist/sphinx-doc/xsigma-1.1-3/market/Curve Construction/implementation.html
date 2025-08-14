@@ -1,0 +1,1533 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="../../">
+  <head><meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="author" title="About these documents" href="../../about.html" /><link rel="index" title="Index" href="../../genindex.html" /><link rel="search" title="Search" href="../../search.html" /><link rel="next" title="1.2.2.2.6. Calibration" href="calibration.html" /><link rel="prev" title="1.2.2.2.4. Model Methodology" href="model_methodology.html" />
+
+    <link rel="shortcut icon" href="../../_static/xsigma_favicon.png"/><!-- Generated with Sphinx 7.2.6 and Furo 2023.09.10 -->
+        <title>1.2.2.2.5. Implementation / Numerical Schema Description - PRETORIAN Documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=a746c00c" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?v=135e06be" />
+    <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../../_static/togglebutton.css?v=13237357" />
+    <link rel="stylesheet" type="text/css" href="../../_static/custom.css?v=8c702e86" />
+    <link rel="stylesheet" type="text/css" href="../../_static/design-style.1e8bd061cd6da7fc9cf755528e8ffc24.min.css?v=0a3b3ea7" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo-extensions.css?v=36a5483c" />
+    <link rel="stylesheet" type="text/css" href="../../_static/custom.css?v=8c702e86" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f8f8f8;
+  --color-code-foreground: black;
+  --color-brand-primary: #0066cc;
+  --color-brand-content: #0066cc;
+  --color-admonition-background: #f8f9fa;
+  --color-sidebar-background: #f8f9fa;
+  --color-sidebar-background-border: #e9ecef;
+  --font-stack: system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif;
+  --font-stack--monospace: SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, Courier New, monospace;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  --color-brand-primary: #4da6ff;
+  --color-brand-content: #4da6ff;
+  --color-admonition-background: #1e1e1e;
+  --color-sidebar-background: #1e1e1e;
+  --color-sidebar-background-border: #404040;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  --color-brand-primary: #4da6ff;
+  --color-brand-content: #4da6ff;
+  --color-admonition-background: #1e1e1e;
+  --color-sidebar-background: #1e1e1e;
+  --color-sidebar-background-border: #404040;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-half" viewBox="0 0 24 24">
+    <title>Auto light/dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-shadow">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M13 12h5" />
+      <path d="M13 15h4" />
+      <path d="M13 18h1" />
+      <path d="M13 9h4" />
+      <path d="M13 6h1" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc">
+<label class="overlay sidebar-overlay" for="__navigation">
+  <div class="visually-hidden">Hide navigation sidebar</div>
+</label>
+<label class="overlay toc-overlay" for="__toc">
+  <div class="visually-hidden">Hide table of contents sidebar</div>
+</label>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <div class="visually-hidden">Toggle site navigation sidebar</div>
+        <i class="icon"><svg><use href="#svg-menu"></use></svg></i>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../../index.html"><div class="brand">PRETORIAN Documentation</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle">
+          <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+          <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <div class="visually-hidden">Toggle table of contents sidebar</div>
+        <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="../../index.html">
+  
+  <div class="sidebar-logo-container">
+    <img class="sidebar-logo" src="../../_static/Logo.ico" alt="Logo"/>
+  </div>
+  <div class="sidebar-logo-container">
+    <img class="sidebar-logo only-light" src="../../_static/../../Logo.ico" alt="Light Logo"/>
+    <img class="sidebar-logo only-dark" src="../../_static/../../Logo.ico" alt="Dark Logo"/>
+  </div>
+  
+  <span class="sidebar-brand-text">PRETORIAN Documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="../../search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../about.html">About</a></li>
+<li class="toctree-l1 current has-children"><a class="reference internal" href="../index.html">1. Market</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><div class="visually-hidden">Toggle navigation of 1. Market</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="current">
+<li class="toctree-l2 has-children"><a class="reference internal" href="../ASV/index.html">1.1. Analytical Sigma Volatility (ASV) Model</a><input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><div class="visually-hidden">Toggle navigation of 1.1. Analytical Sigma Volatility (ASV) Model</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/executive_summary.html">1.1.2.2.1. Executive Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/scope.html">1.1.2.2.2. Scope</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/product_and_portfolio.html">1.1.2.2.3. Product and Portfolio</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/model_methodology.html">1.1.2.2.4. Model Methodology</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/implementation.html">1.1.2.2.5. Implementation and Numerical Schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/calibration.html">1.1.2.2.6. Calibration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/risk_analysis.html">1.1.2.2.7. Risk Analysis</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/testing_and_validation.html">1.1.2.2.8. Testing and Validation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/general_limitations.html">1.1.2.2.9. General Limitations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/model_monitoring.html">1.1.2.2.10. Model Monitoring and KPIs</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/user_guide.html">1.1.2.2.11. User Guide</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/references.html">1.1.2.2.12. References</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/README.html">1.1.2.2.13. Analytical Sigma Volatility (ASV) Documentation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/executive_summary.html">1.1.2.2.1. Executive Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/scope.html">1.1.2.2.2. Scope</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/product_and_portfolio.html">1.1.2.2.3. Product and Portfolio</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/model_methodology.html">1.1.2.2.4. Model Methodology</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/implementation.html">1.1.2.2.5. Implementation and Numerical Schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/calibration.html">1.1.2.2.6. Calibration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/risk_analysis.html">1.1.2.2.7. Risk Analysis</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/testing_and_validation.html">1.1.2.2.8. Testing and Validation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/general_limitations.html">1.1.2.2.9. General Limitations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/model_monitoring.html">1.1.2.2.10. Model Monitoring and KPIs</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/user_guide.html">1.1.2.2.11. User Guide</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/references.html">1.1.2.2.12. References</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/README.html">1.1.2.2.13. Analytical Sigma Volatility (ASV) Documentation</a></li>
+</ul>
+</li>
+<li class="toctree-l2 current has-children"><a class="reference internal" href="index.html">1.2. Curve Construction and Risk Framework (NCF)</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" role="switch" type="checkbox"/><label for="toctree-checkbox-3"><div class="visually-hidden">Toggle navigation of 1.2. Curve Construction and Risk Framework (NCF)</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="executive_summary.html">1.2.2.2.1. Executive Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="scope.html">1.2.2.2.2. Scope</a></li>
+<li class="toctree-l3"><a class="reference internal" href="product_and_portfolio.html">1.2.2.2.3. Product and Portfolio</a></li>
+<li class="toctree-l3"><a class="reference internal" href="model_methodology.html">1.2.2.2.4. Model Methodology</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">1.2.2.2.5. Implementation / Numerical Schema Description</a></li>
+<li class="toctree-l3"><a class="reference internal" href="calibration.html">1.2.2.2.6. Calibration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="risk_analysis.html">1.2.2.2.7. Risk Analysis</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_and_validation.html">1.2.2.2.8. Testing and Validation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="general_limitations.html">1.2.2.2.9. General Limitations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="model_monitoring.html">1.2.2.2.10. Model Monitoring</a></li>
+<li class="toctree-l3"><a class="reference internal" href="development_feedback.html">1.2.2.2.11. Development Feedback</a></li>
+<li class="toctree-l3"><a class="reference internal" href="references.html">1.2.2.2.12. References</a></li>
+<li class="toctree-l3"><a class="reference internal" href="README.html">1.2.2.2.13. Curve Construction and Risk Framework Documentation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="executive_summary.html">1.2.2.2.1. Executive Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="scope.html">1.2.2.2.2. Scope</a></li>
+<li class="toctree-l3"><a class="reference internal" href="product_and_portfolio.html">1.2.2.2.3. Product and Portfolio</a></li>
+<li class="toctree-l3"><a class="reference internal" href="model_methodology.html">1.2.2.2.4. Model Methodology</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">1.2.2.2.5. Implementation / Numerical Schema Description</a></li>
+<li class="toctree-l3"><a class="reference internal" href="calibration.html">1.2.2.2.6. Calibration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="risk_analysis.html">1.2.2.2.7. Risk Analysis</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_and_validation.html">1.2.2.2.8. Testing and Validation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="general_limitations.html">1.2.2.2.9. General Limitations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="model_monitoring.html">1.2.2.2.10. Model Monitoring</a></li>
+<li class="toctree-l3"><a class="reference internal" href="development_feedback.html">1.2.2.2.11. Development Feedback</a></li>
+<li class="toctree-l3"><a class="reference internal" href="references.html">1.2.2.2.12. References</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../FX%20Analytic%20Volatility%20Surfaces/index.html">1.3. FX Analytic Volatility Surfaces</a><input class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" role="switch" type="checkbox"/><label for="toctree-checkbox-4"><div class="visually-hidden">Toggle navigation of 1.3. FX Analytic Volatility Surfaces</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../FX%20Analytic%20Volatility%20Surfaces/executive_summary.html">1.3.3.1. Executive Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../FX%20Analytic%20Volatility%20Surfaces/scope.html">1.3.3.2. Scope</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../FX%20Analytic%20Volatility%20Surfaces/product_payoff_portfolio.html">1.3.3.3. Product / Payoff / Portfolio</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../FX%20Analytic%20Volatility%20Surfaces/model_smile_models.html">1.3.3.4. Smile Models</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../FX%20Analytic%20Volatility%20Surfaces/model_atm_time_models.html">1.3.3.5. ATM Time Models</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../FX%20Analytic%20Volatility%20Surfaces/model_wing_time_models.html">1.3.3.6. Wing Time Models</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../FX%20Analytic%20Volatility%20Surfaces/implementation_numerical_schema.html">1.3.3.7. Implementation / Numerical Schema Description</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../FX%20Analytic%20Volatility%20Surfaces/calibration.html">1.3.3.8. Calibration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../FX%20Analytic%20Volatility%20Surfaces/risk_bumping_methodology.html">1.3.3.9. Risk Bumping Methodology</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../FX%20Analytic%20Volatility%20Surfaces/risk_inputs_limitations.html">1.3.3.10. Risk Inputs &amp; Limitations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../FX%20Analytic%20Volatility%20Surfaces/testing_plan_implementation.html">1.3.3.11. Testing Plan &amp; Implementation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../FX%20Analytic%20Volatility%20Surfaces/testing_stress_scenarios.html">1.3.3.12. Stress Testing &amp; Scenarios</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../FX%20Analytic%20Volatility%20Surfaces/testing_accuracy_stability.html">1.3.3.13. Accuracy &amp; Stability Testing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../FX%20Analytic%20Volatility%20Surfaces/general_limitations.html">1.3.3.14. General Limitations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../FX%20Analytic%20Volatility%20Surfaces/model_monitoring_kpis.html">1.3.3.15. Model Monitoring &amp; KPIs</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../FX%20Analytic%20Volatility%20Surfaces/development_feedback_summary.html">1.3.3.16. Development Feedback Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../FX%20Analytic%20Volatility%20Surfaces/references.html">1.3.3.17. References</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../Implied%20Volatility%20Filter/index.html">1.4. Implied Volatility Filter</a><input class="toctree-checkbox" id="toctree-checkbox-5" name="toctree-checkbox-5" role="switch" type="checkbox"/><label for="toctree-checkbox-5"><div class="visually-hidden">Toggle navigation of 1.4. Implied Volatility Filter</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../Implied%20Volatility%20Filter/executive_summary.html">1.4.1.5.1.1. Executive Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Implied%20Volatility%20Filter/scope.html">1.4.1.5.1.2. Scope</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Implied%20Volatility%20Filter/product_payoff_portfolio.html">1.4.1.5.1.3. Product / Payoff / Portfolio</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Implied%20Volatility%20Filter/model_methodology.html">1.4.1.5.1.4. Model / Methodology</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Implied%20Volatility%20Filter/implementation_numerical_schema.html">1.4.1.5.1.5. Implementation / Numerical Schema Description</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Implied%20Volatility%20Filter/calibration.html">1.4.1.5.1.6. Calibration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Implied%20Volatility%20Filter/risk_factors.html">1.4.1.5.1.7. Risk Analysis Framework</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Implied%20Volatility%20Filter/testing_and_validation.html">1.4.1.5.1.8. Tests &amp; Outcome Analyses performed on Payoff / Model / Portfolio</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Implied%20Volatility%20Filter/appendix.html">1.4.1.5.1.9. Appendix: Quality of bid/ask quotes</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../Ir/index.html">1.5. Linear Interest Rate Swaps</a><input class="toctree-checkbox" id="toctree-checkbox-6" name="toctree-checkbox-6" role="switch" type="checkbox"/><label for="toctree-checkbox-6"><div class="visually-hidden">Toggle navigation of 1.5. Linear Interest Rate Swaps</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../Ir/executive_summary.html">1.5.1.4.1.1. Executive Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Ir/scope.html">1.5.1.4.1.2. Scope</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Ir/product_payoff_portfolio.html">1.5.1.4.1.3. Product / Payoff / Portfolio</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Ir/model_methodology.html">1.5.1.4.1.4. Model / Methodology</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Ir/implementation_numerical_schema.html">1.5.1.4.1.5. Implementation / Numerical Schema Description</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Ir/calibration.html">1.5.1.4.1.6. Calibration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Ir/risk_factors.html">1.5.1.4.1.7. Risk Analysis Framework</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Ir/testing_and_validation.html">1.5.1.4.1.8. Tests &amp; Outcome Analyses performed on Payoff / Model / Portfolio</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Ir/model_monitoring_kpis.html">1.5.1.4.1.9. Model Monitoring – KPIs</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Ir/references.html">1.5.1.4.1.10. References</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Ir/applicable_policy_standards.html">1.5.1.4.1.11. Applicable Policy Standards</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../LSV/index.html">1.6. LSV Guides</a><input class="toctree-checkbox" id="toctree-checkbox-7" name="toctree-checkbox-7" role="switch" type="checkbox"/><label for="toctree-checkbox-7"><div class="visually-hidden">Toggle navigation of 1.6. LSV Guides</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../LSV/LSV.html">1.6.1. LSV</a><input class="toctree-checkbox" id="toctree-checkbox-8" name="toctree-checkbox-8" role="switch" type="checkbox"/><label for="toctree-checkbox-8"><div class="visually-hidden">Toggle navigation of 1.6.1. LSV</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../LSV/FX%20LSV%20Markov%20Switching%20%20Monte%20Carlo/FX_LSV_Markov_Switching_Monte_Carlo.html">1.6.1.1. FX LSV Markov Switching : Monte Carlo</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../LSV/FX%20LSV%20Markov%20Switching%20PDE/FX_LSV_Markov_Switching_PDE.html">1.6.1.2. FX LSV Markov Switching : PDE</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../LSV/Local%20Volatility%20PDE%20and%20MC/Local_Volatility_PDE_and_MC.html">1.6.1.3. Local Volatility: PDE and MC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../LSV/LSV%20Markov%20Switching%20%20Monte%20Carlo/LSV_Markov_Switching_Monte_Carlo.html">1.6.1.4. LSV Markov Switching : Monte Carlo</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../LSV/LSV%20Markov%20Switching%20%20PDE/LSV_Markov_Switching_PDE.html">1.6.1.5. LSV Markov Switching : PDE</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../SABR/index.html">1.7. Interest Rate Volatility Model GSABR</a><input class="toctree-checkbox" id="toctree-checkbox-9" name="toctree-checkbox-9" role="switch" type="checkbox"/><label for="toctree-checkbox-9"><div class="visually-hidden">Toggle navigation of 1.7. Interest Rate Volatility Model GSABR</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/executive_summary.html">1.7.1.4.1.1. Executive Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/scope.html">1.7.1.4.1.2. Scope and Use</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/product_and_portfolio.html">1.7.1.4.1.3. Product and Portfolio</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/model_methodology.html">1.7.1.4.1.4. Model Methodology</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/implementation.html">1.7.1.4.1.5. Implementation / Numerical Schema Description</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/calibration.html">1.7.1.4.1.6. Calibration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/risk_analysis.html">1.7.1.4.1.7. Risk Analysis</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/testing_and_validation.html">1.7.1.4.1.8. Testing and Validation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/general_limitations.html">1.7.1.4.1.9. General Limitations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/model_monitoring.html">1.7.1.4.1.10. Model Monitoring</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/market_data_integration.html">1.7.1.4.1.11. Market Data Integration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/performance_benchmarking.html">1.7.1.4.1.12. Performance Benchmarking</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/troubleshooting_guide.html">1.7.1.4.1.13. Troubleshooting Guide</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/development_feedback.html">1.7.1.4.1.14. Development Feedback</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/references.html">1.7.1.4.1.15. References</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/executive_summary.html">1.7.1.4.1.1. Executive Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/scope.html">1.7.1.4.1.2. Scope and Use</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/product_and_portfolio.html">1.7.1.4.1.3. Product and Portfolio</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/model_methodology.html">1.7.1.4.1.4. Model Methodology</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/implementation.html">1.7.1.4.1.5. Implementation / Numerical Schema Description</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/calibration.html">1.7.1.4.1.6. Calibration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/risk_analysis.html">1.7.1.4.1.7. Risk Analysis</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/testing_and_validation.html">1.7.1.4.1.8. Testing and Validation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/general_limitations.html">1.7.1.4.1.9. General Limitations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/model_monitoring.html">1.7.1.4.1.10. Model Monitoring</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/market_data_integration.html">1.7.1.4.1.11. Market Data Integration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/performance_benchmarking.html">1.7.1.4.1.12. Performance Benchmarking</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/troubleshooting_guide.html">1.7.1.4.1.13. Troubleshooting Guide</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/development_feedback.html">1.7.1.4.1.14. Development Feedback</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/references.html">1.7.1.4.1.15. References</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../getting_started/index.html">1. Getting Started</a><input class="toctree-checkbox" id="toctree-checkbox-10" name="toctree-checkbox-10" role="switch" type="checkbox"/><label for="toctree-checkbox-10"><div class="visually-hidden">Toggle navigation of 1. Getting Started</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../learning.html">Learning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../supported_data_formats.html">Supported Data Formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../supported_hardware.html">Supported Hardware</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../modules/index.html">Modules</a><input class="toctree-checkbox" id="toctree-checkbox-11" name="toctree-checkbox-11" role="switch" type="checkbox"/><label for="toctree-checkbox-11"><div class="visually-hidden">Toggle navigation of Modules</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../modules/xsigma-modules/Wrapping/PythonCore/README.html">Python Wrapper Core Classes</a></li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../build_instructions/index.html">Building</a><input class="toctree-checkbox" id="toctree-checkbox-12" name="toctree-checkbox-12" role="switch" type="checkbox"/><label for="toctree-checkbox-12"><div class="visually-hidden">Toggle navigation of Building</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../build_instructions/build_settings.html">Build Settings</a></li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../api/index.html">1. API</a><input class="toctree-checkbox" id="toctree-checkbox-13" name="toctree-checkbox-13" role="switch" type="checkbox"/><label for="toctree-checkbox-13"><div class="visually-hidden">Toggle navigation of 1. API</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../api/cpp.html">1.1. C++</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../api/python.html">1.2. Python</a><input class="toctree-checkbox" id="toctree-checkbox-14" name="toctree-checkbox-14" role="switch" type="checkbox"/><label for="toctree-checkbox-14"><div class="visually-hidden">Toggle navigation of 1.2. Python</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.html">1.2.1.1. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules</span></code></a><input class="toctree-checkbox" id="toctree-checkbox-15" name="toctree-checkbox-15" role="switch" type="checkbox"/><label for="toctree-checkbox-15"><div class="visually-hidden">Toggle navigation of 1.2.1.1. xsigmamodules</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l4 has-children"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.common.html">1.2.1.1.1.1. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.common</span></code></a><input class="toctree-checkbox" id="toctree-checkbox-16" name="toctree-checkbox-16" role="switch" type="checkbox"/><label for="toctree-checkbox-16"><div class="visually-hidden">Toggle navigation of 1.2.1.1.1.1. xsigmamodules.common</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.common.helper.html">1.2.1.1.1.1.1.1. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.common.helper</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.common.instrument.html">1.2.1.1.1.1.1.2. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.common.instrument</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l4 has-children"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.market.html">1.2.1.1.1.2. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.market</span></code></a><input class="toctree-checkbox" id="toctree-checkbox-17" name="toctree-checkbox-17" role="switch" type="checkbox"/><label for="toctree-checkbox-17"><div class="visually-hidden">Toggle navigation of 1.2.1.1.1.2. xsigmamodules.market</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.market.market_data.html">1.2.1.1.1.2.1.1. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.market.market_data</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.market.object_factory.html">1.2.1.1.1.2.1.2. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.market.object_factory</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l4 has-children"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.simulation.html">1.2.1.1.1.3. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.simulation</span></code></a><input class="toctree-checkbox" id="toctree-checkbox-18" name="toctree-checkbox-18" role="switch" type="checkbox"/><label for="toctree-checkbox-18"><div class="visually-hidden">Toggle navigation of 1.2.1.1.1.3. xsigmamodules.simulation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.simulation.simulation.html">1.2.1.1.1.3.1.1. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.simulation.simulation</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l4 has-children"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.test.html">1.2.1.1.1.4. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.test</span></code></a><input class="toctree-checkbox" id="toctree-checkbox-19" name="toctree-checkbox-19" role="switch" type="checkbox"/><label for="toctree-checkbox-19"><div class="visually-hidden">Toggle navigation of 1.2.1.1.1.4. xsigmamodules.test</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.test.BlackBox.html">1.2.1.1.1.4.1.1. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.test.BlackBox</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.test.Testing.html">1.2.1.1.1.4.1.2. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.test.Testing</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l4 has-children"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.util.html">1.2.1.1.1.5. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.util</span></code></a><input class="toctree-checkbox" id="toctree-checkbox-20" name="toctree-checkbox-20" role="switch" type="checkbox"/><label for="toctree-checkbox-20"><div class="visually-hidden">Toggle navigation of 1.2.1.1.1.5. xsigmamodules.util</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.util.misc.html">1.2.1.1.1.5.1.1. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.util.misc</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.util.numpy_support.html">1.2.1.1.1.5.1.2. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.util.numpy_support</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.util.object_converter.html">1.2.1.1.1.5.1.3. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.util.object_converter</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.util.xsigmaConstants.html">1.2.1.1.1.5.1.4. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.util.xsigmaConstants</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.util.xsigmaMethodParser.html">1.2.1.1.1.5.1.5. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.util.xsigmaMethodParser</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l4 has-children"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.xlwing.html">1.2.1.1.1.6. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.xlwing</span></code></a><input class="toctree-checkbox" id="toctree-checkbox-21" name="toctree-checkbox-21" role="switch" type="checkbox"/><label for="toctree-checkbox-21"><div class="visually-hidden">Toggle navigation of 1.2.1.1.1.6. xsigmamodules.xlwing</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.xlwing.hartman_watson_template.html">1.2.1.1.1.6.1.1. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.xlwing.hartman_watson_template</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.xlwing.sabr_template.html">1.2.1.1.1.6.1.2. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.xlwing.sabr_template</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l4"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.generate_pyi.html">1.2.1.1.2.1. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.generate_pyi</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../api/cmake/cmake-modules.html">1.3. CMake</a><input class="toctree-checkbox" id="toctree-checkbox-22" name="toctree-checkbox-22" role="switch" type="checkbox"/><label for="toctree-checkbox-22"><div class="visually-hidden">Toggle navigation of 1.3. CMake</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../api/cmake/ModuleSystem.html">1.3.1. Module System</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/cmake/xsigmaModule.html">1.3.2. xsigmaModule</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/cmake/xsigmaModuleTesting.html">1.3.3. xsigmaModuleTesting</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/cmake/xsigmaModuleWrapPython.html">1.3.4. xsigmaModuleWrapPython</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/cmake/xsigmaModuleWrapJava.html">1.3.5. xsigmaModuleWrapJava</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/cmake/xsigmaModuleJSON.html">1.3.6. xsigmaModuleJSON</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/cmake/xsigmaModuleGraphviz.html">1.3.7. xsigmaModuleGraphviz</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../advanced/index.html">Advanced Topics</a><input class="toctree-checkbox" id="toctree-checkbox-23" name="toctree-checkbox-23" role="switch" type="checkbox"/><label for="toctree-checkbox-23"><div class="visually-hidden">Toggle navigation of Advanced Topics</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../advanced/available_python_wheels.html">Additional Python Wheels</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../advanced/spdx_and_sbom.html">SPDX &amp; SBOM</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../advanced/build_python_wheels.html">Building Python Wheels</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../advanced/build_wasm_emscripten.html">Building using emscripten for WebAssembly</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../advanced/build_for_mobile.html">Cross-compiling for Mobile devices</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../advanced/build_documentation.html">Building documentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../advanced/marshalling_hints.html">Marshalling Hints</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../advanced/object_manager.html">Object manager</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../advanced/object_serialization.html">Auto serialization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../advanced/PythonWrappers.html">Python Wrappers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../advanced/runtime_settings.html">Runtime settings</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../advanced/WrappingTools.html">Wrapping Tools</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../advanced/migration_guides/index.html">Migration Guides</a><input class="toctree-checkbox" id="toctree-checkbox-24" name="toctree-checkbox-24" role="switch" type="checkbox"/><label for="toctree-checkbox-24"><div class="visually-hidden">Toggle navigation of Migration Guides</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../advanced/migration_guides/ModuleMigration.html">Module Migration from XSIGMA 8.2 to 9+</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../design_documents/index.html">Design Documents</a><input class="toctree-checkbox" id="toctree-checkbox-25" name="toctree-checkbox-25" role="switch" type="checkbox"/><label for="toctree-checkbox-25"><div class="visually-hidden">Toggle navigation of Design Documents</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../design_documents/XSIGMAFileFormats.html">XSIGMA File Formats</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../design_documents/smptools.html">Parallel Processing with XSIGMA’s SMP Framework</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../design_documents/data_assemply.html">Data Assembly</a></li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../developers_guide/index.html">Developer’s Guide</a><input class="toctree-checkbox" id="toctree-checkbox-26" name="toctree-checkbox-26" role="switch" type="checkbox"/><label for="toctree-checkbox-26"><div class="visually-hidden">Toggle navigation of Developer’s Guide</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../developers_guide/git/develop.html">Develop</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../developers_guide/testing.html">Regression Testing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../developers_guide/git/test.html">Adding Tests</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../developers_guide/git/dashboard.html">Dashboard Scripts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../developers_guide/git/thirdparty.html">Imported Third Party Projects</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../developers_guide/git/thirdparty-projects.html">Imported Third Party Projects</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../developers_guide/git/deprecation.html">Deprecation Process</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../developers_guide/release_process.html">Release Process</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../developers_guide/coding_conventions.html">Coding Conventions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../developers_guide/about_this_documentation.html">About this documentation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../resources.html">Resources</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../release_details/index.html">Release Details</a><input class="toctree-checkbox" id="toctree-checkbox-27" name="toctree-checkbox-27" role="switch" type="checkbox"/><label for="toctree-checkbox-27"><div class="visually-hidden">Toggle navigation of Release Details</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="simple">
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../getting_started/index.html">1. Getting Started</a><input class="toctree-checkbox" id="toctree-checkbox-28" name="toctree-checkbox-28" role="switch" type="checkbox"/><label for="toctree-checkbox-28"><div class="visually-hidden">Toggle navigation of 1. Getting Started</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="simple">
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Market Models</span></p>
+<ul class="current">
+<li class="toctree-l1 current has-children"><a class="reference internal" href="../index.html">1. Market Models Overview</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-29" name="toctree-checkbox-29" role="switch" type="checkbox"/><label for="toctree-checkbox-29"><div class="visually-hidden">Toggle navigation of 1. Market Models Overview</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="current">
+<li class="toctree-l2 has-children"><a class="reference internal" href="../ASV/index.html">1.1. Analytical Sigma Volatility (ASV) Model</a><input class="toctree-checkbox" id="toctree-checkbox-30" name="toctree-checkbox-30" role="switch" type="checkbox"/><label for="toctree-checkbox-30"><div class="visually-hidden">Toggle navigation of 1.1. Analytical Sigma Volatility (ASV) Model</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/executive_summary.html">1.1.2.2.1. Executive Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/scope.html">1.1.2.2.2. Scope</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/product_and_portfolio.html">1.1.2.2.3. Product and Portfolio</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/model_methodology.html">1.1.2.2.4. Model Methodology</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/implementation.html">1.1.2.2.5. Implementation and Numerical Schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/calibration.html">1.1.2.2.6. Calibration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/risk_analysis.html">1.1.2.2.7. Risk Analysis</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/testing_and_validation.html">1.1.2.2.8. Testing and Validation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/general_limitations.html">1.1.2.2.9. General Limitations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/model_monitoring.html">1.1.2.2.10. Model Monitoring and KPIs</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/user_guide.html">1.1.2.2.11. User Guide</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/references.html">1.1.2.2.12. References</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/README.html">1.1.2.2.13. Analytical Sigma Volatility (ASV) Documentation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/executive_summary.html">1.1.2.2.1. Executive Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/scope.html">1.1.2.2.2. Scope</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/product_and_portfolio.html">1.1.2.2.3. Product and Portfolio</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/model_methodology.html">1.1.2.2.4. Model Methodology</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/implementation.html">1.1.2.2.5. Implementation and Numerical Schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/calibration.html">1.1.2.2.6. Calibration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/risk_analysis.html">1.1.2.2.7. Risk Analysis</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/testing_and_validation.html">1.1.2.2.8. Testing and Validation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/general_limitations.html">1.1.2.2.9. General Limitations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/model_monitoring.html">1.1.2.2.10. Model Monitoring and KPIs</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/user_guide.html">1.1.2.2.11. User Guide</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/references.html">1.1.2.2.12. References</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/README.html">1.1.2.2.13. Analytical Sigma Volatility (ASV) Documentation</a></li>
+</ul>
+</li>
+<li class="toctree-l2 current has-children"><a class="reference internal" href="index.html">1.2. Curve Construction and Risk Framework (NCF)</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-31" name="toctree-checkbox-31" role="switch" type="checkbox"/><label for="toctree-checkbox-31"><div class="visually-hidden">Toggle navigation of 1.2. Curve Construction and Risk Framework (NCF)</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="executive_summary.html">1.2.2.2.1. Executive Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="scope.html">1.2.2.2.2. Scope</a></li>
+<li class="toctree-l3"><a class="reference internal" href="product_and_portfolio.html">1.2.2.2.3. Product and Portfolio</a></li>
+<li class="toctree-l3"><a class="reference internal" href="model_methodology.html">1.2.2.2.4. Model Methodology</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">1.2.2.2.5. Implementation / Numerical Schema Description</a></li>
+<li class="toctree-l3"><a class="reference internal" href="calibration.html">1.2.2.2.6. Calibration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="risk_analysis.html">1.2.2.2.7. Risk Analysis</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_and_validation.html">1.2.2.2.8. Testing and Validation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="general_limitations.html">1.2.2.2.9. General Limitations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="model_monitoring.html">1.2.2.2.10. Model Monitoring</a></li>
+<li class="toctree-l3"><a class="reference internal" href="development_feedback.html">1.2.2.2.11. Development Feedback</a></li>
+<li class="toctree-l3"><a class="reference internal" href="references.html">1.2.2.2.12. References</a></li>
+<li class="toctree-l3"><a class="reference internal" href="README.html">1.2.2.2.13. Curve Construction and Risk Framework Documentation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="executive_summary.html">1.2.2.2.1. Executive Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="scope.html">1.2.2.2.2. Scope</a></li>
+<li class="toctree-l3"><a class="reference internal" href="product_and_portfolio.html">1.2.2.2.3. Product and Portfolio</a></li>
+<li class="toctree-l3"><a class="reference internal" href="model_methodology.html">1.2.2.2.4. Model Methodology</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">1.2.2.2.5. Implementation / Numerical Schema Description</a></li>
+<li class="toctree-l3"><a class="reference internal" href="calibration.html">1.2.2.2.6. Calibration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="risk_analysis.html">1.2.2.2.7. Risk Analysis</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_and_validation.html">1.2.2.2.8. Testing and Validation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="general_limitations.html">1.2.2.2.9. General Limitations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="model_monitoring.html">1.2.2.2.10. Model Monitoring</a></li>
+<li class="toctree-l3"><a class="reference internal" href="development_feedback.html">1.2.2.2.11. Development Feedback</a></li>
+<li class="toctree-l3"><a class="reference internal" href="references.html">1.2.2.2.12. References</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../FX%20Analytic%20Volatility%20Surfaces/index.html">1.3. FX Analytic Volatility Surfaces</a><input class="toctree-checkbox" id="toctree-checkbox-32" name="toctree-checkbox-32" role="switch" type="checkbox"/><label for="toctree-checkbox-32"><div class="visually-hidden">Toggle navigation of 1.3. FX Analytic Volatility Surfaces</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../FX%20Analytic%20Volatility%20Surfaces/executive_summary.html">1.3.3.1. Executive Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../FX%20Analytic%20Volatility%20Surfaces/scope.html">1.3.3.2. Scope</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../FX%20Analytic%20Volatility%20Surfaces/product_payoff_portfolio.html">1.3.3.3. Product / Payoff / Portfolio</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../FX%20Analytic%20Volatility%20Surfaces/model_smile_models.html">1.3.3.4. Smile Models</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../FX%20Analytic%20Volatility%20Surfaces/model_atm_time_models.html">1.3.3.5. ATM Time Models</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../FX%20Analytic%20Volatility%20Surfaces/model_wing_time_models.html">1.3.3.6. Wing Time Models</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../FX%20Analytic%20Volatility%20Surfaces/implementation_numerical_schema.html">1.3.3.7. Implementation / Numerical Schema Description</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../FX%20Analytic%20Volatility%20Surfaces/calibration.html">1.3.3.8. Calibration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../FX%20Analytic%20Volatility%20Surfaces/risk_bumping_methodology.html">1.3.3.9. Risk Bumping Methodology</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../FX%20Analytic%20Volatility%20Surfaces/risk_inputs_limitations.html">1.3.3.10. Risk Inputs &amp; Limitations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../FX%20Analytic%20Volatility%20Surfaces/testing_plan_implementation.html">1.3.3.11. Testing Plan &amp; Implementation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../FX%20Analytic%20Volatility%20Surfaces/testing_stress_scenarios.html">1.3.3.12. Stress Testing &amp; Scenarios</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../FX%20Analytic%20Volatility%20Surfaces/testing_accuracy_stability.html">1.3.3.13. Accuracy &amp; Stability Testing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../FX%20Analytic%20Volatility%20Surfaces/general_limitations.html">1.3.3.14. General Limitations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../FX%20Analytic%20Volatility%20Surfaces/model_monitoring_kpis.html">1.3.3.15. Model Monitoring &amp; KPIs</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../FX%20Analytic%20Volatility%20Surfaces/development_feedback_summary.html">1.3.3.16. Development Feedback Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../FX%20Analytic%20Volatility%20Surfaces/references.html">1.3.3.17. References</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../Implied%20Volatility%20Filter/index.html">1.4. Implied Volatility Filter</a><input class="toctree-checkbox" id="toctree-checkbox-33" name="toctree-checkbox-33" role="switch" type="checkbox"/><label for="toctree-checkbox-33"><div class="visually-hidden">Toggle navigation of 1.4. Implied Volatility Filter</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../Implied%20Volatility%20Filter/executive_summary.html">1.4.1.5.1.1. Executive Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Implied%20Volatility%20Filter/scope.html">1.4.1.5.1.2. Scope</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Implied%20Volatility%20Filter/product_payoff_portfolio.html">1.4.1.5.1.3. Product / Payoff / Portfolio</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Implied%20Volatility%20Filter/model_methodology.html">1.4.1.5.1.4. Model / Methodology</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Implied%20Volatility%20Filter/implementation_numerical_schema.html">1.4.1.5.1.5. Implementation / Numerical Schema Description</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Implied%20Volatility%20Filter/calibration.html">1.4.1.5.1.6. Calibration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Implied%20Volatility%20Filter/risk_factors.html">1.4.1.5.1.7. Risk Analysis Framework</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Implied%20Volatility%20Filter/testing_and_validation.html">1.4.1.5.1.8. Tests &amp; Outcome Analyses performed on Payoff / Model / Portfolio</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Implied%20Volatility%20Filter/appendix.html">1.4.1.5.1.9. Appendix: Quality of bid/ask quotes</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../Ir/index.html">1.5. Linear Interest Rate Swaps</a><input class="toctree-checkbox" id="toctree-checkbox-34" name="toctree-checkbox-34" role="switch" type="checkbox"/><label for="toctree-checkbox-34"><div class="visually-hidden">Toggle navigation of 1.5. Linear Interest Rate Swaps</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../Ir/executive_summary.html">1.5.1.4.1.1. Executive Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Ir/scope.html">1.5.1.4.1.2. Scope</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Ir/product_payoff_portfolio.html">1.5.1.4.1.3. Product / Payoff / Portfolio</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Ir/model_methodology.html">1.5.1.4.1.4. Model / Methodology</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Ir/implementation_numerical_schema.html">1.5.1.4.1.5. Implementation / Numerical Schema Description</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Ir/calibration.html">1.5.1.4.1.6. Calibration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Ir/risk_factors.html">1.5.1.4.1.7. Risk Analysis Framework</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Ir/testing_and_validation.html">1.5.1.4.1.8. Tests &amp; Outcome Analyses performed on Payoff / Model / Portfolio</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Ir/model_monitoring_kpis.html">1.5.1.4.1.9. Model Monitoring – KPIs</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Ir/references.html">1.5.1.4.1.10. References</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Ir/applicable_policy_standards.html">1.5.1.4.1.11. Applicable Policy Standards</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../LSV/index.html">1.6. LSV Guides</a><input class="toctree-checkbox" id="toctree-checkbox-35" name="toctree-checkbox-35" role="switch" type="checkbox"/><label for="toctree-checkbox-35"><div class="visually-hidden">Toggle navigation of 1.6. LSV Guides</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../LSV/LSV.html">1.6.1. LSV</a><input class="toctree-checkbox" id="toctree-checkbox-36" name="toctree-checkbox-36" role="switch" type="checkbox"/><label for="toctree-checkbox-36"><div class="visually-hidden">Toggle navigation of 1.6.1. LSV</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../LSV/FX%20LSV%20Markov%20Switching%20%20Monte%20Carlo/FX_LSV_Markov_Switching_Monte_Carlo.html">1.6.1.1. FX LSV Markov Switching : Monte Carlo</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../LSV/FX%20LSV%20Markov%20Switching%20PDE/FX_LSV_Markov_Switching_PDE.html">1.6.1.2. FX LSV Markov Switching : PDE</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../LSV/Local%20Volatility%20PDE%20and%20MC/Local_Volatility_PDE_and_MC.html">1.6.1.3. Local Volatility: PDE and MC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../LSV/LSV%20Markov%20Switching%20%20Monte%20Carlo/LSV_Markov_Switching_Monte_Carlo.html">1.6.1.4. LSV Markov Switching : Monte Carlo</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../LSV/LSV%20Markov%20Switching%20%20PDE/LSV_Markov_Switching_PDE.html">1.6.1.5. LSV Markov Switching : PDE</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../SABR/index.html">1.7. Interest Rate Volatility Model GSABR</a><input class="toctree-checkbox" id="toctree-checkbox-37" name="toctree-checkbox-37" role="switch" type="checkbox"/><label for="toctree-checkbox-37"><div class="visually-hidden">Toggle navigation of 1.7. Interest Rate Volatility Model GSABR</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/executive_summary.html">1.7.1.4.1.1. Executive Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/scope.html">1.7.1.4.1.2. Scope and Use</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/product_and_portfolio.html">1.7.1.4.1.3. Product and Portfolio</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/model_methodology.html">1.7.1.4.1.4. Model Methodology</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/implementation.html">1.7.1.4.1.5. Implementation / Numerical Schema Description</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/calibration.html">1.7.1.4.1.6. Calibration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/risk_analysis.html">1.7.1.4.1.7. Risk Analysis</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/testing_and_validation.html">1.7.1.4.1.8. Testing and Validation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/general_limitations.html">1.7.1.4.1.9. General Limitations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/model_monitoring.html">1.7.1.4.1.10. Model Monitoring</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/market_data_integration.html">1.7.1.4.1.11. Market Data Integration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/performance_benchmarking.html">1.7.1.4.1.12. Performance Benchmarking</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/troubleshooting_guide.html">1.7.1.4.1.13. Troubleshooting Guide</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/development_feedback.html">1.7.1.4.1.14. Development Feedback</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/references.html">1.7.1.4.1.15. References</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/executive_summary.html">1.7.1.4.1.1. Executive Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/scope.html">1.7.1.4.1.2. Scope and Use</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/product_and_portfolio.html">1.7.1.4.1.3. Product and Portfolio</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/model_methodology.html">1.7.1.4.1.4. Model Methodology</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/implementation.html">1.7.1.4.1.5. Implementation / Numerical Schema Description</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/calibration.html">1.7.1.4.1.6. Calibration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/risk_analysis.html">1.7.1.4.1.7. Risk Analysis</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/testing_and_validation.html">1.7.1.4.1.8. Testing and Validation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/general_limitations.html">1.7.1.4.1.9. General Limitations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/model_monitoring.html">1.7.1.4.1.10. Model Monitoring</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/market_data_integration.html">1.7.1.4.1.11. Market Data Integration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/performance_benchmarking.html">1.7.1.4.1.12. Performance Benchmarking</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/troubleshooting_guide.html">1.7.1.4.1.13. Troubleshooting Guide</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/development_feedback.html">1.7.1.4.1.14. Development Feedback</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/references.html">1.7.1.4.1.15. References</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../SABR/index.html">1.7. SABR/GSABR Models</a><input class="toctree-checkbox" id="toctree-checkbox-38" name="toctree-checkbox-38" role="switch" type="checkbox"/><label for="toctree-checkbox-38"><div class="visually-hidden">Toggle navigation of 1.7. SABR/GSABR Models</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/executive_summary.html">1.7.1.4.1.1. Executive Summary</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/scope.html">1.7.1.4.1.2. Scope and Use</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/product_and_portfolio.html">1.7.1.4.1.3. Product and Portfolio</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/model_methodology.html">1.7.1.4.1.4. Model Methodology</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/implementation.html">1.7.1.4.1.5. Implementation / Numerical Schema Description</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/calibration.html">1.7.1.4.1.6. Calibration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/risk_analysis.html">1.7.1.4.1.7. Risk Analysis</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/testing_and_validation.html">1.7.1.4.1.8. Testing and Validation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/general_limitations.html">1.7.1.4.1.9. General Limitations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/model_monitoring.html">1.7.1.4.1.10. Model Monitoring</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/market_data_integration.html">1.7.1.4.1.11. Market Data Integration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/performance_benchmarking.html">1.7.1.4.1.12. Performance Benchmarking</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/troubleshooting_guide.html">1.7.1.4.1.13. Troubleshooting Guide</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/development_feedback.html">1.7.1.4.1.14. Development Feedback</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/references.html">1.7.1.4.1.15. References</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/executive_summary.html">1.7.1.4.1.1. Executive Summary</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/scope.html">1.7.1.4.1.2. Scope and Use</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/product_and_portfolio.html">1.7.1.4.1.3. Product and Portfolio</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/model_methodology.html">1.7.1.4.1.4. Model Methodology</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/implementation.html">1.7.1.4.1.5. Implementation / Numerical Schema Description</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/calibration.html">1.7.1.4.1.6. Calibration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/risk_analysis.html">1.7.1.4.1.7. Risk Analysis</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/testing_and_validation.html">1.7.1.4.1.8. Testing and Validation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/general_limitations.html">1.7.1.4.1.9. General Limitations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/model_monitoring.html">1.7.1.4.1.10. Model Monitoring</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/market_data_integration.html">1.7.1.4.1.11. Market Data Integration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/performance_benchmarking.html">1.7.1.4.1.12. Performance Benchmarking</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/troubleshooting_guide.html">1.7.1.4.1.13. Troubleshooting Guide</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/development_feedback.html">1.7.1.4.1.14. Development Feedback</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/references.html">1.7.1.4.1.15. References</a></li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../ASV/index.html">1.1. Analytical Sigma Volatility</a><input class="toctree-checkbox" id="toctree-checkbox-39" name="toctree-checkbox-39" role="switch" type="checkbox"/><label for="toctree-checkbox-39"><div class="visually-hidden">Toggle navigation of 1.1. Analytical Sigma Volatility</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/executive_summary.html">1.1.2.2.1. Executive Summary</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/scope.html">1.1.2.2.2. Scope</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/product_and_portfolio.html">1.1.2.2.3. Product and Portfolio</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/model_methodology.html">1.1.2.2.4. Model Methodology</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/implementation.html">1.1.2.2.5. Implementation and Numerical Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/calibration.html">1.1.2.2.6. Calibration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/risk_analysis.html">1.1.2.2.7. Risk Analysis</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/testing_and_validation.html">1.1.2.2.8. Testing and Validation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/general_limitations.html">1.1.2.2.9. General Limitations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/model_monitoring.html">1.1.2.2.10. Model Monitoring and KPIs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/user_guide.html">1.1.2.2.11. User Guide</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/references.html">1.1.2.2.12. References</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/README.html">1.1.2.2.13. Analytical Sigma Volatility (ASV) Documentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/executive_summary.html">1.1.2.2.1. Executive Summary</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/scope.html">1.1.2.2.2. Scope</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/product_and_portfolio.html">1.1.2.2.3. Product and Portfolio</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/model_methodology.html">1.1.2.2.4. Model Methodology</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/implementation.html">1.1.2.2.5. Implementation and Numerical Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/calibration.html">1.1.2.2.6. Calibration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/risk_analysis.html">1.1.2.2.7. Risk Analysis</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/testing_and_validation.html">1.1.2.2.8. Testing and Validation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/general_limitations.html">1.1.2.2.9. General Limitations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/model_monitoring.html">1.1.2.2.10. Model Monitoring and KPIs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/user_guide.html">1.1.2.2.11. User Guide</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/references.html">1.1.2.2.12. References</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/README.html">1.1.2.2.13. Analytical Sigma Volatility (ASV) Documentation</a></li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../Cheyette/index.html">Cheyette Interest Rate Model</a><input class="toctree-checkbox" id="toctree-checkbox-40" name="toctree-checkbox-40" role="switch" type="checkbox"/><label for="toctree-checkbox-40"><div class="visually-hidden">Toggle navigation of Cheyette Interest Rate Model</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../Cheyette/executive_summary.html">1. Executive Summary</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Cheyette/scope.html">2. Scope</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Cheyette/products_and_payoffs.html">Products and Payoffs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Cheyette/model_methodology.html">3. Model Methodology</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Cheyette/implementation.html">4. Implementation / Numerical Schema Description</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Cheyette/calibration.html">5. Calibration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Cheyette/risk_analysis.html">6. Risk Analysis</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Cheyette/testing_and_validation.html">7. Testing and Validation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Cheyette/assumptions_and_limitations.html">1.2.1.9. Assumptions and Limitations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Cheyette/monitoring_and_kpis.html">8. Monitoring and KPIs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Cheyette/appendices.html">1.2.1.11. Appendices</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Cheyette/README.html">1.2.1.12. Cheyette Local Vol Model Documentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Cheyette/executive_summary.html">1. Executive Summary</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Cheyette/scope.html">2. Scope</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Cheyette/model_methodology.html">3. Model Methodology</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Cheyette/implementation.html">4. Implementation / Numerical Schema Description</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Cheyette/calibration.html">5. Calibration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Cheyette/risk_analysis.html">6. Risk Analysis</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Cheyette/testing_and_validation.html">7. Testing and Validation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Cheyette/monitoring_and_kpis.html">8. Monitoring and KPIs</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current has-children"><a class="reference internal" href="index.html">1.2. Curve Construction Framework</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-41" name="toctree-checkbox-41" role="switch" type="checkbox"/><label for="toctree-checkbox-41"><div class="visually-hidden">Toggle navigation of 1.2. Curve Construction Framework</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="executive_summary.html">1.2.2.2.1. Executive Summary</a></li>
+<li class="toctree-l2"><a class="reference internal" href="scope.html">1.2.2.2.2. Scope</a></li>
+<li class="toctree-l2"><a class="reference internal" href="product_and_portfolio.html">1.2.2.2.3. Product and Portfolio</a></li>
+<li class="toctree-l2"><a class="reference internal" href="model_methodology.html">1.2.2.2.4. Model Methodology</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">1.2.2.2.5. Implementation / Numerical Schema Description</a></li>
+<li class="toctree-l2"><a class="reference internal" href="calibration.html">1.2.2.2.6. Calibration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="risk_analysis.html">1.2.2.2.7. Risk Analysis</a></li>
+<li class="toctree-l2"><a class="reference internal" href="testing_and_validation.html">1.2.2.2.8. Testing and Validation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="general_limitations.html">1.2.2.2.9. General Limitations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="model_monitoring.html">1.2.2.2.10. Model Monitoring</a></li>
+<li class="toctree-l2"><a class="reference internal" href="development_feedback.html">1.2.2.2.11. Development Feedback</a></li>
+<li class="toctree-l2"><a class="reference internal" href="references.html">1.2.2.2.12. References</a></li>
+<li class="toctree-l2"><a class="reference internal" href="README.html">1.2.2.2.13. Curve Construction and Risk Framework Documentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="executive_summary.html">1.2.2.2.1. Executive Summary</a></li>
+<li class="toctree-l2"><a class="reference internal" href="scope.html">1.2.2.2.2. Scope</a></li>
+<li class="toctree-l2"><a class="reference internal" href="product_and_portfolio.html">1.2.2.2.3. Product and Portfolio</a></li>
+<li class="toctree-l2"><a class="reference internal" href="model_methodology.html">1.2.2.2.4. Model Methodology</a></li>
+<li class="toctree-l2 current current-page"><a class="current reference internal" href="#">1.2.2.2.5. Implementation / Numerical Schema Description</a></li>
+<li class="toctree-l2"><a class="reference internal" href="calibration.html">1.2.2.2.6. Calibration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="risk_analysis.html">1.2.2.2.7. Risk Analysis</a></li>
+<li class="toctree-l2"><a class="reference internal" href="testing_and_validation.html">1.2.2.2.8. Testing and Validation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="general_limitations.html">1.2.2.2.9. General Limitations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="model_monitoring.html">1.2.2.2.10. Model Monitoring</a></li>
+<li class="toctree-l2"><a class="reference internal" href="development_feedback.html">1.2.2.2.11. Development Feedback</a></li>
+<li class="toctree-l2"><a class="reference internal" href="references.html">1.2.2.2.12. References</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../api/index.html">1. API Documentation</a><input class="toctree-checkbox" id="toctree-checkbox-42" name="toctree-checkbox-42" role="switch" type="checkbox"/><label for="toctree-checkbox-42"><div class="visually-hidden">Toggle navigation of 1. API Documentation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../api/cpp.html">1.1. C++</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../api/python.html">1.2. Python</a><input class="toctree-checkbox" id="toctree-checkbox-43" name="toctree-checkbox-43" role="switch" type="checkbox"/><label for="toctree-checkbox-43"><div class="visually-hidden">Toggle navigation of 1.2. Python</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.html">1.2.1.1. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules</span></code></a><input class="toctree-checkbox" id="toctree-checkbox-44" name="toctree-checkbox-44" role="switch" type="checkbox"/><label for="toctree-checkbox-44"><div class="visually-hidden">Toggle navigation of 1.2.1.1. xsigmamodules</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l4 has-children"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.common.html">1.2.1.1.1.1. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.common</span></code></a><input class="toctree-checkbox" id="toctree-checkbox-45" name="toctree-checkbox-45" role="switch" type="checkbox"/><label for="toctree-checkbox-45"><div class="visually-hidden">Toggle navigation of 1.2.1.1.1.1. xsigmamodules.common</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.common.helper.html">1.2.1.1.1.1.1.1. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.common.helper</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.common.instrument.html">1.2.1.1.1.1.1.2. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.common.instrument</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l4 has-children"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.market.html">1.2.1.1.1.2. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.market</span></code></a><input class="toctree-checkbox" id="toctree-checkbox-46" name="toctree-checkbox-46" role="switch" type="checkbox"/><label for="toctree-checkbox-46"><div class="visually-hidden">Toggle navigation of 1.2.1.1.1.2. xsigmamodules.market</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.market.market_data.html">1.2.1.1.1.2.1.1. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.market.market_data</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.market.object_factory.html">1.2.1.1.1.2.1.2. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.market.object_factory</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l4 has-children"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.simulation.html">1.2.1.1.1.3. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.simulation</span></code></a><input class="toctree-checkbox" id="toctree-checkbox-47" name="toctree-checkbox-47" role="switch" type="checkbox"/><label for="toctree-checkbox-47"><div class="visually-hidden">Toggle navigation of 1.2.1.1.1.3. xsigmamodules.simulation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.simulation.simulation.html">1.2.1.1.1.3.1.1. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.simulation.simulation</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l4 has-children"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.test.html">1.2.1.1.1.4. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.test</span></code></a><input class="toctree-checkbox" id="toctree-checkbox-48" name="toctree-checkbox-48" role="switch" type="checkbox"/><label for="toctree-checkbox-48"><div class="visually-hidden">Toggle navigation of 1.2.1.1.1.4. xsigmamodules.test</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.test.BlackBox.html">1.2.1.1.1.4.1.1. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.test.BlackBox</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.test.Testing.html">1.2.1.1.1.4.1.2. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.test.Testing</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l4 has-children"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.util.html">1.2.1.1.1.5. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.util</span></code></a><input class="toctree-checkbox" id="toctree-checkbox-49" name="toctree-checkbox-49" role="switch" type="checkbox"/><label for="toctree-checkbox-49"><div class="visually-hidden">Toggle navigation of 1.2.1.1.1.5. xsigmamodules.util</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.util.misc.html">1.2.1.1.1.5.1.1. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.util.misc</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.util.numpy_support.html">1.2.1.1.1.5.1.2. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.util.numpy_support</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.util.object_converter.html">1.2.1.1.1.5.1.3. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.util.object_converter</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.util.xsigmaConstants.html">1.2.1.1.1.5.1.4. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.util.xsigmaConstants</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.util.xsigmaMethodParser.html">1.2.1.1.1.5.1.5. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.util.xsigmaMethodParser</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l4 has-children"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.xlwing.html">1.2.1.1.1.6. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.xlwing</span></code></a><input class="toctree-checkbox" id="toctree-checkbox-50" name="toctree-checkbox-50" role="switch" type="checkbox"/><label for="toctree-checkbox-50"><div class="visually-hidden">Toggle navigation of 1.2.1.1.1.6. xsigmamodules.xlwing</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.xlwing.hartman_watson_template.html">1.2.1.1.1.6.1.1. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.xlwing.hartman_watson_template</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.xlwing.sabr_template.html">1.2.1.1.1.6.1.2. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.xlwing.sabr_template</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l4"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.generate_pyi.html">1.2.1.1.2.1. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.generate_pyi</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../api/cmake/cmake-modules.html">1.3. CMake</a><input class="toctree-checkbox" id="toctree-checkbox-51" name="toctree-checkbox-51" role="switch" type="checkbox"/><label for="toctree-checkbox-51"><div class="visually-hidden">Toggle navigation of 1.3. CMake</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../api/cmake/ModuleSystem.html">1.3.1. Module System</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/cmake/xsigmaModule.html">1.3.2. xsigmaModule</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/cmake/xsigmaModuleTesting.html">1.3.3. xsigmaModuleTesting</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/cmake/xsigmaModuleWrapPython.html">1.3.4. xsigmaModuleWrapPython</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/cmake/xsigmaModuleWrapJava.html">1.3.5. xsigmaModuleWrapJava</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/cmake/xsigmaModuleJSON.html">1.3.6. xsigmaModuleJSON</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/cmake/xsigmaModuleGraphviz.html">1.3.7. xsigmaModuleGraphviz</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle">
+              <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+              <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <div class="visually-hidden">Toggle table of contents sidebar</div>
+            <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+          </label>
+        </div>
+        <article role="main">
+          <section class="tex2jax_ignore mathjax_ignore" id="implementation-numerical-schema-description">
+<h1><span class="section-number">1.2.2.2.5. </span>Implementation / Numerical Schema Description<a class="headerlink" href="#implementation-numerical-schema-description" title="Link to this heading">#</a></h1>
+<section id="overview">
+<h2><span class="section-number">1.2.2.2.5.1. </span>Overview<a class="headerlink" href="#overview" title="Link to this heading">#</a></h2>
+<p>The implementation of the New Curve Framework (NCF) from Our project focuses on computational efficiency, numerical stability, and production-grade reliability. The system is designed to handle real-time curve construction with thousands of instruments while maintaining high accuracy and performance.</p>
+</section>
+<section id="core-curve-construction-architecture">
+<h2><span class="section-number">1.2.2.2.5.2. </span>Core Curve Construction Architecture<a class="headerlink" href="#core-curve-construction-architecture" title="Link to this heading">#</a></h2>
+<p>The curve construction framework is built around several key classes that work together to provide efficient and accurate curve building capabilities.</p>
+<p><strong>Main Curve Calibration Class</strong>:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="k">namespace</span><span class="w"> </span><span class="nn">xsigma</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">class</span><span class="w"> </span><span class="nc">curve_calibration</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">public</span><span class="o">:</span>
+<span class="w">        </span><span class="c1">// Constructor for curve calibration</span>
+<span class="w">        </span><span class="n">ANALYTICS_API</span><span class="w"> </span><span class="n">curve_calibration</span><span class="p">(</span>
+<span class="w">            </span><span class="k">const</span><span class="w"> </span><span class="n">datetime</span><span class="o">&amp;</span><span class="w"> </span><span class="n">valuation_date</span><span class="p">,</span>
+<span class="w">            </span><span class="k">const</span><span class="w"> </span><span class="n">datetime</span><span class="o">&amp;</span><span class="w"> </span><span class="n">base_date</span><span class="p">,</span>
+<span class="w">            </span><span class="k">const</span><span class="w"> </span><span class="n">ptr_const</span><span class="o">&lt;</span><span class="n">curve_calibration_config</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">config</span><span class="p">,</span>
+<span class="w">            </span><span class="k">const</span><span class="w"> </span><span class="n">ptr_const</span><span class="o">&lt;</span><span class="n">curve_calibration_targets</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">targets</span><span class="p">,</span>
+<span class="w">            </span><span class="k">const</span><span class="w"> </span><span class="n">any_container</span><span class="o">&amp;</span><span class="w"> </span><span class="n">market</span><span class="p">,</span>
+<span class="w">            </span><span class="k">const</span><span class="w"> </span><span class="n">xsigma_set</span><span class="o">&lt;</span><span class="n">any_id</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">precalibrated_ids</span>
+<span class="w">        </span><span class="p">);</span>
+
+<span class="w">        </span><span class="n">ANALYTICS_API</span><span class="w"> </span><span class="o">~</span><span class="n">curve_calibration</span><span class="p">();</span>
+
+<span class="w">        </span><span class="c1">// Main calibration method implementing the optimization framework</span>
+<span class="w">        </span><span class="n">ANALYTICS_API</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="n">calibrate</span><span class="p">();</span>
+
+<span class="w">        </span><span class="c1">// Bootstrap curves using sequential method</span>
+<span class="w">        </span><span class="n">ANALYTICS_API</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="n">bootstrap_curves</span><span class="p">(</span><span class="n">any_container_precomputed</span><span class="o">&amp;</span><span class="w"> </span><span class="n">market_precomputed</span><span class="p">);</span>
+
+<span class="w">        </span><span class="c1">// Optimize curves using global solver</span>
+<span class="w">        </span><span class="n">ANALYTICS_API</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="n">optimize_curves</span><span class="p">(</span><span class="n">any_container_precomputed</span><span class="o">&amp;</span><span class="w"> </span><span class="n">market_precomputed</span><span class="p">);</span>
+
+<span class="w">        </span><span class="c1">// Bootstrap single curve at dependency index</span>
+<span class="w">        </span><span class="n">ANALYTICS_API</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="n">bootstrap_single_curve</span><span class="p">(</span>
+<span class="w">            </span><span class="n">any_container_precomputed</span><span class="o">&amp;</span><span class="w"> </span><span class="n">market_precomputed</span><span class="p">,</span>
+<span class="w">            </span><span class="kt">size_t</span><span class="w"> </span><span class="n">dependency_index</span><span class="p">);</span>
+
+<span class="w">        </span><span class="c1">// Optimize single curve at dependency index</span>
+<span class="w">        </span><span class="n">ANALYTICS_API</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="n">optimize_single_curve</span><span class="p">(</span>
+<span class="w">            </span><span class="n">any_container_precomputed</span><span class="o">&amp;</span><span class="w"> </span><span class="n">market_precomputed</span><span class="p">,</span>
+<span class="w">            </span><span class="n">xsigma_set</span><span class="o">&lt;</span><span class="n">any_id</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">precalibrated_ids</span><span class="p">,</span>
+<span class="w">            </span><span class="kt">size_t</span><span class="w"> </span><span class="n">dependency_index</span><span class="p">);</span>
+
+<span class="w">        </span><span class="c1">// Create and add curve to market container</span>
+<span class="w">        </span><span class="n">ANALYTICS_API</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="n">create_and_add_curve</span><span class="p">(</span>
+<span class="w">            </span><span class="k">const</span><span class="w"> </span><span class="n">any_id</span><span class="o">&amp;</span><span class="w"> </span><span class="n">id</span><span class="p">,</span>
+<span class="w">            </span><span class="k">const</span><span class="w"> </span><span class="n">curve_calibration_dates</span><span class="o">&amp;</span><span class="w"> </span><span class="n">node_dates</span><span class="p">,</span>
+<span class="w">            </span><span class="k">const</span><span class="w"> </span><span class="n">ptr_const</span><span class="o">&lt;</span><span class="n">discount_curve</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">base_curve</span><span class="p">,</span>
+<span class="w">            </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">rates</span><span class="p">);</span>
+
+<span class="w">    </span><span class="k">private</span><span class="o">:</span>
+<span class="w">        </span><span class="n">datetime</span><span class="w"> </span><span class="n">valuation_date_</span><span class="p">;</span>
+<span class="w">        </span><span class="n">datetime</span><span class="w"> </span><span class="n">base_date_</span><span class="p">;</span>
+<span class="w">        </span><span class="n">ptr_const</span><span class="o">&lt;</span><span class="n">curve_calibration_config</span><span class="o">&gt;</span><span class="w"> </span><span class="n">config_</span><span class="p">;</span>
+<span class="w">        </span><span class="n">ptr_const</span><span class="o">&lt;</span><span class="n">curve_calibration_targets</span><span class="o">&gt;</span><span class="w"> </span><span class="n">targets_</span><span class="p">;</span>
+<span class="w">        </span><span class="n">any_container</span><span class="w"> </span><span class="n">market_</span><span class="p">;</span>
+<span class="w">        </span><span class="n">xsigma_set</span><span class="o">&lt;</span><span class="n">any_id</span><span class="o">&gt;</span><span class="w"> </span><span class="n">precalibrated_ids_</span><span class="p">;</span>
+
+<span class="w">        </span><span class="c1">// Internal calibration infrastructure</span>
+<span class="w">        </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">xsigma_set</span><span class="o">&lt;</span><span class="n">any_id</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="n">stage_dependencies_</span><span class="p">;</span>
+<span class="w">        </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">size_t</span><span class="o">&gt;</span><span class="w"> </span><span class="n">num_of_targets_</span><span class="p">;</span>
+<span class="w">    </span><span class="p">};</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p><em>The main calibration class orchestrates the entire curve construction process. It supports both bootstrapping (sequential curve building) and global optimization approaches, depending on the configuration. The class manages dependencies between curves and ensures proper sequencing of the calibration process.</em></p>
+<p><strong>Discount Curve Hierarchy</strong>:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="k">namespace</span><span class="w"> </span><span class="nn">xsigma</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// Base discount curve class providing common interface</span>
+<span class="w">    </span><span class="k">class</span><span class="w"> </span><span class="nc">discount_curve</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">market_data</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">public</span><span class="o">:</span>
+<span class="w">        </span><span class="k">virtual</span><span class="w"> </span><span class="o">~</span><span class="n">discount_curve</span><span class="p">()</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">default</span><span class="p">;</span>
+
+<span class="w">        </span><span class="c1">// Core discount factor methods</span>
+<span class="w">        </span><span class="n">MARKET_API</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;</span><span class="w"> </span><span class="n">dfs</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">datetime</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">dates</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">        </span><span class="n">MARKET_API</span><span class="w"> </span><span class="kt">double</span><span class="w"> </span><span class="n">df</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">datetime</span><span class="o">&amp;</span><span class="w"> </span><span class="n">to</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">        </span><span class="k">virtual</span><span class="w"> </span><span class="kt">double</span><span class="w"> </span><span class="nf">log_df</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">datetime</span><span class="o">&amp;</span><span class="w"> </span><span class="n">start</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">datetime</span><span class="o">&amp;</span><span class="w"> </span><span class="n">end</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">        </span><span class="k">virtual</span><span class="w"> </span><span class="kt">double</span><span class="w"> </span><span class="nf">df</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">datetime</span><span class="o">&amp;</span><span class="w"> </span><span class="n">start</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">datetime</span><span class="o">&amp;</span><span class="w"> </span><span class="n">end</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+
+<span class="w">        </span><span class="c1">// Algorithmic differentiation support for optimization</span>
+<span class="w">        </span><span class="k">virtual</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">df_aad</span><span class="p">(</span>
+<span class="w">            </span><span class="k">const</span><span class="w"> </span><span class="kt">double</span><span class="w"> </span><span class="n">value_aad</span><span class="p">,</span>
+<span class="w">            </span><span class="k">const</span><span class="w"> </span><span class="n">datetime</span><span class="o">&amp;</span><span class="w"> </span><span class="n">start_date</span><span class="p">,</span>
+<span class="w">            </span><span class="k">const</span><span class="w"> </span><span class="n">datetime</span><span class="o">&amp;</span><span class="w"> </span><span class="n">end_date</span><span class="p">,</span>
+<span class="w">            </span><span class="kt">double</span><span class="o">*</span><span class="w"> </span><span class="n">state_parameters_aad</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+
+<span class="w">        </span><span class="c1">// Vectorized operations for performance</span>
+<span class="w">        </span><span class="n">MARKET_API</span><span class="w"> </span><span class="k">virtual</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="n">discounting</span><span class="p">(</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">output</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">datetime</span><span class="o">&amp;</span><span class="w"> </span><span class="n">to</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">        </span><span class="n">MARKET_API</span><span class="w"> </span><span class="k">virtual</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="n">log_df</span><span class="p">(</span>
+<span class="w">            </span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">output</span><span class="p">,</span>
+<span class="w">            </span><span class="k">const</span><span class="w"> </span><span class="n">datetime</span><span class="o">&amp;</span><span class="w"> </span><span class="n">from</span><span class="p">,</span>
+<span class="w">            </span><span class="k">const</span><span class="w"> </span><span class="n">datetime</span><span class="o">&amp;</span><span class="w"> </span><span class="n">to</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="p">};</span>
+
+<span class="w">    </span><span class="c1">// Interpolated discount curve implementation</span>
+<span class="w">    </span><span class="k">class</span><span class="w"> </span><span class="nc">discount_curve_interpolated</span><span class="w"> </span><span class="k">final</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">discount_curve</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">public</span><span class="o">:</span>
+<span class="w">        </span><span class="n">MARKET_API</span><span class="w"> </span><span class="n">discount_curve_interpolated</span><span class="p">(</span>
+<span class="w">            </span><span class="k">const</span><span class="w"> </span><span class="n">datetime</span><span class="o">&amp;</span><span class="w"> </span><span class="n">valuation_date</span><span class="p">,</span>
+<span class="w">            </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">datetime</span><span class="o">&gt;</span><span class="w"> </span><span class="n">dates</span><span class="p">,</span>
+<span class="w">            </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;</span><span class="w"> </span><span class="n">log_dfs</span><span class="p">,</span>
+<span class="w">            </span><span class="n">std</span><span class="o">::</span><span class="n">array</span><span class="o">&lt;</span><span class="n">datetime</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="o">&gt;</span><span class="w"> </span><span class="n">switch_points</span><span class="p">,</span>
+<span class="w">            </span><span class="n">std</span><span class="o">::</span><span class="n">array</span><span class="o">&lt;</span><span class="n">interpolation_enum</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="o">&gt;</span><span class="w"> </span><span class="n">interpolation_type</span><span class="p">);</span>
+
+<span class="w">        </span><span class="n">MARKET_API</span><span class="w"> </span><span class="o">~</span><span class="n">discount_curve_interpolated</span><span class="p">()</span><span class="w"> </span><span class="k">override</span><span class="p">;</span>
+
+<span class="w">        </span><span class="n">MARKET_API</span><span class="w"> </span><span class="kt">double</span><span class="w"> </span><span class="n">df</span><span class="p">(</span>
+<span class="w">            </span><span class="k">const</span><span class="w"> </span><span class="n">datetime</span><span class="o">&amp;</span><span class="w"> </span><span class="n">start_date</span><span class="p">,</span>
+<span class="w">            </span><span class="k">const</span><span class="w"> </span><span class="n">datetime</span><span class="o">&amp;</span><span class="w"> </span><span class="n">end_date</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="k">override</span><span class="p">;</span>
+
+<span class="w">        </span><span class="n">MARKET_API</span><span class="w"> </span><span class="kt">double</span><span class="w"> </span><span class="n">log_df</span><span class="p">(</span>
+<span class="w">            </span><span class="k">const</span><span class="w"> </span><span class="n">datetime</span><span class="o">&amp;</span><span class="w"> </span><span class="n">start_date</span><span class="p">,</span>
+<span class="w">            </span><span class="k">const</span><span class="w"> </span><span class="n">datetime</span><span class="o">&amp;</span><span class="w"> </span><span class="n">end_date</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="k">override</span><span class="p">;</span>
+
+<span class="w">        </span><span class="n">MARKET_API</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="n">df_aad</span><span class="p">(</span>
+<span class="w">            </span><span class="k">const</span><span class="w"> </span><span class="kt">double</span><span class="w"> </span><span class="n">value_aad</span><span class="p">,</span>
+<span class="w">            </span><span class="k">const</span><span class="w"> </span><span class="n">datetime</span><span class="o">&amp;</span><span class="w"> </span><span class="n">start_date</span><span class="p">,</span>
+<span class="w">            </span><span class="k">const</span><span class="w"> </span><span class="n">datetime</span><span class="o">&amp;</span><span class="w"> </span><span class="n">end_date</span><span class="p">,</span>
+<span class="w">            </span><span class="kt">double</span><span class="o">*</span><span class="w"> </span><span class="n">state_parameters_aad</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="k">override</span><span class="p">;</span>
+
+<span class="w">    </span><span class="k">private</span><span class="o">:</span>
+<span class="w">        </span><span class="c1">// Internal interpolation infrastructure</span>
+<span class="w">        </span><span class="n">ptr_const</span><span class="o">&lt;</span><span class="n">interpolator</span><span class="o">&lt;</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="kt">double</span><span class="p">,</span><span class="w"> </span><span class="kt">double</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="n">interpolator_</span><span class="p">;</span>
+<span class="w">        </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">datetime</span><span class="o">&gt;</span><span class="w"> </span><span class="n">dates_</span><span class="p">;</span>
+<span class="w">        </span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;</span><span class="w"> </span><span class="n">log_dfs_</span><span class="p">;</span>
+<span class="w">    </span><span class="p">};</span>
+
+<span class="w">    </span><span class="c1">// Composite discount curve for multi-curve construction</span>
+<span class="w">    </span><span class="k">class</span><span class="w"> </span><span class="nc">discount_curve_composite</span><span class="w"> </span><span class="k">final</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">discount_curve</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">public</span><span class="o">:</span>
+<span class="w">        </span><span class="n">MARKET_API</span><span class="w"> </span><span class="n">discount_curve_composite</span><span class="p">(</span>
+<span class="w">            </span><span class="k">const</span><span class="w"> </span><span class="n">datetime</span><span class="o">&amp;</span><span class="w"> </span><span class="n">valuation_date</span><span class="p">,</span>
+<span class="w">            </span><span class="k">const</span><span class="w"> </span><span class="n">ptr_const</span><span class="o">&lt;</span><span class="n">discount_curve</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">base_curve</span><span class="p">,</span>
+<span class="w">            </span><span class="k">const</span><span class="w"> </span><span class="n">ptr_const</span><span class="o">&lt;</span><span class="n">discount_curve</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">spread_curve</span><span class="p">);</span>
+
+<span class="w">        </span><span class="n">MARKET_API</span><span class="w"> </span><span class="kt">double</span><span class="w"> </span><span class="n">df</span><span class="p">(</span>
+<span class="w">            </span><span class="k">const</span><span class="w"> </span><span class="n">datetime</span><span class="o">&amp;</span><span class="w"> </span><span class="n">start_date</span><span class="p">,</span>
+<span class="w">            </span><span class="k">const</span><span class="w"> </span><span class="n">datetime</span><span class="o">&amp;</span><span class="w"> </span><span class="n">end_date</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="k">override</span><span class="p">;</span>
+
+<span class="w">        </span><span class="n">MARKET_API</span><span class="w"> </span><span class="kt">double</span><span class="w"> </span><span class="n">log_df</span><span class="p">(</span>
+<span class="w">            </span><span class="k">const</span><span class="w"> </span><span class="n">datetime</span><span class="o">&amp;</span><span class="w"> </span><span class="n">start_date</span><span class="p">,</span>
+<span class="w">            </span><span class="k">const</span><span class="w"> </span><span class="n">datetime</span><span class="o">&amp;</span><span class="w"> </span><span class="n">end_date</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="k">override</span><span class="p">;</span>
+
+<span class="w">    </span><span class="k">private</span><span class="o">:</span>
+<span class="w">        </span><span class="n">ptr_const</span><span class="o">&lt;</span><span class="n">discount_curve</span><span class="o">&gt;</span><span class="w"> </span><span class="n">base_curve_</span><span class="p">;</span>
+<span class="w">        </span><span class="n">ptr_const</span><span class="o">&lt;</span><span class="n">discount_curve</span><span class="o">&gt;</span><span class="w"> </span><span class="n">spread_curve_</span><span class="p">;</span>
+<span class="w">    </span><span class="p">};</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p><em>The discount curve hierarchy provides a flexible foundation for different curve types. The interpolated curve handles the mathematical interpolation, while the composite curve enables multi-curve construction by combining base and spread curves. All classes support AAD for exact derivative computation during optimization.</em></p>
+</section>
+<section id="algorithmic-differentiation-implementation">
+<h2><span class="section-number">1.2.2.2.5.3. </span>Algorithmic Differentiation Implementation<a class="headerlink" href="#algorithmic-differentiation-implementation" title="Link to this heading">#</a></h2>
+<section id="forward-mode-ad">
+<h3><span class="section-number">1.2.2.2.5.3.1. </span>Forward Mode AD<a class="headerlink" href="#forward-mode-ad" title="Link to this heading">#</a></h3>
+<p>The framework implements forward mode algorithmic differentiation (AD) for exact Jacobian computation. This approach provides several advantages over finite difference methods:</p>
+<p><strong>Accuracy</strong>: Machine precision derivatives without truncation errors
+<strong>Efficiency</strong>: Jacobian computation scales linearly with number of parameters
+<strong>Stability</strong>: No numerical issues from finite difference step size selection</p>
+</section>
+<section id="ad-implementation-details">
+<h3><span class="section-number">1.2.2.2.5.3.2. </span>AD Implementation Details<a class="headerlink" href="#ad-implementation-details" title="Link to this heading">#</a></h3>
+<p><strong>Dual Number Arithmetic</strong>:
+Each variable is represented as a dual number <span class="math notranslate nohighlight">\((a, a')\)</span> where:</p>
+<ul class="simple">
+<li><p><span class="math notranslate nohighlight">\(a\)</span> is the function value</p></li>
+<li><p><span class="math notranslate nohighlight">\(a'\)</span> is the derivative value</p></li>
+</ul>
+<p><strong>Arithmetic Operations</strong>:</p>
+<ul class="simple">
+<li><p>Addition: <span class="math notranslate nohighlight">\((a, a') + (b, b') = (a + b, a' + b')\)</span></p></li>
+<li><p>Multiplication: <span class="math notranslate nohighlight">\((a, a') \times (b, b') = (ab, a'b + ab')\)</span></p></li>
+<li><p>Division: <span class="math notranslate nohighlight">\((a, a') / (b, b') = (a/b, (a'b - ab')/b^2)\)</span></p></li>
+<li><p>Exponential: <span class="math notranslate nohighlight">\(\exp(a, a') = (\exp(a), a'\exp(a))\)</span></p></li>
+<li><p>Logarithm: <span class="math notranslate nohighlight">\(\log(a, a') = (\log(a), a'/a)\)</span></p></li>
+</ul>
+</section>
+</section>
+<section id="interpolation-infrastructure-from-our-project">
+<h2><span class="section-number">1.2.2.2.5.4. </span>Interpolation Infrastructure from Our Project<a class="headerlink" href="#interpolation-infrastructure-from-our-project" title="Link to this heading">#</a></h2>
+<p><strong>Interpolation Factory and Types</strong>:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="k">namespace</span><span class="w"> </span><span class="nn">xsigma</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// Available interpolation methods</span>
+<span class="w">    </span><span class="k">enum</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">interpolation_enum</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">LINEAR</span><span class="w">                   </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span>
+<span class="w">        </span><span class="n">CUBIC_HERMITE</span><span class="w">            </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span>
+<span class="w">        </span><span class="n">CUBIC_SPLINE</span><span class="w">             </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span>
+<span class="w">        </span><span class="n">PIECEWISE_CONSTANT_LEFT</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span>
+<span class="w">        </span><span class="n">PIECEWISE_CONSTANT_RIGHT</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">4</span><span class="p">,</span>
+<span class="w">        </span><span class="n">LINEAR_EXPONENTIAL</span><span class="w">       </span><span class="o">=</span><span class="w"> </span><span class="mi">5</span><span class="p">,</span>
+<span class="w">        </span><span class="n">GEOMETRIC</span><span class="w">                </span><span class="o">=</span><span class="w"> </span><span class="mi">6</span><span class="p">,</span>
+<span class="w">        </span><span class="n">GEOMETRIC_AVERAGE</span><span class="w">        </span><span class="o">=</span><span class="w"> </span><span class="mi">7</span><span class="p">,</span>
+<span class="w">        </span><span class="n">MEAN_REVERTING</span><span class="w">          </span><span class="o">=</span><span class="w"> </span><span class="mi">7</span><span class="p">,</span><span class="w">  </span><span class="c1">// For volatility interpolation</span>
+<span class="w">        </span><span class="n">FIXED_STRIKE</span><span class="w">            </span><span class="o">=</span><span class="w"> </span><span class="mi">8</span><span class="w">   </span><span class="c1">// For volatility interpolation</span>
+<span class="w">    </span><span class="p">};</span>
+
+<span class="w">    </span><span class="c1">// Interpolator factory for creating interpolation objects</span>
+<span class="w">    </span><span class="k">template</span><span class="w"> </span><span class="o">&lt;</span><span class="k">typename</span><span class="w"> </span><span class="nc">Container</span><span class="p">,</span><span class="w"> </span><span class="k">typename</span><span class="w"> </span><span class="nc">T</span><span class="p">,</span><span class="w"> </span><span class="k">typename</span><span class="w"> </span><span class="nc">S</span><span class="o">&gt;</span>
+<span class="w">    </span><span class="k">class</span><span class="w"> </span><span class="nc">interpolator_factory</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">public</span><span class="o">:</span>
+<span class="w">        </span><span class="k">static</span><span class="w"> </span><span class="n">ptr_const</span><span class="o">&lt;</span><span class="n">interpolator</span><span class="o">&lt;</span><span class="n">Container</span><span class="p">,</span><span class="w"> </span><span class="n">T</span><span class="p">,</span><span class="w"> </span><span class="n">S</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="n">create_ptr</span><span class="p">(</span>
+<span class="w">            </span><span class="n">interpolation_enum</span><span class="w"> </span><span class="n">type</span><span class="p">,</span>
+<span class="w">            </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;&amp;&amp;</span><span class="w"> </span><span class="n">x</span><span class="p">,</span>
+<span class="w">            </span><span class="n">Container</span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">y</span><span class="p">,</span>
+<span class="w">            </span><span class="n">cubic_spline_condition_enum</span><span class="w"> </span><span class="n">left_condition</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">cubic_spline_condition_enum</span><span class="o">::</span><span class="n">SECOND_DERIVATIVE</span><span class="p">,</span>
+<span class="w">            </span><span class="n">S</span><span class="w"> </span><span class="n">left_value</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span>
+<span class="w">            </span><span class="n">cubic_spline_condition_enum</span><span class="w"> </span><span class="n">right_condition</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">cubic_spline_condition_enum</span><span class="o">::</span><span class="n">SECOND_DERIVATIVE</span><span class="p">,</span>
+<span class="w">            </span><span class="n">S</span><span class="w"> </span><span class="n">right_value</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+
+<span class="w">            </span><span class="k">switch</span><span class="w"> </span><span class="p">(</span><span class="n">type</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="k">case</span><span class="w"> </span><span class="no">interpolation_enum</span><span class="o">::</span><span class="no">LINEAR</span><span class="p">:</span>
+<span class="w">                </span><span class="k">return</span><span class="w"> </span><span class="n">util</span><span class="o">::</span><span class="n">make_ptr_const</span><span class="o">&lt;</span><span class="n">interpolator_linear</span><span class="o">&lt;</span><span class="n">Container</span><span class="p">,</span><span class="w"> </span><span class="n">T</span><span class="p">,</span><span class="w"> </span><span class="n">S</span><span class="o">&gt;&gt;</span><span class="p">(</span>
+<span class="w">                    </span><span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">x</span><span class="p">),</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">y</span><span class="p">));</span>
+
+<span class="w">            </span><span class="k">case</span><span class="w"> </span><span class="no">interpolation_enum</span><span class="o">::</span><span class="no">LINEAR_EXPONENTIAL</span><span class="p">:</span>
+<span class="w">                </span><span class="k">return</span><span class="w"> </span><span class="n">util</span><span class="o">::</span><span class="n">make_ptr_const</span><span class="o">&lt;</span><span class="n">interpolator_linear_exponential</span><span class="o">&lt;</span><span class="n">Container</span><span class="p">,</span><span class="w"> </span><span class="n">T</span><span class="p">,</span><span class="w"> </span><span class="n">S</span><span class="o">&gt;&gt;</span><span class="p">(</span>
+<span class="w">                    </span><span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">x</span><span class="p">),</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">y</span><span class="p">));</span>
+
+<span class="w">            </span><span class="k">case</span><span class="w"> </span><span class="no">interpolation_enum</span><span class="o">::</span><span class="no">CUBIC_SPLINE</span><span class="p">:</span>
+<span class="w">                </span><span class="k">return</span><span class="w"> </span><span class="n">util</span><span class="o">::</span><span class="n">make_ptr_const</span><span class="o">&lt;</span><span class="n">interpolator_cubic_spline</span><span class="o">&lt;</span><span class="n">Container</span><span class="p">,</span><span class="w"> </span><span class="n">T</span><span class="p">,</span><span class="w"> </span><span class="n">S</span><span class="o">&gt;&gt;</span><span class="p">(</span>
+<span class="w">                    </span><span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">x</span><span class="p">),</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">y</span><span class="p">),</span><span class="w"> </span><span class="n">left_condition</span><span class="p">,</span><span class="w"> </span><span class="n">left_value</span><span class="p">,</span>
+<span class="w">                    </span><span class="n">right_condition</span><span class="p">,</span><span class="w"> </span><span class="n">right_value</span><span class="p">);</span>
+
+<span class="w">            </span><span class="k">case</span><span class="w"> </span><span class="no">interpolation_enum</span><span class="o">::</span><span class="no">CUBIC_HERMITE</span><span class="p">:</span>
+<span class="w">                </span><span class="k">return</span><span class="w"> </span><span class="n">util</span><span class="o">::</span><span class="n">make_ptr_const</span><span class="o">&lt;</span><span class="n">interpolator_cubic_hermite</span><span class="o">&lt;</span><span class="n">Container</span><span class="p">,</span><span class="w"> </span><span class="n">T</span><span class="p">,</span><span class="w"> </span><span class="n">S</span><span class="o">&gt;&gt;</span><span class="p">(</span>
+<span class="w">                    </span><span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">x</span><span class="p">),</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">y</span><span class="p">));</span>
+
+<span class="w">            </span><span class="k">case</span><span class="w"> </span><span class="no">interpolation_enum</span><span class="o">::</span><span class="no">PIECEWISE_CONSTANT_LEFT</span><span class="p">:</span>
+<span class="w">                </span><span class="k">return</span><span class="w"> </span><span class="n">util</span><span class="o">::</span><span class="n">make_ptr_const</span><span class="o">&lt;</span><span class="n">interpolator_piecewise_constant_left</span><span class="o">&lt;</span><span class="n">Container</span><span class="p">,</span><span class="w"> </span><span class="n">T</span><span class="p">,</span><span class="w"> </span><span class="n">S</span><span class="o">&gt;&gt;</span><span class="p">(</span>
+<span class="w">                    </span><span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">x</span><span class="p">),</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">y</span><span class="p">));</span>
+
+<span class="w">            </span><span class="k">case</span><span class="w"> </span><span class="no">interpolation_enum</span><span class="o">::</span><span class="no">GEOMETRIC</span><span class="p">:</span>
+<span class="w">                </span><span class="k">return</span><span class="w"> </span><span class="n">util</span><span class="o">::</span><span class="n">make_ptr_const</span><span class="o">&lt;</span><span class="n">interpolator_geometric</span><span class="o">&lt;</span><span class="n">Container</span><span class="p">,</span><span class="w"> </span><span class="n">T</span><span class="p">,</span><span class="w"> </span><span class="n">S</span><span class="o">&gt;&gt;</span><span class="p">(</span>
+<span class="w">                    </span><span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">x</span><span class="p">),</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">y</span><span class="p">));</span>
+
+<span class="w">            </span><span class="k">default</span><span class="o">:</span>
+<span class="w">                </span><span class="n">XSIGMA_THROW</span><span class="p">(</span><span class="s">&quot;Unsupported interpolation type&quot;</span><span class="p">);</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">};</span>
+
+<span class="w">    </span><span class="c1">// Composite interpolator for multi-region curves</span>
+<span class="w">    </span><span class="k">template</span><span class="o">&lt;</span><span class="k">typename</span><span class="w"> </span><span class="nc">Container</span><span class="p">,</span><span class="w"> </span><span class="k">typename</span><span class="w"> </span><span class="nc">T</span><span class="p">,</span><span class="w"> </span><span class="k">typename</span><span class="w"> </span><span class="nc">S</span><span class="p">,</span><span class="w"> </span><span class="k">typename</span><span class="p">...</span><span class="w"> </span><span class="n">Interpolators</span><span class="o">&gt;</span>
+<span class="w">    </span><span class="k">class</span><span class="w"> </span><span class="nc">interpolator_composite</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">public</span><span class="o">:</span>
+<span class="w">        </span><span class="n">interpolator_composite</span><span class="p">(</span>
+<span class="w">            </span><span class="n">std</span><span class="o">::</span><span class="n">array</span><span class="o">&lt;</span><span class="n">T</span><span class="p">,</span><span class="w"> </span><span class="k">sizeof</span><span class="p">...(</span><span class="n">Interpolators</span><span class="p">)</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="o">&gt;</span><span class="w"> </span><span class="n">switch_points</span><span class="p">,</span>
+<span class="w">            </span><span class="n">Interpolators</span><span class="o">&amp;&amp;</span><span class="p">...</span><span class="w"> </span><span class="n">interpolators</span><span class="p">)</span>
+<span class="w">            </span><span class="o">:</span><span class="w"> </span><span class="n">switch_points_</span><span class="p">(</span><span class="n">switch_points</span><span class="p">),</span>
+<span class="w">              </span><span class="n">interpolators_</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">forward</span><span class="o">&lt;</span><span class="n">Interpolators</span><span class="o">&gt;</span><span class="p">(</span><span class="n">interpolators</span><span class="p">)...)</span><span class="w"> </span><span class="p">{}</span>
+
+<span class="w">        </span><span class="n">S</span><span class="w"> </span><span class="n">interpolate</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">T</span><span class="o">&amp;</span><span class="w"> </span><span class="n">x</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="c1">// Find appropriate interpolator based on switch points</span>
+<span class="w">            </span><span class="kt">size_t</span><span class="w"> </span><span class="n">region</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">find_region</span><span class="p">(</span><span class="n">x</span><span class="p">);</span>
+<span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="n">get_interpolator</span><span class="p">(</span><span class="n">region</span><span class="p">).</span><span class="n">interpolate</span><span class="p">(</span><span class="n">x</span><span class="p">);</span>
+<span class="w">        </span><span class="p">}</span>
+
+<span class="w">    </span><span class="k">private</span><span class="o">:</span>
+<span class="w">        </span><span class="n">std</span><span class="o">::</span><span class="n">array</span><span class="o">&lt;</span><span class="n">T</span><span class="p">,</span><span class="w"> </span><span class="k">sizeof</span><span class="p">...(</span><span class="n">Interpolators</span><span class="p">)</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="o">&gt;</span><span class="w"> </span><span class="n">switch_points_</span><span class="p">;</span>
+<span class="w">        </span><span class="n">std</span><span class="o">::</span><span class="n">tuple</span><span class="o">&lt;</span><span class="n">Interpolators</span><span class="p">...</span><span class="o">&gt;</span><span class="w"> </span><span class="n">interpolators_</span><span class="p">;</span>
+
+<span class="w">        </span><span class="kt">size_t</span><span class="w"> </span><span class="nf">find_region</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">T</span><span class="o">&amp;</span><span class="w"> </span><span class="n">x</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">size_t</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">switch_points_</span><span class="p">.</span><span class="n">size</span><span class="p">();</span><span class="w"> </span><span class="o">++</span><span class="n">i</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">x</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">switch_points_</span><span class="p">[</span><span class="n">i</span><span class="p">])</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">i</span><span class="p">;</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="n">switch_points_</span><span class="p">.</span><span class="n">size</span><span class="p">();</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">};</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<section id="jacobian-matrix-construction-from-our-project">
+<h3><span class="section-number">1.2.2.2.5.4.1. </span>Jacobian Matrix Construction from Our Project<a class="headerlink" href="#jacobian-matrix-construction-from-our-project" title="Link to this heading">#</a></h3>
+<p>The Jacobian matrix is built incrementally during the forward pass using algorithmic differentiation:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="k">namespace</span><span class="w"> </span><span class="nn">xsigma</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// Jacobian Matrix Construction with AAD</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">curve_calibration::calculate_jacobian_aad</span><span class="p">(</span>
+<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">parameters</span><span class="p">,</span>
+<span class="w">        </span><span class="n">matrix</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">jacobian</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="p">{</span>
+
+<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="kt">size_t</span><span class="w"> </span><span class="n">num_params</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">parameters</span><span class="p">.</span><span class="n">size</span><span class="p">();</span>
+<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="kt">size_t</span><span class="w"> </span><span class="n">num_targets</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">jacobian</span><span class="p">.</span><span class="n">rows</span><span class="p">();</span>
+
+<span class="w">        </span><span class="c1">// Initialize jacobian matrix</span>
+<span class="w">        </span><span class="n">jacobian</span><span class="p">.</span><span class="n">resize</span><span class="p">(</span><span class="n">num_targets</span><span class="p">,</span><span class="w"> </span><span class="n">num_params</span><span class="p">);</span>
+
+<span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">size_t</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">num_params</span><span class="p">;</span><span class="w"> </span><span class="o">++</span><span class="n">i</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="c1">// Set seed vector for parameter i</span>
+<span class="w">            </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;</span><span class="w"> </span><span class="n">seed</span><span class="p">(</span><span class="n">num_params</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">);</span>
+<span class="w">            </span><span class="n">seed</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">1.0</span><span class="p">;</span><span class="w">  </span><span class="c1">// ∂xi/∂xi = 1, ∂xj/∂xi = 0 for j ≠ i</span>
+
+<span class="w">            </span><span class="c1">// Evaluate objective function with AAD</span>
+<span class="w">            </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;</span><span class="w"> </span><span class="n">residuals</span><span class="p">(</span><span class="n">num_targets</span><span class="p">);</span>
+<span class="w">            </span><span class="n">objective_function_aad</span><span class="p">(</span><span class="n">parameters</span><span class="p">,</span><span class="w"> </span><span class="n">residuals</span><span class="p">,</span><span class="w"> </span><span class="n">seed</span><span class="p">.</span><span class="n">data</span><span class="p">());</span>
+
+<span class="w">            </span><span class="c1">// Store derivatives as column i of Jacobian matrix</span>
+<span class="w">            </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">size_t</span><span class="w"> </span><span class="n">j</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">j</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">num_targets</span><span class="p">;</span><span class="w"> </span><span class="o">++</span><span class="n">j</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="n">jacobian</span><span class="p">(</span><span class="n">j</span><span class="p">,</span><span class="w"> </span><span class="n">i</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">residuals</span><span class="p">[</span><span class="n">j</span><span class="p">];</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p><strong>Key Properties:</strong></p>
+<ul class="simple">
+<li><p><strong>Sparsity</strong>: Most elements are zero due to local instrument sensitivities</p></li>
+<li><p><strong>Efficiency</strong>: Forward mode AD scales linearly with number of parameters</p></li>
+<li><p><strong>Accuracy</strong>: Machine precision derivatives without truncation errors</p></li>
+</ul>
+</section>
+</section>
+<section id="optimization-algorithm-implementation">
+<h2><span class="section-number">1.2.2.2.5.5. </span>Optimization Algorithm Implementation<a class="headerlink" href="#optimization-algorithm-implementation" title="Link to this heading">#</a></h2>
+<section id="levenberg-marquardt-algorithm">
+<h3><span class="section-number">1.2.2.2.5.5.1. </span>Levenberg-Marquardt Algorithm<a class="headerlink" href="#levenberg-marquardt-algorithm" title="Link to this heading">#</a></h3>
+<p>The core optimization uses a robust implementation of the Levenberg-Marquardt algorithm:</p>
+<p><strong>Algorithm Steps</strong>:</p>
+<ol class="arabic simple">
+<li><p><strong>Initialize</strong>: Set initial curve values and damping parameter μ</p></li>
+<li><p><strong>Evaluate</strong>: Compute residuals and Jacobian matrix</p></li>
+<li><p><strong>Solve</strong>: Solve linear system <span class="math notranslate nohighlight">\((J^TJ + μI)h = -J^Tr\)</span></p></li>
+<li><p><strong>Update</strong>: Apply step with adaptive damping</p></li>
+<li><p><strong>Check</strong>: Test convergence criteria</p></li>
+<li><p><strong>Iterate</strong>: Repeat until convergence</p></li>
+</ol>
+</section>
+<section id="damping-parameter-adaptation">
+<h3><span class="section-number">1.2.2.2.5.5.2. </span>Damping Parameter Adaptation<a class="headerlink" href="#damping-parameter-adaptation" title="Link to this heading">#</a></h3>
+<p>The damping parameter μ is adapted based on step acceptance using the following strategy:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="c1">// Adaptive Damping Algorithm</span>
+<span class="kt">double</span><span class="w"> </span><span class="nf">evaluate_step_quality</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">Vector</span><span class="o">&amp;</span><span class="w"> </span><span class="n">current_residual</span><span class="p">,</span>
+<span class="w">                            </span><span class="k">const</span><span class="w"> </span><span class="n">Vector</span><span class="o">&amp;</span><span class="w"> </span><span class="n">new_residual</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kt">double</span><span class="w"> </span><span class="n">current_cost</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.5</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">current_residual</span><span class="p">.</span><span class="n">squaredNorm</span><span class="p">();</span>
+<span class="w">    </span><span class="kt">double</span><span class="w"> </span><span class="n">new_cost</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.5</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">new_residual</span><span class="p">.</span><span class="n">squaredNorm</span><span class="p">();</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">(</span><span class="n">current_cost</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">new_cost</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">current_cost</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kt">void</span><span class="w"> </span><span class="nf">adapt_damping_parameter</span><span class="p">(</span><span class="kt">double</span><span class="w"> </span><span class="n">step_quality</span><span class="p">,</span><span class="w"> </span><span class="kt">double</span><span class="o">&amp;</span><span class="w"> </span><span class="n">mu</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">step_quality</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mf">0.75</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">mu</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">mu</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mf">3.0</span><span class="p">;</span><span class="w">  </span><span class="c1">// Excellent step - decrease damping significantly</span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">step_quality</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mf">0.25</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">mu</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">mu</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mf">2.0</span><span class="p">;</span><span class="w">  </span><span class="c1">// Good step - decrease damping moderately</span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">step_quality</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mf">0.0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">mu</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">mu</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mf">2.0</span><span class="p">;</span><span class="w">  </span><span class="c1">// Poor step - increase damping and retry</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="c1">// Maintain current damping for marginal steps (0.0 ≤ quality ≤ 0.25)</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p><strong>Adaptation Strategy:</strong></p>
+<ul class="simple">
+<li><p><strong>Excellent steps</strong> (&gt;75% improvement): Aggressive damping reduction</p></li>
+<li><p><strong>Good steps</strong> (25-75% improvement): Moderate damping reduction</p></li>
+<li><p><strong>Marginal steps</strong> (0-25% improvement): Maintain current damping</p></li>
+<li><p><strong>Poor steps</strong> (&lt;0% improvement): Increase damping and reject step</p></li>
+</ul>
+</section>
+<section id="linear-system-solution">
+<h3><span class="section-number">1.2.2.2.5.5.3. </span>Linear System Solution<a class="headerlink" href="#linear-system-solution" title="Link to this heading">#</a></h3>
+<p>The linear system <span class="math notranslate nohighlight">\((J^TJ + μI)h = -J^Tr\)</span> is solved using:</p>
+<p><strong>Cholesky Decomposition</strong>: For well-conditioned systems
+<strong>QR Decomposition</strong>: For rank-deficient or ill-conditioned systems
+<strong>Iterative Methods</strong>: For very large systems (GMRES, BiCGSTAB)</p>
+</section>
+</section>
+<section id="data-structures-and-memory-management">
+<h2><span class="section-number">1.2.2.2.5.6. </span>Data Structures and Memory Management<a class="headerlink" href="#data-structures-and-memory-management" title="Link to this heading">#</a></h2>
+<section id="curve-representation">
+<h3><span class="section-number">1.2.2.2.5.6.1. </span>Curve Representation<a class="headerlink" href="#curve-representation" title="Link to this heading">#</a></h3>
+<p><strong>Node Storage</strong>:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="k">struct</span><span class="w"> </span><span class="nc">CurveNode</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">Date</span><span class="w"> </span><span class="n">date</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">double</span><span class="w"> </span><span class="n">value</span><span class="p">;</span><span class="w">        </span><span class="c1">// discount factor or forward rate</span>
+<span class="w">    </span><span class="kt">double</span><span class="w"> </span><span class="n">derivative</span><span class="p">;</span><span class="w">   </span><span class="c1">// for AD computation</span>
+<span class="p">};</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">Curve</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">CurveNode</span><span class="o">&gt;</span><span class="w"> </span><span class="n">nodes</span><span class="p">;</span>
+<span class="w">    </span><span class="n">InterpolationMethod</span><span class="w"> </span><span class="n">interpolator</span><span class="p">;</span>
+<span class="w">    </span><span class="n">CurveType</span><span class="w"> </span><span class="n">type</span><span class="p">;</span>
+<span class="p">};</span>
+</pre></div>
+</div>
+<p><strong>Sparse Matrix Storage</strong>:
+The Jacobian matrix is stored in compressed sparse row (CSR) format for memory efficiency:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="k">struct</span><span class="w"> </span><span class="nc">SparseMatrix</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;</span><span class="w"> </span><span class="n">values</span><span class="p">;</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="w"> </span><span class="n">column_indices</span><span class="p">;</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="w"> </span><span class="n">row_pointers</span><span class="p">;</span>
+<span class="p">};</span>
+</pre></div>
+</div>
+</section>
+<section id="memory-pool-management">
+<h3><span class="section-number">1.2.2.2.5.6.2. </span>Memory Pool Management<a class="headerlink" href="#memory-pool-management" title="Link to this heading">#</a></h3>
+<p><strong>Object Pooling</strong>: Reuse of temporary objects to reduce allocation overhead
+<strong>Memory Alignment</strong>: Optimized memory layout for cache efficiency
+<strong>RAII Principles</strong>: Automatic resource management for exception safety</p>
+</section>
+</section>
+<section id="interpolation-implementation">
+<h2><span class="section-number">1.2.2.2.5.7. </span>Interpolation Implementation<a class="headerlink" href="#interpolation-implementation" title="Link to this heading">#</a></h2>
+<section id="primary-interpolation-methods">
+<h3><span class="section-number">1.2.2.2.5.7.1. </span>Primary Interpolation Methods<a class="headerlink" href="#primary-interpolation-methods" title="Link to this heading">#</a></h3>
+<p><strong>Log-Linear on Discount Factors</strong>:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="kt">double</span><span class="w"> </span><span class="nf">interpolate_log_linear</span><span class="p">(</span><span class="kt">double</span><span class="w"> </span><span class="n">t</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">CurveNode</span><span class="o">&amp;</span><span class="w"> </span><span class="n">left</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">CurveNode</span><span class="o">&amp;</span><span class="w"> </span><span class="n">right</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kt">double</span><span class="w"> </span><span class="n">alpha</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">t</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">left</span><span class="p">.</span><span class="n">date</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="p">(</span><span class="n">right</span><span class="p">.</span><span class="n">date</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">left</span><span class="p">.</span><span class="n">date</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">exp</span><span class="p">(</span><span class="n">log</span><span class="p">(</span><span class="n">left</span><span class="p">.</span><span class="n">value</span><span class="p">)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">alpha</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="p">(</span><span class="n">log</span><span class="p">(</span><span class="n">right</span><span class="p">.</span><span class="n">value</span><span class="p">)</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">log</span><span class="p">(</span><span class="n">left</span><span class="p">.</span><span class="n">value</span><span class="p">)));</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p><strong>Linear on Forward Rates</strong>:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="kt">double</span><span class="w"> </span><span class="nf">interpolate_linear</span><span class="p">(</span><span class="kt">double</span><span class="w"> </span><span class="n">t</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">CurveNode</span><span class="o">&amp;</span><span class="w"> </span><span class="n">left</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">CurveNode</span><span class="o">&amp;</span><span class="w"> </span><span class="n">right</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kt">double</span><span class="w"> </span><span class="n">alpha</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">t</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">left</span><span class="p">.</span><span class="n">date</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="p">(</span><span class="n">right</span><span class="p">.</span><span class="n">date</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">left</span><span class="p">.</span><span class="n">date</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">left</span><span class="p">.</span><span class="n">value</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">alpha</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="p">(</span><span class="n">right</span><span class="p">.</span><span class="n">value</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">left</span><span class="p">.</span><span class="n">value</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p><strong>Cubic Spline</strong>:
+Implementation uses natural cubic splines with second derivative boundary conditions.</p>
+</section>
+<section id="hybrid-interpolation">
+<h3><span class="section-number">1.2.2.2.5.7.2. </span>Hybrid Interpolation<a class="headerlink" href="#hybrid-interpolation" title="Link to this heading">#</a></h3>
+<p>The framework supports different interpolation methods for different curve regions:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">HybridInterpolator</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">pair</span><span class="o">&lt;</span><span class="n">Date</span><span class="p">,</span><span class="w"> </span><span class="n">InterpolationMethod</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="n">regions</span><span class="p">;</span>
+<span class="w">    </span>
+<span class="w">    </span><span class="kt">double</span><span class="w"> </span><span class="nf">interpolate</span><span class="p">(</span><span class="n">Date</span><span class="w"> </span><span class="n">t</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">CurveNode</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">nodes</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">auto</span><span class="w"> </span><span class="n">method</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">find_interpolation_method</span><span class="p">(</span><span class="n">t</span><span class="p">);</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">method</span><span class="o">-&gt;</span><span class="n">interpolate</span><span class="p">(</span><span class="n">t</span><span class="p">,</span><span class="w"> </span><span class="n">nodes</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">};</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="numerical-stability-enhancements">
+<h2><span class="section-number">1.2.2.2.5.8. </span>Numerical Stability Enhancements<a class="headerlink" href="#numerical-stability-enhancements" title="Link to this heading">#</a></h2>
+<section id="scaling-and-conditioning">
+<h3><span class="section-number">1.2.2.2.5.8.1. </span>Scaling and Conditioning<a class="headerlink" href="#scaling-and-conditioning" title="Link to this heading">#</a></h3>
+<p><strong>Instrument Scaling</strong>: All instruments are scaled to similar magnitudes to improve conditioning
+<strong>Parameter Scaling</strong>: Curve parameters are scaled based on typical market ranges
+<strong>Residual Scaling</strong>: Residuals are normalized by instrument notional or market value</p>
+</section>
+<section id="regularization-techniques">
+<h3><span class="section-number">1.2.2.2.5.8.2. </span>Regularization Techniques<a class="headerlink" href="#regularization-techniques" title="Link to this heading">#</a></h3>
+<p><strong>Tikhonov Regularization</strong>: Added to Jacobian matrix for stability
+$<span class="math notranslate nohighlight">\(J^TJ + (\mu + \lambda)I\)</span>$</p>
+<p><strong>Smoothing Penalties</strong>: Incorporated into objective function to prevent overfitting
+<strong>Parameter Bounds</strong>: Soft constraints to keep parameters in reasonable ranges</p>
+</section>
+<section id="convergence-monitoring">
+<h3><span class="section-number">1.2.2.2.5.8.3. </span>Convergence Monitoring<a class="headerlink" href="#convergence-monitoring" title="Link to this heading">#</a></h3>
+<p><strong>Objective Function Tracking</strong>: Monitor for oscillations or stagnation
+<strong>Parameter Change Monitoring</strong>: Detect when parameters stop changing significantly
+<strong>Gradient Norm Tracking</strong>: Ensure gradient approaches zero</p>
+</section>
+</section>
+<section id="performance-optimizations">
+<h2><span class="section-number">1.2.2.2.5.9. </span>Performance Optimizations<a class="headerlink" href="#performance-optimizations" title="Link to this heading">#</a></h2>
+<section id="computational-efficiency">
+<h3><span class="section-number">1.2.2.2.5.9.1. </span>Computational Efficiency<a class="headerlink" href="#computational-efficiency" title="Link to this heading">#</a></h3>
+<p><strong>Vectorization</strong>: Use of SIMD instructions for parallel computation
+<strong>Cache Optimization</strong>: Data layout optimized for cache locality
+<strong>Lazy Evaluation</strong>: Defer expensive computations until needed</p>
+</section>
+<section id="parallel-processing">
+<h3><span class="section-number">1.2.2.2.5.9.2. </span>Parallel Processing<a class="headerlink" href="#parallel-processing" title="Link to this heading">#</a></h3>
+<p><strong>Multi-threading</strong>: Parallel evaluation of instrument prices
+<strong>NUMA Awareness</strong>: Memory allocation optimized for NUMA architectures
+<strong>Load Balancing</strong>: Dynamic work distribution across threads</p>
+</section>
+<section id="memory-optimizations">
+<h3><span class="section-number">1.2.2.2.5.9.3. </span>Memory Optimizations<a class="headerlink" href="#memory-optimizations" title="Link to this heading">#</a></h3>
+<p><strong>Memory Prefetching</strong>: Anticipate memory access patterns
+<strong>Data Compression</strong>: Compressed storage for large datasets
+<strong>Memory Mapping</strong>: Use of memory-mapped files for large static data</p>
+</section>
+</section>
+<section id="error-handling-and-robustness">
+<h2><span class="section-number">1.2.2.2.5.10. </span>Error Handling and Robustness<a class="headerlink" href="#error-handling-and-robustness" title="Link to this heading">#</a></h2>
+<section id="exception-safety">
+<h3><span class="section-number">1.2.2.2.5.10.1. </span>Exception Safety<a class="headerlink" href="#exception-safety" title="Link to this heading">#</a></h3>
+<p><strong>RAII Principles</strong>: Automatic cleanup of resources
+<strong>Exception Specifications</strong>: Clear documentation of exception behavior
+<strong>Rollback Mechanisms</strong>: Ability to restore previous state on failure</p>
+</section>
+<section id="numerical-error-detection">
+<h3><span class="section-number">1.2.2.2.5.10.2. </span>Numerical Error Detection<a class="headerlink" href="#numerical-error-detection" title="Link to this heading">#</a></h3>
+<p><strong>NaN/Inf Detection</strong>: Comprehensive checking for invalid floating-point values
+<strong>Overflow Protection</strong>: Guards against arithmetic overflow
+<strong>Underflow Handling</strong>: Graceful handling of very small numbers</p>
+</section>
+<section id="fallback-mechanisms">
+<h3><span class="section-number">1.2.2.2.5.10.3. </span>Fallback Mechanisms<a class="headerlink" href="#fallback-mechanisms" title="Link to this heading">#</a></h3>
+<p><strong>Alternative Algorithms</strong>: Fallback to different optimization methods
+<strong>Simplified Models</strong>: Reduced complexity models for difficult cases
+<strong>Manual Intervention</strong>: Hooks for manual override in extreme cases</p>
+</section>
+</section>
+<section id="quality-control-implementation">
+<h2><span class="section-number">1.2.2.2.5.11. </span>Quality Control Implementation<a class="headerlink" href="#quality-control-implementation" title="Link to this heading">#</a></h2>
+<section id="repricing-verification">
+<h3><span class="section-number">1.2.2.2.5.11.1. </span>Repricing Verification<a class="headerlink" href="#repricing-verification" title="Link to this heading">#</a></h3>
+<p><strong>Automatic Checking</strong>: All instruments automatically repriced after construction
+<strong>Tolerance Monitoring</strong>: Configurable tolerances for different instrument types
+<strong>Error Reporting</strong>: Detailed reporting of repricing failures</p>
+</section>
+<section id="interpolation-verification">
+<h3><span class="section-number">1.2.2.2.5.11.2. </span>Interpolation Verification<a class="headerlink" href="#interpolation-verification" title="Link to this heading">#</a></h3>
+<p><strong>Exact Reproduction</strong>: Verify interpolation exactly reproduces node values
+<strong>Smoothness Checking</strong>: Verify continuity and differentiability requirements
+<strong>Monotonicity Checks</strong>: Ensure appropriate monotonicity properties</p>
+</section>
+<section id="performance-monitoring">
+<h3><span class="section-number">1.2.2.2.5.11.3. </span>Performance Monitoring<a class="headerlink" href="#performance-monitoring" title="Link to this heading">#</a></h3>
+<p><strong>Timing Instrumentation</strong>: Detailed timing of all major operations
+<strong>Memory Usage Tracking</strong>: Monitor memory consumption patterns
+<strong>Convergence Statistics</strong>: Track optimization convergence behavior</p>
+</section>
+</section>
+<section id="production-deployment-considerations">
+<h2><span class="section-number">1.2.2.2.5.12. </span>Production Deployment Considerations<a class="headerlink" href="#production-deployment-considerations" title="Link to this heading">#</a></h2>
+<section id="scalability">
+<h3><span class="section-number">1.2.2.2.5.12.1. </span>Scalability<a class="headerlink" href="#scalability" title="Link to this heading">#</a></h3>
+<p><strong>Horizontal Scaling</strong>: Support for distributed curve construction
+<strong>Vertical Scaling</strong>: Efficient use of multi-core systems
+<strong>Load Testing</strong>: Comprehensive testing under production loads</p>
+</section>
+<section id="reliability">
+<h3><span class="section-number">1.2.2.2.5.12.2. </span>Reliability<a class="headerlink" href="#reliability" title="Link to this heading">#</a></h3>
+<p><strong>Fault Tolerance</strong>: Graceful handling of system failures
+<strong>Data Validation</strong>: Comprehensive input data validation
+<strong>Monitoring Integration</strong>: Integration with production monitoring systems</p>
+</section>
+<section id="maintainability">
+<h3><span class="section-number">1.2.2.2.5.12.3. </span>Maintainability<a class="headerlink" href="#maintainability" title="Link to this heading">#</a></h3>
+<p><strong>Modular Design</strong>: Clear separation of concerns
+<strong>Configuration Management</strong>: Externalized configuration parameters
+<strong>Logging and Diagnostics</strong>: Comprehensive logging for troubleshooting</p>
+</section>
+</section>
+<section id="integration-with-external-systems">
+<h2><span class="section-number">1.2.2.2.5.13. </span>Integration with External Systems<a class="headerlink" href="#integration-with-external-systems" title="Link to this heading">#</a></h2>
+<section id="market-data-feeds">
+<h3><span class="section-number">1.2.2.2.5.13.1. </span>Market Data Feeds<a class="headerlink" href="#market-data-feeds" title="Link to this heading">#</a></h3>
+<p><strong>Real-time Integration</strong>: Support for real-time market data updates
+<strong>Data Quality Checks</strong>: Validation of incoming market data
+<strong>Fallback Data Sources</strong>: Multiple data source support for reliability</p>
+</section>
+<section id="risk-systems">
+<h3><span class="section-number">1.2.2.2.5.13.2. </span>Risk Systems<a class="headerlink" href="#risk-systems" title="Link to this heading">#</a></h3>
+<p><strong>Jacobian Export</strong>: Efficient export of Jacobian matrices for risk systems
+<strong>Shocked Curve Generation</strong>: Support for risk scenario generation
+<strong>Performance Optimization</strong>: Optimized for high-frequency risk calculations</p>
+</section>
+<section id="pricing-systems">
+<h3><span class="section-number">1.2.2.2.5.13.3. </span>Pricing Systems<a class="headerlink" href="#pricing-systems" title="Link to this heading">#</a></h3>
+<p><strong>Curve Caching</strong>: Efficient caching mechanisms for repeated queries
+<strong>Query Optimization</strong>: Optimized curve query interfaces
+<strong>Batch Processing</strong>: Support for batch curve construction and queries</p>
+</section>
+</section>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          <a class="next-page" href="calibration.html">
+              <div class="page-info">
+                <div class="context">
+                  <span>Next</span>
+                </div>
+                <div class="title"><span class="section-number">1.2.2.2.6. </span>Calibration</div>
+              </div>
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+            </a>
+          <a class="prev-page" href="model_methodology.html">
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+              <div class="page-info">
+                <div class="context">
+                  <span>Previous</span>
+                </div>
+                
+                <div class="title"><span class="section-number">1.2.2.2.4. </span>Model Methodology</div>
+                
+              </div>
+            </a>
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2023-2025, PRETORIAN Development Team
+            </div>
+            Made with 
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            <div class="icons">
+              <a class="muted-link " href="https://github.com/pretorian-project" aria-label="GitHub">
+                <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 16 16">
+                    <path fill-rule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"></path>
+                </svg>
+            </a>
+              
+            </div>
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">1.2.2.2.5. Implementation / Numerical Schema Description</a><ul>
+<li><a class="reference internal" href="#overview">1.2.2.2.5.1. Overview</a></li>
+<li><a class="reference internal" href="#core-curve-construction-architecture">1.2.2.2.5.2. Core Curve Construction Architecture</a></li>
+<li><a class="reference internal" href="#algorithmic-differentiation-implementation">1.2.2.2.5.3. Algorithmic Differentiation Implementation</a><ul>
+<li><a class="reference internal" href="#forward-mode-ad">1.2.2.2.5.3.1. Forward Mode AD</a></li>
+<li><a class="reference internal" href="#ad-implementation-details">1.2.2.2.5.3.2. AD Implementation Details</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#interpolation-infrastructure-from-our-project">1.2.2.2.5.4. Interpolation Infrastructure from Our Project</a><ul>
+<li><a class="reference internal" href="#jacobian-matrix-construction-from-our-project">1.2.2.2.5.4.1. Jacobian Matrix Construction from Our Project</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#optimization-algorithm-implementation">1.2.2.2.5.5. Optimization Algorithm Implementation</a><ul>
+<li><a class="reference internal" href="#levenberg-marquardt-algorithm">1.2.2.2.5.5.1. Levenberg-Marquardt Algorithm</a></li>
+<li><a class="reference internal" href="#damping-parameter-adaptation">1.2.2.2.5.5.2. Damping Parameter Adaptation</a></li>
+<li><a class="reference internal" href="#linear-system-solution">1.2.2.2.5.5.3. Linear System Solution</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#data-structures-and-memory-management">1.2.2.2.5.6. Data Structures and Memory Management</a><ul>
+<li><a class="reference internal" href="#curve-representation">1.2.2.2.5.6.1. Curve Representation</a></li>
+<li><a class="reference internal" href="#memory-pool-management">1.2.2.2.5.6.2. Memory Pool Management</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#interpolation-implementation">1.2.2.2.5.7. Interpolation Implementation</a><ul>
+<li><a class="reference internal" href="#primary-interpolation-methods">1.2.2.2.5.7.1. Primary Interpolation Methods</a></li>
+<li><a class="reference internal" href="#hybrid-interpolation">1.2.2.2.5.7.2. Hybrid Interpolation</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#numerical-stability-enhancements">1.2.2.2.5.8. Numerical Stability Enhancements</a><ul>
+<li><a class="reference internal" href="#scaling-and-conditioning">1.2.2.2.5.8.1. Scaling and Conditioning</a></li>
+<li><a class="reference internal" href="#regularization-techniques">1.2.2.2.5.8.2. Regularization Techniques</a></li>
+<li><a class="reference internal" href="#convergence-monitoring">1.2.2.2.5.8.3. Convergence Monitoring</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#performance-optimizations">1.2.2.2.5.9. Performance Optimizations</a><ul>
+<li><a class="reference internal" href="#computational-efficiency">1.2.2.2.5.9.1. Computational Efficiency</a></li>
+<li><a class="reference internal" href="#parallel-processing">1.2.2.2.5.9.2. Parallel Processing</a></li>
+<li><a class="reference internal" href="#memory-optimizations">1.2.2.2.5.9.3. Memory Optimizations</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#error-handling-and-robustness">1.2.2.2.5.10. Error Handling and Robustness</a><ul>
+<li><a class="reference internal" href="#exception-safety">1.2.2.2.5.10.1. Exception Safety</a></li>
+<li><a class="reference internal" href="#numerical-error-detection">1.2.2.2.5.10.2. Numerical Error Detection</a></li>
+<li><a class="reference internal" href="#fallback-mechanisms">1.2.2.2.5.10.3. Fallback Mechanisms</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#quality-control-implementation">1.2.2.2.5.11. Quality Control Implementation</a><ul>
+<li><a class="reference internal" href="#repricing-verification">1.2.2.2.5.11.1. Repricing Verification</a></li>
+<li><a class="reference internal" href="#interpolation-verification">1.2.2.2.5.11.2. Interpolation Verification</a></li>
+<li><a class="reference internal" href="#performance-monitoring">1.2.2.2.5.11.3. Performance Monitoring</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#production-deployment-considerations">1.2.2.2.5.12. Production Deployment Considerations</a><ul>
+<li><a class="reference internal" href="#scalability">1.2.2.2.5.12.1. Scalability</a></li>
+<li><a class="reference internal" href="#reliability">1.2.2.2.5.12.2. Reliability</a></li>
+<li><a class="reference internal" href="#maintainability">1.2.2.2.5.12.3. Maintainability</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#integration-with-external-systems">1.2.2.2.5.13. Integration with External Systems</a><ul>
+<li><a class="reference internal" href="#market-data-feeds">1.2.2.2.5.13.1. Market Data Feeds</a></li>
+<li><a class="reference internal" href="#risk-systems">1.2.2.2.5.13.2. Risk Systems</a></li>
+<li><a class="reference internal" href="#pricing-systems">1.2.2.2.5.13.3. Pricing Systems</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div><script src="../../_static/documentation_options.js?v=454d727b"></script>
+    <script src="../../_static/doctools.js?v=888ff710"></script>
+    <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/scripts/furo.js?v=32e29ea5"></script>
+    <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../../_static/copybutton.js?v=ab308175"></script>
+    <script src="../../_static/custom.js?v=92eda4d4"></script>
+    <script>let toggleHintShow = 'Click to show';</script>
+    <script>let toggleHintHide = 'Click to hide';</script>
+    <script>let toggleOpenOnPrint = 'true';</script>
+    <script src="../../_static/togglebutton.js?v=4a39c7ea"></script>
+    <script src="../../_static/design-tabs.js?v=36754332"></script>
+    <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script>
+    <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script>
+    <script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "displayMath": [["$$", "$$"], ["\\[", "\\]"]], "processEscapes": true, "processEnvironments": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+    <script defer="defer" src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="../../_static/custom.js?v=92eda4d4"></script>
+    </body>
+</html>

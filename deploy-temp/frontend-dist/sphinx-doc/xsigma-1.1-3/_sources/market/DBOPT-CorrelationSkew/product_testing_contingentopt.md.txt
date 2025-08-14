@@ -1,0 +1,646 @@
+# Product Testing: HybContingentOptMultiAssetBasket
+
+## 📊 **Vue d'Ensemble du Produit HybContingentOptMultiAssetBasket**
+
+### **Description du Trade**
+Nous considérons un trade **HybContingentOptMultiAssetBasket** dans un template de sécurité DBA avec les caractéristiques suivantes :
+
+#### **Structure du Produit**
+- **Type** : Option contingente sur panier multi-actifs
+- **Sous-jacents** : Commodity/Equity/FX + Interest Rate
+- **Coupon Structure** : Contingent sur barrières multiples
+- **Option Type** : European avec conditions contingentes
+- **Barrier** : Barrières multiples sur sous-jacents
+- **Path-Dependent** : Non (fixation à l'expiry uniquement)
+- **Basket Function** : Combinaison linéaire pondérée
+
+### **Implémentation dans Our project**
+
+#### **🔧 Classe HybContingentOptMultiAssetBasket**
+```cpp
+// Implémentation du produit HybContingentOptMultiAssetBasket dans Our project
+class HybContingentOptMultiAssetBasket : public correlation_skew_product_base {
+private:
+    struct contingent_option_specification {
+        // Sous-jacents du panier
+        std::vector<std::string> underlying_ids;
+        std::vector<double> basket_weights;
+        
+        // Paramètres de l'option
+        double strike;
+        option_type type;  // CALL ou PUT
+        double notional;
+        datetime expiry_date;
+        
+        // Conditions contingentes (barrières)
+        std::vector<double> barrier_levels;
+        std::vector<barrier_type> barrier_types;  // UP_AND_IN, DOWN_AND_IN, etc.
+        
+        // Fonction de payoff
+        payoff_function_type payoff_function;
+    };
+    
+    contingent_option_specification spec_;
+    correlation_skew_copula copula_;
+    
+public:
+    HybContingentOptMultiAssetBasket(
+        const contingent_option_specification& spec,
+        const correlation_skew_copula& copula)
+        : spec_(spec), copula_(copula) {
+        validate_contingent_option_specification();
+    }
+    
+    double calculate_pv(const market_data& market) const override {
+        return calculate_contingent_option_pv_monte_carlo(market);
+    }
+    
+    sensitivity_results calculate_sensitivities(
+        const market_data& market) const override {
+        
+        sensitivity_results results;
+        
+        // Sensibilités pour chaque sous-jacent
+        for (size_t i = 0; i < spec_.underlying_ids.size(); ++i) {
+            std::string delta_name = "DELTA_" + spec_.underlying_ids[i];
+            std::string vega_name = "VEGA_" + spec_.underlying_ids[i];
+            
+            results.underlying_deltas[delta_name] = 
+                calculate_underlying_delta(market, i);
+            results.underlying_vegas[vega_name] = 
+                calculate_underlying_vega(market, i);
+        }
+        
+        // Sensibilités de corrélation
+        results.correlation_sensitivity = calculate_correlation_sensitivity(market);
+        
+        // Sensibilités de barrière
+        results.barrier_sensitivities = calculate_barrier_sensitivities(market);
+        
+        return results;
+    }
+    
+private:
+    double calculate_contingent_option_pv_monte_carlo(
+        const market_data& market) const {
+        
+        const int num_simulations = 200000; // Plus de simulations pour options contingentes
+        double payoff_sum = 0.0;
+        
+        // Générateur de vecteurs corrélés multi-dimensionnels
+        auto correlation_generator = copula_.create_multivariate_generator(
+            spec_.underlying_ids.size());
+        
+        for (int i = 0; i < num_simulations; ++i) {
+            // Génération de vecteur corrélé
+            std::vector<double> correlated_uniforms = 
+                correlation_generator.generate_correlated_vector();
+            
+            // Transformation en niveaux de sous-jacents
+            std::vector<double> underlying_levels;
+            for (size_t j = 0; j < spec_.underlying_ids.size(); ++j) {
+                double level = transform_to_underlying_level(
+                    correlated_uniforms[j], spec_.underlying_ids[j], market);
+                underlying_levels.push_back(level);
+            }
+            
+            // Vérification des conditions contingentes
+            bool contingent_conditions_met = check_contingent_conditions(underlying_levels);
+            
+            if (contingent_conditions_met) {
+                // Calcul du payoff de l'option sur panier
+                double basket_value = calculate_basket_value(underlying_levels);
+                double option_payoff = calculate_option_payoff(basket_value);
+                payoff_sum += option_payoff;
+            }
+            // Sinon payoff = 0 (option ne s'active pas)
+        }
+        
+        // Prix moyen actualisé
+        double average_payoff = payoff_sum / num_simulations;
+        double discount_factor = market.get_discount_factor(spec_.expiry_date);
+        
+        return spec_.notional * average_payoff * discount_factor;
+    }
+    
+    bool check_contingent_conditions(
+        const std::vector<double>& underlying_levels) const {
+        
+        // Vérification de chaque condition de barrière
+        for (size_t i = 0; i < spec_.barrier_levels.size(); ++i) {
+            double level = underlying_levels[i];
+            double barrier = spec_.barrier_levels[i];
+            barrier_type type = spec_.barrier_types[i];
+            
+            bool condition_met = false;
+            switch (type) {
+                case barrier_type::UP_AND_IN:
+                    condition_met = (level >= barrier);
+                    break;
+                case barrier_type::DOWN_AND_IN:
+                    condition_met = (level <= barrier);
+                    break;
+                case barrier_type::UP_AND_OUT:
+                    condition_met = (level < barrier);
+                    break;
+                case barrier_type::DOWN_AND_OUT:
+                    condition_met = (level > barrier);
+                    break;
+            }
+            
+            if (!condition_met) {
+                return false; // Toutes les conditions doivent être satisfaites
+            }
+        }
+        
+        return true;
+    }
+    
+    double calculate_basket_value(const std::vector<double>& underlying_levels) const {
+        double basket_value = 0.0;
+        
+        for (size_t i = 0; i < underlying_levels.size(); ++i) {
+            basket_value += spec_.basket_weights[i] * underlying_levels[i];
+        }
+        
+        return basket_value;
+    }
+    
+    double calculate_option_payoff(double basket_value) const {
+        switch (spec_.type) {
+            case option_type::CALL:
+                return std::max(basket_value - spec_.strike, 0.0);
+            case option_type::PUT:
+                return std::max(spec_.strike - basket_value, 0.0);
+            default:
+                XSIGMA_THROW("Unsupported option type");
+        }
+    }
+};
+```
+*Cette implémentation C++ dans Our project montre la structure complète d'une option contingente multi-actifs avec vérification des barrières et calcul de panier pondéré.*
+
+---
+
+## 🧪 **EOD Testing**
+
+### **Tests de Fin de Journée**
+
+#### **🔍 Convergence Testing**
+
+##### **Tests de Convergence Monte Carlo Avancés**
+```cpp
+// Tests de convergence pour options contingentes dans Our project
+class contingent_option_convergence_tester {
+public:
+    struct advanced_convergence_results {
+        std::vector<int> simulation_counts;
+        std::vector<double> pv_estimates;
+        std::vector<double> standard_errors;
+        std::vector<double> contingent_probabilities;
+        std::vector<double> conditional_payoffs;
+        bool pv_converged;
+        bool probability_converged;
+        bool conditional_payoff_converged;
+    };
+    
+    advanced_convergence_results test_advanced_convergence(
+        const HybContingentOptMultiAssetBasket& option,
+        const market_data& market) {
+        
+        advanced_convergence_results results;
+        
+        // Tailles d'échantillon plus importantes pour options contingentes
+        std::vector<int> sim_counts = {10000, 25000, 50000, 100000, 200000, 500000};
+        
+        for (int num_sims : sim_counts) {
+            // Configuration Monte Carlo
+            monte_carlo_config mc_config;
+            mc_config.num_simulations = num_sims;
+            mc_config.variance_reduction = true; // Techniques de réduction de variance
+            
+            // Multiples runs pour estimation robuste
+            std::vector<double> pv_samples;
+            std::vector<double> prob_samples;
+            std::vector<double> conditional_payoff_samples;
+            
+            const int num_runs = 15; // Plus de runs pour options contingentes
+            for (int run = 0; run < num_runs; ++run) {
+                mc_config.random_seed = 54321 + run;
+                
+                auto detailed_results = option.calculate_detailed_pv_with_config(
+                    market, mc_config);
+                
+                pv_samples.push_back(detailed_results.pv);
+                prob_samples.push_back(detailed_results.contingent_probability);
+                
+                if (detailed_results.contingent_probability > 0) {
+                    conditional_payoff_samples.push_back(
+                        detailed_results.conditional_expected_payoff);
+                }
+            }
+            
+            // Statistiques de convergence
+            results.simulation_counts.push_back(num_sims);
+            results.pv_estimates.push_back(calculate_mean(pv_samples));
+            results.standard_errors.push_back(calculate_standard_error(pv_samples));
+            results.contingent_probabilities.push_back(calculate_mean(prob_samples));
+            
+            if (!conditional_payoff_samples.empty()) {
+                results.conditional_payoffs.push_back(
+                    calculate_mean(conditional_payoff_samples));
+            } else {
+                results.conditional_payoffs.push_back(0.0);
+            }
+        }
+        
+        // Validation de la convergence pour chaque composant
+        results.pv_converged = validate_pv_convergence(results);
+        results.probability_converged = validate_probability_convergence(results);
+        results.conditional_payoff_converged = validate_conditional_payoff_convergence(results);
+        
+        return results;
+    }
+    
+private:
+    bool validate_probability_convergence(
+        const advanced_convergence_results& results) const {
+        
+        // Validation spécifique pour la probabilité contingente
+        if (results.contingent_probabilities.size() < 3) return false;
+        
+        // Vérification de la stabilité des dernières estimations
+        size_t n = results.contingent_probabilities.size();
+        double final_prob = results.contingent_probabilities[n-1];
+        double penultimate_prob = results.contingent_probabilities[n-2];
+        
+        double relative_change = std::abs(final_prob - penultimate_prob) / 
+                               std::max(final_prob, 1e-6);
+        
+        return relative_change < 0.02; // 2% de tolérance pour probabilités
+    }
+};
+```
+
+#### **🔍 Barrier Sensitivity Testing**
+
+##### **Tests de Sensibilités aux Barrières**
+```cpp
+// Tests spécialisés pour sensibilités aux barrières dans Our project
+class barrier_sensitivity_tester {
+public:
+    struct barrier_sensitivity_results {
+        std::map<std::string, double> barrier_deltas;
+        std::map<std::string, double> barrier_gammas;
+        std::map<std::string, double> barrier_vegas;
+        std::map<std::string, double> finite_difference_deltas;
+        std::map<std::string, double> validation_errors;
+        bool all_barriers_validated;
+    };
+    
+    barrier_sensitivity_results test_barrier_sensitivities(
+        const HybContingentOptMultiAssetBasket& option,
+        const market_data& market) {
+        
+        barrier_sensitivity_results results;
+        
+        auto spec = option.get_specification();
+        
+        // Tests pour chaque barrière
+        for (size_t i = 0; i < spec.barrier_levels.size(); ++i) {
+            std::string barrier_name = "BARRIER_" + std::to_string(i) + "_" + 
+                                     spec.underlying_ids[i];
+            
+            // Sensibilités analytiques
+            auto sensitivities = option.calculate_sensitivities(market);
+            results.barrier_deltas[barrier_name] = 
+                sensitivities.barrier_sensitivities[barrier_name];
+            
+            // Sensibilités par différences finies
+            double fd_delta = calculate_barrier_finite_difference_delta(
+                option, market, i);
+            results.finite_difference_deltas[barrier_name] = fd_delta;
+            
+            // Calcul de l'erreur
+            double error = std::abs(
+                results.barrier_deltas[barrier_name] - fd_delta);
+            results.validation_errors[barrier_name] = error;
+        }
+        
+        // Validation globale
+        results.all_barriers_validated = true;
+        for (const auto& [barrier_name, error] : results.validation_errors) {
+            if (error > 0.05) { // 5% de tolérance
+                results.all_barriers_validated = false;
+                break;
+            }
+        }
+        
+        return results;
+    }
+    
+private:
+    double calculate_barrier_finite_difference_delta(
+        const HybContingentOptMultiAssetBasket& option,
+        const market_data& market,
+        size_t barrier_index) const {
+        
+        const double barrier_shock = 0.01; // 1% de choc sur la barrière
+        
+        // PV de base
+        double pv_base = option.calculate_pv(market);
+        
+        // Choc positif de barrière
+        auto market_barrier_up = shock_barrier_level(
+            market, barrier_index, +barrier_shock);
+        double pv_barrier_up = option.calculate_pv(market_barrier_up);
+        
+        // Choc négatif de barrière
+        auto market_barrier_down = shock_barrier_level(
+            market, barrier_index, -barrier_shock);
+        double pv_barrier_down = option.calculate_pv(market_barrier_down);
+        
+        // Delta par différences finies centrées
+        return (pv_barrier_up - pv_barrier_down) / (2.0 * barrier_shock);
+    }
+};
+```
+
+#### **🔍 Basket Composition Testing**
+
+##### **Tests de Composition du Panier**
+```cpp
+// Tests de sensibilité à la composition du panier dans Our project
+class basket_composition_tester {
+public:
+    struct basket_test_results {
+        std::map<std::string, double> weight_sensitivities;
+        std::map<std::string, double> underlying_contributions;
+        double basket_correlation_effect;
+        bool composition_validated;
+    };
+    
+    basket_test_results test_basket_composition_effects(
+        const HybContingentOptMultiAssetBasket& option,
+        const market_data& market) {
+        
+        basket_test_results results;
+        
+        auto spec = option.get_specification();
+        
+        // Tests de sensibilité aux poids
+        for (size_t i = 0; i < spec.basket_weights.size(); ++i) {
+            std::string weight_name = "WEIGHT_" + spec.underlying_ids[i];
+            
+            results.weight_sensitivities[weight_name] = 
+                calculate_weight_sensitivity(option, market, i);
+            
+            results.underlying_contributions[weight_name] = 
+                calculate_underlying_contribution(option, market, i);
+        }
+        
+        // Effet de corrélation sur le panier
+        results.basket_correlation_effect = 
+            calculate_basket_correlation_effect(option, market);
+        
+        // Validation de la composition
+        results.composition_validated = validate_basket_composition(results);
+        
+        return results;
+    }
+    
+private:
+    double calculate_weight_sensitivity(
+        const HybContingentOptMultiAssetBasket& option,
+        const market_data& market,
+        size_t weight_index) const {
+        
+        const double weight_shock = 0.01; // 1% de choc sur le poids
+        
+        // PV de base
+        double pv_base = option.calculate_pv(market);
+        
+        // Modification du poids (en gardant la somme constante)
+        auto modified_option = create_option_with_modified_weight(
+            option, weight_index, weight_shock);
+        
+        double pv_modified = modified_option.calculate_pv(market);
+        
+        return (pv_modified - pv_base) / weight_shock;
+    }
+    
+    double calculate_basket_correlation_effect(
+        const HybContingentOptMultiAssetBasket& option,
+        const market_data& market) const {
+        
+        // PV avec corrélations réelles
+        double pv_correlated = option.calculate_pv(market);
+        
+        // PV avec corrélations nulles (indépendance)
+        auto market_independent = set_all_correlations_to_zero(market);
+        double pv_independent = option.calculate_pv(market_independent);
+        
+        // Effet de corrélation
+        return pv_correlated - pv_independent;
+    }
+};
+```
+
+---
+
+## 🏛️ **Stability Testing**
+
+### **Tests de Stabilité Avancés**
+
+#### **🔍 Multi-Dimensional Stress Testing**
+
+##### **Tests de Stress Multi-Dimensionnels**
+```cpp
+// Tests de stress multi-dimensionnels pour options contingentes
+class multidimensional_stress_tester {
+public:
+    void test_multidimensional_stability(
+        const HybContingentOptMultiAssetBasket& option,
+        const market_data& base_market) {
+        
+        // Tests de stress simultanés sur tous les facteurs
+        test_simultaneous_factor_stress(option, base_market);
+        
+        // Tests de stress de corrélation extrême
+        test_extreme_correlation_scenarios(option, base_market);
+        
+        // Tests de stress de barrières
+        test_barrier_stress_scenarios(option, base_market);
+    }
+    
+private:
+    void test_simultaneous_factor_stress(
+        const HybContingentOptMultiAssetBasket& option,
+        const market_data& base_market) {
+        
+        std::cout << "=== Simultaneous Multi-Factor Stress Testing ===" << std::endl;
+        
+        // Grille de stress 3D
+        std::vector<double> ir_shocks = {-100e-4, 0, 100e-4};
+        std::vector<double> vol_shocks = {-0.05, 0, 0.05};
+        std::vector<double> corr_shocks = {-0.3, 0, 0.3};
+        
+        for (double ir_shock : ir_shocks) {
+            for (double vol_shock : vol_shocks) {
+                for (double corr_shock : corr_shocks) {
+                    // Application des chocs simultanés
+                    auto stressed_market = apply_simultaneous_shocks(
+                        base_market, ir_shock, vol_shock, corr_shock);
+                    
+                    // Calcul des métriques sous stress
+                    double pv = option.calculate_pv(stressed_market);
+                    auto sensitivities = option.calculate_sensitivities(stressed_market);
+                    
+                    // Validation de stabilité
+                    EXPECT_TRUE(std::isfinite(pv));
+                    EXPECT_GE(pv, 0.0); // PV d'option ne peut être négatif
+                    
+                    // Validation des sensibilités
+                    validate_sensitivities_under_stress(sensitivities);
+                    
+                    // Documentation des résultats extrêmes
+                    if (std::abs(ir_shock) > 50e-4 || std::abs(vol_shock) > 0.03) {
+                        document_extreme_stress_result(
+                            ir_shock, vol_shock, corr_shock, pv, sensitivities);
+                    }
+                }
+            }
+        }
+    }
+    
+    void test_extreme_correlation_scenarios(
+        const HybContingentOptMultiAssetBasket& option,
+        const market_data& base_market) {
+        
+        std::cout << "=== Extreme Correlation Scenarios Testing ===" << std::endl;
+        
+        // Scénarios de corrélation extrême
+        std::vector<correlation_scenario> extreme_scenarios = {
+            {"PERFECT_POSITIVE", create_perfect_positive_correlation_matrix()},
+            {"PERFECT_NEGATIVE", create_perfect_negative_correlation_matrix()},
+            {"ZERO_CORRELATION", create_zero_correlation_matrix()},
+            {"BLOCK_CORRELATION", create_block_correlation_matrix()},
+            {"RANDOM_EXTREME", create_random_extreme_correlation_matrix()}
+        };
+        
+        for (const auto& scenario : extreme_scenarios) {
+            auto stressed_market = apply_correlation_matrix(
+                base_market, scenario.correlation_matrix);
+            
+            double pv = option.calculate_pv(stressed_market);
+            auto sensitivities = option.calculate_sensitivities(stressed_market);
+            
+            // Validation de stabilité sous corrélations extrêmes
+            EXPECT_TRUE(std::isfinite(pv));
+            EXPECT_GE(pv, 0.0);
+            
+            // Validation que la matrice de corrélation est valide
+            EXPECT_TRUE(is_valid_correlation_matrix(scenario.correlation_matrix));
+            
+            std::cout << "Scenario: " << scenario.name 
+                      << ", PV: " << pv 
+                      << ", Corr Sensitivity: " << sensitivities.correlation_sensitivity 
+                      << std::endl;
+        }
+    }
+};
+```
+
+---
+
+## 📊 **Regulatory Framework Testing**
+
+### **Tests sous Frameworks Réglementaires**
+
+#### **🔍 CCAR Testing avec Options Contingentes**
+
+##### **Tests CCAR Spécialisés**
+```cpp
+// Tests CCAR pour options contingentes dans Our project
+class ccar_contingent_option_tester {
+public:
+    void run_ccar_contingent_option_tests(
+        const HybContingentOptMultiAssetBasket& option) {
+        
+        // Scénarios CCAR avec focus sur options contingentes
+        std::vector<ccar_contingent_scenario> scenarios = {
+            create_baseline_contingent_scenario(),
+            create_severely_adverse_contingent_scenario(),
+            create_adverse_contingent_scenario()
+        };
+        
+        for (const auto& scenario : scenarios) {
+            test_contingent_option_under_ccar_scenario(option, scenario);
+        }
+    }
+    
+private:
+    void test_contingent_option_under_ccar_scenario(
+        const HybContingentOptMultiAssetBasket& option,
+        const ccar_contingent_scenario& scenario) {
+        
+        std::cout << "Testing contingent option under: " 
+                  << scenario.description << std::endl;
+        
+        for (int quarter = 1; quarter <= 9; ++quarter) {
+            const auto& market_data = scenario.quarterly_snapshots[quarter-1];
+            
+            // Calcul des métriques spécialisées
+            auto detailed_results = option.calculate_detailed_pv_with_config(
+                market_data, monte_carlo_config{.num_simulations = 500000});
+            
+            // Métriques spécifiques aux options contingentes
+            double pv = detailed_results.pv;
+            double contingent_probability = detailed_results.contingent_probability;
+            double conditional_payoff = detailed_results.conditional_expected_payoff;
+            
+            // Validation de stabilité
+            EXPECT_TRUE(std::isfinite(pv));
+            EXPECT_GE(contingent_probability, 0.0);
+            EXPECT_LE(contingent_probability, 1.0);
+            
+            // Tests spécifiques aux barrières sous stress
+            validate_barrier_behavior_under_stress(option, market_data, scenario);
+            
+            // Documentation des résultats CCAR
+            document_ccar_contingent_results(
+                scenario.description, quarter, pv, 
+                contingent_probability, conditional_payoff);
+        }
+    }
+    
+    void validate_barrier_behavior_under_stress(
+        const HybContingentOptMultiAssetBasket& option,
+        const market_data& stressed_market,
+        const ccar_contingent_scenario& scenario) {
+        
+        auto spec = option.get_specification();
+        
+        // Vérification que les barrières restent économiquement sensées
+        for (size_t i = 0; i < spec.barrier_levels.size(); ++i) {
+            double current_underlying_level = get_current_underlying_level(
+                stressed_market, spec.underlying_ids[i]);
+            
+            double barrier_level = spec.barrier_levels[i];
+            
+            // Validation de la proximité des barrières
+            double barrier_distance = std::abs(current_underlying_level - barrier_level) /
+                                    current_underlying_level;
+            
+            // Alertes pour barrières très proches (risque de discontinuité)
+            if (barrier_distance < 0.05) { // 5%
+                XSIGMA_WARN("Barrier very close to current level under stress scenario");
+            }
+        }
+    }
+};
+```
+
+---
+
+*Cette section fournit une documentation complète des tests de produit pour HybContingentOptMultiAssetBasket, intégrant les implémentations C++ de Our project avec des méthodologies de validation spécialisées pour les options contingentes, incluant les tests de barrières, composition de panier et stress multi-dimensionnels.*

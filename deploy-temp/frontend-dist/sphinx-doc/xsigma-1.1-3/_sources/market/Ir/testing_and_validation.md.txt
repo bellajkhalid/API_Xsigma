@@ -1,0 +1,394 @@
+# Tests & Outcome Analyses performed on Payoff / Model / Portfolio
+
+## Vue d'ensemble des Tests
+
+La QA Library est sujette à des tests de régression rigoureux via un environnement d'Intégration Continue. Cela assure que les tests sont exécutés chaque fois que des changements de code sont faits à la bibliothèque. La suite de tests comprend une sélection de tests unitaires et de régression pour tester les composants fonctionnels du modèle de swap linéaire pour s'assurer que les fonctionnalités se comportent comme attendu.
+
+La tolérance utilisée pour ces tests est assez serrée, utilisant une tolérance relative typique de $10^{-14}$ pour PV et risque pour un trade de notionnel 1,000,000,000. La tolérance serrée assure que tout changement de code qui affecte la sortie numérique est porté à l'attention et investigué.
+
+```cpp
+// Implémentation Our project du framework de tests
+namespace xsigma {
+    // Framework de tests unitaires pour swaps
+    class SwapTestFramework {
+    public:
+        // Configuration des tests
+        struct TestConfig {
+            double relative_tolerance = 1e-14;
+            double absolute_tolerance = 1e-10;
+            double notional_amount = 1e9;  // 1 milliard
+            bool enable_regression_tests = true;
+            bool enable_stress_tests = true;
+            std::string test_data_path;
+        };
+        
+        // Résultat d'un test
+        struct TestResult {
+            std::string test_name;
+            bool passed;
+            double computed_value;
+            double expected_value;
+            double relative_error;
+            double absolute_error;
+            std::string error_message;
+        };
+        
+        // Exécution de la suite de tests complète
+        std::vector<TestResult> run_comprehensive_tests(
+            const TestConfig& config) const {
+            
+            std::vector<TestResult> results;
+            
+            // Tests unitaires de base
+            auto unit_results = run_unit_tests(config);
+            results.insert(results.end(), unit_results.begin(), unit_results.end());
+            
+            // Tests de régression
+            if (config.enable_regression_tests) {
+                auto regression_results = run_regression_tests(config);
+                results.insert(results.end(), regression_results.begin(), regression_results.end());
+            }
+            
+            // Tests de stress
+            if (config.enable_stress_tests) {
+                auto stress_results = run_stress_tests(config);
+                results.insert(results.end(), stress_results.begin(), stress_results.end());
+            }
+            
+            return results;
+        }
+        
+        // Validation d'un résultat de test
+        bool validate_test_result(
+            double computed,
+            double expected,
+            const TestConfig& config,
+            TestResult& result) const {
+            
+            result.computed_value = computed;
+            result.expected_value = expected;
+            result.absolute_error = std::abs(computed - expected);
+            
+            if (std::abs(expected) > config.absolute_tolerance) {
+                result.relative_error = result.absolute_error / std::abs(expected);
+                result.passed = result.relative_error <= config.relative_tolerance;
+            } else {
+                result.relative_error = 0.0;
+                result.passed = result.absolute_error <= config.absolute_tolerance;
+            }
+            
+            if (!result.passed) {
+                result.error_message = "Tolerance exceeded: rel_err=" + 
+                                     std::to_string(result.relative_error) + 
+                                     ", abs_err=" + std::to_string(result.absolute_error);
+            }
+            
+            return result.passed;
+        }
+        
+    private:
+        std::vector<TestResult> run_unit_tests(const TestConfig& config) const;
+        std::vector<TestResult> run_regression_tests(const TestConfig& config) const;
+        std::vector<TestResult> run_stress_tests(const TestConfig& config) const;
+    };
+}
+```
+*Cette implémentation C++ dans Our project fournit un framework de tests complet avec validation rigoureuse et tolérances configurables.*
+
+## Trades de Test
+
+### Portfolio de Test Standard
+
+Puisque le modèle de pricing de swap linéaire effectue des calculs déterministes basés sur la mécanique réelle du swap comme détaillée sur une confirmation de trade, les seuls inputs de modélisation pertinents qui seraient sujets à des tests de stress et de sensibilité rigoureux sont les courbes utilisées dans le modèle de swap linéaire.
+
+#### Trade 1 : Swap Vanilla Fixed/Float
+- **Description** : 100MM Vanilla Fixed/Float Swap
+- **Date de Début** : 01-Jan-2010
+- **Date de Fin** : 01-Jan-2035
+- **Jambe Reçue** : Jambe fixe trimestrielle à 1.125%
+- **Jambe Payée** : Jambe flottante trimestrielle contre 3M LIBOR
+
+#### Trade 2 : Swap avec Notionnels Amortissants
+- **Description** : Fixed/Float Swap avec notionnels amortissants. 1MM, amortissant de 25k par an
+- **Date de Début** : 01-Jan-2010
+- **Date de Fin** : 01-Jan-2035
+- **Jambe Reçue** : Jambe fixe trimestrielle à 1.125%
+- **Jambe Payée** : Jambe flottante trimestrielle contre 3M LIBOR avec spread de 100 bp et gearing de 3
+
+#### Trade 3 : Swap Basis de Tenor
+- **Description** : 100MM Tenor Basis Swap
+- **Date de Début** : 01-Jan-2010
+- **Date de Fin** : 01-Jan-2035
+- **Jambe Reçue** : Jambe flottante trimestrielle contre 3M LIBOR
+- **Jambe Payée** : Jambe flottante semestrielle contre 6M LIBOR avec spread de -5 bp
+
+#### Trade 4 : Swap Basis OIS
+- **Description** : 100MM OIS Basis Swap
+- **Date de Début** : 01-Jan-2010
+- **Date de Fin** : 01-Jan-2035
+- **Jambe Reçue** : Jambe flottante semestrielle contre 6M LIBOR avec spread de -5 bp
+- **Jambe Payée** : Jambe flottante OIS annuelle (moyenne géométrique)
+
+#### XCCY Trade 1 : Swap Cross-Currency Resettable
+- **Description** : 100MM EUR/USD Resettable Cross-Currency Basis Swap
+- **Date de Début** : 01-Jan-2010
+- **Date de Fin** : 01-Jan-2035
+- **Jambe Reçue** : 100MM EUR Jambe trimestrielle non-resetting contre 3M EURIBOR avec spread de 150 bp
+- **Jambe Payée** : 120MM USD Jambe trimestrielle resetting contre 3M LIBOR
+
+```cpp
+// Implémentation Our project des trades de test
+namespace xsigma {
+    class TestTradeFactory {
+    public:
+        // Création du Trade 1 : Vanilla Fixed/Float
+        static ptr_const<ir_swap> create_vanilla_fixed_float_swap() {
+            auto effective_date = datetime::parse("2010-01-01");
+            auto maturity_date = datetime::parse("2035-01-01");
+            double notional = 100e6;  // 100MM
+            double fixed_rate = 0.01125;  // 1.125%
+            
+            // Configuration des jambes
+            auto fixed_leg = std::make_shared<fixed_leg>(
+                effective_date, maturity_date, 
+                get_usd_calendar(), get_usd_swap_conventions());
+            
+            auto float_leg = std::make_shared<float_leg>(
+                effective_date, maturity_date,
+                get_usd_calendar(), get_usd_swap_conventions());
+            
+            return std::make_shared<ir_swap>(
+                get_usd_discount_curve_id(),
+                get_usd_3m_forecast_curve_id(),
+                effective_date, maturity_date,
+                fixed_leg, float_leg, fixed_rate);
+        }
+        
+        // Création du Trade 2 : Swap Amortissant
+        static ptr_const<ir_swap> create_amortizing_swap() {
+            auto effective_date = datetime::parse("2010-01-01");
+            auto maturity_date = datetime::parse("2035-01-01");
+            
+            // Génération du schedule d'amortissement
+            auto amortizing_schedule = generate_amortizing_schedule(
+                effective_date, maturity_date, 1e6, 25e3);  // 1MM amortissant 25k/an
+            
+            auto fixed_leg = std::make_shared<amortizing_fixed_leg>(
+                amortizing_schedule, get_usd_swap_conventions());
+            
+            auto float_leg = std::make_shared<amortizing_float_leg>(
+                amortizing_schedule, get_usd_swap_conventions(),
+                0.01,  // 100bp spread
+                3.0);  // gearing de 3
+            
+            return std::make_shared<ir_swap>(
+                get_usd_discount_curve_id(),
+                get_usd_3m_forecast_curve_id(),
+                effective_date, maturity_date,
+                fixed_leg, float_leg, 0.01125);
+        }
+        
+        // Création du Trade 3 : Basis Swap
+        static ptr_const<ir_basis_swap> create_tenor_basis_swap() {
+            auto effective_date = datetime::parse("2010-01-01");
+            auto maturity_date = datetime::parse("2035-01-01");
+            
+            // Jambe 3M (reçue)
+            auto leg_3m = std::make_shared<float_leg>(
+                effective_date, maturity_date,
+                get_usd_calendar(), get_usd_3m_conventions());
+            
+            // Jambe 6M (payée) avec spread
+            auto leg_6m = std::make_shared<float_leg>(
+                effective_date, maturity_date,
+                get_usd_calendar(), get_usd_6m_conventions(),
+                -0.0005);  // -5bp spread
+            
+            return std::make_shared<ir_basis_swap>(
+                get_usd_discount_curve_id(),
+                get_usd_3m_forecast_curve_id(),
+                get_usd_6m_forecast_curve_id(),
+                effective_date, maturity_date,
+                leg_3m, leg_6m);
+        }
+        
+        // Création du Trade 4 : OIS Basis Swap
+        static ptr_const<ir_basis_swap> create_ois_basis_swap() {
+            auto effective_date = datetime::parse("2010-01-01");
+            auto maturity_date = datetime::parse("2035-01-01");
+            
+            // Jambe 6M avec spread (reçue)
+            auto leg_6m = std::make_shared<float_leg>(
+                effective_date, maturity_date,
+                get_usd_calendar(), get_usd_6m_conventions(),
+                -0.0005);  // -5bp spread
+            
+            // Jambe OIS (payée)
+            auto ois_leg = std::make_shared<ois_leg>(
+                effective_date, maturity_date,
+                get_usd_calendar(), get_usd_ois_conventions());
+            
+            return std::make_shared<ir_basis_swap>(
+                get_usd_discount_curve_id(),
+                get_usd_6m_forecast_curve_id(),
+                get_usd_ois_forecast_curve_id(),
+                effective_date, maturity_date,
+                leg_6m, ois_leg);
+        }
+        
+    private:
+        static std::vector<AmortizationPeriod> generate_amortizing_schedule(
+            const datetime& start, const datetime& end, 
+            double initial_notional, double annual_amortization);
+        static ptr_const<calendar> get_usd_calendar();
+        static swap_default_convention_config get_usd_swap_conventions();
+        static swap_default_convention_config get_usd_3m_conventions();
+        static swap_default_convention_config get_usd_6m_conventions();
+        static swap_default_convention_config get_usd_ois_conventions();
+    };
+}
+```
+*Cette implémentation C++ dans Our project fournit une factory pour créer les trades de test standards avec configurations réalistes.*
+
+## Données de Marché de Test
+
+### Configuration des Courbes
+
+- **Données de marché** pour le 30-Oct-2015
+- **Plusieurs scénarios** générés utilisant diverses mises à l'échelle des chocs du scénario CCAR CMS Severe Adverse de 2015
+- **Trades actualisés** utilisant la courbe USD-OIS
+- **Pour "XCCY Trade 1"** : Cash flows EUR actualisés utilisant EUR.DISC.[USD.OIS.1B] et cash flows USD actualisés utilisant USD.DISC[USD.OIS.1B]
+
+### Configuration HCT Single-Currency
+
+- **USD.LIBOR.3M** est une courbe de forecast directe
+- **USD.LIBOR.6M** est une courbe de forecast configurée pour être représentée comme swaps basis contre USD.LIBOR.3M
+- **USD.OIS.1B** est une courbe de forecast configurée pour être représentée comme swaps basis sur USD.LIBOR.3M
+- **USD.OIS.1B** est aussi utilisée comme courbe d'actualisation
+
+### Configuration HCT Cross-Currency
+
+- **EUR.EURIBOR.3M** est une courbe de forecast directe
+- **EUR.EONIA.1B** est une courbe de forecast construite comme swaps basis contre EUR.EURIBOR.3M
+- **EUR.DISC.[USD.OIS.1B]** est une courbe d'actualisation construite utilisant des instruments cross-currency
+
+```cpp
+// Implémentation Our project de la configuration des données de marché de test
+namespace xsigma {
+    class TestMarketDataProvider {
+    public:
+        // Configuration de marché pour tests
+        struct TestMarketConfig {
+            datetime market_date = datetime::parse("2015-10-30");
+            std::string scenario_name = "BASE";
+            double scenario_scaling = 1.0;
+            bool use_ccar_shocks = false;
+        };
+        
+        // Génération des données de marché de test
+        any_container_precomputed generate_test_market_data(
+            const TestMarketConfig& config) const {
+            
+            any_container_precomputed market_data;
+            
+            // Courbes USD
+            market_data.add(create_usd_discount_curve(config));
+            market_data.add(create_usd_3m_forecast_curve(config));
+            market_data.add(create_usd_6m_forecast_curve(config));
+            market_data.add(create_usd_ois_forecast_curve(config));
+            
+            // Courbes EUR (pour tests cross-currency)
+            market_data.add(create_eur_discount_curve(config));
+            market_data.add(create_eur_3m_forecast_curve(config));
+            market_data.add(create_eur_ois_forecast_curve(config));
+            
+            // Taux FX (pour tests cross-currency)
+            market_data.add(create_fx_rates(config));
+            
+            // Application des chocs de scénario si nécessaire
+            if (config.use_ccar_shocks) {
+                apply_ccar_scenario_shocks(market_data, config);
+            }
+            
+            return market_data;
+        }
+        
+        // Application des chocs CCAR
+        void apply_ccar_scenario_shocks(
+            any_container_precomputed& market_data,
+            const TestMarketConfig& config) const {
+            
+            // Chocs de taux d'intérêt selon scénario CCAR Severe Adverse
+            std::map<std::string, std::vector<double>> ccar_shocks = {
+                {"USD_3M", {0.0025, 0.0030, 0.0035, 0.0040, 0.0045}},  // Par maturité
+                {"USD_OIS", {0.0020, 0.0025, 0.0030, 0.0035, 0.0040}},
+                {"EUR_3M", {0.0015, 0.0020, 0.0025, 0.0030, 0.0035}},
+                {"EUR_OIS", {0.0010, 0.0015, 0.0020, 0.0025, 0.0030}}
+            };
+            
+            // Application des chocs avec scaling
+            for (const auto& [curve_name, shocks] : ccar_shocks) {
+                apply_curve_shocks(market_data, curve_name, shocks, config.scenario_scaling);
+            }
+        }
+        
+    private:
+        ptr_const<discount_curve> create_usd_discount_curve(const TestMarketConfig& config) const;
+        ptr_const<forecast_curve> create_usd_3m_forecast_curve(const TestMarketConfig& config) const;
+        ptr_const<forecast_curve> create_usd_6m_forecast_curve(const TestMarketConfig& config) const;
+        ptr_const<forecast_curve> create_usd_ois_forecast_curve(const TestMarketConfig& config) const;
+        ptr_const<discount_curve> create_eur_discount_curve(const TestMarketConfig& config) const;
+        ptr_const<forecast_curve> create_eur_3m_forecast_curve(const TestMarketConfig& config) const;
+        ptr_const<forecast_curve> create_eur_ois_forecast_curve(const TestMarketConfig& config) const;
+        std::map<std::pair<currency, currency>, double> create_fx_rates(const TestMarketConfig& config) const;
+        
+        void apply_curve_shocks(
+            any_container_precomputed& market_data,
+            const std::string& curve_name,
+            const std::vector<double>& shocks,
+            double scaling) const;
+    };
+}
+```
+*Cette implémentation C++ dans Our project fournit un générateur complet de données de marché de test avec support pour scénarios CCAR.*
+
+## Tests de Sensibilité
+
+### Méthodologie de Test
+
+Nous testons l'effet de différentes tailles de choc sur une sélection de trades hypothétiques et montrons que leurs PVs se comportent principalement linéairement comme attendu. Les bumps sont de nature parallèle allant de -100 bp à 100 bp, et nous bumpons chaque courbe indépendamment.
+
+### Résultats Observés
+
+#### Trade 1 : Comportement Linéaire
+- **PVs se comportent principalement linéairement** selon la taille du bump pour les courbes 3M et OIS
+- **L'effet de la courbe d'actualisation** est plus petit que celui de la courbe 3M car l'actualisation affecte les deux jambes qui se compensent
+- **L'effet n'est pas exactement zéro** à cause d'une annuité résiduelle due au swap n'étant pas au par
+
+![Trade 1](./Fig/2.png)
+
+*Figure 8.1: Trade 1 - Comportement linéaire des PVs selon les bumps de courbe*
+
+#### Non-linéarité de l'Actualisation
+
+Pour des chocs plus importants (±1,000 basis points), nous observons une courbure due aux facteurs d'actualisation étant inversement proportionnels aux taux. Puisque la courbe 3M est utilisée pour piloter la courbe d'actualisation, nous voyons aussi un effet non-linéaire sur la courbe 3M.
+
+![Trade 1 - Large Shocks](./Fig/8.png)
+
+*Figure 8.7: Trade 1 - Non-linéarité à grands chocs*
+
+## Tests de Stress et Scénarios
+
+### Scénario CCAR Severe Adverse
+
+Les tests de stress sont effectués utilisant le scénario Severe Adverse Global Market Shock tel qu'utilisé pour CCAR. Nous utilisons une date de marché du 30-Oct-2015 et testons l'impact de différentes mises à l'échelle du scénario.
+
+### Impacts PV Observés
+
+Les résultats montrent de grands changements dans les PVs dus aux scénarios, avec le scénario Severe Adverse ayant des impacts beaucoup plus importants. La nature linéaire de l'impact de stress sur PV pour chaque trade sous test est confirmée.
+
+![Stress Test Results](./Fig/12.png)
+
+*Figure 8.11: Résultats des tests de stress montrant la linéarité des impacts*
+
+Cette section démontre la robustesse du modèle de swap linéaire sous diverses conditions de marché et confirme le comportement attendu des calculs déterministes.

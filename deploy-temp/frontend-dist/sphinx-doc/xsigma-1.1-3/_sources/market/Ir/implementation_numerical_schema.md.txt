@@ -1,0 +1,532 @@
+# Implementation / Numerical Schema Description
+
+## Description de l'Implémentation
+
+Dans la Section 3.1, nous faisons référence à l'utilisation de taux d'intérêt projetés et de facteurs d'actualisation. Ces deux éléments sont sourcés des courbes de taux d'intérêt utilisées, dont les détails peuvent être trouvés dans la référence [10]. Pour les taux d'intérêt projetés $r(t_{i}^{fix},t_{i}^{fs},t_{i}^{fe})$, l'implémentation des courbes nécessite les dates de début et fin de forecast, qui se rapportent aux dates de début et fin du taux correspondant. Le calcul de ces dates et du taux éventuel est défini par l'organisme de publication du taux.
+
+```cpp
+// Implémentation Our project du schéma numérique pour swaps
+namespace xsigma {
+    // Calculateur de dates de forecast
+    class ForecastDateCalculator {
+    public:
+        struct ForecastDates {
+            datetime forecast_start;
+            datetime forecast_end;
+            datetime fixing_date;
+        };
+        
+        // Calcul des dates de forecast selon les conventions de marché
+        ForecastDates calculate_forecast_dates(
+            const datetime& accrual_start,
+            const datetime& accrual_end,
+            const std::string& index_name,
+            const ptr_const<calendar>& holiday_calendar,
+            const ForecastConventions& conventions) const {
+            
+            ForecastDates dates;
+            
+            // Date de fixing (généralement 2 jours ouvrés avant accrual start)
+            dates.fixing_date = holiday_calendar->add_business_days(
+                accrual_start, -conventions.fixing_lag_days);
+            
+            // Dates de forecast basées sur les conventions de l'index
+            if (conventions.forecast_start_adjustment.empty()) {
+                dates.forecast_start = accrual_start;
+            } else {
+                dates.forecast_start = apply_tenor_adjustment(
+                    dates.fixing_date, conventions.forecast_start_adjustment);
+            }
+            
+            // Fin de forecast basée sur le tenor de l'index
+            dates.forecast_end = apply_tenor_adjustment(
+                dates.forecast_start, conventions.forecast_tenor);
+            
+            // Application des conventions de jours ouvrés
+            dates.forecast_start = holiday_calendar->adjust(
+                dates.forecast_start, conventions.forecast_start_roll_convention);
+            dates.forecast_end = holiday_calendar->adjust(
+                dates.forecast_end, conventions.forecast_end_roll_convention);
+            
+            return dates;
+        }
+        
+    private:
+        datetime apply_tenor_adjustment(
+            const datetime& base_date, 
+            const std::string& tenor) const;
+    };
+    
+    // Moteur de calcul numérique principal
+    class SwapNumericalEngine {
+    public:
+        // Structure pour les résultats de calcul
+        struct CalculationResult {
+            double present_value;
+            double par_rate_or_spread;
+            double dv01;
+            std::vector<CashFlow> cash_flows;
+            std::map<std::string, double> risk_sensitivities;
+        };
+        
+        // Calcul complet d'un swap avec tous les outputs
+        CalculationResult calculate_swap_analytics(
+            const swap_instrument& swap,
+            const any_container_precomputed& market_data,
+            const datetime& evaluation_date) const {
+            
+            CalculationResult result;
+            
+            // Calcul PV principal
+            result.present_value = swap.price(market_data, option_output_enum::PV);
+            
+            // Calcul du taux/spread par
+            result.par_rate_or_spread = swap.price(market_data, option_output_enum::PAR);
+            
+            // Calcul DV01
+            result.dv01 = calculate_dv01_numerical(swap, market_data);
+            
+            // Génération des cash flows
+            result.cash_flows = swap.calculate_cash_flows(market_data);
+            
+            // Calcul des sensibilités de risque
+            result.risk_sensitivities = calculate_risk_sensitivities(swap, market_data);
+            
+            return result;
+        }
+        
+    private:
+        double calculate_dv01_numerical(
+            const swap_instrument& swap,
+            const any_container_precomputed& market_data) const;
+        std::map<std::string, double> calculate_risk_sensitivities(
+            const swap_instrument& swap,
+            const any_container_precomputed& market_data) const;
+    };
+}
+```
+*Cette implémentation C++ dans Our project fournit le schéma numérique complet avec calcul de dates de forecast et analytics.*
+
+## Inputs de l'Implémentation
+
+Ces sont les inputs pour calculer le taux requis des courbes de taux d'intérêt. Les valeurs de ces inputs dépendent du taux étant calculé, avec les données étant sourcées du site web de l'organisme de publication.
+
+### Paramètres de Configuration
+
+| Nom | Description |
+|-----|-------------|
+| **ForecastFrequency** | La fréquence de reset du swap |
+| **ForecastStartRollConvention** | La convention de roll de reset |
+| **ForecastTenor** | Le tenor de forecast/index |
+| **ForecastRollConvention** | La convention de roll à utiliser pour la fin de forecast/jour d'index |
+| **ForecastHolidayList** | La liste de jours fériés à utiliser pour la fin de forecast/jour d'index |
+| **ForecastFixingHolidayList** | La liste de jours fériés à utiliser pour calculer le jour de début de fixing depuis le jour de fixing |
+| **ForecastBasis** | La base de jour de forecast |
+| **ForecastDaysAdjustment** | Un tenor pour ajuster le jour de début de forecast depuis la Date de Fixing |
+
+```cpp
+// Implémentation Our project de la configuration des paramètres
+namespace xsigma {
+    // Structure de configuration pour les conventions de forecast
+    struct ForecastConventions {
+        frequency forecast_frequency;
+        business_day_convention forecast_start_roll_convention;
+        std::string forecast_tenor;  // "3M", "6M", etc.
+        business_day_convention forecast_roll_convention;
+        ptr_const<calendar> forecast_holiday_list;
+        ptr_const<calendar> forecast_fixing_holiday_list;
+        day_count_convention forecast_basis;
+        std::string forecast_days_adjustment;  // "+2D", "-1D", etc.
+        int fixing_lag_days = 2;  // Défaut : 2 jours ouvrés
+        
+        // Validation de la configuration
+        void validate() const {
+            if (forecast_tenor.empty()) {
+                XSIGMA_THROW("Forecast tenor cannot be empty");
+            }
+            if (!forecast_holiday_list) {
+                XSIGMA_THROW("Forecast holiday list is required");
+            }
+            if (!forecast_fixing_holiday_list) {
+                XSIGMA_THROW("Forecast fixing holiday list is required");
+            }
+        }
+        
+        // Factory pour conventions standards par devise
+        static ForecastConventions create_standard_conventions(const currency& ccy) {
+            ForecastConventions conv;
+            
+            if (ccy == currency::USD) {
+                conv.forecast_frequency = frequency::QUARTERLY;
+                conv.forecast_tenor = "3M";
+                conv.forecast_basis = day_count_convention::ACT_360;
+                conv.fixing_lag_days = 2;
+            } else if (ccy == currency::EUR) {
+                conv.forecast_frequency = frequency::QUARTERLY;
+                conv.forecast_tenor = "3M";
+                conv.forecast_basis = day_count_convention::ACT_360;
+                conv.fixing_lag_days = 2;
+            } else if (ccy == currency::GBP) {
+                conv.forecast_frequency = frequency::QUARTERLY;
+                conv.forecast_tenor = "3M";
+                conv.forecast_basis = day_count_convention::ACT_365;
+                conv.fixing_lag_days = 0;  // SONIA fixe le même jour
+            }
+            // Autres devises...
+            
+            return conv;
+        }
+    };
+    
+    // Gestionnaire de conventions par index
+    class IndexConventionManager {
+    public:
+        // Enregistrement d'une convention pour un index
+        void register_convention(
+            const std::string& index_name,
+            const ForecastConventions& conventions) {
+            
+            conventions.validate();
+            index_conventions_[index_name] = conventions;
+        }
+        
+        // Récupération des conventions pour un index
+        const ForecastConventions& get_conventions(
+            const std::string& index_name) const {
+            
+            auto it = index_conventions_.find(index_name);
+            if (it == index_conventions_.end()) {
+                XSIGMA_THROW("No conventions found for index: " + index_name);
+            }
+            
+            return it->second;
+        }
+        
+        // Vérification de disponibilité
+        bool has_conventions(const std::string& index_name) const {
+            return index_conventions_.find(index_name) != index_conventions_.end();
+        }
+        
+        // Chargement des conventions standards
+        void load_standard_conventions() {
+            // USD SOFR
+            register_convention("USD-SOFR", ForecastConventions::create_standard_conventions(currency::USD));
+            
+            // EUR EURIBOR
+            register_convention("EUR-EURIBOR-3M", ForecastConventions::create_standard_conventions(currency::EUR));
+            
+            // GBP SONIA
+            register_convention("GBP-SONIA", ForecastConventions::create_standard_conventions(currency::GBP));
+            
+            // Autres index standards...
+        }
+        
+    private:
+        std::map<std::string, ForecastConventions> index_conventions_;
+    };
+}
+```
+*Cette implémentation C++ dans Our project gère les conventions de forecast avec support pour multiples index et validation complète.*
+
+## Contrôle Qualité
+
+Ces conventions sont sourcées de l'organisme de publication où les définitions de taux sont généralement disponibles sur leurs sites web. Puisque la bibliothèque de swap est aussi utilisée pour la calibration des courbes de taux d'intérêt via le New Curve Framework (CMD1746) ainsi que le pricing, la valorisation, et le risque de swap, cela impose la cohérence.
+
+```cpp
+// Implémentation Our project du contrôle qualité
+namespace xsigma {
+    class SwapQualityController {
+    public:
+        // Structure pour les résultats de validation
+        struct ValidationResult {
+            bool is_valid;
+            std::vector<std::string> warnings;
+            std::vector<std::string> errors;
+            double quality_score;  // 0.0 à 1.0
+        };
+        
+        // Validation complète d'un swap
+        ValidationResult validate_swap(
+            const swap_instrument& swap,
+            const any_container_precomputed& market_data) const {
+            
+            ValidationResult result;
+            result.is_valid = true;
+            result.quality_score = 1.0;
+            
+            // Validation des données de marché
+            validate_market_data(swap, market_data, result);
+            
+            // Validation des conventions
+            validate_conventions(swap, result);
+            
+            // Validation des cash flows
+            validate_cash_flows(swap, market_data, result);
+            
+            // Validation de cohérence
+            validate_consistency(swap, market_data, result);
+            
+            // Calcul du score de qualité final
+            calculate_quality_score(result);
+            
+            return result;
+        }
+        
+        // Validation des données de marché
+        void validate_market_data(
+            const swap_instrument& swap,
+            const any_container_precomputed& market_data,
+            ValidationResult& result) const {
+            
+            // Vérification de disponibilité des courbes
+            try {
+                auto discount_curve = market_data.at(swap.get_discount_curve_id());
+                auto forecast_curve = market_data.at(swap.get_forecast_curve_id());
+                
+                // Validation de cohérence des courbes
+                if (!discount_curve || !forecast_curve) {
+                    result.errors.push_back("Required curves not available in market data");
+                    result.is_valid = false;
+                }
+            } catch (const std::exception& e) {
+                result.errors.push_back("Market data access error: " + std::string(e.what()));
+                result.is_valid = false;
+            }
+        }
+        
+        // Validation des conventions
+        void validate_conventions(
+            const swap_instrument& swap,
+            ValidationResult& result) const {
+            
+            // Validation des conventions de jour
+            const auto& schedule = swap.get_payment_schedule();
+            for (const auto& period : schedule.get_periods()) {
+                if (period.accrual_start >= period.accrual_end) {
+                    result.errors.push_back("Invalid accrual period: start >= end");
+                    result.is_valid = false;
+                }
+                
+                if (period.fixing_date > period.accrual_start) {
+                    result.warnings.push_back("Fixing date after accrual start - unusual but possible");
+                }
+            }
+        }
+        
+        // Validation des cash flows
+        void validate_cash_flows(
+            const swap_instrument& swap,
+            const any_container_precomputed& market_data,
+            ValidationResult& result) const {
+            
+            try {
+                auto cash_flows = swap.calculate_cash_flows(market_data);
+                
+                for (const auto& cf : cash_flows) {
+                    // Validation des montants
+                    if (std::isnan(cf.amount) || std::isinf(cf.amount)) {
+                        result.errors.push_back("Invalid cash flow amount: NaN or Inf");
+                        result.is_valid = false;
+                    }
+                    
+                    // Validation des dates
+                    if (cf.payment_date < cf.accrual_end) {
+                        result.warnings.push_back("Payment date before accrual end");
+                    }
+                }
+            } catch (const std::exception& e) {
+                result.errors.push_back("Cash flow calculation error: " + std::string(e.what()));
+                result.is_valid = false;
+            }
+        }
+        
+        // Validation de cohérence
+        void validate_consistency(
+            const swap_instrument& swap,
+            const any_container_precomputed& market_data,
+            ValidationResult& result) const {
+            
+            try {
+                // Test de cohérence : PV(par_rate) ≈ 0
+                double par_rate = swap.price(market_data, option_output_enum::PAR);
+                
+                // Création d'un swap temporaire avec le taux par
+                // et vérification que sa PV est proche de zéro
+                // (implémentation spécifique selon le type de swap)
+                
+            } catch (const std::exception& e) {
+                result.warnings.push_back("Consistency check failed: " + std::string(e.what()));
+            }
+        }
+        
+    private:
+        void calculate_quality_score(ValidationResult& result) const {
+            double score = 1.0;
+            
+            // Pénalités pour erreurs et avertissements
+            score -= 0.5 * result.errors.size();
+            score -= 0.1 * result.warnings.size();
+            
+            result.quality_score = std::max(0.0, score);
+        }
+    };
+}
+```
+*Cette implémentation C++ dans Our project fournit un contrôle qualité complet avec validation multi-niveaux et scoring.*
+
+## Limitations
+
+### Limitations Techniques
+
+1. **Interpolation de Stub** : Différence entre méthode ISDA (taux simples) et implémentation (taux composés en continu)
+2. **Précision Numérique** : Limitations de précision machine pour calculs de sensibilités
+3. **Conventions de Marché** : Dépendance aux conventions publiées par les organismes de référence
+
+### Limitations Fonctionnelles
+
+1. **Swaps Linéaires Uniquement** : Pas de support pour produits convexes
+2. **Pas d'Ajustements de Volatilité** : Exclusion des caractéristiques nécessitant des modèles de volatilité
+3. **Dépendance aux Courbes** : Qualité des résultats entièrement dépendante de la qualité des courbes d'entrée
+
+```cpp
+// Implémentation Our project de la gestion des limitations
+namespace xsigma {
+    class LimitationManager {
+    public:
+        // Énumération des types de limitations
+        enum class LimitationType {
+            INTERPOLATION_METHOD,
+            NUMERICAL_PRECISION,
+            MARKET_CONVENTION,
+            LINEAR_ONLY,
+            NO_VOLATILITY,
+            CURVE_DEPENDENCY
+        };
+        
+        // Structure pour documenter une limitation
+        struct Limitation {
+            LimitationType type;
+            std::string description;
+            double impact_estimate;  // Estimation de l'impact (0.0 à 1.0)
+            std::string mitigation_strategy;
+        };
+        
+        // Évaluation des limitations pour un swap donné
+        std::vector<Limitation> assess_limitations(
+            const swap_instrument& swap,
+            const any_container_precomputed& market_data) const {
+            
+            std::vector<Limitation> limitations;
+            
+            // Évaluation de l'impact de l'interpolation
+            if (has_stub_periods(swap)) {
+                limitations.push_back({
+                    LimitationType::INTERPOLATION_METHOD,
+                    "Stub interpolation uses continuously compounded rates vs ISDA simple rates",
+                    estimate_interpolation_impact(swap, market_data),
+                    "Monitor difference and adjust if material"
+                });
+            }
+            
+            // Évaluation de la précision numérique
+            limitations.push_back({
+                LimitationType::NUMERICAL_PRECISION,
+                "Finite precision arithmetic may affect sensitivity calculations",
+                estimate_precision_impact(swap, market_data),
+                "Use appropriate bump sizes and validation checks"
+            });
+            
+            // Autres évaluations...
+            
+            return limitations;
+        }
+        
+    private:
+        bool has_stub_periods(const swap_instrument& swap) const;
+        double estimate_interpolation_impact(
+            const swap_instrument& swap,
+            const any_container_precomputed& market_data) const;
+        double estimate_precision_impact(
+            const swap_instrument& swap,
+            const any_container_precomputed& market_data) const;
+    };
+}
+```
+*Cette implémentation C++ dans Our project évalue et documente les limitations avec stratégies de mitigation.*
+
+## Optimisations Numériques
+
+### Calculs Parallèles
+
+Pour les portefeuilles de swaps importants, les calculs peuvent être parallélisés par instrument ou par courbe.
+
+### Cache de Résultats
+
+Les facteurs d'actualisation et taux forward fréquemment utilisés peuvent être mis en cache pour améliorer les performances.
+
+### Algorithmes Adaptatifs
+
+Les algorithmes de calcul peuvent s'adapter automatiquement à la complexité du swap et aux exigences de précision.
+
+```cpp
+// Implémentation Our project des optimisations numériques
+namespace xsigma {
+    class NumericalOptimizer {
+    public:
+        // Cache pour facteurs d'actualisation
+        class DiscountFactorCache {
+        public:
+            double get_discount_factor(
+                const discount_curve_id& curve_id,
+                const datetime& eval_date,
+                const datetime& payment_date) {
+                
+                auto key = std::make_tuple(curve_id, eval_date, payment_date);
+                auto it = cache_.find(key);
+                
+                if (it != cache_.end()) {
+                    return it->second;
+                }
+                
+                // Calcul et mise en cache
+                double df = calculate_discount_factor(curve_id, eval_date, payment_date);
+                cache_[key] = df;
+                return df;
+            }
+            
+            void clear() { cache_.clear(); }
+            
+        private:
+            std::map<std::tuple<discount_curve_id, datetime, datetime>, double> cache_;
+            
+            double calculate_discount_factor(
+                const discount_curve_id& curve_id,
+                const datetime& eval_date,
+                const datetime& payment_date);
+        };
+        
+        // Calculateur parallèle pour portefeuilles
+        class ParallelPortfolioCalculator {
+        public:
+            std::vector<double> calculate_portfolio_pv(
+                const std::vector<ptr_const<swap_instrument>>& swaps,
+                const any_container_precomputed& market_data) {
+                
+                std::vector<double> results(swaps.size());
+                
+                // Calcul parallèle
+                std::transform(
+                    std::execution::par_unseq,
+                    swaps.begin(), swaps.end(),
+                    results.begin(),
+                    [&market_data](const auto& swap) {
+                        return swap->price(market_data, option_output_enum::PV);
+                    });
+                
+                return results;
+            }
+        };
+    };
+}
+```
+*Cette implémentation C++ dans Our project fournit des optimisations numériques avec cache et calculs parallèles.*

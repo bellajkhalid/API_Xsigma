@@ -1,0 +1,246 @@
+# Implementation / Numerical Schema Description
+
+## Overview
+
+Cette section décrit l'implémentation numérique détaillée du modèle **LSV Markov Switching PDE** dans le framework UMIFX, incluant les schémas de discrétisation, les solveurs et les optimisations de performance.
+
+## Numerical Schema Implementation
+
+### Grid Generation and Management
+
+Le modèle utilise une **grille 3D** (Spot × Variance × États) avec discrétisation adaptative :
+
+#### Spot Grid (Log-Uniform)
+- **Range** : [0.1×S₀, 10×S₀] pour capture des mouvements extrêmes
+- **Distribution** : Log-uniforme pour précision relative constante
+- **Density** : Concentration autour du spot initial et des barrières
+
+#### Variance Grid (Uniform)
+- **Range** : [0.01, 1.0] pour couvrir les régimes de volatilité
+- **Distribution** : Uniforme pour stabilité du schéma CIR
+- **Boundary Treatment** : Conditions de Feller aux limites
+
+#### State Grid (Discrete)
+- **States** : Nombre configurable d'états de volatilité
+- **Coupling** : Transitions via matrice de taux
+- **Parallelization** : Calculs par état indépendants
+
+### Finite Difference Schemes
+
+#### Spatial Derivatives
+```cpp
+// Schéma centré adaptatif pour dérivées en spot
+double calculate_dV_dS_adaptive(const Grid3D& values, int i, int j, int k) {
+    double h_plus = spot_grid[i+1] - spot_grid[i];
+    double h_minus = spot_grid[i] - spot_grid[i-1];
+    
+    return (values[i+1][j][k] * h_minus * h_minus - 
+            values[i-1][j][k] * h_plus * h_plus + 
+            values[i][j][k] * (h_plus * h_plus - h_minus * h_minus)) /
+           (h_plus * h_minus * (h_plus + h_minus));
+}
+```
+
+#### Temporal Integration
+- **Crank-Nicolson** : Schéma implicite pour stabilité
+- **Predictor-Corrector** : Amélioration de précision
+- **Adaptive Time Stepping** : Contrôle automatique du pas de temps
+
+### Matrix System Solution
+
+#### System Structure
+Le système PDE discrétisé forme une **matrice par blocs** :
+```
+[A₁₁  A₁₂  ...  A₁ₙ] [V₁]   [B₁]
+[A₂₁  A₂₂  ...  A₂ₙ] [V₂] = [B₂]
+[...  ...  ...  ...] [...] = [...]
+[Aₙ₁  Aₙ₂  ...  Aₙₙ] [Vₙ]   [Bₙ]
+```
+
+#### Solver Selection
+- **Direct Methods** : LU décomposition pour petits systèmes
+- **Iterative Methods** : GMRES/BiCGSTAB pour gros systèmes
+- **Preconditioning** : ILU pour accélération de convergence
+
+### Boundary Conditions Implementation
+
+#### Dirichlet Conditions
+- **Spot Boundaries** : Valeurs imposées aux extrémités
+- **Variance Boundaries** : Conditions de Feller et extrapolation
+- **State Boundaries** : Continuité entre états
+
+#### Neumann Conditions
+- **Free Boundaries** : Dérivées nulles pour options américaines
+- **Absorbing Boundaries** : Conditions pour barrières
+
+### Performance Optimizations
+
+#### Memory Management
+- **Sparse Storage** : Matrices creuses pour efficacité mémoire
+- **Block Structure** : Exploitation de la structure par blocs
+- **Cache Optimization** : Accès mémoire optimisés
+
+#### Computational Efficiency
+- **Vectorization** : Utilisation d'instructions SIMD
+- **Parallelization** : OpenMP pour calculs parallèles
+- **GPU Acceleration** : CUDA pour gros systèmes
+
+## Calibration Implementation
+
+### Forward Induction Procedure
+
+La calibration utilise une **procédure d'induction forward** :
+
+1. **Calibration Volatilité Locale** : Surface de Dupire
+2. **Calibration Paramètres SV** : Vol of vol, mean reversion, corrélation
+3. **Calibration États Markov** : Volatilités et taux de transition
+
+### Optimization Algorithms
+
+#### Local Volatility Calibration
+- **Dupire Inversion** : Calcul direct via équation de Dupire
+- **Smoothing Techniques** : Régularisation pour stabilité
+- **Arbitrage Constraints** : Respect des conditions d'absence d'arbitrage
+
+#### Parameter Optimization
+- **Levenberg-Marquardt** : Optimisation non-linéaire robuste
+- **Gradient-Based Methods** : BFGS pour convergence rapide
+- **Global Optimization** : Algorithmes génétiques pour éviter minima locaux
+
+### Validation and Quality Control
+
+#### Convergence Tests
+- **Grid Refinement** : Tests de convergence par raffinement
+- **Time Step Analysis** : Validation de la stabilité temporelle
+- **Cross-Validation** : Comparaison avec solutions analytiques
+
+#### Error Analysis
+- **Discretization Error** : Estimation via extrapolation de Richardson
+- **Round-off Error** : Analyse de la propagation d'erreurs
+- **Model Error** : Validation contre données de marché
+
+## UMIFX Framework Integration
+
+### Architecture Components
+
+#### Model Interface
+```cpp
+class LSVMarkovSwitchingPDE : public UMIFXModel {
+public:
+    // Interface standardisée UMIFX
+    virtual double price(const Trade& trade) override;
+    virtual Greeks calculate_greeks(const Trade& trade) override;
+    virtual void calibrate(const MarketData& data) override;
+};
+```
+
+#### Data Management
+- **Market Data Interface** : Intégration avec sources de données
+- **Parameter Storage** : Persistance des paramètres calibrés
+- **Result Caching** : Cache intelligent pour performance
+
+#### Risk Management Integration
+- **Real-time Greeks** : Calcul en temps réel des sensibilités
+- **Scenario Analysis** : Support des stress tests
+- **Portfolio Aggregation** : Consolidation au niveau portfolio
+
+### Production Deployment
+
+#### Configuration Management
+- **Parameter Files** : Configuration externalisée
+- **Environment Settings** : Adaptation aux environnements
+- **Version Control** : Gestion des versions de modèle
+
+#### Monitoring and Logging
+- **Performance Metrics** : Monitoring temps de calcul
+- **Error Tracking** : Logging des erreurs et exceptions
+- **Quality Metrics** : Surveillance de la qualité de calibration
+
+#### Scalability Features
+- **Load Balancing** : Distribution des calculs
+- **Horizontal Scaling** : Support de clusters de calcul
+- **Resource Management** : Gestion optimale des ressources
+
+## Advanced Numerical Techniques
+
+### Adaptive Mesh Refinement
+
+#### Error Estimation
+- **A Posteriori Estimates** : Estimation d'erreur après calcul
+- **Gradient Indicators** : Détection des zones à raffiner
+- **Anisotropic Refinement** : Raffinement directionnel
+
+#### Refinement Strategies
+- **Hierarchical Grids** : Grilles multi-niveaux
+- **Local Refinement** : Raffinement localisé
+- **Dynamic Adaptation** : Adaptation en cours de calcul
+
+### High-Order Methods
+
+#### Spectral Methods
+- **Chebyshev Polynomials** : Approximation spectrale
+- **Fourier Methods** : Pour problèmes périodiques
+- **Wavelets** : Analyse multi-résolution
+
+#### Finite Element Methods
+- **Galerkin Formulation** : Formulation variationnelle
+- **Adaptive Elements** : Éléments adaptatifs
+- **Error Control** : Contrôle d'erreur a posteriori
+
+### Parallel Computing Implementation
+
+#### Shared Memory Parallelism
+```cpp
+#pragma omp parallel for collapse(3)
+for (int i = 0; i < n_spots; ++i) {
+    for (int j = 0; j < n_vars; ++j) {
+        for (int k = 0; k < n_states; ++k) {
+            // Calculs parallèles par point de grille
+            update_grid_point(i, j, k);
+        }
+    }
+}
+```
+
+#### Distributed Memory Parallelism
+- **Domain Decomposition** : Partitionnement du domaine
+- **Message Passing** : Communication MPI
+- **Load Balancing** : Équilibrage dynamique
+
+#### GPU Computing
+- **CUDA Kernels** : Calculs massivement parallèles
+- **Memory Coalescing** : Optimisation accès mémoire GPU
+- **Stream Processing** : Pipelines de calcul
+
+## Quality Assurance
+
+### Testing Framework
+
+#### Unit Tests
+- **Component Testing** : Tests de composants individuels
+- **Numerical Accuracy** : Validation de précision numérique
+- **Edge Cases** : Tests de cas limites
+
+#### Integration Tests
+- **End-to-End Testing** : Tests complets de pricing
+- **Performance Testing** : Validation des performances
+- **Regression Testing** : Non-régression des résultats
+
+#### Validation Tests
+- **Analytical Solutions** : Comparaison avec solutions exactes
+- **Monte Carlo Validation** : Cross-validation avec MC
+- **Market Data Validation** : Tests sur données réelles
+
+### Documentation and Maintenance
+
+#### Code Documentation
+- **API Documentation** : Documentation des interfaces
+- **Algorithm Description** : Description des algorithmes
+- **Usage Examples** : Exemples d'utilisation
+
+#### Maintenance Procedures
+- **Version Management** : Gestion des versions
+- **Bug Tracking** : Suivi des bugs et corrections
+- **Performance Monitoring** : Surveillance continue
+
+L'implémentation numérique du modèle LSV MS PDE dans Our project combine sophistication mathématique et efficacité computationnelle pour fournir une solution robuste, précise et performante pour le pricing d'options complexes en environnement de production.

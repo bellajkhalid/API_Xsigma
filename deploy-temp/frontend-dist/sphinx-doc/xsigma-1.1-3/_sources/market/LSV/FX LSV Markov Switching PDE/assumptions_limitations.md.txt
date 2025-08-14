@@ -1,0 +1,408 @@
+# Assumptions and Limitations
+
+## Overview
+
+Cette section décrit les hypothèses fondamentales et les limitations du modèle **FX LSV Markov Switching PDE**, incluant les contraintes théoriques, numériques et opérationnelles spécifiques à l'approche PDE.
+
+## PDE-Specific Assumptions
+
+### Mathematical Framework Assumptions
+
+#### Smoothness and Regularity
+**Assumption** : Solutions PDE suffisamment régulières pour discrétisation
+- **Implication** : Existence de dérivées partielles continues
+- **Validity** : Valide pour la plupart des options FX standard
+- **Limitation** : Problématique pour payoffs discontinus (digitals)
+
+#### Domain Boundedness
+**Assumption** : Domaine de calcul borné avec frontières appropriées
+- **Spot Domain** : [S_min, S_max] avec S_min > 0
+- **Variance Domain** : [V_min, V_max] avec V_min ≥ 0
+- **Limitation** : Erreurs aux frontières si domaine trop petit
+
+#### Boundary Condition Validity
+**Assumption** : Conditions aux limites reflètent le comportement asymptotique
+- **Far-Field Behavior** : Comportement connu quand S → 0, S → ∞, V → 0, V → ∞
+- **Limitation** : Approximations aux frontières peuvent introduire des erreurs
+
+### Numerical Assumptions
+
+#### Grid Regularity
+```cpp
+// Hypothèses sur la régularité de grille PDE
+namespace xsigma::pde_assumptions {
+    
+    class PDEGridAssumptions {
+    public:
+        struct GridValidityCheck {
+            bool uniform_spacing_adequate;
+            bool boundary_resolution_sufficient;
+            bool cfl_condition_satisfied;
+            bool stability_condition_met;
+            std::vector<std::string> violation_warnings;
+        };
+        
+        // Validation des hypothèses de grille
+        GridValidityCheck validate_grid_assumptions(
+            const DiscretizationParameters& params,
+            const FXLSVMSPDEParameters& model_params) {
+            
+            GridValidityCheck check;
+            check.uniform_spacing_adequate = true;
+            check.boundary_resolution_sufficient = true;
+            check.cfl_condition_satisfied = true;
+            check.stability_condition_met = true;
+            
+            // Test 1: Espacement uniforme adéquat
+            if (!validate_uniform_spacing(params)) {
+                check.uniform_spacing_adequate = false;
+                check.violation_warnings.push_back("Espacement de grille non uniforme problématique");
+            }
+            
+            // Test 2: Résolution aux frontières
+            if (!validate_boundary_resolution(params, model_params)) {
+                check.boundary_resolution_sufficient = false;
+                check.violation_warnings.push_back("Résolution insuffisante aux frontières");
+            }
+            
+            // Test 3: Condition CFL
+            if (!validate_cfl_condition(params, model_params)) {
+                check.cfl_condition_satisfied = false;
+                check.violation_warnings.push_back("Condition CFL violée - instabilité possible");
+            }
+            
+            // Test 4: Condition de stabilité
+            if (!validate_stability_condition(params, model_params)) {
+                check.stability_condition_met = false;
+                check.violation_warnings.push_back("Condition de stabilité non respectée");
+            }
+            
+            return check;
+        }
+        
+    private:
+        bool validate_uniform_spacing(const DiscretizationParameters& params) {
+            // Vérification que l'espacement uniforme est approprié
+            double spot_range = params.spot_max - params.spot_min;
+            double spot_step = spot_range / (params.spot_grid_points - 1);
+            
+            // Test de régularité : pas trop grand par rapport aux variations locales
+            double max_acceptable_step = spot_range * 0.05; // 5% du domaine
+            
+            return spot_step <= max_acceptable_step;
+        }
+        
+        bool validate_boundary_resolution(
+            const DiscretizationParameters& params,
+            const FXLSVMSPDEParameters& model_params) {
+            
+            // Vérification que les frontières sont suffisamment éloignées
+            double current_spot = model_params.spot_fx_rate;
+            
+            // Frontières doivent être à au moins 3 écarts-types
+            double vol_estimate = 0.15; // Estimation conservative
+            double time_horizon = params.maturity;
+            double spot_std = current_spot * vol_estimate * std::sqrt(time_horizon);
+            
+            bool lower_boundary_ok = (current_spot - params.spot_min) > 3.0 * spot_std;
+            bool upper_boundary_ok = (params.spot_max - current_spot) > 3.0 * spot_std;
+            
+            return lower_boundary_ok && upper_boundary_ok;
+        }
+        
+        bool validate_cfl_condition(
+            const DiscretizationParameters& params,
+            const FXLSVMSPDEParameters& model_params) {
+            
+            // Condition CFL pour stabilité : dt ≤ C * min(dx²/D, dx/|v|)
+            double spot_step = (params.spot_max - params.spot_min) / (params.spot_grid_points - 1);
+            double var_step = (params.variance_max - params.variance_min) / (params.variance_grid_points - 1);
+            double time_step = params.maturity / params.time_steps;
+            
+            // Estimation des coefficients maximaux
+            double max_diffusion = 0.5 * 0.5 * 0.5 * params.spot_max * params.spot_max; // σ²S²/2
+            double max_drift = std::abs(model_params.domestic_rate - model_params.foreign_rate) * params.spot_max;
+            
+            // Conditions CFL
+            double cfl_diffusion = time_step * max_diffusion / (spot_step * spot_step);
+            double cfl_convection = time_step * max_drift / spot_step;
+            
+            return (cfl_diffusion <= 0.5) && (cfl_convection <= 1.0);
+        }
+        
+        bool validate_stability_condition(
+            const DiscretizationParameters& params,
+            const FXLSVMSPDEParameters& model_params) {
+            
+            // Condition de stabilité pour schéma implicite
+            // Généralement moins restrictive que CFL
+            
+            // Vérification que les taux de transition Markov ne sont pas trop élevés
+            double max_transition_rate = 0.0;
+            for (int i = 0; i < model_params.number_of_states; ++i) {
+                for (int j = 0; j < model_params.number_of_states; ++j) {
+                    if (i != j) {
+                        max_transition_rate = std::max(max_transition_rate, 
+                                                     std::abs(model_params.transition_rates[i][j]));
+                    }
+                }
+            }
+            
+            double time_step = params.maturity / params.time_steps;
+            return max_transition_rate * time_step <= 1.0;
+        }
+    };
+}
+```
+
+#### Solver Convergence Assumptions
+**Assumption** : Convergence garantie des solveurs linéaires
+- **Direct Solvers** : Factorisation LU stable
+- **Iterative Solvers** : Convergence dans les limites d'itérations
+- **Limitation** : Matrices mal conditionnées peuvent causer des échecs
+
+#### Round-off Error Control
+**Assumption** : Erreurs d'arrondi négligeables
+- **Double Precision** : Précision suffisante pour la plupart des cas
+- **Limitation** : Accumulation d'erreurs pour très grandes grilles
+
+## FX Market Assumptions
+
+### Interest Rate Structure
+
+#### Constant Rate Assumption
+**Assumption** : Taux d'intérêt domestique et étranger constants
+- **Simplification** : Facilite la résolution PDE
+- **Reality** : Taux fluctuent avec structure de terme
+- **Impact** : Sous-estimation du risque de taux
+
+#### Flat Yield Curve
+**Assumption** : Courbes de taux plates
+- **Implication** : Même taux pour toutes les maturités
+- **Limitation** : Néglige la structure de terme réelle
+- **Mitigation** : Utilisation de taux forward appropriés
+
+### FX Market Structure
+
+#### Perfect Liquidity
+**Assumption** : Liquidité parfaite sur tous les strikes et maturités
+- **Implication** : Exécution instantanée sans impact de marché
+- **Reality** : Liquidité variable selon strikes/maturités
+- **Impact** : Surestimation de la capacité de hedging
+
+#### No Transaction Costs
+**Assumption** : Absence de coûts de transaction et spreads bid-ask
+- **Simplification** : Facilite la calibration et le pricing
+- **Reality** : Spreads significatifs pour certaines paires
+- **Impact** : Sous-estimation des coûts de hedging
+
+## Model Limitations
+
+### Product Scope Limitations
+
+#### Single-Asset Limitation
+**Limitation** : Optimisé pour options FX single-asset uniquement
+- **Multi-Asset Products** : Extension non-triviale
+- **Basket Options** : Nécessite PDE multi-dimensionnelle
+- **Quanto Products** : Support limité
+
+#### Path Dependency Complexity
+**Limitation** : Complexité limitée pour dépendance de chemin
+- **Simple Path Dependency** : Asian, lookback basiques supportés
+- **Complex Path Dependency** : Limitations pour structures complexes
+- **Memory Requirements** : Augmentation exponentielle avec complexité
+
+#### American Exercise
+**Limitation** : Support limité pour exercice anticipé
+- **European Focus** : Optimisé pour options européennes
+- **American Options** : Nécessite techniques spécialisées (PSOR, penalty methods)
+- **Computational Cost** : Augmentation significative du coût
+
+### Numerical Limitations
+
+#### Grid Size Constraints
+```cpp
+// Limitations de taille de grille
+class PDEGridLimitations {
+public:
+    struct GridConstraints {
+        int max_spot_points;         // Points spot maximaux
+        int max_variance_points;     // Points variance maximaux
+        int max_time_steps;          // Pas de temps maximaux
+        double max_memory_gb;        // Mémoire maximale
+        double max_computation_time_s; // Temps de calcul maximal
+    };
+    
+    // Contraintes typiques pour différents environnements
+    GridConstraints get_production_constraints() {
+        GridConstraints constraints;
+        constraints.max_spot_points = 200;      // Limite pratique
+        constraints.max_variance_points = 100;  // Limite pratique
+        constraints.max_time_steps = 500;       // Limite pratique
+        constraints.max_memory_gb = 4.0;        // Limite serveur
+        constraints.max_computation_time_s = 30.0; // Limite temps réel
+        return constraints;
+    }
+    
+    // Estimation des besoins en ressources
+    bool check_feasibility(const DiscretizationParameters& params) {
+        auto constraints = get_production_constraints();
+        
+        // Vérification des limites
+        if (params.spot_grid_points > constraints.max_spot_points) {
+            XSIGMA_LOG_WARNING("Grille spot trop grande: " + 
+                              std::to_string(params.spot_grid_points));
+            return false;
+        }
+        
+        if (params.variance_grid_points > constraints.max_variance_points) {
+            XSIGMA_LOG_WARNING("Grille variance trop grande: " + 
+                              std::to_string(params.variance_grid_points));
+            return false;
+        }
+        
+        // Estimation mémoire
+        double estimated_memory = estimate_memory_usage(params);
+        if (estimated_memory > constraints.max_memory_gb) {
+            XSIGMA_LOG_WARNING("Utilisation mémoire estimée trop élevée: " + 
+                              std::to_string(estimated_memory) + " GB");
+            return false;
+        }
+        
+        return true;
+    }
+    
+private:
+    double estimate_memory_usage(const DiscretizationParameters& params) {
+        // Estimation de l'utilisation mémoire
+        int total_grid_points = params.spot_grid_points * params.variance_grid_points;
+        int number_of_states = 3; // Typique
+        
+        // Matrices PDE (sparse, estimation conservative)
+        double matrix_memory = total_grid_points * total_grid_points * 0.01 * 8 / 1e9; // GB
+        
+        // Vecteurs solution
+        double vector_memory = total_grid_points * number_of_states * 8 / 1e9; // GB
+        
+        // Overhead et structures auxiliaires
+        double overhead_memory = 0.5; // GB
+        
+        return matrix_memory + vector_memory + overhead_memory;
+    }
+};
+```
+
+#### Boundary Effects
+**Limitation** : Erreurs potentielles près des frontières du domaine
+- **Artificial Boundaries** : Frontières artificielles peuvent introduire des erreurs
+- **Boundary Conditions** : Approximations aux frontières
+- **Mitigation** : Domaines suffisamment larges, conditions aux limites sophistiquées
+
+#### Convergence Issues
+**Limitation** : Possible non-convergence pour paramètres extrêmes
+- **Ill-Conditioned Systems** : Matrices mal conditionnées
+- **Extreme Parameters** : Paramètres hors limites de stabilité
+- **Mitigation** : Validation des paramètres, préconditionnement
+
+### Computational Limitations
+
+#### Memory Scaling
+**Limitation** : Utilisation mémoire croît quadratiquement avec résolution
+- **2D Grid** : O(N²) pour N points par dimension
+- **3D Extensions** : O(N³) pour produits complexes
+- **Impact** : Limitations pour très haute résolution
+
+#### Parallel Efficiency
+**Limitation** : Parallélisation limitée pour certains solveurs
+- **Direct Solvers** : Parallélisation difficile
+- **Iterative Solvers** : Meilleure parallélisation mais convergence plus lente
+- **Trade-off** : Vitesse vs parallélisme
+
+#### Real-Time Constraints
+**Limitation** : Temps de calcul incompatible avec certaines applications
+- **High-Frequency Trading** : Latence trop élevée
+- **Market Making** : Vitesse insuffisante pour cotation continue
+- **Intraday Risk** : Délais pour monitoring temps réel
+
+## Operational Limitations
+
+### System Integration
+
+#### Legacy System Compatibility
+**Limitation** : Complexité d'intégration avec systèmes existants
+- **Data Formats** : Incompatibilités de formats
+- **APIs** : Interfaces non standardisées
+- **Performance** : Goulots d'étranglement système
+
+#### Real-Time Data Requirements
+**Limitation** : Besoins en données de marché temps réel
+- **Data Latency** : Sensibilité à la latence des données
+- **Data Quality** : Dépendance à la qualité des données
+- **Connectivity** : Besoins de connectivité robuste
+
+### Regulatory Constraints
+
+#### Model Validation Requirements
+**Limitation** : Processus de validation réglementaire complexe
+- **Documentation** : Exigences documentaires extensives
+- **Independent Validation** : Validation par tiers requise
+- **Ongoing Monitoring** : Surveillance continue obligatoire
+
+#### Capital Impact
+**Limitation** : Impact sur les exigences de capital réglementaire
+- **Model Risk** : Capital additionnel pour risque de modèle
+- **Validation Quality** : Impact sur les charges de capital
+- **Stress Testing** : Exigences de stress testing spécifiques
+
+## Mitigation Strategies
+
+### Technical Mitigations
+
+#### Adaptive Grids
+- **Dynamic Refinement** : Raffinement automatique des grilles
+- **Error Estimation** : Estimation d'erreur a posteriori
+- **Optimal Placement** : Placement optimal des points de grille
+
+#### Robust Solvers
+- **Preconditioning** : Préconditionnement pour améliorer convergence
+- **Iterative Refinement** : Raffinement itératif des solutions
+- **Fallback Methods** : Méthodes de secours en cas d'échec
+
+#### Boundary Treatment
+- **Absorbing Boundaries** : Conditions aux limites absorbantes
+- **Perfectly Matched Layers** : Couches parfaitement adaptées
+- **Extrapolation** : Techniques d'extrapolation sophistiquées
+
+### Operational Mitigations
+
+#### Resource Management
+- **Memory Optimization** : Optimisation de l'utilisation mémoire
+- **Parallel Processing** : Utilisation optimale du parallélisme
+- **Caching Strategies** : Stratégies de mise en cache
+
+#### Quality Controls
+- **Convergence Monitoring** : Surveillance de la convergence
+- **Error Bounds** : Estimation des bornes d'erreur
+- **Validation Frameworks** : Frameworks de validation automatique
+
+## Usage Guidelines
+
+### Recommended Applications
+- **Standard FX Options** : Vanilles et barrières simples
+- **Medium Complexity** : Produits avec complexité modérée
+- **Stable Parameters** : Paramètres dans limites validées
+- **Adequate Resources** : Ressources computationnelles suffisantes
+
+### Cautionary Applications
+- **High Path Dependency** : Produits avec dépendance de chemin complexe
+- **Extreme Parameters** : Paramètres près des limites de stabilité
+- **Real-Time Critical** : Applications critiques en temps réel
+- **Limited Resources** : Environnements avec ressources limitées
+
+### Prohibited Applications
+- **Multi-Asset Complex** : Produits multi-sous-jacents complexes
+- **High-Frequency Trading** : Trading haute fréquence
+- **Unsupported Products** : Produits hors scope défini
+- **Unvalidated Parameters** : Paramètres non validés
+
+Le modèle FX LSV Markov Switching PDE dans Our project, malgré ces limitations, reste un outil puissant et approprié pour une large gamme d'applications FX, à condition d'être utilisé dans le cadre de ses limitations et avec les contrôles appropriés.

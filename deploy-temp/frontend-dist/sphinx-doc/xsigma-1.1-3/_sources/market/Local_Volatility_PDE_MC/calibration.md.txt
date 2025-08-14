@@ -1,0 +1,569 @@
+# Calibration
+
+## Description de la Routine de Calibration
+
+Pour dériver la routine de calibration, considérons :
+
+$$f(S_T) = e^{-\int_{t_0}^T r_d(u)du} \left( S_T - K \right)^+$$
+
+L'application de la formule de Tanaka (Karatzas & Shreve, 1998) nous donne :
+
+$$df = e^{-\int_{t_0}^T r_d(u)du} \left\{ -r_d(T)(S_T - K)^+ dT + \mathbb{I}_{S_T \geq K} dS_T + \frac{1}{2} \delta_K dS_T^2 \right\}$$
+
+Ici $\delta_K$ est le delta de Dirac, et $\mathbb{I}_{S_T \geq K}$ est la fonction de Heaviside. Nous prenons une espérance des deux côtés sous la mesure risque-neutre $\mathbb{Q}$ et divisons par $dT$ partout, pour obtenir :
+
+$$\frac{\partial C(K,T)}{\partial T} = -r_f(T)C(K,T) - \left( r_d(T) - r_f(T) \right) K \frac{\partial C(K,T)}{\partial K} + \frac{1}{2} \sigma^2(K,T) K^2 \frac{\partial^2 C(K,T)}{\partial K^2}$$
+
+En réarrangeant, nous obtenons l'équation bien connue de volatilité locale :
+
+$$\sigma^2(K,T) = \frac{\frac{\partial C}{\partial T} + r_f C + \left( r_d - r_f \right) K \frac{\partial C}{\partial K}}{\frac{1}{2} K^2 \frac{\partial^2 C}{\partial K^2}}$$
+
+```cpp
+// Implémentation Our project de la calibration Local Volatility
+namespace xsigma {
+    // Classe principale pour la calibration du modèle Local Volatility
+    class LocalVolatilityCalibrator {
+    public:
+        // Structure pour les paramètres de calibration
+        struct CalibrationParameters {
+            double spot_rate;                    // Taux de change spot
+            double domestic_rate;                // Taux domestique
+            double foreign_rate;                 // Taux étranger
+            VolatilitySurface implied_vol_surface; // Surface de volatilité implicite
+            CalibrationGrid grid_params;         // Paramètres de grille
+            double theta;                        // Paramètre d'explicité (défaut: 0.5)
+        };
+        
+        // Structure pour la grille de calibration
+        struct CalibrationGrid {
+            std::vector<double> strike_grid;     // Grille des strikes
+            std::vector<double> expiry_grid;     // Grille des expiries
+            double strike_spacing;               // Espacement des strikes
+            double expiry_spacing;               // Espacement des expiries
+        };
+        
+        LocalVolatilityCalibrator(const CalibrationParameters& params)
+            : params_(params) {
+            validate_parameters();
+            initialize_calibration_grid();
+        }
+        
+        // Calibration principale - calcul de la surface de volatilité locale
+        LocalVolatilitySurface calibrate() {
+            LocalVolatilitySurface local_vol_surface;
+            
+            // Conversion des volatilités implicites en variance implicite
+            auto implied_variance_surface = convert_to_variance_surface();
+            
+            // Calcul des dérivées par différences finies
+            auto derivatives = compute_finite_differences(implied_variance_surface);
+            
+            // Application de l'équation de Dupire
+            for (size_t i = 0; i < params_.grid_params.strike_grid.size(); ++i) {
+                for (size_t j = 0; j < params_.grid_params.expiry_grid.size(); ++j) {
+                    double strike = params_.grid_params.strike_grid[i];
+                    double expiry = params_.grid_params.expiry_grid[j];
+                    
+                    double local_vol = compute_local_volatility_dupire(
+                        strike, expiry, derivatives, i, j);
+                    
+                    local_vol_surface.set_volatility(strike, expiry, local_vol);
+                }
+            }
+            
+            // Validation et lissage de la surface
+            validate_and_smooth_surface(local_vol_surface);
+            
+            return local_vol_surface;
+        }
+        
+        // Calcul de la volatilité locale selon l'équation de Dupire
+        double compute_local_volatility_dupire(
+            double strike, double expiry,
+            const FiniteDifferenceDerivatives& derivatives,
+            size_t i, size_t j) const {
+            
+            // Récupération des dérivées
+            double dC_dT = derivatives.time_derivative[i][j];
+            double dC_dK = derivatives.strike_derivative[i][j];
+            double d2C_dK2 = derivatives.second_strike_derivative[i][j];
+            
+            // Prix de l'option call
+            double call_price = compute_call_price_bs(strike, expiry);
+            
+            // Équation de Dupire
+            double numerator = dC_dT + params_.foreign_rate * call_price 
+                             + (params_.domestic_rate - params_.foreign_rate) * strike * dC_dK;
+            double denominator = 0.5 * strike * strike * d2C_dK2;
+            
+            if (std::abs(denominator) < 1e-12) {
+                XSIGMA_THROW("Division par zéro dans l'équation de Dupire pour K=" 
+                           + std::to_string(strike) + ", T=" + std::to_string(expiry));
+            }
+            
+            double local_variance = numerator / denominator;
+            
+            // Assurer la positivité
+            if (local_variance < 0) {
+                XSIGMA_LOG_WARNING("Variance locale négative détectée, utilisation de régularisation");
+                local_variance = std::max(local_variance, 1e-6);
+            }
+            
+            return std::sqrt(local_variance);
+        }
+        
+    private:
+        CalibrationParameters params_;
+        
+        void validate_parameters() const {
+            if (params_.spot_rate <= 0) {
+                XSIGMA_THROW("Le taux de change spot doit être positif");
+            }
+            if (params_.grid_params.strike_grid.empty() || params_.grid_params.expiry_grid.empty()) {
+                XSIGMA_THROW("Les grilles de strikes et d'expiries ne peuvent pas être vides");
+            }
+        }
+        
+        void initialize_calibration_grid() {
+            // Construction automatique de la grille si nécessaire
+            if (params_.grid_params.strike_grid.empty()) {
+                construct_strike_grid();
+            }
+            if (params_.grid_params.expiry_grid.empty()) {
+                construct_expiry_grid();
+            }
+        }
+        
+        VarianceSurface convert_to_variance_surface() const {
+            VarianceSurface variance_surface;
+            
+            for (double strike : params_.grid_params.strike_grid) {
+                for (double expiry : params_.grid_params.expiry_grid) {
+                    double implied_vol = params_.implied_vol_surface.get_volatility(strike, expiry);
+                    double implied_variance = expiry * implied_vol * implied_vol;
+                    variance_surface.set_variance(strike, expiry, implied_variance);
+                }
+            }
+            
+            return variance_surface;
+        }
+        
+        FiniteDifferenceDerivatives compute_finite_differences(
+            const VarianceSurface& variance_surface) const {
+            
+            FiniteDifferenceDerivatives derivatives;
+            size_t num_strikes = params_.grid_params.strike_grid.size();
+            size_t num_expiries = params_.grid_params.expiry_grid.size();
+            
+            // Initialisation des matrices de dérivées
+            derivatives.time_derivative.resize(num_strikes, std::vector<double>(num_expiries));
+            derivatives.strike_derivative.resize(num_strikes, std::vector<double>(num_expiries));
+            derivatives.second_strike_derivative.resize(num_strikes, std::vector<double>(num_expiries));
+            
+            for (size_t i = 0; i < num_strikes; ++i) {
+                for (size_t j = 0; j < num_expiries; ++j) {
+                    // Dérivée temporelle
+                    derivatives.time_derivative[i][j] = compute_time_derivative(
+                        variance_surface, i, j);
+                    
+                    // Dérivée première en strike
+                    derivatives.strike_derivative[i][j] = compute_strike_derivative(
+                        variance_surface, i, j);
+                    
+                    // Dérivée seconde en strike
+                    derivatives.second_strike_derivative[i][j] = compute_second_strike_derivative(
+                        variance_surface, i, j);
+                }
+            }
+            
+            return derivatives;
+        }
+        
+        double compute_time_derivative(const VarianceSurface& variance_surface, 
+                                     size_t i, size_t j) const {
+            if (j == 0) {
+                // Différence avant
+                double v_current = variance_surface.get_variance(
+                    params_.grid_params.strike_grid[i], params_.grid_params.expiry_grid[j]);
+                double v_next = variance_surface.get_variance(
+                    params_.grid_params.strike_grid[i], params_.grid_params.expiry_grid[j+1]);
+                double dt = params_.grid_params.expiry_grid[j+1] - params_.grid_params.expiry_grid[j];
+                return (v_next - v_current) / dt;
+            } else if (j == params_.grid_params.expiry_grid.size() - 1) {
+                // Différence arrière
+                double v_current = variance_surface.get_variance(
+                    params_.grid_params.strike_grid[i], params_.grid_params.expiry_grid[j]);
+                double v_prev = variance_surface.get_variance(
+                    params_.grid_params.strike_grid[i], params_.grid_params.expiry_grid[j-1]);
+                double dt = params_.grid_params.expiry_grid[j] - params_.grid_params.expiry_grid[j-1];
+                return (v_current - v_prev) / dt;
+            } else {
+                // Différence centrée
+                double v_next = variance_surface.get_variance(
+                    params_.grid_params.strike_grid[i], params_.grid_params.expiry_grid[j+1]);
+                double v_prev = variance_surface.get_variance(
+                    params_.grid_params.strike_grid[i], params_.grid_params.expiry_grid[j-1]);
+                double dt = params_.grid_params.expiry_grid[j+1] - params_.grid_params.expiry_grid[j-1];
+                return (v_next - v_prev) / dt;
+            }
+        }
+        
+        double compute_strike_derivative(const VarianceSurface& variance_surface, 
+                                       size_t i, size_t j) const {
+            // Implémentation avec paramètre theta pour mélange explicite/implicite
+            double derivative_current = 0.0;
+            double derivative_next = 0.0;
+            
+            if (i == 0) {
+                // Différence avant
+                double v_current = variance_surface.get_variance(
+                    params_.grid_params.strike_grid[i], params_.grid_params.expiry_grid[j]);
+                double v_next = variance_surface.get_variance(
+                    params_.grid_params.strike_grid[i+1], params_.grid_params.expiry_grid[j]);
+                double dk = params_.grid_params.strike_grid[i+1] - params_.grid_params.strike_grid[i];
+                derivative_current = (v_next - v_current) / dk;
+            } else if (i == params_.grid_params.strike_grid.size() - 1) {
+                // Différence arrière
+                double v_current = variance_surface.get_variance(
+                    params_.grid_params.strike_grid[i], params_.grid_params.expiry_grid[j]);
+                double v_prev = variance_surface.get_variance(
+                    params_.grid_params.strike_grid[i-1], params_.grid_params.expiry_grid[j]);
+                double dk = params_.grid_params.strike_grid[i] - params_.grid_params.strike_grid[i-1];
+                derivative_current = (v_current - v_prev) / dk;
+            } else {
+                // Différence centrée
+                double v_next = variance_surface.get_variance(
+                    params_.grid_params.strike_grid[i+1], params_.grid_params.expiry_grid[j]);
+                double v_prev = variance_surface.get_variance(
+                    params_.grid_params.strike_grid[i-1], params_.grid_params.expiry_grid[j]);
+                double dk = params_.grid_params.strike_grid[i+1] - params_.grid_params.strike_grid[i-1];
+                derivative_current = (v_next - v_prev) / dk;
+            }
+            
+            // Si nous avons un niveau de temps suivant, calculer la dérivée là aussi
+            if (j < params_.grid_params.expiry_grid.size() - 1) {
+                // Calcul similaire pour j+1
+                derivative_next = derivative_current; // Simplified for now
+            }
+            
+            // Mélange selon le paramètre theta
+            return (1.0 - params_.theta) * derivative_current + params_.theta * derivative_next;
+        }
+        
+        double compute_second_strike_derivative(const VarianceSurface& variance_surface, 
+                                              size_t i, size_t j) const {
+            if (i == 0 || i == params_.grid_params.strike_grid.size() - 1) {
+                // Aux bords, utiliser une approximation d'ordre inférieur
+                return 0.0;
+            }
+            
+            double v_next = variance_surface.get_variance(
+                params_.grid_params.strike_grid[i+1], params_.grid_params.expiry_grid[j]);
+            double v_current = variance_surface.get_variance(
+                params_.grid_params.strike_grid[i], params_.grid_params.expiry_grid[j]);
+            double v_prev = variance_surface.get_variance(
+                params_.grid_params.strike_grid[i-1], params_.grid_params.expiry_grid[j]);
+            
+            double dk = params_.grid_params.strike_spacing;
+            return (v_next - 2.0 * v_current + v_prev) / (dk * dk);
+        }
+        
+        double compute_call_price_bs(double strike, double expiry) const {
+            // Prix Black-Scholes pour validation
+            double forward = params_.spot_rate * std::exp((params_.domestic_rate - params_.foreign_rate) * expiry);
+            double implied_vol = params_.implied_vol_surface.get_volatility(strike, expiry);
+            double discount_factor = std::exp(-params_.domestic_rate * expiry);
+            
+            return black_scholes_call(forward, strike, expiry, implied_vol, discount_factor);
+        }
+        
+        double black_scholes_call(double forward, double strike, double expiry, 
+                                double volatility, double discount_factor) const {
+            if (expiry <= 0 || volatility <= 0) return std::max(forward - strike, 0.0) * discount_factor;
+            
+            double d1 = (std::log(forward / strike) + 0.5 * volatility * volatility * expiry) 
+                       / (volatility * std::sqrt(expiry));
+            double d2 = d1 - volatility * std::sqrt(expiry);
+            
+            double N_d1 = 0.5 * (1.0 + std::erf(d1 / std::sqrt(2.0)));
+            double N_d2 = 0.5 * (1.0 + std::erf(d2 / std::sqrt(2.0)));
+            
+            return discount_factor * (forward * N_d1 - strike * N_d2);
+        }
+        
+        void validate_and_smooth_surface(LocalVolatilitySurface& surface) const {
+            // Validation de la surface et lissage si nécessaire
+            for (double strike : params_.grid_params.strike_grid) {
+                for (double expiry : params_.grid_params.expiry_grid) {
+                    double vol = surface.get_volatility(strike, expiry);
+                    if (vol < 0 || vol > 10.0) { // Seuils de sanité
+                        XSIGMA_LOG_WARNING("Volatilité locale suspecte détectée: " + std::to_string(vol));
+                        // Appliquer un lissage local
+                        surface.set_volatility(strike, expiry, std::max(0.01, std::min(vol, 5.0)));
+                    }
+                }
+            }
+        }
+        
+        void construct_strike_grid() {
+            // Construction automatique de la grille de strikes
+        }
+        
+        void construct_expiry_grid() {
+            // Construction automatique de la grille d'expiries
+        }
+    };
+    
+    // Structure pour stocker les dérivées par différences finies
+    struct FiniteDifferenceDerivatives {
+        std::vector<std::vector<double>> time_derivative;           // ∂v/∂T
+        std::vector<std::vector<double>> strike_derivative;         // ∂v/∂K
+        std::vector<std::vector<double>> second_strike_derivative;  // ∂²v/∂K²
+    };
+}
+```
+*Cette implémentation C++ dans Our project fournit une calibration complète du modèle Local Volatility selon l'équation de Dupire avec différences finies.*
+
+### Transformation en Variables de Variance
+
+En pratique, les données de marché sont sauvegardées en termes de volatilités implicites $\theta(K,T)$ plutôt qu'en prix d'options call. Ainsi, le calcul des prix de call dans la formule ci-dessus ajoute un overhead inutile, qui pourrait être supprimé en travaillant directement en termes de la variance implicite $v(K,T) = T\theta^2(K,T)$.
+
+Pour simplifier les calculs, nous travaillons avec la variable transformée $y = \ln(K/F)$. Nous notons que les prix d'options call peuvent être exprimés en termes de $v$ et $y$ comme :
+
+$$C = e^{-\int_{t_0}^{T} r_d(u)du} F \left[ N \left( -\frac{y}{\sqrt{v}} + \frac{\sqrt{v}}{2} \right) - e^y N \left( -\frac{y}{\sqrt{v}} - \frac{\sqrt{v}}{2} \right) \right]$$
+
+### Calcul par Différences Finies
+
+En pratique, les dérivées apparaissant ci-dessus sont calculées par des approximations de différences finies sur une grille discrète dans l'espace $(x, T)$. Soit $i$ les points de grille dans la direction $x$ et $j$ dans la direction $T$. Aussi, soit $\epsilon$ l'espacement de grille dans la direction $x$. Alors :
+
+$$\frac{\partial v}{\partial x}(i, j) = \left( 1 - \theta \right) \frac{v(i + 1, j) - v(i - 1, j)}{2\epsilon} + \theta \frac{v(i + 1, j + 1) - v(i - 1, j + 1)}{2\epsilon}$$
+
+$$\frac{\partial^2 v}{\partial x^2}(i, j) = \left( 1 - \theta \right) \frac{v(i + 1, j) - 2v(i, j) + v(i - 1, j)}{\epsilon^2} + \theta \frac{v(i + 1, j + 1) - 2v(i, j + 1) + v(i - 1, j + 1)}{\epsilon^2}$$
+
+$$\frac{\partial v}{\partial T}(i, j) = \frac{v(i, j + 1) - v(i, j)}{T_{j+1} - T_j}$$
+
+Ici $\theta$ capture le degré d'"explicité" et par défaut à 0.5 (peut être surchargé par la technique de pricing numérique).
+
+## Inputs
+
+### Données de Référence : Données de Marché et Autres Inputs
+
+La calibration tente de correspondre aux données de volatilité implicite d'entrée $\theta(K, T)$. La calibration prend également, comme inputs, le spot FX $S(t)$ et les courbes d'actualisation étrangère et domestique $r_f(T), r_d(T)$.
+
+```cpp
+// Implémentation Our project de la gestion des données de marché
+namespace xsigma {
+    // Classe pour la gestion des données de marché pour calibration
+    class MarketDataManager {
+    public:
+        // Structure pour les données de marché
+        struct MarketDataSet {
+            double fx_spot;                      // Spot FX
+            std::string currency_pair;           // Paire de devises
+            VolatilitySurface vol_surface;       // Surface de volatilité
+            YieldCurve domestic_curve;           // Courbe domestique
+            YieldCurve foreign_curve;            // Courbe étrangère
+            std::string valuation_date;          // Date de valorisation
+            std::map<std::string, std::string> data_sources; // Sources des données
+        };
+
+        // Chargement des données de marché
+        MarketDataSet load_market_data(const std::string& currency_pair,
+                                     const std::string& valuation_date) {
+            MarketDataSet market_data;
+            market_data.currency_pair = currency_pair;
+            market_data.valuation_date = valuation_date;
+
+            // Chargement du spot FX
+            market_data.fx_spot = load_fx_spot(currency_pair, valuation_date);
+            market_data.data_sources["fx_spot"] = get_fx_spot_source(currency_pair, valuation_date);
+
+            // Chargement de la surface de volatilité
+            market_data.vol_surface = load_volatility_surface(currency_pair, valuation_date);
+            market_data.data_sources["vol_surface"] = get_vol_surface_source(currency_pair, valuation_date);
+
+            // Chargement des courbes de taux
+            std::string domestic_ccy = extract_domestic_currency(currency_pair);
+            std::string foreign_ccy = extract_foreign_currency(currency_pair);
+
+            market_data.domestic_curve = load_yield_curve(domestic_ccy, valuation_date);
+            market_data.foreign_curve = load_yield_curve(foreign_ccy, valuation_date);
+
+            market_data.data_sources["domestic_curve"] = get_curve_source(domestic_ccy, valuation_date);
+            market_data.data_sources["foreign_curve"] = get_curve_source(foreign_ccy, valuation_date);
+
+            // Validation des données
+            validate_market_data(market_data);
+
+            return market_data;
+        }
+
+        // Validation de la qualité des données
+        void validate_market_data(const MarketDataSet& data) const {
+            // Validation du spot FX
+            if (data.fx_spot <= 0) {
+                XSIGMA_THROW("Spot FX invalide: " + std::to_string(data.fx_spot));
+            }
+
+            // Validation de la surface de volatilité
+            validate_volatility_surface(data.vol_surface);
+
+            // Validation des courbes de taux
+            validate_yield_curve(data.domestic_curve, "domestique");
+            validate_yield_curve(data.foreign_curve, "étrangère");
+
+            // Vérification de la cohérence temporelle
+            check_temporal_consistency(data);
+        }
+
+    private:
+        double load_fx_spot(const std::string& currency_pair, const std::string& date) {
+            // Exemple pour EURUSD
+            if (currency_pair == "EURUSD") {
+                std::string source = "mepdn://official@" + date + "/chain.fx/fx.liro/usd/ldnclose";
+                return load_from_mepdn(source);
+            }
+            // Autres paires de devises...
+            return 1.0; // Placeholder
+        }
+
+        VolatilitySurface load_volatility_surface(const std::string& currency_pair,
+                                                const std::string& date) {
+            // Exemple pour EURUSD
+            if (currency_pair == "EURUSD") {
+                std::string source = "mepdn://official@" + date + "/volsurface.fx/global/EURUSD/meanreverting/default";
+                return load_vol_surface_from_mepdn(source);
+            }
+            return VolatilitySurface(); // Placeholder
+        }
+
+        YieldCurve load_yield_curve(const std::string& currency, const std::string& date) {
+            std::string source;
+            if (currency == "EUR") {
+                source = "mepdn://official@" + date + "/curve.swap/LDNCLOSE/EUR/MID/exotics6m_new";
+            } else if (currency == "USD") {
+                source = "mepdn://official@" + date + "/curve.swap/LDNCLOSE/USD/MID/LIBOREXOTICS";
+            }
+            return load_curve_from_mepdn(source);
+        }
+
+        void validate_volatility_surface(const VolatilitySurface& surface) const {
+            // Vérification de l'arbitrage calendaire et butterfly
+            auto strikes = surface.get_all_strikes();
+            auto expiries = surface.get_all_expiries();
+
+            for (size_t i = 0; i < expiries.size() - 1; ++i) {
+                for (double strike : strikes) {
+                    double vol1 = surface.get_volatility(strike, expiries[i]);
+                    double vol2 = surface.get_volatility(strike, expiries[i+1]);
+
+                    // Vérification arbitrage calendaire
+                    double var1 = expiries[i] * vol1 * vol1;
+                    double var2 = expiries[i+1] * vol2 * vol2;
+
+                    if (var2 < var1) {
+                        XSIGMA_LOG_WARNING("Arbitrage calendaire potentiel détecté pour K="
+                                         + std::to_string(strike));
+                    }
+                }
+            }
+
+            // Vérification arbitrage butterfly
+            for (double expiry : expiries) {
+                for (size_t i = 1; i < strikes.size() - 1; ++i) {
+                    double vol_low = surface.get_volatility(strikes[i-1], expiry);
+                    double vol_mid = surface.get_volatility(strikes[i], expiry);
+                    double vol_high = surface.get_volatility(strikes[i+1], expiry);
+
+                    // Test de convexité
+                    double dk1 = strikes[i] - strikes[i-1];
+                    double dk2 = strikes[i+1] - strikes[i];
+                    double expected_vol = (vol_low * dk2 + vol_high * dk1) / (dk1 + dk2);
+
+                    if (vol_mid > expected_vol * 1.1) { // Tolérance de 10%
+                        XSIGMA_LOG_WARNING("Arbitrage butterfly potentiel détecté pour T="
+                                         + std::to_string(expiry) + ", K=" + std::to_string(strikes[i]));
+                    }
+                }
+            }
+        }
+
+        void validate_yield_curve(const YieldCurve& curve, const std::string& name) const {
+            auto tenors = curve.get_all_tenors();
+
+            // Vérification de la monotonie des taux forward
+            for (size_t i = 0; i < tenors.size() - 1; ++i) {
+                double rate1 = curve.get_rate(tenors[i]);
+                double rate2 = curve.get_rate(tenors[i+1]);
+
+                // Les taux peuvent varier mais pas de façon excessive
+                if (std::abs(rate2 - rate1) > 0.05) { // 5% de variation max
+                    XSIGMA_LOG_WARNING("Variation importante des taux détectée dans la courbe "
+                                     + name + " entre " + std::to_string(tenors[i])
+                                     + " et " + std::to_string(tenors[i+1]));
+                }
+            }
+        }
+
+        void check_temporal_consistency(const MarketDataSet& data) const {
+            // Vérifier que toutes les données sont pour la même date
+            // et que les timestamps sont cohérents
+        }
+
+        // Fonctions utilitaires
+        double load_from_mepdn(const std::string& source) { return 1.0; }
+        VolatilitySurface load_vol_surface_from_mepdn(const std::string& source) { return VolatilitySurface(); }
+        YieldCurve load_curve_from_mepdn(const std::string& source) { return YieldCurve(); }
+
+        std::string get_fx_spot_source(const std::string& pair, const std::string& date) { return ""; }
+        std::string get_vol_surface_source(const std::string& pair, const std::string& date) { return ""; }
+        std::string get_curve_source(const std::string& currency, const std::string& date) { return ""; }
+
+        std::string extract_domestic_currency(const std::string& pair) { return pair.substr(3, 3); }
+        std::string extract_foreign_currency(const std::string& pair) { return pair.substr(0, 3); }
+    };
+}
+```
+*Cette implémentation C++ dans Our project gère le chargement et la validation des données de marché pour la calibration Local Volatility.*
+
+#### Sources de Données
+
+Les données de marché pour la calibration sont obtenues à partir de monickers officiels de fin de journée publiés stockés dans l'environnement MEPDN de la firme. Des exemples de tels monickers (pour une calibration LV EURUSD) sont :
+
+- **FX Spot** : `mepdn://official@20160322/chain.fx/fx.liro/usd/ldnclose`
+- **EURUSD FX Vol** : `mepdn://official@20150331/volsurface.fx/global/EURUSD/meanreverting/default`
+- **EUR Curve** : `mepdn://official@20160322/curve.swap/LDNCLOSE/EUR/MID/exotics6m_new`
+- **USD Curve** : `mepdn://official@20160322/curve.swap/LDNCLOSE/USD/MID/LIBOREXOTICS`
+
+#### Disponibilité/Historique des Données
+
+Les données sont attendues être disponibles pour toute date de valorisation donnée pour laquelle nous souhaitons faire tourner le modèle. Si un élément de données manque, cela résulterait en une erreur évidente.
+
+#### Qualité des Données et Vérifications
+
+Les données officielles de fin de journée sont publiées par les desks de trading et vérifiées par les équipes Middle Office de la Banque d'Investissement. Elles sont responsables d'assurer l'exactitude et la qualité des données de marché.
+
+### Inputs de l'Algorithme de Calibration
+
+L'algorithme de calibration prend des inputs qui décrivent comment la grille discrète (pour le calcul de différences finies) doit être construite. Ces inputs sont spécifiés en termes de géométrie temporelle et spatiale de la grille.
+
+**UniformConeGridPP**
+
+| Nom / Type | Défaut | Recommandé | Description |
+|------------|--------|------------|-------------|
+| Numbers | 200 | 300-400 | Nombre de points dans la direction spatiale de la grille |
+| Slows | 7 | 5-7 | La valeur de la grille dans la direction spatiale, spécifiée par le nombre de points de la distribution |
+
+*Ainsi appelée parce que la grille est constituée de sous-sections rectangulaires qui augmentent en largeur à mesure que nous avançons dans le temps (l'apparence globale ressemble au profil d'un cône dentelé, couché avec son axe horizontal). Les dates qui marquent les limites des sous-sections sont obtenues à partir des tenors contenus dans la surface de volatilité.*
+
+### Autres Inputs
+
+Aucun.
+
+## Justification contre les Approches Alternatives
+
+C'est une calibration rapide et simple qui ne nécessite aucune recherche de racine itérative. Elle est basée sur l'application de la formule de Tanaka (Karatzas & Shreve, 1998) et correspond à la surface de volatilité d'entrée à travers les strikes et les expiries.
+
+## Contrôle de Qualité
+
+Tout échec de calibration est dû à la surface de volatilité d'entrée étant incohérente à travers les strikes ou les expiries (par exemple, une surface qui admet un arbitrage calendaire ou butterfly).

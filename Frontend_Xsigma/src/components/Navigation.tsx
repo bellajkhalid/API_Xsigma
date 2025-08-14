@@ -130,7 +130,44 @@ const Navigation = () => {
         }
       ]
     },
-    { name: "Download", href: "https://pypi.org/project/xsigma/", onClick: () => window.open('https://pypi.org/project/xsigma/', '_blank') },
+    {
+      name: "Download",
+      href: "#",
+      onClick: () => {},
+      hasDropdown: true,
+      dropdownSections: [
+        {
+          title: "Software & Tools",
+          description: "Download XSigma packages, libraries, and development tools",
+          items: [
+            { name: "Python Package (PyPI)", icon: "🐍", href: "https://pypi.org/project/xsigma/", external: true },
+            { name: "C++ Libraries", icon: "⚡", href: "/downloads/cpp-libraries" },
+            { name: "API Documentation", icon: "📚", href: "/sphinx-doc/xsigma-1.1-3/index.html", external: true },
+            { name: "Installation Guide", icon: "🔧", href: "/downloads/installation-guide" }
+          ]
+        },
+        {
+          title: "Research & Publications",
+          description: "Access academic papers, research publications, and technical documentation",
+          items: [
+            { name: "Coherent Market Simulations Paper", icon: "📄", href: "https://www.researchgate.net/publication/227624010_Coherent_global_market_simulations_and_securitization_measures_for_counterparty_credit_risk", external: true },
+            { name: "Technical White Papers", icon: "📋", href: "/downloads/white-papers" },
+            { name: "Research Publications", icon: "🎓", href: "/downloads/publications" },
+            { name: "Case Studies", icon: "📊", href: "/downloads/case-studies" }
+          ]
+        },
+        {
+          title: "Documentation & Guides",
+          description: "Comprehensive guides, tutorials, and reference materials",
+          items: [
+            { name: "User Manual", icon: "📖", href: "/downloads/user-manual" },
+            { name: "Developer Guide", icon: "👨‍💻", href: "/downloads/developer-guide" },
+            { name: "API Reference", icon: "🔗", href: "/sphinx-doc/xsigma-1.1-3/index.html", external: true },
+            { name: "Tutorial Videos", icon: "🎥", href: "/downloads/tutorials" }
+          ]
+        }
+      ]
+    },
     { name: "Docs", href: "/sphinx-doc/xsigma-1.1-3/index.html", onClick: () => window.open('/sphinx-doc/xsigma-1.1-3/index.html', '_blank') },
     { name: "Blog", href: "/blog", onClick: () => window.location.href = '/blog' },
     { name: "Careers", href: "/careers", onClick: () => navigate('/careers') },
@@ -223,7 +260,13 @@ const Navigation = () => {
                                     <div
                                       key={subItem.name}
                                       className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer"
-                                      onClick={() => navigate(subItem.href)}
+                                      onClick={() => {
+                                        if ((subItem as any).external) {
+                                          window.open(subItem.href, '_blank');
+                                        } else {
+                                          navigate(subItem.href);
+                                        }
+                                      }}
                                     >
                                       <span className="text-lg">{subItem.icon}</span>
                                       <span className={`text-sm font-medium ${theme.text}`}>{subItem.name}</span>
@@ -288,20 +331,53 @@ const Navigation = () => {
               <SheetContent className={theme.background}>
                 <div className="flex flex-col gap-4 mt-8">
                   {navItems.map((item) => (
-                    <a
-                      key={item.name}
-                      href={item.href}
-                      className={`text-lg ${theme.textMuted} hover:text-primary transition-colors`}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        setIsMobileMenuOpen(false);
-                        if (item.onClick) {
-                          item.onClick();
-                        }
-                      }}
-                    >
-                      {item.name}
-                    </a>
+                    <div key={item.name}>
+                      {item.hasDropdown ? (
+                        <div className="space-y-2">
+                          <div className={`text-lg font-semibold ${theme.text} mb-3`}>
+                            {item.name}
+                          </div>
+                          {item.dropdownSections?.map((section) => (
+                            <div key={section.title} className="ml-4 space-y-2">
+                              <div className={`text-sm font-medium ${theme.textMuted} uppercase tracking-wider`}>
+                                {section.title}
+                              </div>
+                              {section.items.map((subItem) => (
+                                <div
+                                  key={subItem.name}
+                                  className={`text-sm ${theme.textMuted} hover:text-primary transition-colors cursor-pointer ml-2 flex items-center gap-2`}
+                                  onClick={() => {
+                                    setIsMobileMenuOpen(false);
+                                    if ((subItem as any).external) {
+                                      window.open(subItem.href, '_blank');
+                                    } else {
+                                      navigate(subItem.href);
+                                    }
+                                  }}
+                                >
+                                  <span>{subItem.icon}</span>
+                                  <span>{subItem.name}</span>
+                                </div>
+                              ))}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <a
+                          href={item.href}
+                          className={`text-lg ${theme.textMuted} hover:text-primary transition-colors`}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setIsMobileMenuOpen(false);
+                            if (item.onClick) {
+                              item.onClick();
+                            }
+                          }}
+                        >
+                          {item.name}
+                        </a>
+                      )}
+                    </div>
                   ))}
                   <Button
                     onClick={() => {

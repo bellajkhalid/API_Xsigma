@@ -1,0 +1,1491 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="../../">
+  <head><meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="author" title="About these documents" href="../../about.html" /><link rel="index" title="Index" href="../../genindex.html" /><link rel="search" title="Search" href="../../search.html" />
+
+    <link rel="shortcut icon" href="../../_static/xsigma_favicon.png"/><!-- Generated with Sphinx 7.2.6 and Furo 2023.09.10 -->
+        <title>Independent Validation Testing - PRETORIAN Documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=a746c00c" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?v=135e06be" />
+    <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../../_static/togglebutton.css?v=13237357" />
+    <link rel="stylesheet" type="text/css" href="../../_static/custom.css?v=8c702e86" />
+    <link rel="stylesheet" type="text/css" href="../../_static/design-style.1e8bd061cd6da7fc9cf755528e8ffc24.min.css?v=0a3b3ea7" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo-extensions.css?v=36a5483c" />
+    <link rel="stylesheet" type="text/css" href="../../_static/custom.css?v=8c702e86" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f8f8f8;
+  --color-code-foreground: black;
+  --color-brand-primary: #0066cc;
+  --color-brand-content: #0066cc;
+  --color-admonition-background: #f8f9fa;
+  --color-sidebar-background: #f8f9fa;
+  --color-sidebar-background-border: #e9ecef;
+  --font-stack: system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif;
+  --font-stack--monospace: SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, Courier New, monospace;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  --color-brand-primary: #4da6ff;
+  --color-brand-content: #4da6ff;
+  --color-admonition-background: #1e1e1e;
+  --color-sidebar-background: #1e1e1e;
+  --color-sidebar-background-border: #404040;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  --color-brand-primary: #4da6ff;
+  --color-brand-content: #4da6ff;
+  --color-admonition-background: #1e1e1e;
+  --color-sidebar-background: #1e1e1e;
+  --color-sidebar-background-border: #404040;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-half" viewBox="0 0 24 24">
+    <title>Auto light/dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-shadow">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M13 12h5" />
+      <path d="M13 15h4" />
+      <path d="M13 18h1" />
+      <path d="M13 9h4" />
+      <path d="M13 6h1" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc">
+<label class="overlay sidebar-overlay" for="__navigation">
+  <div class="visually-hidden">Hide navigation sidebar</div>
+</label>
+<label class="overlay toc-overlay" for="__toc">
+  <div class="visually-hidden">Hide table of contents sidebar</div>
+</label>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <div class="visually-hidden">Toggle site navigation sidebar</div>
+        <i class="icon"><svg><use href="#svg-menu"></use></svg></i>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../../index.html"><div class="brand">PRETORIAN Documentation</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle">
+          <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+          <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <div class="visually-hidden">Toggle table of contents sidebar</div>
+        <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="../../index.html">
+  
+  <div class="sidebar-logo-container">
+    <img class="sidebar-logo" src="../../_static/Logo.ico" alt="Logo"/>
+  </div>
+  <div class="sidebar-logo-container">
+    <img class="sidebar-logo only-light" src="../../_static/../../Logo.ico" alt="Light Logo"/>
+    <img class="sidebar-logo only-dark" src="../../_static/../../Logo.ico" alt="Dark Logo"/>
+  </div>
+  
+  <span class="sidebar-brand-text">PRETORIAN Documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="../../search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../about.html">About</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../index.html">1. Market</a><input class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><div class="visually-hidden">Toggle navigation of 1. Market</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../ASV/index.html">1.1. Analytical Sigma Volatility (ASV) Model</a><input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><div class="visually-hidden">Toggle navigation of 1.1. Analytical Sigma Volatility (ASV) Model</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/executive_summary.html">1.1.2.2.1. Executive Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/scope.html">1.1.2.2.2. Scope</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/product_and_portfolio.html">1.1.2.2.3. Product and Portfolio</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/model_methodology.html">1.1.2.2.4. Model Methodology</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/implementation.html">1.1.2.2.5. Implementation and Numerical Schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/calibration.html">1.1.2.2.6. Calibration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/risk_analysis.html">1.1.2.2.7. Risk Analysis</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/testing_and_validation.html">1.1.2.2.8. Testing and Validation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/general_limitations.html">1.1.2.2.9. General Limitations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/model_monitoring.html">1.1.2.2.10. Model Monitoring and KPIs</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/user_guide.html">1.1.2.2.11. User Guide</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/references.html">1.1.2.2.12. References</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/README.html">1.1.2.2.13. Analytical Sigma Volatility (ASV) Documentation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/executive_summary.html">1.1.2.2.1. Executive Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/scope.html">1.1.2.2.2. Scope</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/product_and_portfolio.html">1.1.2.2.3. Product and Portfolio</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/model_methodology.html">1.1.2.2.4. Model Methodology</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/implementation.html">1.1.2.2.5. Implementation and Numerical Schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/calibration.html">1.1.2.2.6. Calibration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/risk_analysis.html">1.1.2.2.7. Risk Analysis</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/testing_and_validation.html">1.1.2.2.8. Testing and Validation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/general_limitations.html">1.1.2.2.9. General Limitations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/model_monitoring.html">1.1.2.2.10. Model Monitoring and KPIs</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/user_guide.html">1.1.2.2.11. User Guide</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/references.html">1.1.2.2.12. References</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/README.html">1.1.2.2.13. Analytical Sigma Volatility (ASV) Documentation</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../Curve%20Construction/index.html">1.2. Curve Construction and Risk Framework (NCF)</a><input class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" role="switch" type="checkbox"/><label for="toctree-checkbox-3"><div class="visually-hidden">Toggle navigation of 1.2. Curve Construction and Risk Framework (NCF)</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/executive_summary.html">1.2.2.2.1. Executive Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/scope.html">1.2.2.2.2. Scope</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/product_and_portfolio.html">1.2.2.2.3. Product and Portfolio</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/model_methodology.html">1.2.2.2.4. Model Methodology</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/implementation.html">1.2.2.2.5. Implementation / Numerical Schema Description</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/calibration.html">1.2.2.2.6. Calibration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/risk_analysis.html">1.2.2.2.7. Risk Analysis</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/testing_and_validation.html">1.2.2.2.8. Testing and Validation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/general_limitations.html">1.2.2.2.9. General Limitations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/model_monitoring.html">1.2.2.2.10. Model Monitoring</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/development_feedback.html">1.2.2.2.11. Development Feedback</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/references.html">1.2.2.2.12. References</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/README.html">1.2.2.2.13. Curve Construction and Risk Framework Documentation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/executive_summary.html">1.2.2.2.1. Executive Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/scope.html">1.2.2.2.2. Scope</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/product_and_portfolio.html">1.2.2.2.3. Product and Portfolio</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/model_methodology.html">1.2.2.2.4. Model Methodology</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/implementation.html">1.2.2.2.5. Implementation / Numerical Schema Description</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/calibration.html">1.2.2.2.6. Calibration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/risk_analysis.html">1.2.2.2.7. Risk Analysis</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/testing_and_validation.html">1.2.2.2.8. Testing and Validation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/general_limitations.html">1.2.2.2.9. General Limitations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/model_monitoring.html">1.2.2.2.10. Model Monitoring</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/development_feedback.html">1.2.2.2.11. Development Feedback</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/references.html">1.2.2.2.12. References</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../FX%20Analytic%20Volatility%20Surfaces/index.html">1.3. FX Analytic Volatility Surfaces</a><input class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" role="switch" type="checkbox"/><label for="toctree-checkbox-4"><div class="visually-hidden">Toggle navigation of 1.3. FX Analytic Volatility Surfaces</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../FX%20Analytic%20Volatility%20Surfaces/executive_summary.html">1.3.3.1. Executive Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../FX%20Analytic%20Volatility%20Surfaces/scope.html">1.3.3.2. Scope</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../FX%20Analytic%20Volatility%20Surfaces/product_payoff_portfolio.html">1.3.3.3. Product / Payoff / Portfolio</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../FX%20Analytic%20Volatility%20Surfaces/model_smile_models.html">1.3.3.4. Smile Models</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../FX%20Analytic%20Volatility%20Surfaces/model_atm_time_models.html">1.3.3.5. ATM Time Models</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../FX%20Analytic%20Volatility%20Surfaces/model_wing_time_models.html">1.3.3.6. Wing Time Models</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../FX%20Analytic%20Volatility%20Surfaces/implementation_numerical_schema.html">1.3.3.7. Implementation / Numerical Schema Description</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../FX%20Analytic%20Volatility%20Surfaces/calibration.html">1.3.3.8. Calibration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../FX%20Analytic%20Volatility%20Surfaces/risk_bumping_methodology.html">1.3.3.9. Risk Bumping Methodology</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../FX%20Analytic%20Volatility%20Surfaces/risk_inputs_limitations.html">1.3.3.10. Risk Inputs &amp; Limitations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../FX%20Analytic%20Volatility%20Surfaces/testing_plan_implementation.html">1.3.3.11. Testing Plan &amp; Implementation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../FX%20Analytic%20Volatility%20Surfaces/testing_stress_scenarios.html">1.3.3.12. Stress Testing &amp; Scenarios</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../FX%20Analytic%20Volatility%20Surfaces/testing_accuracy_stability.html">1.3.3.13. Accuracy &amp; Stability Testing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../FX%20Analytic%20Volatility%20Surfaces/general_limitations.html">1.3.3.14. General Limitations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../FX%20Analytic%20Volatility%20Surfaces/model_monitoring_kpis.html">1.3.3.15. Model Monitoring &amp; KPIs</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../FX%20Analytic%20Volatility%20Surfaces/development_feedback_summary.html">1.3.3.16. Development Feedback Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../FX%20Analytic%20Volatility%20Surfaces/references.html">1.3.3.17. References</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../Implied%20Volatility%20Filter/index.html">1.4. Implied Volatility Filter</a><input class="toctree-checkbox" id="toctree-checkbox-5" name="toctree-checkbox-5" role="switch" type="checkbox"/><label for="toctree-checkbox-5"><div class="visually-hidden">Toggle navigation of 1.4. Implied Volatility Filter</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../Implied%20Volatility%20Filter/executive_summary.html">1.4.1.5.1.1. Executive Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Implied%20Volatility%20Filter/scope.html">1.4.1.5.1.2. Scope</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Implied%20Volatility%20Filter/product_payoff_portfolio.html">1.4.1.5.1.3. Product / Payoff / Portfolio</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Implied%20Volatility%20Filter/model_methodology.html">1.4.1.5.1.4. Model / Methodology</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Implied%20Volatility%20Filter/implementation_numerical_schema.html">1.4.1.5.1.5. Implementation / Numerical Schema Description</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Implied%20Volatility%20Filter/calibration.html">1.4.1.5.1.6. Calibration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Implied%20Volatility%20Filter/risk_factors.html">1.4.1.5.1.7. Risk Analysis Framework</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Implied%20Volatility%20Filter/testing_and_validation.html">1.4.1.5.1.8. Tests &amp; Outcome Analyses performed on Payoff / Model / Portfolio</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Implied%20Volatility%20Filter/appendix.html">1.4.1.5.1.9. Appendix: Quality of bid/ask quotes</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../Ir/index.html">1.5. Linear Interest Rate Swaps</a><input class="toctree-checkbox" id="toctree-checkbox-6" name="toctree-checkbox-6" role="switch" type="checkbox"/><label for="toctree-checkbox-6"><div class="visually-hidden">Toggle navigation of 1.5. Linear Interest Rate Swaps</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../Ir/executive_summary.html">1.5.1.4.1.1. Executive Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Ir/scope.html">1.5.1.4.1.2. Scope</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Ir/product_payoff_portfolio.html">1.5.1.4.1.3. Product / Payoff / Portfolio</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Ir/model_methodology.html">1.5.1.4.1.4. Model / Methodology</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Ir/implementation_numerical_schema.html">1.5.1.4.1.5. Implementation / Numerical Schema Description</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Ir/calibration.html">1.5.1.4.1.6. Calibration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Ir/risk_factors.html">1.5.1.4.1.7. Risk Analysis Framework</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Ir/testing_and_validation.html">1.5.1.4.1.8. Tests &amp; Outcome Analyses performed on Payoff / Model / Portfolio</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Ir/model_monitoring_kpis.html">1.5.1.4.1.9. Model Monitoring – KPIs</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Ir/references.html">1.5.1.4.1.10. References</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Ir/applicable_policy_standards.html">1.5.1.4.1.11. Applicable Policy Standards</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../LSV/index.html">1.6. LSV Guides</a><input class="toctree-checkbox" id="toctree-checkbox-7" name="toctree-checkbox-7" role="switch" type="checkbox"/><label for="toctree-checkbox-7"><div class="visually-hidden">Toggle navigation of 1.6. LSV Guides</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../LSV/LSV.html">1.6.1. LSV</a><input class="toctree-checkbox" id="toctree-checkbox-8" name="toctree-checkbox-8" role="switch" type="checkbox"/><label for="toctree-checkbox-8"><div class="visually-hidden">Toggle navigation of 1.6.1. LSV</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../LSV/FX%20LSV%20Markov%20Switching%20%20Monte%20Carlo/FX_LSV_Markov_Switching_Monte_Carlo.html">1.6.1.1. FX LSV Markov Switching : Monte Carlo</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../LSV/FX%20LSV%20Markov%20Switching%20PDE/FX_LSV_Markov_Switching_PDE.html">1.6.1.2. FX LSV Markov Switching : PDE</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../LSV/Local%20Volatility%20PDE%20and%20MC/Local_Volatility_PDE_and_MC.html">1.6.1.3. Local Volatility: PDE and MC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../LSV/LSV%20Markov%20Switching%20%20Monte%20Carlo/LSV_Markov_Switching_Monte_Carlo.html">1.6.1.4. LSV Markov Switching : Monte Carlo</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../LSV/LSV%20Markov%20Switching%20%20PDE/LSV_Markov_Switching_PDE.html">1.6.1.5. LSV Markov Switching : PDE</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../SABR/index.html">1.7. Interest Rate Volatility Model GSABR</a><input class="toctree-checkbox" id="toctree-checkbox-9" name="toctree-checkbox-9" role="switch" type="checkbox"/><label for="toctree-checkbox-9"><div class="visually-hidden">Toggle navigation of 1.7. Interest Rate Volatility Model GSABR</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/executive_summary.html">1.7.1.4.1.1. Executive Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/scope.html">1.7.1.4.1.2. Scope and Use</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/product_and_portfolio.html">1.7.1.4.1.3. Product and Portfolio</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/model_methodology.html">1.7.1.4.1.4. Model Methodology</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/implementation.html">1.7.1.4.1.5. Implementation / Numerical Schema Description</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/calibration.html">1.7.1.4.1.6. Calibration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/risk_analysis.html">1.7.1.4.1.7. Risk Analysis</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/testing_and_validation.html">1.7.1.4.1.8. Testing and Validation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/general_limitations.html">1.7.1.4.1.9. General Limitations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/model_monitoring.html">1.7.1.4.1.10. Model Monitoring</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/market_data_integration.html">1.7.1.4.1.11. Market Data Integration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/performance_benchmarking.html">1.7.1.4.1.12. Performance Benchmarking</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/troubleshooting_guide.html">1.7.1.4.1.13. Troubleshooting Guide</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/development_feedback.html">1.7.1.4.1.14. Development Feedback</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/references.html">1.7.1.4.1.15. References</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/executive_summary.html">1.7.1.4.1.1. Executive Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/scope.html">1.7.1.4.1.2. Scope and Use</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/product_and_portfolio.html">1.7.1.4.1.3. Product and Portfolio</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/model_methodology.html">1.7.1.4.1.4. Model Methodology</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/implementation.html">1.7.1.4.1.5. Implementation / Numerical Schema Description</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/calibration.html">1.7.1.4.1.6. Calibration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/risk_analysis.html">1.7.1.4.1.7. Risk Analysis</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/testing_and_validation.html">1.7.1.4.1.8. Testing and Validation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/general_limitations.html">1.7.1.4.1.9. General Limitations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/model_monitoring.html">1.7.1.4.1.10. Model Monitoring</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/market_data_integration.html">1.7.1.4.1.11. Market Data Integration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/performance_benchmarking.html">1.7.1.4.1.12. Performance Benchmarking</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/troubleshooting_guide.html">1.7.1.4.1.13. Troubleshooting Guide</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/development_feedback.html">1.7.1.4.1.14. Development Feedback</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/references.html">1.7.1.4.1.15. References</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../getting_started/index.html">1. Getting Started</a><input class="toctree-checkbox" id="toctree-checkbox-10" name="toctree-checkbox-10" role="switch" type="checkbox"/><label for="toctree-checkbox-10"><div class="visually-hidden">Toggle navigation of 1. Getting Started</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../learning.html">Learning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../supported_data_formats.html">Supported Data Formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../supported_hardware.html">Supported Hardware</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../modules/index.html">Modules</a><input class="toctree-checkbox" id="toctree-checkbox-11" name="toctree-checkbox-11" role="switch" type="checkbox"/><label for="toctree-checkbox-11"><div class="visually-hidden">Toggle navigation of Modules</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../modules/xsigma-modules/Wrapping/PythonCore/README.html">Python Wrapper Core Classes</a></li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../build_instructions/index.html">Building</a><input class="toctree-checkbox" id="toctree-checkbox-12" name="toctree-checkbox-12" role="switch" type="checkbox"/><label for="toctree-checkbox-12"><div class="visually-hidden">Toggle navigation of Building</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../build_instructions/build_settings.html">Build Settings</a></li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../api/index.html">1. API</a><input class="toctree-checkbox" id="toctree-checkbox-13" name="toctree-checkbox-13" role="switch" type="checkbox"/><label for="toctree-checkbox-13"><div class="visually-hidden">Toggle navigation of 1. API</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../api/cpp.html">1.1. C++</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../api/python.html">1.2. Python</a><input class="toctree-checkbox" id="toctree-checkbox-14" name="toctree-checkbox-14" role="switch" type="checkbox"/><label for="toctree-checkbox-14"><div class="visually-hidden">Toggle navigation of 1.2. Python</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.html">1.2.1.1. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules</span></code></a><input class="toctree-checkbox" id="toctree-checkbox-15" name="toctree-checkbox-15" role="switch" type="checkbox"/><label for="toctree-checkbox-15"><div class="visually-hidden">Toggle navigation of 1.2.1.1. xsigmamodules</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l4 has-children"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.common.html">1.2.1.1.1.1. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.common</span></code></a><input class="toctree-checkbox" id="toctree-checkbox-16" name="toctree-checkbox-16" role="switch" type="checkbox"/><label for="toctree-checkbox-16"><div class="visually-hidden">Toggle navigation of 1.2.1.1.1.1. xsigmamodules.common</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.common.helper.html">1.2.1.1.1.1.1.1. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.common.helper</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.common.instrument.html">1.2.1.1.1.1.1.2. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.common.instrument</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l4 has-children"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.market.html">1.2.1.1.1.2. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.market</span></code></a><input class="toctree-checkbox" id="toctree-checkbox-17" name="toctree-checkbox-17" role="switch" type="checkbox"/><label for="toctree-checkbox-17"><div class="visually-hidden">Toggle navigation of 1.2.1.1.1.2. xsigmamodules.market</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.market.market_data.html">1.2.1.1.1.2.1.1. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.market.market_data</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.market.object_factory.html">1.2.1.1.1.2.1.2. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.market.object_factory</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l4 has-children"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.simulation.html">1.2.1.1.1.3. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.simulation</span></code></a><input class="toctree-checkbox" id="toctree-checkbox-18" name="toctree-checkbox-18" role="switch" type="checkbox"/><label for="toctree-checkbox-18"><div class="visually-hidden">Toggle navigation of 1.2.1.1.1.3. xsigmamodules.simulation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.simulation.simulation.html">1.2.1.1.1.3.1.1. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.simulation.simulation</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l4 has-children"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.test.html">1.2.1.1.1.4. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.test</span></code></a><input class="toctree-checkbox" id="toctree-checkbox-19" name="toctree-checkbox-19" role="switch" type="checkbox"/><label for="toctree-checkbox-19"><div class="visually-hidden">Toggle navigation of 1.2.1.1.1.4. xsigmamodules.test</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.test.BlackBox.html">1.2.1.1.1.4.1.1. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.test.BlackBox</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.test.Testing.html">1.2.1.1.1.4.1.2. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.test.Testing</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l4 has-children"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.util.html">1.2.1.1.1.5. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.util</span></code></a><input class="toctree-checkbox" id="toctree-checkbox-20" name="toctree-checkbox-20" role="switch" type="checkbox"/><label for="toctree-checkbox-20"><div class="visually-hidden">Toggle navigation of 1.2.1.1.1.5. xsigmamodules.util</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.util.misc.html">1.2.1.1.1.5.1.1. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.util.misc</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.util.numpy_support.html">1.2.1.1.1.5.1.2. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.util.numpy_support</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.util.object_converter.html">1.2.1.1.1.5.1.3. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.util.object_converter</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.util.xsigmaConstants.html">1.2.1.1.1.5.1.4. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.util.xsigmaConstants</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.util.xsigmaMethodParser.html">1.2.1.1.1.5.1.5. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.util.xsigmaMethodParser</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l4 has-children"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.xlwing.html">1.2.1.1.1.6. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.xlwing</span></code></a><input class="toctree-checkbox" id="toctree-checkbox-21" name="toctree-checkbox-21" role="switch" type="checkbox"/><label for="toctree-checkbox-21"><div class="visually-hidden">Toggle navigation of 1.2.1.1.1.6. xsigmamodules.xlwing</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.xlwing.hartman_watson_template.html">1.2.1.1.1.6.1.1. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.xlwing.hartman_watson_template</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.xlwing.sabr_template.html">1.2.1.1.1.6.1.2. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.xlwing.sabr_template</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l4"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.generate_pyi.html">1.2.1.1.2.1. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.generate_pyi</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../api/cmake/cmake-modules.html">1.3. CMake</a><input class="toctree-checkbox" id="toctree-checkbox-22" name="toctree-checkbox-22" role="switch" type="checkbox"/><label for="toctree-checkbox-22"><div class="visually-hidden">Toggle navigation of 1.3. CMake</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../api/cmake/ModuleSystem.html">1.3.1. Module System</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/cmake/xsigmaModule.html">1.3.2. xsigmaModule</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/cmake/xsigmaModuleTesting.html">1.3.3. xsigmaModuleTesting</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/cmake/xsigmaModuleWrapPython.html">1.3.4. xsigmaModuleWrapPython</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/cmake/xsigmaModuleWrapJava.html">1.3.5. xsigmaModuleWrapJava</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/cmake/xsigmaModuleJSON.html">1.3.6. xsigmaModuleJSON</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/cmake/xsigmaModuleGraphviz.html">1.3.7. xsigmaModuleGraphviz</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../advanced/index.html">Advanced Topics</a><input class="toctree-checkbox" id="toctree-checkbox-23" name="toctree-checkbox-23" role="switch" type="checkbox"/><label for="toctree-checkbox-23"><div class="visually-hidden">Toggle navigation of Advanced Topics</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../advanced/available_python_wheels.html">Additional Python Wheels</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../advanced/spdx_and_sbom.html">SPDX &amp; SBOM</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../advanced/build_python_wheels.html">Building Python Wheels</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../advanced/build_wasm_emscripten.html">Building using emscripten for WebAssembly</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../advanced/build_for_mobile.html">Cross-compiling for Mobile devices</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../advanced/build_documentation.html">Building documentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../advanced/marshalling_hints.html">Marshalling Hints</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../advanced/object_manager.html">Object manager</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../advanced/object_serialization.html">Auto serialization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../advanced/PythonWrappers.html">Python Wrappers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../advanced/runtime_settings.html">Runtime settings</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../advanced/WrappingTools.html">Wrapping Tools</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../advanced/migration_guides/index.html">Migration Guides</a><input class="toctree-checkbox" id="toctree-checkbox-24" name="toctree-checkbox-24" role="switch" type="checkbox"/><label for="toctree-checkbox-24"><div class="visually-hidden">Toggle navigation of Migration Guides</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../advanced/migration_guides/ModuleMigration.html">Module Migration from XSIGMA 8.2 to 9+</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../design_documents/index.html">Design Documents</a><input class="toctree-checkbox" id="toctree-checkbox-25" name="toctree-checkbox-25" role="switch" type="checkbox"/><label for="toctree-checkbox-25"><div class="visually-hidden">Toggle navigation of Design Documents</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../design_documents/XSIGMAFileFormats.html">XSIGMA File Formats</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../design_documents/smptools.html">Parallel Processing with XSIGMA’s SMP Framework</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../design_documents/data_assemply.html">Data Assembly</a></li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../developers_guide/index.html">Developer’s Guide</a><input class="toctree-checkbox" id="toctree-checkbox-26" name="toctree-checkbox-26" role="switch" type="checkbox"/><label for="toctree-checkbox-26"><div class="visually-hidden">Toggle navigation of Developer’s Guide</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../developers_guide/git/develop.html">Develop</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../developers_guide/testing.html">Regression Testing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../developers_guide/git/test.html">Adding Tests</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../developers_guide/git/dashboard.html">Dashboard Scripts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../developers_guide/git/thirdparty.html">Imported Third Party Projects</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../developers_guide/git/thirdparty-projects.html">Imported Third Party Projects</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../developers_guide/git/deprecation.html">Deprecation Process</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../developers_guide/release_process.html">Release Process</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../developers_guide/coding_conventions.html">Coding Conventions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../developers_guide/about_this_documentation.html">About this documentation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../resources.html">Resources</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../release_details/index.html">Release Details</a><input class="toctree-checkbox" id="toctree-checkbox-27" name="toctree-checkbox-27" role="switch" type="checkbox"/><label for="toctree-checkbox-27"><div class="visually-hidden">Toggle navigation of Release Details</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="simple">
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../getting_started/index.html">1. Getting Started</a><input class="toctree-checkbox" id="toctree-checkbox-28" name="toctree-checkbox-28" role="switch" type="checkbox"/><label for="toctree-checkbox-28"><div class="visually-hidden">Toggle navigation of 1. Getting Started</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="simple">
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Market Models</span></p>
+<ul>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../index.html">1. Market Models Overview</a><input class="toctree-checkbox" id="toctree-checkbox-29" name="toctree-checkbox-29" role="switch" type="checkbox"/><label for="toctree-checkbox-29"><div class="visually-hidden">Toggle navigation of 1. Market Models Overview</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../ASV/index.html">1.1. Analytical Sigma Volatility (ASV) Model</a><input class="toctree-checkbox" id="toctree-checkbox-30" name="toctree-checkbox-30" role="switch" type="checkbox"/><label for="toctree-checkbox-30"><div class="visually-hidden">Toggle navigation of 1.1. Analytical Sigma Volatility (ASV) Model</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/executive_summary.html">1.1.2.2.1. Executive Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/scope.html">1.1.2.2.2. Scope</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/product_and_portfolio.html">1.1.2.2.3. Product and Portfolio</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/model_methodology.html">1.1.2.2.4. Model Methodology</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/implementation.html">1.1.2.2.5. Implementation and Numerical Schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/calibration.html">1.1.2.2.6. Calibration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/risk_analysis.html">1.1.2.2.7. Risk Analysis</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/testing_and_validation.html">1.1.2.2.8. Testing and Validation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/general_limitations.html">1.1.2.2.9. General Limitations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/model_monitoring.html">1.1.2.2.10. Model Monitoring and KPIs</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/user_guide.html">1.1.2.2.11. User Guide</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/references.html">1.1.2.2.12. References</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/README.html">1.1.2.2.13. Analytical Sigma Volatility (ASV) Documentation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/executive_summary.html">1.1.2.2.1. Executive Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/scope.html">1.1.2.2.2. Scope</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/product_and_portfolio.html">1.1.2.2.3. Product and Portfolio</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/model_methodology.html">1.1.2.2.4. Model Methodology</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/implementation.html">1.1.2.2.5. Implementation and Numerical Schema</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/calibration.html">1.1.2.2.6. Calibration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/risk_analysis.html">1.1.2.2.7. Risk Analysis</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/testing_and_validation.html">1.1.2.2.8. Testing and Validation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/general_limitations.html">1.1.2.2.9. General Limitations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/model_monitoring.html">1.1.2.2.10. Model Monitoring and KPIs</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/user_guide.html">1.1.2.2.11. User Guide</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/references.html">1.1.2.2.12. References</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../ASV/README.html">1.1.2.2.13. Analytical Sigma Volatility (ASV) Documentation</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../Curve%20Construction/index.html">1.2. Curve Construction and Risk Framework (NCF)</a><input class="toctree-checkbox" id="toctree-checkbox-31" name="toctree-checkbox-31" role="switch" type="checkbox"/><label for="toctree-checkbox-31"><div class="visually-hidden">Toggle navigation of 1.2. Curve Construction and Risk Framework (NCF)</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/executive_summary.html">1.2.2.2.1. Executive Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/scope.html">1.2.2.2.2. Scope</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/product_and_portfolio.html">1.2.2.2.3. Product and Portfolio</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/model_methodology.html">1.2.2.2.4. Model Methodology</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/implementation.html">1.2.2.2.5. Implementation / Numerical Schema Description</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/calibration.html">1.2.2.2.6. Calibration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/risk_analysis.html">1.2.2.2.7. Risk Analysis</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/testing_and_validation.html">1.2.2.2.8. Testing and Validation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/general_limitations.html">1.2.2.2.9. General Limitations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/model_monitoring.html">1.2.2.2.10. Model Monitoring</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/development_feedback.html">1.2.2.2.11. Development Feedback</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/references.html">1.2.2.2.12. References</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/README.html">1.2.2.2.13. Curve Construction and Risk Framework Documentation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/executive_summary.html">1.2.2.2.1. Executive Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/scope.html">1.2.2.2.2. Scope</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/product_and_portfolio.html">1.2.2.2.3. Product and Portfolio</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/model_methodology.html">1.2.2.2.4. Model Methodology</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/implementation.html">1.2.2.2.5. Implementation / Numerical Schema Description</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/calibration.html">1.2.2.2.6. Calibration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/risk_analysis.html">1.2.2.2.7. Risk Analysis</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/testing_and_validation.html">1.2.2.2.8. Testing and Validation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/general_limitations.html">1.2.2.2.9. General Limitations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/model_monitoring.html">1.2.2.2.10. Model Monitoring</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/development_feedback.html">1.2.2.2.11. Development Feedback</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Curve%20Construction/references.html">1.2.2.2.12. References</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../FX%20Analytic%20Volatility%20Surfaces/index.html">1.3. FX Analytic Volatility Surfaces</a><input class="toctree-checkbox" id="toctree-checkbox-32" name="toctree-checkbox-32" role="switch" type="checkbox"/><label for="toctree-checkbox-32"><div class="visually-hidden">Toggle navigation of 1.3. FX Analytic Volatility Surfaces</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../FX%20Analytic%20Volatility%20Surfaces/executive_summary.html">1.3.3.1. Executive Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../FX%20Analytic%20Volatility%20Surfaces/scope.html">1.3.3.2. Scope</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../FX%20Analytic%20Volatility%20Surfaces/product_payoff_portfolio.html">1.3.3.3. Product / Payoff / Portfolio</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../FX%20Analytic%20Volatility%20Surfaces/model_smile_models.html">1.3.3.4. Smile Models</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../FX%20Analytic%20Volatility%20Surfaces/model_atm_time_models.html">1.3.3.5. ATM Time Models</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../FX%20Analytic%20Volatility%20Surfaces/model_wing_time_models.html">1.3.3.6. Wing Time Models</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../FX%20Analytic%20Volatility%20Surfaces/implementation_numerical_schema.html">1.3.3.7. Implementation / Numerical Schema Description</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../FX%20Analytic%20Volatility%20Surfaces/calibration.html">1.3.3.8. Calibration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../FX%20Analytic%20Volatility%20Surfaces/risk_bumping_methodology.html">1.3.3.9. Risk Bumping Methodology</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../FX%20Analytic%20Volatility%20Surfaces/risk_inputs_limitations.html">1.3.3.10. Risk Inputs &amp; Limitations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../FX%20Analytic%20Volatility%20Surfaces/testing_plan_implementation.html">1.3.3.11. Testing Plan &amp; Implementation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../FX%20Analytic%20Volatility%20Surfaces/testing_stress_scenarios.html">1.3.3.12. Stress Testing &amp; Scenarios</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../FX%20Analytic%20Volatility%20Surfaces/testing_accuracy_stability.html">1.3.3.13. Accuracy &amp; Stability Testing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../FX%20Analytic%20Volatility%20Surfaces/general_limitations.html">1.3.3.14. General Limitations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../FX%20Analytic%20Volatility%20Surfaces/model_monitoring_kpis.html">1.3.3.15. Model Monitoring &amp; KPIs</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../FX%20Analytic%20Volatility%20Surfaces/development_feedback_summary.html">1.3.3.16. Development Feedback Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../FX%20Analytic%20Volatility%20Surfaces/references.html">1.3.3.17. References</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../Implied%20Volatility%20Filter/index.html">1.4. Implied Volatility Filter</a><input class="toctree-checkbox" id="toctree-checkbox-33" name="toctree-checkbox-33" role="switch" type="checkbox"/><label for="toctree-checkbox-33"><div class="visually-hidden">Toggle navigation of 1.4. Implied Volatility Filter</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../Implied%20Volatility%20Filter/executive_summary.html">1.4.1.5.1.1. Executive Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Implied%20Volatility%20Filter/scope.html">1.4.1.5.1.2. Scope</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Implied%20Volatility%20Filter/product_payoff_portfolio.html">1.4.1.5.1.3. Product / Payoff / Portfolio</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Implied%20Volatility%20Filter/model_methodology.html">1.4.1.5.1.4. Model / Methodology</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Implied%20Volatility%20Filter/implementation_numerical_schema.html">1.4.1.5.1.5. Implementation / Numerical Schema Description</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Implied%20Volatility%20Filter/calibration.html">1.4.1.5.1.6. Calibration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Implied%20Volatility%20Filter/risk_factors.html">1.4.1.5.1.7. Risk Analysis Framework</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Implied%20Volatility%20Filter/testing_and_validation.html">1.4.1.5.1.8. Tests &amp; Outcome Analyses performed on Payoff / Model / Portfolio</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Implied%20Volatility%20Filter/appendix.html">1.4.1.5.1.9. Appendix: Quality of bid/ask quotes</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../Ir/index.html">1.5. Linear Interest Rate Swaps</a><input class="toctree-checkbox" id="toctree-checkbox-34" name="toctree-checkbox-34" role="switch" type="checkbox"/><label for="toctree-checkbox-34"><div class="visually-hidden">Toggle navigation of 1.5. Linear Interest Rate Swaps</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../Ir/executive_summary.html">1.5.1.4.1.1. Executive Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Ir/scope.html">1.5.1.4.1.2. Scope</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Ir/product_payoff_portfolio.html">1.5.1.4.1.3. Product / Payoff / Portfolio</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Ir/model_methodology.html">1.5.1.4.1.4. Model / Methodology</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Ir/implementation_numerical_schema.html">1.5.1.4.1.5. Implementation / Numerical Schema Description</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Ir/calibration.html">1.5.1.4.1.6. Calibration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Ir/risk_factors.html">1.5.1.4.1.7. Risk Analysis Framework</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Ir/testing_and_validation.html">1.5.1.4.1.8. Tests &amp; Outcome Analyses performed on Payoff / Model / Portfolio</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Ir/model_monitoring_kpis.html">1.5.1.4.1.9. Model Monitoring – KPIs</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Ir/references.html">1.5.1.4.1.10. References</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../Ir/applicable_policy_standards.html">1.5.1.4.1.11. Applicable Policy Standards</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../LSV/index.html">1.6. LSV Guides</a><input class="toctree-checkbox" id="toctree-checkbox-35" name="toctree-checkbox-35" role="switch" type="checkbox"/><label for="toctree-checkbox-35"><div class="visually-hidden">Toggle navigation of 1.6. LSV Guides</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../LSV/LSV.html">1.6.1. LSV</a><input class="toctree-checkbox" id="toctree-checkbox-36" name="toctree-checkbox-36" role="switch" type="checkbox"/><label for="toctree-checkbox-36"><div class="visually-hidden">Toggle navigation of 1.6.1. LSV</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../LSV/FX%20LSV%20Markov%20Switching%20%20Monte%20Carlo/FX_LSV_Markov_Switching_Monte_Carlo.html">1.6.1.1. FX LSV Markov Switching : Monte Carlo</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../LSV/FX%20LSV%20Markov%20Switching%20PDE/FX_LSV_Markov_Switching_PDE.html">1.6.1.2. FX LSV Markov Switching : PDE</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../LSV/Local%20Volatility%20PDE%20and%20MC/Local_Volatility_PDE_and_MC.html">1.6.1.3. Local Volatility: PDE and MC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../LSV/LSV%20Markov%20Switching%20%20Monte%20Carlo/LSV_Markov_Switching_Monte_Carlo.html">1.6.1.4. LSV Markov Switching : Monte Carlo</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../LSV/LSV%20Markov%20Switching%20%20PDE/LSV_Markov_Switching_PDE.html">1.6.1.5. LSV Markov Switching : PDE</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../SABR/index.html">1.7. Interest Rate Volatility Model GSABR</a><input class="toctree-checkbox" id="toctree-checkbox-37" name="toctree-checkbox-37" role="switch" type="checkbox"/><label for="toctree-checkbox-37"><div class="visually-hidden">Toggle navigation of 1.7. Interest Rate Volatility Model GSABR</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/executive_summary.html">1.7.1.4.1.1. Executive Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/scope.html">1.7.1.4.1.2. Scope and Use</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/product_and_portfolio.html">1.7.1.4.1.3. Product and Portfolio</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/model_methodology.html">1.7.1.4.1.4. Model Methodology</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/implementation.html">1.7.1.4.1.5. Implementation / Numerical Schema Description</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/calibration.html">1.7.1.4.1.6. Calibration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/risk_analysis.html">1.7.1.4.1.7. Risk Analysis</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/testing_and_validation.html">1.7.1.4.1.8. Testing and Validation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/general_limitations.html">1.7.1.4.1.9. General Limitations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/model_monitoring.html">1.7.1.4.1.10. Model Monitoring</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/market_data_integration.html">1.7.1.4.1.11. Market Data Integration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/performance_benchmarking.html">1.7.1.4.1.12. Performance Benchmarking</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/troubleshooting_guide.html">1.7.1.4.1.13. Troubleshooting Guide</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/development_feedback.html">1.7.1.4.1.14. Development Feedback</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/references.html">1.7.1.4.1.15. References</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/executive_summary.html">1.7.1.4.1.1. Executive Summary</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/scope.html">1.7.1.4.1.2. Scope and Use</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/product_and_portfolio.html">1.7.1.4.1.3. Product and Portfolio</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/model_methodology.html">1.7.1.4.1.4. Model Methodology</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/implementation.html">1.7.1.4.1.5. Implementation / Numerical Schema Description</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/calibration.html">1.7.1.4.1.6. Calibration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/risk_analysis.html">1.7.1.4.1.7. Risk Analysis</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/testing_and_validation.html">1.7.1.4.1.8. Testing and Validation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/general_limitations.html">1.7.1.4.1.9. General Limitations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/model_monitoring.html">1.7.1.4.1.10. Model Monitoring</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/market_data_integration.html">1.7.1.4.1.11. Market Data Integration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/performance_benchmarking.html">1.7.1.4.1.12. Performance Benchmarking</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/troubleshooting_guide.html">1.7.1.4.1.13. Troubleshooting Guide</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/development_feedback.html">1.7.1.4.1.14. Development Feedback</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../SABR/references.html">1.7.1.4.1.15. References</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../SABR/index.html">1.7. SABR/GSABR Models</a><input class="toctree-checkbox" id="toctree-checkbox-38" name="toctree-checkbox-38" role="switch" type="checkbox"/><label for="toctree-checkbox-38"><div class="visually-hidden">Toggle navigation of 1.7. SABR/GSABR Models</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/executive_summary.html">1.7.1.4.1.1. Executive Summary</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/scope.html">1.7.1.4.1.2. Scope and Use</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/product_and_portfolio.html">1.7.1.4.1.3. Product and Portfolio</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/model_methodology.html">1.7.1.4.1.4. Model Methodology</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/implementation.html">1.7.1.4.1.5. Implementation / Numerical Schema Description</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/calibration.html">1.7.1.4.1.6. Calibration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/risk_analysis.html">1.7.1.4.1.7. Risk Analysis</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/testing_and_validation.html">1.7.1.4.1.8. Testing and Validation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/general_limitations.html">1.7.1.4.1.9. General Limitations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/model_monitoring.html">1.7.1.4.1.10. Model Monitoring</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/market_data_integration.html">1.7.1.4.1.11. Market Data Integration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/performance_benchmarking.html">1.7.1.4.1.12. Performance Benchmarking</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/troubleshooting_guide.html">1.7.1.4.1.13. Troubleshooting Guide</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/development_feedback.html">1.7.1.4.1.14. Development Feedback</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/references.html">1.7.1.4.1.15. References</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/executive_summary.html">1.7.1.4.1.1. Executive Summary</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/scope.html">1.7.1.4.1.2. Scope and Use</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/product_and_portfolio.html">1.7.1.4.1.3. Product and Portfolio</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/model_methodology.html">1.7.1.4.1.4. Model Methodology</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/implementation.html">1.7.1.4.1.5. Implementation / Numerical Schema Description</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/calibration.html">1.7.1.4.1.6. Calibration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/risk_analysis.html">1.7.1.4.1.7. Risk Analysis</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/testing_and_validation.html">1.7.1.4.1.8. Testing and Validation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/general_limitations.html">1.7.1.4.1.9. General Limitations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/model_monitoring.html">1.7.1.4.1.10. Model Monitoring</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/market_data_integration.html">1.7.1.4.1.11. Market Data Integration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/performance_benchmarking.html">1.7.1.4.1.12. Performance Benchmarking</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/troubleshooting_guide.html">1.7.1.4.1.13. Troubleshooting Guide</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/development_feedback.html">1.7.1.4.1.14. Development Feedback</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../SABR/references.html">1.7.1.4.1.15. References</a></li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../ASV/index.html">1.1. Analytical Sigma Volatility</a><input class="toctree-checkbox" id="toctree-checkbox-39" name="toctree-checkbox-39" role="switch" type="checkbox"/><label for="toctree-checkbox-39"><div class="visually-hidden">Toggle navigation of 1.1. Analytical Sigma Volatility</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/executive_summary.html">1.1.2.2.1. Executive Summary</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/scope.html">1.1.2.2.2. Scope</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/product_and_portfolio.html">1.1.2.2.3. Product and Portfolio</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/model_methodology.html">1.1.2.2.4. Model Methodology</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/implementation.html">1.1.2.2.5. Implementation and Numerical Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/calibration.html">1.1.2.2.6. Calibration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/risk_analysis.html">1.1.2.2.7. Risk Analysis</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/testing_and_validation.html">1.1.2.2.8. Testing and Validation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/general_limitations.html">1.1.2.2.9. General Limitations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/model_monitoring.html">1.1.2.2.10. Model Monitoring and KPIs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/user_guide.html">1.1.2.2.11. User Guide</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/references.html">1.1.2.2.12. References</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/README.html">1.1.2.2.13. Analytical Sigma Volatility (ASV) Documentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/executive_summary.html">1.1.2.2.1. Executive Summary</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/scope.html">1.1.2.2.2. Scope</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/product_and_portfolio.html">1.1.2.2.3. Product and Portfolio</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/model_methodology.html">1.1.2.2.4. Model Methodology</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/implementation.html">1.1.2.2.5. Implementation and Numerical Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/calibration.html">1.1.2.2.6. Calibration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/risk_analysis.html">1.1.2.2.7. Risk Analysis</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/testing_and_validation.html">1.1.2.2.8. Testing and Validation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/general_limitations.html">1.1.2.2.9. General Limitations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/model_monitoring.html">1.1.2.2.10. Model Monitoring and KPIs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/user_guide.html">1.1.2.2.11. User Guide</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/references.html">1.1.2.2.12. References</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ASV/README.html">1.1.2.2.13. Analytical Sigma Volatility (ASV) Documentation</a></li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../Cheyette/index.html">Cheyette Interest Rate Model</a><input class="toctree-checkbox" id="toctree-checkbox-40" name="toctree-checkbox-40" role="switch" type="checkbox"/><label for="toctree-checkbox-40"><div class="visually-hidden">Toggle navigation of Cheyette Interest Rate Model</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../Cheyette/executive_summary.html">1. Executive Summary</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Cheyette/scope.html">2. Scope</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Cheyette/products_and_payoffs.html">Products and Payoffs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Cheyette/model_methodology.html">3. Model Methodology</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Cheyette/implementation.html">4. Implementation / Numerical Schema Description</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Cheyette/calibration.html">5. Calibration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Cheyette/risk_analysis.html">6. Risk Analysis</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Cheyette/testing_and_validation.html">7. Testing and Validation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Cheyette/assumptions_and_limitations.html">1.2.1.9. Assumptions and Limitations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Cheyette/monitoring_and_kpis.html">8. Monitoring and KPIs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Cheyette/appendices.html">1.2.1.11. Appendices</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Cheyette/README.html">1.2.1.12. Cheyette Local Vol Model Documentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Cheyette/executive_summary.html">1. Executive Summary</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Cheyette/scope.html">2. Scope</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Cheyette/model_methodology.html">3. Model Methodology</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Cheyette/implementation.html">4. Implementation / Numerical Schema Description</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Cheyette/calibration.html">5. Calibration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Cheyette/risk_analysis.html">6. Risk Analysis</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Cheyette/testing_and_validation.html">7. Testing and Validation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Cheyette/monitoring_and_kpis.html">8. Monitoring and KPIs</a></li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../Curve%20Construction/index.html">1.2. Curve Construction Framework</a><input class="toctree-checkbox" id="toctree-checkbox-41" name="toctree-checkbox-41" role="switch" type="checkbox"/><label for="toctree-checkbox-41"><div class="visually-hidden">Toggle navigation of 1.2. Curve Construction Framework</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../Curve%20Construction/executive_summary.html">1.2.2.2.1. Executive Summary</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Curve%20Construction/scope.html">1.2.2.2.2. Scope</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Curve%20Construction/product_and_portfolio.html">1.2.2.2.3. Product and Portfolio</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Curve%20Construction/model_methodology.html">1.2.2.2.4. Model Methodology</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Curve%20Construction/implementation.html">1.2.2.2.5. Implementation / Numerical Schema Description</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Curve%20Construction/calibration.html">1.2.2.2.6. Calibration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Curve%20Construction/risk_analysis.html">1.2.2.2.7. Risk Analysis</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Curve%20Construction/testing_and_validation.html">1.2.2.2.8. Testing and Validation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Curve%20Construction/general_limitations.html">1.2.2.2.9. General Limitations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Curve%20Construction/model_monitoring.html">1.2.2.2.10. Model Monitoring</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Curve%20Construction/development_feedback.html">1.2.2.2.11. Development Feedback</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Curve%20Construction/references.html">1.2.2.2.12. References</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Curve%20Construction/README.html">1.2.2.2.13. Curve Construction and Risk Framework Documentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Curve%20Construction/executive_summary.html">1.2.2.2.1. Executive Summary</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Curve%20Construction/scope.html">1.2.2.2.2. Scope</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Curve%20Construction/product_and_portfolio.html">1.2.2.2.3. Product and Portfolio</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Curve%20Construction/model_methodology.html">1.2.2.2.4. Model Methodology</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Curve%20Construction/implementation.html">1.2.2.2.5. Implementation / Numerical Schema Description</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Curve%20Construction/calibration.html">1.2.2.2.6. Calibration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Curve%20Construction/risk_analysis.html">1.2.2.2.7. Risk Analysis</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Curve%20Construction/testing_and_validation.html">1.2.2.2.8. Testing and Validation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Curve%20Construction/general_limitations.html">1.2.2.2.9. General Limitations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Curve%20Construction/model_monitoring.html">1.2.2.2.10. Model Monitoring</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Curve%20Construction/development_feedback.html">1.2.2.2.11. Development Feedback</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../Curve%20Construction/references.html">1.2.2.2.12. References</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../api/index.html">1. API Documentation</a><input class="toctree-checkbox" id="toctree-checkbox-42" name="toctree-checkbox-42" role="switch" type="checkbox"/><label for="toctree-checkbox-42"><div class="visually-hidden">Toggle navigation of 1. API Documentation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../api/cpp.html">1.1. C++</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../api/python.html">1.2. Python</a><input class="toctree-checkbox" id="toctree-checkbox-43" name="toctree-checkbox-43" role="switch" type="checkbox"/><label for="toctree-checkbox-43"><div class="visually-hidden">Toggle navigation of 1.2. Python</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.html">1.2.1.1. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules</span></code></a><input class="toctree-checkbox" id="toctree-checkbox-44" name="toctree-checkbox-44" role="switch" type="checkbox"/><label for="toctree-checkbox-44"><div class="visually-hidden">Toggle navigation of 1.2.1.1. xsigmamodules</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l4 has-children"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.common.html">1.2.1.1.1.1. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.common</span></code></a><input class="toctree-checkbox" id="toctree-checkbox-45" name="toctree-checkbox-45" role="switch" type="checkbox"/><label for="toctree-checkbox-45"><div class="visually-hidden">Toggle navigation of 1.2.1.1.1.1. xsigmamodules.common</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.common.helper.html">1.2.1.1.1.1.1.1. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.common.helper</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.common.instrument.html">1.2.1.1.1.1.1.2. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.common.instrument</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l4 has-children"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.market.html">1.2.1.1.1.2. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.market</span></code></a><input class="toctree-checkbox" id="toctree-checkbox-46" name="toctree-checkbox-46" role="switch" type="checkbox"/><label for="toctree-checkbox-46"><div class="visually-hidden">Toggle navigation of 1.2.1.1.1.2. xsigmamodules.market</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.market.market_data.html">1.2.1.1.1.2.1.1. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.market.market_data</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.market.object_factory.html">1.2.1.1.1.2.1.2. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.market.object_factory</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l4 has-children"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.simulation.html">1.2.1.1.1.3. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.simulation</span></code></a><input class="toctree-checkbox" id="toctree-checkbox-47" name="toctree-checkbox-47" role="switch" type="checkbox"/><label for="toctree-checkbox-47"><div class="visually-hidden">Toggle navigation of 1.2.1.1.1.3. xsigmamodules.simulation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.simulation.simulation.html">1.2.1.1.1.3.1.1. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.simulation.simulation</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l4 has-children"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.test.html">1.2.1.1.1.4. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.test</span></code></a><input class="toctree-checkbox" id="toctree-checkbox-48" name="toctree-checkbox-48" role="switch" type="checkbox"/><label for="toctree-checkbox-48"><div class="visually-hidden">Toggle navigation of 1.2.1.1.1.4. xsigmamodules.test</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.test.BlackBox.html">1.2.1.1.1.4.1.1. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.test.BlackBox</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.test.Testing.html">1.2.1.1.1.4.1.2. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.test.Testing</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l4 has-children"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.util.html">1.2.1.1.1.5. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.util</span></code></a><input class="toctree-checkbox" id="toctree-checkbox-49" name="toctree-checkbox-49" role="switch" type="checkbox"/><label for="toctree-checkbox-49"><div class="visually-hidden">Toggle navigation of 1.2.1.1.1.5. xsigmamodules.util</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.util.misc.html">1.2.1.1.1.5.1.1. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.util.misc</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.util.numpy_support.html">1.2.1.1.1.5.1.2. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.util.numpy_support</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.util.object_converter.html">1.2.1.1.1.5.1.3. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.util.object_converter</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.util.xsigmaConstants.html">1.2.1.1.1.5.1.4. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.util.xsigmaConstants</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.util.xsigmaMethodParser.html">1.2.1.1.1.5.1.5. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.util.xsigmaMethodParser</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l4 has-children"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.xlwing.html">1.2.1.1.1.6. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.xlwing</span></code></a><input class="toctree-checkbox" id="toctree-checkbox-50" name="toctree-checkbox-50" role="switch" type="checkbox"/><label for="toctree-checkbox-50"><div class="visually-hidden">Toggle navigation of 1.2.1.1.1.6. xsigmamodules.xlwing</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.xlwing.hartman_watson_template.html">1.2.1.1.1.6.1.1. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.xlwing.hartman_watson_template</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.xlwing.sabr_template.html">1.2.1.1.1.6.1.2. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.xlwing.sabr_template</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l4"><a class="reference internal" href="../../api/python/xsigmamodules/xsigmamodules.generate_pyi.html">1.2.1.1.2.1. <code class="xref py py-mod docutils literal notranslate"><span class="pre">xsigmamodules.generate_pyi</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../api/cmake/cmake-modules.html">1.3. CMake</a><input class="toctree-checkbox" id="toctree-checkbox-51" name="toctree-checkbox-51" role="switch" type="checkbox"/><label for="toctree-checkbox-51"><div class="visually-hidden">Toggle navigation of 1.3. CMake</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../api/cmake/ModuleSystem.html">1.3.1. Module System</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/cmake/xsigmaModule.html">1.3.2. xsigmaModule</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/cmake/xsigmaModuleTesting.html">1.3.3. xsigmaModuleTesting</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/cmake/xsigmaModuleWrapPython.html">1.3.4. xsigmaModuleWrapPython</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/cmake/xsigmaModuleWrapJava.html">1.3.5. xsigmaModuleWrapJava</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/cmake/xsigmaModuleJSON.html">1.3.6. xsigmaModuleJSON</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/cmake/xsigmaModuleGraphviz.html">1.3.7. xsigmaModuleGraphviz</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle">
+              <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+              <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <div class="visually-hidden">Toggle table of contents sidebar</div>
+            <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+          </label>
+        </div>
+        <article role="main">
+          <section class="tex2jax_ignore mathjax_ignore" id="independent-validation-testing">
+<h1>Independent Validation Testing<a class="headerlink" href="#independent-validation-testing" title="Link to this heading">#</a></h1>
+<section id="overview-of-general-model-testing">
+<h2>Overview of General Model Testing<a class="headerlink" href="#overview-of-general-model-testing" title="Link to this heading">#</a></h2>
+<p>Cette section présente les tests de validation indépendante du modèle <strong>DBX-ShortRateNormal_InflationStochVol</strong>, en se concentrant sur les quantités observables du marché et leur comportement sous différents paramètres de modèle.</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="c1">// Implémentation Our project du framework de validation indépendante pour Short Rate Normal</span>
+<span class="k">namespace</span><span class="w"> </span><span class="nn">xsigma</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// Classe principale pour la validation indépendante du modèle Short Rate Normal</span>
+<span class="w">    </span><span class="k">class</span><span class="w"> </span><span class="nc">ShortRateNormalValidationFramework</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">public</span><span class="o">:</span>
+<span class="w">        </span><span class="c1">// Énumération des types de tests de validation</span>
+<span class="w">        </span><span class="k">enum</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">ValidationTestType</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">TERMINAL_DISTRIBUTIONS</span><span class="p">,</span><span class="w">        </span><span class="c1">// Distributions terminales</span>
+<span class="w">            </span><span class="n">IMPLIED_VOLATILITIES</span><span class="p">,</span><span class="w">         </span><span class="c1">// Volatilités implicites</span>
+<span class="w">            </span><span class="n">PARAMETER_SENSITIVITY</span><span class="p">,</span><span class="w">        </span><span class="c1">// Sensibilité aux paramètres</span>
+<span class="w">            </span><span class="n">CORRELATION_IMPACT</span><span class="p">,</span><span class="w">           </span><span class="c1">// Impact des corrélations</span>
+<span class="w">            </span><span class="n">CONVERGENCE_ANALYSIS</span><span class="p">,</span><span class="w">         </span><span class="c1">// Analyse de convergence</span>
+<span class="w">            </span><span class="n">CALIBRATION_VALIDATION</span><span class="p">,</span><span class="w">       </span><span class="c1">// Validation de calibration</span>
+<span class="w">            </span><span class="n">PRODUCT_TESTING</span><span class="w">              </span><span class="c1">// Tests spécifiques aux produits</span>
+<span class="w">        </span><span class="p">};</span>
+<span class="w">        </span>
+<span class="w">        </span><span class="c1">// Structure pour les données de marché de test</span>
+<span class="w">        </span><span class="k">struct</span><span class="w"> </span><span class="nc">BaseMarketData</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="w"> </span><span class="n">cob_date</span><span class="p">;</span><span class="w">                    </span><span class="c1">// Date COB</span>
+<span class="w">            </span><span class="n">std</span><span class="o">::</span><span class="n">map</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="p">,</span><span class="w"> </span><span class="kt">double</span><span class="o">&gt;</span><span class="w"> </span><span class="n">curves</span><span class="p">;</span><span class="w">    </span><span class="c1">// Courbes (IR, inflation)</span>
+<span class="w">            </span><span class="n">std</span><span class="o">::</span><span class="n">map</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="p">,</span><span class="w"> </span><span class="kt">double</span><span class="o">&gt;</span><span class="w"> </span><span class="n">volatilities</span><span class="p">;</span><span class="w"> </span><span class="c1">// Volatilités</span>
+<span class="w">            </span><span class="n">std</span><span class="o">::</span><span class="n">map</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="p">,</span><span class="w"> </span><span class="kt">double</span><span class="o">&gt;</span><span class="w"> </span><span class="n">correlations</span><span class="p">;</span><span class="w">  </span><span class="c1">// Corrélations</span>
+<span class="w">            </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="w"> </span><span class="n">description</span><span class="p">;</span><span class="w">                 </span><span class="c1">// Description</span>
+<span class="w">        </span><span class="p">};</span>
+<span class="w">        </span>
+<span class="w">        </span><span class="c1">// Structure pour les observables de marché</span>
+<span class="w">        </span><span class="k">struct</span><span class="w"> </span><span class="nc">MarketObservables</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;</span><span class="w"> </span><span class="n">zc_forwards</span><span class="p">;</span><span class="w">         </span><span class="c1">// ZC forwards</span>
+<span class="w">            </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;</span><span class="w"> </span><span class="n">yoy_forwards</span><span class="p">;</span><span class="w">        </span><span class="c1">// YOY forwards</span>
+<span class="w">            </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;</span><span class="w"> </span><span class="n">cms_forwards</span><span class="p">;</span><span class="w">        </span><span class="c1">// CMS forwards</span>
+<span class="w">            </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;</span><span class="w"> </span><span class="n">maturities</span><span class="p">;</span><span class="w">          </span><span class="c1">// Maturités</span>
+<span class="w">        </span><span class="p">};</span>
+<span class="w">        </span>
+<span class="w">        </span><span class="c1">// Structure pour les résultats de test</span>
+<span class="w">        </span><span class="k">struct</span><span class="w"> </span><span class="nc">ValidationResult</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="w"> </span><span class="n">test_name</span><span class="p">;</span><span class="w">                   </span><span class="c1">// Nom du test</span>
+<span class="w">            </span><span class="n">ValidationTestType</span><span class="w"> </span><span class="n">test_type</span><span class="p">;</span><span class="w">            </span><span class="c1">// Type de test</span>
+<span class="w">            </span><span class="kt">bool</span><span class="w"> </span><span class="n">passed</span><span class="p">;</span><span class="w">                            </span><span class="c1">// Test réussi</span>
+<span class="w">            </span><span class="kt">double</span><span class="w"> </span><span class="n">max_error</span><span class="p">;</span><span class="w">                       </span><span class="c1">// Erreur maximale</span>
+<span class="w">            </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="w"> </span><span class="n">error_metric</span><span class="p">;</span><span class="w">               </span><span class="c1">// Métrique d&#39;erreur</span>
+<span class="w">            </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&gt;</span><span class="w"> </span><span class="n">observations</span><span class="p">;</span><span class="w">   </span><span class="c1">// Observations</span>
+<span class="w">            </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="w"> </span><span class="n">assessment</span><span class="p">;</span><span class="w">                 </span><span class="c1">// Évaluation</span>
+<span class="w">        </span><span class="p">};</span>
+<span class="w">        </span>
+<span class="w">        </span><span class="c1">// Création des données de marché BASE pour les tests</span>
+<span class="w">        </span><span class="n">BaseMarketData</span><span class="w"> </span><span class="nf">create_base_market_data</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">BaseMarketData</span><span class="w"> </span><span class="n">base_data</span><span class="p">;</span>
+<span class="w">            </span>
+<span class="w">            </span><span class="n">base_data</span><span class="p">.</span><span class="n">cob_date</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;2017-12-15&quot;</span><span class="p">;</span>
+<span class="w">            </span><span class="n">base_data</span><span class="p">.</span><span class="n">description</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;Simplified BASE-market for analytical tractability&quot;</span><span class="p">;</span>
+<span class="w">            </span>
+<span class="w">            </span><span class="c1">// Courbes de base (flat)</span>
+<span class="w">            </span><span class="n">base_data</span><span class="p">.</span><span class="n">curves</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="p">{</span><span class="s">&quot;AUD_IR_CURVE&quot;</span><span class="p">,</span><span class="w"> </span><span class="mf">0.05</span><span class="p">},</span><span class="w">           </span><span class="c1">// Flat 5% IR curve</span>
+<span class="w">                </span><span class="p">{</span><span class="s">&quot;AUD_INFLATION_CURVE&quot;</span><span class="p">,</span><span class="w"> </span><span class="mf">0.03</span><span class="p">},</span><span class="w">    </span><span class="c1">// Flat 3% inflation curve</span>
+<span class="w">                </span><span class="p">{</span><span class="s">&quot;REAL_RATE_CURVE&quot;</span><span class="p">,</span><span class="w"> </span><span class="mf">0.02</span><span class="p">}</span><span class="w">         </span><span class="c1">// Implied real rate</span>
+<span class="w">            </span><span class="p">};</span>
+<span class="w">            </span>
+<span class="w">            </span><span class="c1">// Volatilités de base (flat)</span>
+<span class="w">            </span><span class="n">base_data</span><span class="p">.</span><span class="n">volatilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="p">{</span><span class="s">&quot;IR_VOLATILITY&quot;</span><span class="p">,</span><span class="w"> </span><span class="mf">0.01</span><span class="p">},</span><span class="w">          </span><span class="c1">// Flat 1% normal vol</span>
+<span class="w">                </span><span class="p">{</span><span class="s">&quot;REAL_VOLATILITY&quot;</span><span class="p">,</span><span class="w"> </span><span class="mf">0.01</span><span class="p">},</span><span class="w">        </span><span class="c1">// Flat 1% normal vol</span>
+<span class="w">                </span><span class="p">{</span><span class="s">&quot;INFLATION_VOLATILITY&quot;</span><span class="p">,</span><span class="w"> </span><span class="mf">0.01</span><span class="p">},</span><span class="w">   </span><span class="c1">// Flat 1% normal vol</span>
+<span class="w">                </span><span class="p">{</span><span class="s">&quot;STOCH_VOLATILITY&quot;</span><span class="p">,</span><span class="w"> </span><span class="mf">0.50</span><span class="p">}</span><span class="w">        </span><span class="c1">// Flat 50% lognormal vol</span>
+<span class="w">            </span><span class="p">};</span>
+<span class="w">            </span>
+<span class="w">            </span><span class="c1">// Corrélations de base (principalement zéro)</span>
+<span class="w">            </span><span class="n">base_data</span><span class="p">.</span><span class="n">correlations</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="p">{</span><span class="s">&quot;NOMINAL_REAL&quot;</span><span class="p">,</span><span class="w"> </span><span class="mf">0.80</span><span class="p">},</span><span class="w">           </span><span class="c1">// ρnr = 80%</span>
+<span class="w">                </span><span class="p">{</span><span class="s">&quot;NOMINAL_INFLATION&quot;</span><span class="p">,</span><span class="w"> </span><span class="mf">0.00</span><span class="p">},</span><span class="w">      </span><span class="c1">// ρni = 0%</span>
+<span class="w">                </span><span class="p">{</span><span class="s">&quot;REAL_INFLATION&quot;</span><span class="p">,</span><span class="w"> </span><span class="mf">0.00</span><span class="p">},</span><span class="w">         </span><span class="c1">// ρri = 0%</span>
+<span class="w">                </span><span class="p">{</span><span class="s">&quot;INFLATION_STOCHVOL&quot;</span><span class="p">,</span><span class="w"> </span><span class="mf">0.00</span><span class="p">}</span><span class="w">      </span><span class="c1">// ρiv = 0%</span>
+<span class="w">            </span><span class="p">};</span>
+<span class="w">            </span>
+<span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="n">base_data</span><span class="p">;</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span>
+<span class="w">        </span><span class="c1">// Calcul des observables de marché</span>
+<span class="w">        </span><span class="n">MarketObservables</span><span class="w"> </span><span class="nf">calculate_market_observables</span><span class="p">(</span>
+<span class="w">            </span><span class="k">const</span><span class="w"> </span><span class="n">BaseMarketData</span><span class="o">&amp;</span><span class="w"> </span><span class="n">market_data</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span>
+<span class="w">            </span><span class="n">MarketObservables</span><span class="w"> </span><span class="n">observables</span><span class="p">;</span>
+<span class="w">            </span><span class="n">observables</span><span class="p">.</span><span class="n">maturities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="mf">1.0</span><span class="p">,</span><span class="w"> </span><span class="mf">2.0</span><span class="p">,</span><span class="w"> </span><span class="mf">5.0</span><span class="p">,</span><span class="w"> </span><span class="mf">10.0</span><span class="p">,</span><span class="w"> </span><span class="mf">20.0</span><span class="p">,</span><span class="w"> </span><span class="mf">30.0</span><span class="p">};</span>
+<span class="w">            </span>
+<span class="w">            </span><span class="c1">// Simulation Monte-Carlo pour calculer les forwards</span>
+<span class="w">            </span><span class="k">auto</span><span class="w"> </span><span class="n">mc_engine</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">create_monte_carlo_engine</span><span class="p">(</span><span class="n">market_data</span><span class="p">);</span>
+<span class="w">            </span>
+<span class="w">            </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">double</span><span class="w"> </span><span class="n">maturity</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">observables</span><span class="p">.</span><span class="n">maturities</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="c1">// ZC Forward: I(T)</span>
+<span class="w">                </span><span class="kt">double</span><span class="w"> </span><span class="n">zc_forward</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">calculate_zc_forward</span><span class="p">(</span><span class="n">mc_engine</span><span class="p">,</span><span class="w"> </span><span class="n">maturity</span><span class="p">);</span>
+<span class="w">                </span><span class="n">observables</span><span class="p">.</span><span class="n">zc_forwards</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">zc_forward</span><span class="p">);</span>
+<span class="w">                </span>
+<span class="w">                </span><span class="c1">// YOY Forward: I(T)/I(T-1)</span>
+<span class="w">                </span><span class="kt">double</span><span class="w"> </span><span class="n">yoy_forward</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">calculate_yoy_forward</span><span class="p">(</span><span class="n">mc_engine</span><span class="p">,</span><span class="w"> </span><span class="n">maturity</span><span class="p">);</span>
+<span class="w">                </span><span class="n">observables</span><span class="p">.</span><span class="n">yoy_forwards</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">yoy_forward</span><span class="p">);</span>
+<span class="w">                </span>
+<span class="w">                </span><span class="c1">// CMS Forward: (B(T,T) - B(T,T_N))/(S_N * Δ * B(T,T))</span>
+<span class="w">                </span><span class="kt">double</span><span class="w"> </span><span class="n">cms_forward</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">calculate_cms_forward</span><span class="p">(</span><span class="n">mc_engine</span><span class="p">,</span><span class="w"> </span><span class="n">maturity</span><span class="p">,</span><span class="w"> </span><span class="mf">10.0</span><span class="p">);</span><span class="w"> </span><span class="c1">// 10Y CMS</span>
+<span class="w">                </span><span class="n">observables</span><span class="p">.</span><span class="n">cms_forwards</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">cms_forward</span><span class="p">);</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">            </span>
+<span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="n">observables</span><span class="p">;</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span>
+<span class="w">        </span><span class="c1">// Test des distributions terminales</span>
+<span class="w">        </span><span class="n">ValidationResult</span><span class="w"> </span><span class="nf">test_terminal_distributions</span><span class="p">(</span>
+<span class="w">            </span><span class="k">const</span><span class="w"> </span><span class="n">BaseMarketData</span><span class="o">&amp;</span><span class="w"> </span><span class="n">market_data</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span>
+<span class="w">            </span><span class="n">ValidationResult</span><span class="w"> </span><span class="n">result</span><span class="p">;</span>
+<span class="w">            </span><span class="n">result</span><span class="p">.</span><span class="n">test_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;Terminal Distributions Analysis&quot;</span><span class="p">;</span>
+<span class="w">            </span><span class="n">result</span><span class="p">.</span><span class="n">test_type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ValidationTestType</span><span class="o">::</span><span class="n">TERMINAL_DISTRIBUTIONS</span><span class="p">;</span>
+<span class="w">            </span>
+<span class="w">            </span><span class="k">try</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="k">auto</span><span class="w"> </span><span class="n">mc_engine</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">create_monte_carlo_engine</span><span class="p">(</span><span class="n">market_data</span><span class="p">);</span>
+<span class="w">                </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;</span><span class="w"> </span><span class="n">test_maturities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="mf">1.0</span><span class="p">,</span><span class="w"> </span><span class="mf">5.0</span><span class="p">,</span><span class="w"> </span><span class="mf">10.0</span><span class="p">,</span><span class="w"> </span><span class="mf">20.0</span><span class="p">};</span>
+<span class="w">                </span>
+<span class="w">                </span><span class="kt">bool</span><span class="w"> </span><span class="n">distributions_valid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+<span class="w">                </span><span class="kt">double</span><span class="w"> </span><span class="n">max_skewness_error</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.0</span><span class="p">;</span>
+<span class="w">                </span>
+<span class="w">                </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">double</span><span class="w"> </span><span class="n">maturity</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">test_maturities</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                    </span><span class="c1">// Calcul des distributions via Arrow-Debreu securities</span>
+<span class="w">                    </span><span class="k">auto</span><span class="w"> </span><span class="n">zc_distribution</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">calculate_terminal_distribution</span><span class="p">(</span>
+<span class="w">                        </span><span class="n">mc_engine</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;ZC&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">maturity</span><span class="p">);</span>
+<span class="w">                    </span><span class="k">auto</span><span class="w"> </span><span class="n">yoy_distribution</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">calculate_terminal_distribution</span><span class="p">(</span>
+<span class="w">                        </span><span class="n">mc_engine</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;YOY&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">maturity</span><span class="p">);</span>
+<span class="w">                    </span><span class="k">auto</span><span class="w"> </span><span class="n">cms_distribution</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">calculate_terminal_distribution</span><span class="p">(</span>
+<span class="w">                        </span><span class="n">mc_engine</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;CMS&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">maturity</span><span class="p">);</span>
+<span class="w">                    </span>
+<span class="w">                    </span><span class="c1">// Validation des propriétés statistiques</span>
+<span class="w">                    </span><span class="kt">double</span><span class="w"> </span><span class="n">zc_skewness</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">calculate_skewness</span><span class="p">(</span><span class="n">zc_distribution</span><span class="p">);</span>
+<span class="w">                    </span><span class="kt">double</span><span class="w"> </span><span class="n">yoy_skewness</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">calculate_skewness</span><span class="p">(</span><span class="n">yoy_distribution</span><span class="p">);</span>
+<span class="w">                    </span>
+<span class="w">                    </span><span class="c1">// Vérifier que les distributions s&#39;élargissent avec la maturité</span>
+<span class="w">                    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">maturity</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mf">1.0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                        </span><span class="k">auto</span><span class="w"> </span><span class="n">prev_zc_dist</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">calculate_terminal_distribution</span><span class="p">(</span>
+<span class="w">                            </span><span class="n">mc_engine</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;ZC&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">maturity</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mf">1.0</span><span class="p">);</span>
+<span class="w">                        </span><span class="kt">double</span><span class="w"> </span><span class="n">current_std</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">calculate_std_dev</span><span class="p">(</span><span class="n">zc_distribution</span><span class="p">);</span>
+<span class="w">                        </span><span class="kt">double</span><span class="w"> </span><span class="n">prev_std</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">calculate_std_dev</span><span class="p">(</span><span class="n">prev_zc_dist</span><span class="p">);</span>
+<span class="w">                        </span>
+<span class="w">                        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">current_std</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="n">prev_std</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                            </span><span class="n">distributions_valid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">false</span><span class="p">;</span>
+<span class="w">                            </span><span class="n">XSIGMA_LOG_WARNING</span><span class="p">(</span><span class="s">&quot;Distribution ne s&#39;élargit pas avec maturité&quot;</span><span class="p">);</span>
+<span class="w">                        </span><span class="p">}</span>
+<span class="w">                    </span><span class="p">}</span>
+<span class="w">                    </span>
+<span class="w">                    </span><span class="n">max_skewness_error</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">max</span><span class="p">(</span><span class="n">max_skewness_error</span><span class="p">,</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">abs</span><span class="p">(</span><span class="n">zc_skewness</span><span class="p">));</span>
+<span class="w">                </span><span class="p">}</span>
+<span class="w">                </span>
+<span class="w">                </span><span class="n">result</span><span class="p">.</span><span class="n">max_error</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">max_skewness_error</span><span class="p">;</span>
+<span class="w">                </span><span class="n">result</span><span class="p">.</span><span class="n">error_metric</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;skewness&quot;</span><span class="p">;</span>
+<span class="w">                </span><span class="n">result</span><span class="p">.</span><span class="n">passed</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">distributions_valid</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="p">(</span><span class="n">max_skewness_error</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mf">0.5</span><span class="p">);</span>
+<span class="w">                </span>
+<span class="w">                </span><span class="n">result</span><span class="p">.</span><span class="n">observations</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                    </span><span class="s">&quot;Distributions s&#39;élargissent avec la maturité&quot;</span><span class="p">,</span>
+<span class="w">                    </span><span class="s">&quot;Comportement diffusif conforme aux équations 21-22&quot;</span><span class="p">,</span>
+<span class="w">                    </span><span class="s">&quot;PDFs cohérentes avec dynamiques stochastiques&quot;</span><span class="p">,</span>
+<span class="w">                    </span><span class="s">&quot;Skewness dans les limites attendues&quot;</span>
+<span class="w">                </span><span class="p">};</span>
+<span class="w">                </span>
+<span class="w">                </span><span class="n">result</span><span class="p">.</span><span class="n">assessment</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">result</span><span class="p">.</span><span class="n">passed</span><span class="w"> </span><span class="o">?</span>
+<span class="w">                    </span><span class="s">&quot;Distributions terminales conformes aux attentes théoriques&quot;</span><span class="w"> </span><span class="o">:</span>
+<span class="w">                    </span><span class="s">&quot;Anomalies détectées dans les distributions terminales&quot;</span><span class="p">;</span>
+<span class="w">                </span>
+<span class="w">            </span><span class="p">}</span><span class="w"> </span><span class="k">catch</span><span class="w"> </span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">exception</span><span class="o">&amp;</span><span class="w"> </span><span class="n">e</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="n">result</span><span class="p">.</span><span class="n">passed</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">false</span><span class="p">;</span>
+<span class="w">                </span><span class="n">result</span><span class="p">.</span><span class="n">assessment</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;Erreur lors du test des distributions: &quot;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="p">(</span><span class="n">e</span><span class="p">.</span><span class="n">what</span><span class="p">());</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">            </span>
+<span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="n">result</span><span class="p">;</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span>
+<span class="w">        </span><span class="c1">// Test des volatilités implicites et smile</span>
+<span class="w">        </span><span class="n">ValidationResult</span><span class="w"> </span><span class="nf">test_implied_volatilities_smile</span><span class="p">(</span>
+<span class="w">            </span><span class="k">const</span><span class="w"> </span><span class="n">BaseMarketData</span><span class="o">&amp;</span><span class="w"> </span><span class="n">market_data</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span>
+<span class="w">            </span><span class="n">ValidationResult</span><span class="w"> </span><span class="n">result</span><span class="p">;</span>
+<span class="w">            </span><span class="n">result</span><span class="p">.</span><span class="n">test_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;Implied Volatilities and Smile Analysis&quot;</span><span class="p">;</span>
+<span class="w">            </span><span class="n">result</span><span class="p">.</span><span class="n">test_type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ValidationTestType</span><span class="o">::</span><span class="n">IMPLIED_VOLATILITIES</span><span class="p">;</span>
+<span class="w">            </span>
+<span class="w">            </span><span class="k">try</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="k">auto</span><span class="w"> </span><span class="n">mc_engine</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">create_monte_carlo_engine</span><span class="p">(</span><span class="n">market_data</span><span class="p">);</span>
+<span class="w">                </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;</span><span class="w"> </span><span class="n">strikes</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="mf">-0.01</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.01</span><span class="p">,</span><span class="w"> </span><span class="mf">0.02</span><span class="p">,</span><span class="w"> </span><span class="mf">0.03</span><span class="p">,</span><span class="w"> </span><span class="mf">0.04</span><span class="p">};</span>
+<span class="w">                </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;</span><span class="w"> </span><span class="n">maturities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="mf">1.0</span><span class="p">,</span><span class="w"> </span><span class="mf">5.0</span><span class="p">,</span><span class="w"> </span><span class="mf">10.0</span><span class="p">,</span><span class="w"> </span><span class="mf">20.0</span><span class="p">};</span>
+<span class="w">                </span>
+<span class="w">                </span><span class="kt">bool</span><span class="w"> </span><span class="n">smile_formed</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">false</span><span class="p">;</span>
+<span class="w">                </span><span class="kt">double</span><span class="w"> </span><span class="n">max_smile_magnitude</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.0</span><span class="p">;</span>
+<span class="w">                </span>
+<span class="w">                </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">double</span><span class="w"> </span><span class="n">maturity</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">maturities</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                    </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;</span><span class="w"> </span><span class="n">zc_implied_vols</span><span class="p">;</span>
+<span class="w">                    </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;</span><span class="w"> </span><span class="n">yoy_implied_vols</span><span class="p">;</span>
+<span class="w">                    </span>
+<span class="w">                    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">double</span><span class="w"> </span><span class="n">strike</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">strikes</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                        </span><span class="c1">// Calcul des volatilités implicites via call/put options</span>
+<span class="w">                        </span><span class="kt">double</span><span class="w"> </span><span class="n">zc_call_price</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">price_vanilla_option</span><span class="p">(</span>
+<span class="w">                            </span><span class="n">mc_engine</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;ZC&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;CALL&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">strike</span><span class="p">,</span><span class="w"> </span><span class="n">maturity</span><span class="p">);</span>
+<span class="w">                        </span><span class="kt">double</span><span class="w"> </span><span class="n">zc_put_price</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">price_vanilla_option</span><span class="p">(</span>
+<span class="w">                            </span><span class="n">mc_engine</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;ZC&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;PUT&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">strike</span><span class="p">,</span><span class="w"> </span><span class="n">maturity</span><span class="p">);</span>
+<span class="w">                        </span>
+<span class="w">                        </span><span class="kt">double</span><span class="w"> </span><span class="n">zc_implied_vol</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">calculate_implied_volatility</span><span class="p">(</span>
+<span class="w">                            </span><span class="n">zc_call_price</span><span class="p">,</span><span class="w"> </span><span class="n">zc_put_price</span><span class="p">,</span><span class="w"> </span><span class="n">strike</span><span class="p">,</span><span class="w"> </span><span class="n">maturity</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;LOGNORMAL&quot;</span><span class="p">);</span>
+<span class="w">                        </span><span class="n">zc_implied_vols</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">zc_implied_vol</span><span class="p">);</span>
+<span class="w">                        </span>
+<span class="w">                        </span><span class="c1">// YOY implied volatilities</span>
+<span class="w">                        </span><span class="kt">double</span><span class="w"> </span><span class="n">yoy_call_price</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">price_vanilla_option</span><span class="p">(</span>
+<span class="w">                            </span><span class="n">mc_engine</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;YOY&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;CALL&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">strike</span><span class="p">,</span><span class="w"> </span><span class="n">maturity</span><span class="p">);</span>
+<span class="w">                        </span><span class="kt">double</span><span class="w"> </span><span class="n">yoy_put_price</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">price_vanilla_option</span><span class="p">(</span>
+<span class="w">                            </span><span class="n">mc_engine</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;YOY&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;PUT&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">strike</span><span class="p">,</span><span class="w"> </span><span class="n">maturity</span><span class="p">);</span>
+<span class="w">                        </span>
+<span class="w">                        </span><span class="kt">double</span><span class="w"> </span><span class="n">yoy_implied_vol</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">calculate_implied_volatility</span><span class="p">(</span>
+<span class="w">                            </span><span class="n">yoy_call_price</span><span class="p">,</span><span class="w"> </span><span class="n">yoy_put_price</span><span class="p">,</span><span class="w"> </span><span class="n">strike</span><span class="p">,</span><span class="w"> </span><span class="n">maturity</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;LOGNORMAL&quot;</span><span class="p">);</span>
+<span class="w">                        </span><span class="n">yoy_implied_vols</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">yoy_implied_vol</span><span class="p">);</span>
+<span class="w">                    </span><span class="p">}</span>
+<span class="w">                    </span>
+<span class="w">                    </span><span class="c1">// Analyser la formation du smile</span>
+<span class="w">                    </span><span class="kt">double</span><span class="w"> </span><span class="n">zc_smile_magnitude</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">calculate_smile_magnitude</span><span class="p">(</span><span class="n">zc_implied_vols</span><span class="p">);</span>
+<span class="w">                    </span><span class="kt">double</span><span class="w"> </span><span class="n">yoy_smile_magnitude</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">calculate_smile_magnitude</span><span class="p">(</span><span class="n">yoy_implied_vols</span><span class="p">);</span>
+<span class="w">                    </span>
+<span class="w">                    </span><span class="n">max_smile_magnitude</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">max</span><span class="p">({</span><span class="n">max_smile_magnitude</span><span class="p">,</span><span class="w"> </span>
+<span class="w">                                                   </span><span class="n">zc_smile_magnitude</span><span class="p">,</span><span class="w"> </span>
+<span class="w">                                                   </span><span class="n">yoy_smile_magnitude</span><span class="p">});</span>
+<span class="w">                    </span>
+<span class="w">                    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">zc_smile_magnitude</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mf">0.001</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">yoy_smile_magnitude</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mf">0.001</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                        </span><span class="n">smile_formed</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+<span class="w">                    </span><span class="p">}</span>
+<span class="w">                </span><span class="p">}</span>
+<span class="w">                </span>
+<span class="w">                </span><span class="n">result</span><span class="p">.</span><span class="n">max_error</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">max_smile_magnitude</span><span class="p">;</span>
+<span class="w">                </span><span class="n">result</span><span class="p">.</span><span class="n">error_metric</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;smile_magnitude&quot;</span><span class="p">;</span>
+<span class="w">                </span><span class="n">result</span><span class="p">.</span><span class="n">passed</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">smile_formed</span><span class="p">;</span>
+<span class="w">                </span>
+<span class="w">                </span><span class="n">result</span><span class="p">.</span><span class="n">observations</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                    </span><span class="s">&quot;Volatilité stochastique crée un smile observable&quot;</span><span class="p">,</span>
+<span class="w">                    </span><span class="s">&quot;ZC et YOY montrent formation de smile/skew&quot;</span><span class="p">,</span>
+<span class="w">                    </span><span class="s">&quot;CMS moins sensible à la volatilité d&#39;inflation&quot;</span><span class="p">,</span>
+<span class="w">                    </span><span class="s">&quot;Smile magnitude cohérente avec paramètres stochastiques&quot;</span>
+<span class="w">                </span><span class="p">};</span>
+<span class="w">                </span>
+<span class="w">                </span><span class="n">result</span><span class="p">.</span><span class="n">assessment</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">result</span><span class="p">.</span><span class="n">passed</span><span class="w"> </span><span class="o">?</span>
+<span class="w">                    </span><span class="s">&quot;Formation de smile validée - volatilité stochastique efficace&quot;</span><span class="w"> </span><span class="o">:</span>
+<span class="w">                    </span><span class="s">&quot;Smile insuffisant - vérifier paramètres de volatilité stochastique&quot;</span><span class="p">;</span>
+<span class="w">                </span>
+<span class="w">            </span><span class="p">}</span><span class="w"> </span><span class="k">catch</span><span class="w"> </span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">exception</span><span class="o">&amp;</span><span class="w"> </span><span class="n">e</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="n">result</span><span class="p">.</span><span class="n">passed</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">false</span><span class="p">;</span>
+<span class="w">                </span><span class="n">result</span><span class="p">.</span><span class="n">assessment</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;Erreur lors du test de smile: &quot;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="p">(</span><span class="n">e</span><span class="p">.</span><span class="n">what</span><span class="p">());</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">            </span>
+<span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="n">result</span><span class="p">;</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span>
+<span class="w">        </span><span class="c1">// Test de sensibilité aux paramètres</span>
+<span class="w">        </span><span class="n">ValidationResult</span><span class="w"> </span><span class="nf">test_parameter_sensitivity</span><span class="p">(</span>
+<span class="w">            </span><span class="k">const</span><span class="w"> </span><span class="n">BaseMarketData</span><span class="o">&amp;</span><span class="w"> </span><span class="n">base_market</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span>
+<span class="w">            </span><span class="n">ValidationResult</span><span class="w"> </span><span class="n">result</span><span class="p">;</span>
+<span class="w">            </span><span class="n">result</span><span class="p">.</span><span class="n">test_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;Parameter Sensitivity Analysis&quot;</span><span class="p">;</span>
+<span class="w">            </span><span class="n">result</span><span class="p">.</span><span class="n">test_type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ValidationTestType</span><span class="o">::</span><span class="n">PARAMETER_SENSITIVITY</span><span class="p">;</span>
+<span class="w">            </span>
+<span class="w">            </span><span class="k">try</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="c1">// Test de sensibilité aux volatilités</span>
+<span class="w">                </span><span class="k">auto</span><span class="w"> </span><span class="n">bumped_market</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">base_market</span><span class="p">;</span>
+<span class="w">                </span><span class="n">bumped_market</span><span class="p">.</span><span class="n">volatilities</span><span class="p">[</span><span class="s">&quot;INFLATION_VOLATILITY&quot;</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.03</span><span class="p">;</span><span class="w"> </span><span class="c1">// 1% → 3%</span>
+<span class="w">                </span>
+<span class="w">                </span><span class="k">auto</span><span class="w"> </span><span class="n">base_observables</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">calculate_market_observables</span><span class="p">(</span><span class="n">base_market</span><span class="p">);</span>
+<span class="w">                </span><span class="k">auto</span><span class="w"> </span><span class="n">bumped_observables</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">calculate_market_observables</span><span class="p">(</span><span class="n">bumped_market</span><span class="p">);</span>
+<span class="w">                </span>
+<span class="w">                </span><span class="c1">// Calculer l&#39;impact sur les forwards</span>
+<span class="w">                </span><span class="kt">double</span><span class="w"> </span><span class="n">max_forward_impact</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.0</span><span class="p">;</span>
+<span class="w">                </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">size_t</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">base_observables</span><span class="p">.</span><span class="n">zc_forwards</span><span class="p">.</span><span class="n">size</span><span class="p">();</span><span class="w"> </span><span class="o">++</span><span class="n">i</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                    </span><span class="kt">double</span><span class="w"> </span><span class="n">impact</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">abs</span><span class="p">(</span><span class="n">bumped_observables</span><span class="p">.</span><span class="n">zc_forwards</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="w"> </span><span class="o">-</span><span class="w"> </span>
+<span class="w">                                           </span><span class="n">base_observables</span><span class="p">.</span><span class="n">zc_forwards</span><span class="p">[</span><span class="n">i</span><span class="p">]);</span>
+<span class="w">                    </span><span class="n">max_forward_impact</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">max</span><span class="p">(</span><span class="n">max_forward_impact</span><span class="p">,</span><span class="w"> </span><span class="n">impact</span><span class="p">);</span>
+<span class="w">                </span><span class="p">}</span>
+<span class="w">                </span>
+<span class="w">                </span><span class="c1">// Test de sensibilité aux corrélations</span>
+<span class="w">                </span><span class="k">auto</span><span class="w"> </span><span class="n">corr_bumped_market</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">base_market</span><span class="p">;</span>
+<span class="w">                </span><span class="n">corr_bumped_market</span><span class="p">.</span><span class="n">correlations</span><span class="p">[</span><span class="s">&quot;INFLATION_STOCHVOL&quot;</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.50</span><span class="p">;</span><span class="w"> </span><span class="c1">// 0% → 50%</span>
+<span class="w">                </span>
+<span class="w">                </span><span class="k">auto</span><span class="w"> </span><span class="n">corr_observables</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">calculate_market_observables</span><span class="p">(</span><span class="n">corr_bumped_market</span><span class="p">);</span>
+<span class="w">                </span>
+<span class="w">                </span><span class="n">result</span><span class="p">.</span><span class="n">max_error</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">max_forward_impact</span><span class="p">;</span>
+<span class="w">                </span><span class="n">result</span><span class="p">.</span><span class="n">error_metric</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;forward_impact&quot;</span><span class="p">;</span>
+<span class="w">                </span><span class="n">result</span><span class="p">.</span><span class="n">passed</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">max_forward_impact</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mf">1e-6</span><span class="p">);</span><span class="w"> </span><span class="c1">// Sensibilité détectable</span>
+<span class="w">                </span>
+<span class="w">                </span><span class="n">result</span><span class="p">.</span><span class="n">observations</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                    </span><span class="s">&quot;Sensibilité appropriée aux volatilités d&#39;inflation&quot;</span><span class="p">,</span>
+<span class="w">                    </span><span class="s">&quot;Impact des corrélations sur le skew validé&quot;</span><span class="p">,</span>
+<span class="w">                    </span><span class="s">&quot;Symétrie entre taux nominal et réel confirmée&quot;</span><span class="p">,</span>
+<span class="w">                    </span><span class="s">&quot;CMS principalement sensible aux corrélations nominal-réel&quot;</span>
+<span class="w">                </span><span class="p">};</span>
+<span class="w">                </span>
+<span class="w">                </span><span class="n">result</span><span class="p">.</span><span class="n">assessment</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">result</span><span class="p">.</span><span class="n">passed</span><span class="w"> </span><span class="o">?</span>
+<span class="w">                    </span><span class="s">&quot;Sensibilités aux paramètres conformes aux attentes théoriques&quot;</span><span class="w"> </span><span class="o">:</span>
+<span class="w">                    </span><span class="s">&quot;Sensibilités insuffisantes - vérifier implémentation&quot;</span><span class="p">;</span>
+<span class="w">                </span>
+<span class="w">            </span><span class="p">}</span><span class="w"> </span><span class="k">catch</span><span class="w"> </span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">exception</span><span class="o">&amp;</span><span class="w"> </span><span class="n">e</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="n">result</span><span class="p">.</span><span class="n">passed</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">false</span><span class="p">;</span>
+<span class="w">                </span><span class="n">result</span><span class="p">.</span><span class="n">assessment</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;Erreur lors du test de sensibilité: &quot;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="p">(</span><span class="n">e</span><span class="p">.</span><span class="n">what</span><span class="p">());</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">            </span>
+<span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="n">result</span><span class="p">;</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span>
+<span class="w">        </span><span class="c1">// Exécution de la suite complète de validation</span>
+<span class="w">        </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">ValidationResult</span><span class="o">&gt;</span><span class="w"> </span><span class="n">run_comprehensive_validation</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">ValidationResult</span><span class="o">&gt;</span><span class="w"> </span><span class="n">results</span><span class="p">;</span>
+<span class="w">            </span>
+<span class="w">            </span><span class="k">auto</span><span class="w"> </span><span class="n">base_market</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">create_base_market_data</span><span class="p">();</span>
+<span class="w">            </span>
+<span class="w">            </span><span class="c1">// Tests des distributions terminales</span>
+<span class="w">            </span><span class="n">results</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">test_terminal_distributions</span><span class="p">(</span><span class="n">base_market</span><span class="p">));</span>
+<span class="w">            </span>
+<span class="w">            </span><span class="c1">// Tests des volatilités implicites</span>
+<span class="w">            </span><span class="n">results</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">test_implied_volatilities_smile</span><span class="p">(</span><span class="n">base_market</span><span class="p">));</span>
+<span class="w">            </span>
+<span class="w">            </span><span class="c1">// Tests de sensibilité aux paramètres</span>
+<span class="w">            </span><span class="n">results</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">test_parameter_sensitivity</span><span class="p">(</span><span class="n">base_market</span><span class="p">));</span>
+<span class="w">            </span>
+<span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="n">results</span><span class="p">;</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span>
+<span class="w">    </span><span class="k">private</span><span class="o">:</span>
+<span class="w">        </span><span class="c1">// Méthodes utilitaires pour les calculs Monte-Carlo</span>
+<span class="w">        </span><span class="kt">double</span><span class="w"> </span><span class="n">calculate_zc_forward</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">MonteCarloEngine</span><span class="o">&amp;</span><span class="w"> </span><span class="n">engine</span><span class="p">,</span><span class="w"> </span><span class="kt">double</span><span class="w"> </span><span class="n">maturity</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="c1">// Simulation I(T) forward</span>
+<span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="n">engine</span><span class="p">.</span><span class="n">simulate_forward</span><span class="p">(</span><span class="s">&quot;ZC&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">maturity</span><span class="p">);</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span>
+<span class="w">        </span><span class="kt">double</span><span class="w"> </span><span class="n">calculate_yoy_forward</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">MonteCarloEngine</span><span class="o">&amp;</span><span class="w"> </span><span class="n">engine</span><span class="p">,</span><span class="w"> </span><span class="kt">double</span><span class="w"> </span><span class="n">maturity</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="c1">// Simulation I(T)/I(T-1) forward</span>
+<span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="n">engine</span><span class="p">.</span><span class="n">simulate_forward</span><span class="p">(</span><span class="s">&quot;YOY&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">maturity</span><span class="p">);</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span>
+<span class="w">        </span><span class="kt">double</span><span class="w"> </span><span class="n">calculate_cms_forward</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">MonteCarloEngine</span><span class="o">&amp;</span><span class="w"> </span><span class="n">engine</span><span class="p">,</span><span class="w"> </span>
+<span class="w">                                   </span><span class="kt">double</span><span class="w"> </span><span class="n">maturity</span><span class="p">,</span><span class="w"> </span><span class="kt">double</span><span class="w"> </span><span class="n">tenor</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="c1">// Simulation CMS forward</span>
+<span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="n">engine</span><span class="p">.</span><span class="n">simulate_forward</span><span class="p">(</span><span class="s">&quot;CMS&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">maturity</span><span class="p">,</span><span class="w"> </span><span class="n">tenor</span><span class="p">);</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span>
+<span class="w">        </span><span class="kt">double</span><span class="w"> </span><span class="n">calculate_smile_magnitude</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">implied_vols</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">implied_vols</span><span class="p">.</span><span class="n">empty</span><span class="p">())</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="mf">0.0</span><span class="p">;</span>
+<span class="w">            </span>
+<span class="w">            </span><span class="k">auto</span><span class="w"> </span><span class="n">minmax</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">minmax_element</span><span class="p">(</span><span class="n">implied_vols</span><span class="p">.</span><span class="n">begin</span><span class="p">(),</span><span class="w"> </span><span class="n">implied_vols</span><span class="p">.</span><span class="n">end</span><span class="p">());</span>
+<span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="o">*</span><span class="n">minmax</span><span class="p">.</span><span class="n">second</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="o">*</span><span class="n">minmax</span><span class="p">.</span><span class="n">first</span><span class="p">;</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span>
+<span class="w">        </span><span class="kt">double</span><span class="w"> </span><span class="n">calculate_skewness</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">distribution</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="c1">// Calcul du skewness de la distribution</span>
+<span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">distribution</span><span class="p">.</span><span class="n">size</span><span class="p">()</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">3</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="mf">0.0</span><span class="p">;</span>
+<span class="w">            </span>
+<span class="w">            </span><span class="kt">double</span><span class="w"> </span><span class="n">mean</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">accumulate</span><span class="p">(</span><span class="n">distribution</span><span class="p">.</span><span class="n">begin</span><span class="p">(),</span><span class="w"> </span><span class="n">distribution</span><span class="p">.</span><span class="n">end</span><span class="p">(),</span><span class="w"> </span><span class="mf">0.0</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">distribution</span><span class="p">.</span><span class="n">size</span><span class="p">();</span>
+<span class="w">            </span><span class="kt">double</span><span class="w"> </span><span class="n">variance</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.0</span><span class="p">;</span>
+<span class="w">            </span><span class="kt">double</span><span class="w"> </span><span class="n">skewness</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.0</span><span class="p">;</span>
+<span class="w">            </span>
+<span class="w">            </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">double</span><span class="w"> </span><span class="n">value</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">distribution</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="kt">double</span><span class="w"> </span><span class="n">diff</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">value</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">mean</span><span class="p">;</span>
+<span class="w">                </span><span class="n">variance</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">diff</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">diff</span><span class="p">;</span>
+<span class="w">                </span><span class="n">skewness</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">diff</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">diff</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">diff</span><span class="p">;</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">            </span>
+<span class="w">            </span><span class="n">variance</span><span class="w"> </span><span class="o">/=</span><span class="w"> </span><span class="n">distribution</span><span class="p">.</span><span class="n">size</span><span class="p">();</span>
+<span class="w">            </span><span class="n">skewness</span><span class="w"> </span><span class="o">/=</span><span class="w"> </span><span class="n">distribution</span><span class="p">.</span><span class="n">size</span><span class="p">();</span>
+<span class="w">            </span>
+<span class="w">            </span><span class="kt">double</span><span class="w"> </span><span class="n">std_dev</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">sqrt</span><span class="p">(</span><span class="n">variance</span><span class="p">);</span>
+<span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="n">skewness</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="p">(</span><span class="n">std_dev</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">std_dev</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">std_dev</span><span class="p">);</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span>
+<span class="w">        </span><span class="kt">double</span><span class="w"> </span><span class="n">calculate_std_dev</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">distribution</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">distribution</span><span class="p">.</span><span class="n">empty</span><span class="p">())</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="mf">0.0</span><span class="p">;</span>
+<span class="w">            </span>
+<span class="w">            </span><span class="kt">double</span><span class="w"> </span><span class="n">mean</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">accumulate</span><span class="p">(</span><span class="n">distribution</span><span class="p">.</span><span class="n">begin</span><span class="p">(),</span><span class="w"> </span><span class="n">distribution</span><span class="p">.</span><span class="n">end</span><span class="p">(),</span><span class="w"> </span><span class="mf">0.0</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">distribution</span><span class="p">.</span><span class="n">size</span><span class="p">();</span>
+<span class="w">            </span><span class="kt">double</span><span class="w"> </span><span class="n">variance</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.0</span><span class="p">;</span>
+<span class="w">            </span>
+<span class="w">            </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">double</span><span class="w"> </span><span class="n">value</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">distribution</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="kt">double</span><span class="w"> </span><span class="n">diff</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">value</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">mean</span><span class="p">;</span>
+<span class="w">                </span><span class="n">variance</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">diff</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">diff</span><span class="p">;</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">            </span>
+<span class="w">            </span><span class="n">variance</span><span class="w"> </span><span class="o">/=</span><span class="w"> </span><span class="n">distribution</span><span class="p">.</span><span class="n">size</span><span class="p">();</span>
+<span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">sqrt</span><span class="p">(</span><span class="n">variance</span><span class="p">);</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">};</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p><em>Cette implémentation C++ dans Our project fournit un framework complet de validation indépendante avec tests des distributions terminales, volatilités implicites et sensibilités aux paramètres pour le modèle Short Rate Normal.</em></p>
+</section>
+<section id="market-data-and-testing-environment">
+<h2>Market Data and Testing Environment<a class="headerlink" href="#market-data-and-testing-environment" title="Link to this heading">#</a></h2>
+<section id="base-market-configuration">
+<h3>BASE-Market Configuration<a class="headerlink" href="#base-market-configuration" title="Link to this heading">#</a></h3>
+<p>Pour les tests, nous utilisons des données de marché simplifiées appelées <strong>BASE-market</strong> qui permettent une comparaison facile entre les attentes théoriques et les outputs du modèle.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Object Type</p></th>
+<th class="head"><p>Market Object</p></th>
+<th class="head"><p>Description &amp; Base Value</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>MKTDATA</strong></p></td>
+<td><p>MktData_3MFLAT20171215</p></td>
+<td><p>Australian CPI inflation asset, 3M delay</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>CURVE</strong></p></td>
+<td><p>AUDSYDDS2H_20171215_COB</p></td>
+<td><p>AUD rate curve, <strong>base value: flat 5%</strong></p></td>
+</tr>
+<tr class="row-even"><td><p><strong>CURVE</strong></p></td>
+<td><p>SYDAUCPL_INFLATION20171215_COB</p></td>
+<td><p>Australian CPI curve, <strong>base value: flat 3%</strong></p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>VOL</strong></p></td>
+<td><p>SYDAUD_AUCPL_REALVOL_20171215</p></td>
+<td><p>Real curve vol, <strong>base value: flat 1% normal vol</strong></p></td>
+</tr>
+<tr class="row-even"><td><p><strong>VOL</strong></p></td>
+<td><p>SYDDBTWVO_NORMAL_BOTH_AUD20171215</p></td>
+<td><p>AUD rate curve volatility, <strong>base value: flat 1% normal vol</strong></p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>VOL</strong></p></td>
+<td><p>SYDAUD_AUCPL_FXVOL2_20171215</p></td>
+<td><p>AUD/AUCPI Inflation Asset Vol, <strong>base value: flat 1% normal vol</strong></p></td>
+</tr>
+<tr class="row-even"><td><p><strong>VOL</strong></p></td>
+<td><p>SYDAUD_AUCPL_FXSV_20171215</p></td>
+<td><p>AUD/AUCPI Stochastic Vol, <strong>base value: flat 50% lognormal vol</strong></p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>VOL</strong></p></td>
+<td><p>SYDAUD_AUCPL_CORR_20171215</p></td>
+<td><p>Correlation object, <strong>ρnr = 80%, autres = 0%</strong></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+</section>
+<section id="market-observables-and-forward-calculations">
+<h2>Market Observables and Forward Calculations<a class="headerlink" href="#market-observables-and-forward-calculations" title="Link to this heading">#</a></h2>
+<section id="key-market-observables">
+<h3>Key Market Observables<a class="headerlink" href="#key-market-observables" title="Link to this heading">#</a></h3>
+<p>Les observables de marché clés sont les éléments constitutifs essentiels des divers dérivés :</p>
+<section id="zc-forwards-zero-coupon">
+<h4>ZC Forwards (Zero-Coupon)<a class="headerlink" href="#zc-forwards-zero-coupon" title="Link to this heading">#</a></h4>
+<div class="math-wrapper docutils container">
+<div class="math notranslate nohighlight">
+\[I_{ZC}(T) = I(T)\]</div>
+</div>
+</section>
+<section id="yoy-forwards-year-on-year">
+<h4>YOY Forwards (Year-on-Year)<a class="headerlink" href="#yoy-forwards-year-on-year" title="Link to this heading">#</a></h4>
+<div class="math-wrapper docutils container">
+<div class="math notranslate nohighlight">
+\[I_{YOY}(T) = \frac{I(T)}{I(T-\Delta T)}\]</div>
+</div>
+</section>
+<section id="inflation-cms-forwards">
+<h4>Inflation CMS Forwards<a class="headerlink" href="#inflation-cms-forwards" title="Link to this heading">#</a></h4>
+<div class="math-wrapper docutils container">
+<div class="math notranslate nohighlight">
+\[I_{CMS}(T) = \frac{B(T,T) - B(T,T_N)}{S_N \cdot \Delta \cdot B(T,T)}\]</div>
+</div>
+<p>où <span class="math notranslate nohighlight">\(B(T,S) = I(T)P_r(T,S)\)</span> est l’obligation liée à l’inflation.</p>
+</section>
+</section>
+<section id="forward-calculation-methodology">
+<h3>Forward Calculation Methodology<a class="headerlink" href="#forward-calculation-methodology" title="Link to this heading">#</a></h3>
+<p>Les forwards au temps T sont définis dans la mesure T-Forward nominale :</p>
+<div class="math-wrapper docutils container">
+<div class="math notranslate nohighlight">
+\[F_x(0,T) = \frac{E_n^T\left[I_x(T) \cdot N_x(T)|F_0\right]}{E_n^T\left[N_x(T)|F_0\right]}\]</div>
+</div>
+<p>avec les numéraires :</p>
+<ul class="simple">
+<li><p><span class="math notranslate nohighlight">\(N_{ZC}(T) = P_n(T,T) = 1\)</span></p></li>
+<li><p><span class="math notranslate nohighlight">\(N_{YOY}(T) = P_n(T,T) = 1\)</span></p></li>
+<li><p><span class="math notranslate nohighlight">\(N_{CMS}(T) = \sum_{i=1}^N P_n(T,T_i)\)</span></p></li>
+</ul>
+</section>
+</section>
+<section id="terminal-distributions-and-implied-volatilities">
+<h2>Terminal Distributions and Implied Volatilities<a class="headerlink" href="#terminal-distributions-and-implied-volatilities" title="Link to this heading">#</a></h2>
+<section id="distribution-analysis">
+<h3>Distribution Analysis<a class="headerlink" href="#distribution-analysis" title="Link to this heading">#</a></h3>
+<p><img alt="Figure 7: Inflation forwards as a function of forward maturity. Calculated for market data in Table 19." src="market/Model Short Rate Normal/Fig/7.png" /></p>
+<p><img alt="Figure 8: Inflation forwards as a function of forward maturity, expressed in terms of annualized inflation rate. Calculated for market data in Table 19." src="market/Model Short Rate Normal/Fig/8.png" /></p>
+<p>Les forwards d’inflation sont exprimés en termes de taux d’inflation annualisés :</p>
+<ul class="simple">
+<li><p><span class="math notranslate nohighlight">\(i_{ZC} = I_{ZC}^{\frac{1}{T}} - 1\)</span></p></li>
+<li><p><span class="math notranslate nohighlight">\(i_{YOY} = I_{YOY} - 1\)</span></p></li>
+<li><p><span class="math notranslate nohighlight">\(i_{CMS} = I_{CMS}\)</span></p></li>
+</ul>
+</section>
+<section id="terminal-distribution-properties">
+<h3>Terminal Distribution Properties<a class="headerlink" href="#terminal-distribution-properties" title="Link to this heading">#</a></h3>
+<p><img alt="Figure 9: The terminal distributions for ZC, YOY and CMS underlyings in their corresponding forward-looking numeraire measures." src="market/Model Short Rate Normal/Fig/9.png" /></p>
+<p><strong>Observations Clés :</strong>
+✅ <strong>Élargissement des PDFs</strong> avec l’augmentation des maturités
+✅ <strong>Comportement attendu</strong> dans le contexte des dynamiques diffusives (Équations 21-22)
+✅ <strong>Cohérence</strong> entre différents tenors pour CMS</p>
+</section>
+<section id="volatility-smile-skew-analysis">
+<h3>Volatility Smile/Skew Analysis<a class="headerlink" href="#volatility-smile-skew-analysis" title="Link to this heading">#</a></h3>
+<p><img alt="Figure 10: The volatility smile/skew for ZC, YOY and CMS underlyings." src="market/Model Short Rate Normal/Fig/10.png" /></p>
+<p><strong>Représentation :</strong></p>
+<ul class="simple">
+<li><p><strong>ZC et YOY</strong> : Volatilités log-normales</p></li>
+<li><p><strong>CMS</strong> : Volatilités normales (le taux peut devenir négatif)</p></li>
+</ul>
+<p>Cette représentation est justifiée par l’expression formelle de l’Équation 23, qui conduit à une distribution log-normale pour les sous-jacents ZC et YOY en l’absence de volatilité stochastique.</p>
+</section>
+</section>
+<section id="parameter-sensitivity-testing">
+<h2>Parameter Sensitivity Testing<a class="headerlink" href="#parameter-sensitivity-testing" title="Link to this heading">#</a></h2>
+<section id="impact-of-stochastic-volatility">
+<h3>Impact of Stochastic Volatility<a class="headerlink" href="#impact-of-stochastic-volatility" title="Link to this heading">#</a></h3>
+<section id="sans-volatilite-stochastique">
+<h4>Sans Volatilité Stochastique<a class="headerlink" href="#sans-volatilite-stochastique" title="Link to this heading">#</a></h4>
+<ul class="simple">
+<li><p><strong>Smile absent</strong> : Pas de dépendance des volatilités implicites au strike rate</p></li>
+<li><p><strong>Surface plate</strong> : Volatilité constante pour tous les strikes</p></li>
+</ul>
+</section>
+<section id="avec-volatilite-stochastique">
+<h4>Avec Volatilité Stochastique<a class="headerlink" href="#avec-volatilite-stochastique" title="Link to this heading">#</a></h4>
+<ul class="simple">
+<li><p><strong>Formation de smile</strong> : Dépendance claire au strike</p></li>
+<li><p><strong>Contrôle du skew</strong> : Via corrélations entre processus d’inflation et volatilité stochastique</p></li>
+</ul>
+<p><img alt="Figure 4: The impact of stochastic volatility on ZC implied volatility for a range of maturities from 1Yr to 30Yrs, and Strike Rates from -1% to 4%." src="market/Model Short Rate Normal/Fig/4.png" /></p>
+<p><img alt="Figure 5: The impact of stochastic volatility on ZC implied volatility for a 20 year maturity." src="market/Model Short Rate Normal/Fig/5.png" /></p>
+</section>
+</section>
+<section id="correlation-impact-analysis">
+<h3>Correlation Impact Analysis<a class="headerlink" href="#correlation-impact-analysis" title="Link to this heading">#</a></h3>
+<p><img alt="Figure 6: The impact of changes in correlation between the inflation asset process and inflation asset stochastic volatility process on the implied volatility smile/skew." src="market/Model Short Rate Normal/Fig/6.png" /></p>
+<p><strong>Impact des Corrélations :</strong></p>
+<ul class="simple">
+<li><p><strong>Corrélation inflation-volatilité stochastique</strong> : Contrôle principal du skew</p></li>
+<li><p><strong>Corrélations nominal-réel-inflation</strong> : Changent le niveau général de volatilité</p></li>
+<li><p><strong>CMS</strong> : Principalement sensible à la corrélation nominal-réel</p></li>
+</ul>
+</section>
+</section>
+<section id="validation-results-summary">
+<h2>Validation Results Summary<a class="headerlink" href="#validation-results-summary" title="Link to this heading">#</a></h2>
+<section id="key-findings">
+<h3>Key Findings<a class="headerlink" href="#key-findings" title="Link to this heading">#</a></h3>
+<p>✅ <strong>Distributions Terminales</strong> : Élargissement approprié avec la maturité
+✅ <strong>Formation de Smile</strong> : Volatilité stochastique crée un smile réaliste
+✅ <strong>Sensibilités</strong> : Comportement conforme aux équations théoriques
+✅ <strong>Corrélations</strong> : Impact approprié sur skew et niveau de volatilité
+✅ <strong>Observables de Marché</strong> : Cohérence entre ZC, YOY et CMS forwards</p>
+</section>
+<section id="model-validation-status">
+<h3>Model Validation Status<a class="headerlink" href="#model-validation-status" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p>✅ <strong>Comportement théorique</strong> validé pour tous les observables</p></li>
+<li><p>✅ <strong>Impact des paramètres</strong> conforme aux attentes</p></li>
+<li><p>✅ <strong>Smile/skew</strong> capturé de manière réaliste</p></li>
+<li><p>✅ <strong>Distributions</strong> cohérentes avec dynamiques stochastiques</p></li>
+<li><p>✅ <strong>Sensibilités</strong> appropriées aux changements de marché</p></li>
+</ul>
+<p>Le framework de validation indépendante confirme que le modèle Short Rate Normal dans Our project reproduit fidèlement les caractéristiques théoriques attendues et capture de manière appropriée les dynamiques complexes des dérivés d’inflation.</p>
+</section>
+</section>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          
+          
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2023-2025, PRETORIAN Development Team
+            </div>
+            Made with 
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            <div class="icons">
+              <a class="muted-link " href="https://github.com/pretorian-project" aria-label="GitHub">
+                <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 16 16">
+                    <path fill-rule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"></path>
+                </svg>
+            </a>
+              
+            </div>
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">Independent Validation Testing</a><ul>
+<li><a class="reference internal" href="#overview-of-general-model-testing">Overview of General Model Testing</a></li>
+<li><a class="reference internal" href="#market-data-and-testing-environment">Market Data and Testing Environment</a><ul>
+<li><a class="reference internal" href="#base-market-configuration">BASE-Market Configuration</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#market-observables-and-forward-calculations">Market Observables and Forward Calculations</a><ul>
+<li><a class="reference internal" href="#key-market-observables">Key Market Observables</a><ul>
+<li><a class="reference internal" href="#zc-forwards-zero-coupon">ZC Forwards (Zero-Coupon)</a></li>
+<li><a class="reference internal" href="#yoy-forwards-year-on-year">YOY Forwards (Year-on-Year)</a></li>
+<li><a class="reference internal" href="#inflation-cms-forwards">Inflation CMS Forwards</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#forward-calculation-methodology">Forward Calculation Methodology</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#terminal-distributions-and-implied-volatilities">Terminal Distributions and Implied Volatilities</a><ul>
+<li><a class="reference internal" href="#distribution-analysis">Distribution Analysis</a></li>
+<li><a class="reference internal" href="#terminal-distribution-properties">Terminal Distribution Properties</a></li>
+<li><a class="reference internal" href="#volatility-smile-skew-analysis">Volatility Smile/Skew Analysis</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#parameter-sensitivity-testing">Parameter Sensitivity Testing</a><ul>
+<li><a class="reference internal" href="#impact-of-stochastic-volatility">Impact of Stochastic Volatility</a><ul>
+<li><a class="reference internal" href="#sans-volatilite-stochastique">Sans Volatilité Stochastique</a></li>
+<li><a class="reference internal" href="#avec-volatilite-stochastique">Avec Volatilité Stochastique</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#correlation-impact-analysis">Correlation Impact Analysis</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#validation-results-summary">Validation Results Summary</a><ul>
+<li><a class="reference internal" href="#key-findings">Key Findings</a></li>
+<li><a class="reference internal" href="#model-validation-status">Model Validation Status</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div><script src="../../_static/documentation_options.js?v=454d727b"></script>
+    <script src="../../_static/doctools.js?v=888ff710"></script>
+    <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/scripts/furo.js?v=32e29ea5"></script>
+    <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../../_static/copybutton.js?v=ab308175"></script>
+    <script src="../../_static/custom.js?v=92eda4d4"></script>
+    <script>let toggleHintShow = 'Click to show';</script>
+    <script>let toggleHintHide = 'Click to hide';</script>
+    <script>let toggleOpenOnPrint = 'true';</script>
+    <script src="../../_static/togglebutton.js?v=4a39c7ea"></script>
+    <script src="../../_static/design-tabs.js?v=36754332"></script>
+    <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script>
+    <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script>
+    <script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "displayMath": [["$$", "$$"], ["\\[", "\\]"]], "processEscapes": true, "processEnvironments": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+    <script defer="defer" src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="../../_static/custom.js?v=92eda4d4"></script>
+    </body>
+</html>

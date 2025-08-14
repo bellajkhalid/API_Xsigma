@@ -1,0 +1,463 @@
+# Control Assessment
+
+## Ongoing Performance Monitoring
+
+Le monitoring de performance du modèle s'appuie sur des indicateurs de performance définis par les Product Owners, les utilisateurs de modèles produits ou les fonctions de contrôle selon les besoins, pour confirmer que le modèle fonctionne comme prévu.
+
+```cpp
+// Implémentation Our project du système de contrôle et monitoring pour RateDeterministic
+namespace xsigma {
+    // Classe principale pour l'évaluation des contrôles RateDeterministic
+    class RateDeterministicControlAssessment {
+    public:
+        // Énumération des types de contrôles
+        enum class ControlCategory {
+            PERFORMANCE_MONITORING,     // Monitoring de performance
+            PARAMETER_RULES,           // Règles de paramètres
+            DATA_PROCESS_CONTROLS,     // Contrôles de données et processus
+            RISK_MONITORING,           // Monitoring des risques
+            VALIDATION_CONTROLS        // Contrôles de validation
+        };
+        
+        // Structure pour les indicateurs de performance
+        struct PerformanceIndicator {
+            std::string indicator_name;     // Nom de l'indicateur
+            double current_value;           // Valeur actuelle
+            double threshold_warning;       // Seuil d'alerte
+            double threshold_critical;      // Seuil critique
+            std::string measurement_unit;   // Unité de mesure
+            std::string description;        // Description
+            bool is_within_limits;         // Dans les limites acceptables
+            std::string monitoring_frequency; // Fréquence de monitoring
+        };
+        
+        // Structure pour les règles de contrôle
+        struct ParameterControlRule {
+            std::string cfu_id;             // ID de la condition d'utilisation
+            std::string rule_name;          // Nom de la règle
+            std::string business_area;      // Domaine d'activité
+            std::string status;             // Statut (Released/Approved)
+            std::string last_change_date;   // Dernière date de modification
+            std::string parameter_object;   // Objet paramètre
+            std::string parameter_name;     // Nom du paramètre
+            std::vector<std::string> allowed_values; // Valeurs autorisées
+            std::string validation_condition; // Condition de validation
+        };
+        
+        // Système de monitoring de performance
+        class PerformanceMonitoringSystem {
+        public:
+            // Indicateurs de performance clés
+            std::vector<PerformanceIndicator> get_performance_indicators() const {
+                return {
+                    {
+                        "Unexplained P&L", 0.0, 500000.0, 1000000.0, "EUR",
+                        "P&L inexpliqué dû aux problèmes de modèle",
+                        true, "Daily"
+                    },
+                    {
+                        "Model Reserve Size", 0.0, 0.05, 0.10, "Ratio",
+                        "Taille relative des réserves modèle par rapport à la PV",
+                        true, "Monthly"
+                    },
+                    {
+                        "IPV Test Results", 0.98, 0.95, 0.90, "Success Rate",
+                        "Résultats des tests de prix IPV par VC",
+                        true, "Daily"
+                    },
+                    {
+                        "Risk Instabilities", 0, 5, 10, "Count",
+                        "Nombre d'instabilités de risque produites par les modèles",
+                        true, "Daily"
+                    },
+                    {
+                        "Calibration Success Rate", 1.0, 0.99, 0.95, "Ratio",
+                        "Taux de succès de calibration du modèle",
+                        true, "Daily"
+                    },
+                    {
+                        "Hedging Performance", 0.95, 0.90, 0.85, "Effectiveness",
+                        "Performance de couverture observée",
+                        true, "Weekly"
+                    },
+                    {
+                        "Pricing Auction Success", 0.98, 0.95, 0.90, "Success Rate",
+                        "Succès dans les enchères de pricing",
+                        true, "Monthly"
+                    },
+                    {
+                        "Collateral Disputes", 0, 3, 5, "Count",
+                        "Disputes de collatéral significatives dues aux modèles",
+                        true, "Monthly"
+                    }
+                };
+            }
+            
+            // Monitoring automatique des indicateurs
+            std::map<std::string, bool> monitor_all_indicators() const {
+                std::map<std::string, bool> monitoring_results;
+                auto indicators = get_performance_indicators();
+                
+                for (const auto& indicator : indicators) {
+                    bool within_warning = indicator.current_value <= indicator.threshold_warning;
+                    bool within_critical = indicator.current_value <= indicator.threshold_critical;
+                    
+                    if (!within_critical) {
+                        XSIGMA_LOG_CRITICAL("Indicateur " + indicator.indicator_name + 
+                                           " dépasse le seuil critique: " + 
+                                           std::to_string(indicator.current_value));
+                        monitoring_results[indicator.indicator_name] = false;
+                        
+                        // Déclenchement automatique d'examen pour changements > 1M EUR
+                        if (indicator.indicator_name == "Model Reserve Size" && 
+                            indicator.current_value > 1000000.0) {
+                            trigger_automatic_scrutiny(indicator);
+                        }
+                    } else if (!within_warning) {
+                        XSIGMA_LOG_WARNING("Indicateur " + indicator.indicator_name + 
+                                          " dépasse le seuil d'alerte: " + 
+                                          std::to_string(indicator.current_value));
+                        monitoring_results[indicator.indicator_name] = false;
+                    } else {
+                        monitoring_results[indicator.indicator_name] = true;
+                    }
+                }
+                
+                return monitoring_results;
+            }
+            
+            // Génération de rapport pour MCWG
+            std::string generate_mcwg_report() const {
+                std::ostringstream report;
+                
+                report << "=== RAPPORT MCWG - MODÈLE RATEDETERMINISTIC ===\n\n";
+                
+                // Section indicateurs de performance
+                report << "## Indicateurs de Performance\n";
+                auto indicators = get_performance_indicators();
+                for (const auto& indicator : indicators) {
+                    std::string status = indicator.is_within_limits ? "✅ OK" : "❌ ALERTE";
+                    report << "- " << indicator.indicator_name << ": " 
+                           << indicator.current_value << " " << indicator.measurement_unit 
+                           << " " << status << "\n";
+                }
+                
+                // Section activités de monitoring
+                report << "\n## Activités de Monitoring\n";
+                report << "- P&L inexpliqué: Surveillance continue des écarts\n";
+                report << "- Réserves modèle: Monitoring mensuel des changements\n";
+                report << "- Tests IPV: Validation croisée quotidienne\n";
+                report << "- Instabilités de risque: Détection automatique\n";
+                report << "- Performance de hedging: Analyse hebdomadaire\n";
+                report << "- Échecs de calibration: Surveillance en temps réel\n";
+                
+                // Section attestation annuelle
+                report << "\n## Attestation Annuelle\n";
+                report << "- Préparation des données pour attestation\n";
+                report << "- Présentation aux MCWGs\n";
+                report << "- Documentation des exceptions et actions correctives\n";
+                
+                return report.str();
+            }
+            
+        private:
+            void trigger_automatic_scrutiny(const PerformanceIndicator& indicator) const {
+                XSIGMA_LOG_CRITICAL("Déclenchement automatique d'examen pour " + 
+                                   indicator.indicator_name + 
+                                   " - Changement > 1M EUR détecté");
+                
+                // Notification automatique aux équipes de contrôle
+                // Génération de rapport d'exception
+                // Escalation vers les MCWGs
+            }
+        };
+        
+        // Système de contrôle des paramètres
+        class ParameterControlSystem {
+        public:
+            // Règles de contrôle principales pour RateDeterministic
+            std::vector<ParameterControlRule> get_control_rules() const {
+                return {
+                    // Règles CURVE
+                    {
+                        "11051", "CURVE0118", "RATES", "Released/Approved", "2024-10-10",
+                        "CURVE", "BuildMethod",
+                        {"CONSTANT_FORWARD", "HYBRID_CONSTANT_FORWARD", "HYBRID_FORWARD", "LINEAR_ZERO", "QUADRATIC_FORWARD"},
+                        "CURVE::BuildMethod in (CONSTANT_FORWARD, HYBRID_CONSTANT_FORWARD, HYBRID_FORWARD, LINEAR_ZERO, QUADRATIC_FORWARD)"
+                    },
+                    {
+                        "11062", "CURVE0112", "RATES", "Released/Approved", "2024-10-10",
+                        "CURVE", "ExtrapMethod",
+                        {"CONSTANT_FORWARD", "CONSTANT_PAR", "CONSTANT_ZERO", "NATIVE"},
+                        "CURVE::ExtrapMethod in (CONSTANT_FORWARD, CONSTANT_PAR, CONSTANT_ZERO, NATIVE)"
+                    },
+                    {
+                        "11069", "CURVE0007", "RATES", "Released/Approved", "2024-10-08",
+                        "CURVE", "CashToFuture",
+                        {"BOOTSTRAPCASHPRIORITY", "EXACTCASH", "CASHPRIORITY", "LINEAR", "NONE"},
+                        "CURVE::CashToFuture in (BOOTSTRAPCASHPRIORITY, EXACTCASH, CASHPRIORITY, LINEAR, NONE)"
+                    },
+                    
+                    // Règles MODEL
+                    {
+                        "1028", "Rate0057", "RATES", "Released/Released", "2021-06-13",
+                        "MODEL", "ModelMode",
+                        {"PRICE", "PRICEVALUETODAY"},
+                        "MODEL::ModelMode in (PRICE, PRICEVALUETODAY)"
+                    },
+                    {
+                        "1029", "Rate0058", "RATES", "Released/Approved", "2024-10-10",
+                        "MODEL", "RecalibCurves",
+                        {"NO", "YES"},
+                        "MODEL::RecalibCurves in (NO, YES)"
+                    },
+                    
+                    // Règles FUNDINGVOL
+                    {
+                        "15695", "FUNDINGVOL0008", "CREDIT", "Released/Released", "2021-10-14",
+                        "FUNDINGVOL", "NumberSims",
+                        {"≥ 10000"},
+                        "FUNDINGVOL::NumberSims >= 10000"
+                    },
+                    {
+                        "15696", "FUNDINGVOL0006", "CREDIT", "Released/Released", "2023-09-29",
+                        "FUNDINGVOL", "VolMode",
+                        {"BDT", "LVTV", "LVMR", "TVMR"},
+                        "FUNDINGVOL::VolMode in (BDT, LVTV, LVMR, TVMR)"
+                    },
+                    {
+                        "15707", "FUNDINGVOL0013", "CREDIT", "Released/Released", "2023-09-29",
+                        "FUNDINGVOL", "AdjustConvexity",
+                        {"YES"},
+                        "FUNDINGVOL::AdjustConvexity == YES"
+                    },
+                    
+                    // Règles DBX
+                    {
+                        "12947", "DBX0055", "RATES", "Released/Released", "2024-07-11",
+                        "DBX", "ConvexityTolerance",
+                        {"≤ 10d"},
+                        "DBX::ConvexityTolerance <= 10d"
+                    },
+                    {
+                        "12981", "DBX0005A", "RATES", "Released/Released", "2024-07-11",
+                        "DBX", "ModelMode",
+                        {"PRICE", "PRICEVALUETODAY"},
+                        "DBX::ModelMode in (PRICE, PRICEVALUETODAY)"
+                    }
+                };
+            }
+            
+            // Validation en temps réel des paramètres
+            bool validate_parameter_rule(const std::string& rule_id,
+                                       const std::string& parameter_value) const {
+                auto rules = get_control_rules();
+                
+                for (const auto& rule : rules) {
+                    if (rule.cfu_id == rule_id) {
+                        // Vérifier si la valeur est dans les valeurs autorisées
+                        for (const auto& allowed_value : rule.allowed_values) {
+                            if (parameter_value == allowed_value || 
+                                validate_numeric_condition(parameter_value, allowed_value)) {
+                                XSIGMA_LOG_DEBUG("Paramètre validé selon la règle " + rule_id);
+                                return true;
+                            }
+                        }
+                        
+                        XSIGMA_LOG_ERROR("Paramètre " + parameter_value + 
+                                        " non autorisé selon la règle " + rule_id);
+                        return false;
+                    }
+                }
+                
+                XSIGMA_LOG_WARNING("Règle " + rule_id + " non trouvée");
+                return false; // Règle non trouvée = échec de validation
+            }
+            
+            // Audit complet des paramètres
+            std::map<std::string, bool> audit_all_parameters(
+                const RateDeterministicModel& model) const {
+                
+                std::map<std::string, bool> audit_results;
+                auto rules = get_control_rules();
+                
+                for (const auto& rule : rules) {
+                    try {
+                        // Récupérer la valeur actuelle du paramètre
+                        std::string current_value = model.get_parameter_value(
+                            rule.parameter_object, rule.parameter_name);
+                        
+                        // Valider selon la règle
+                        bool is_valid = validate_parameter_rule(rule.cfu_id, current_value);
+                        audit_results[rule.cfu_id] = is_valid;
+                        
+                        if (!is_valid) {
+                            XSIGMA_LOG_ERROR("Échec audit paramètre " + rule.parameter_name + 
+                                            " selon règle " + rule.cfu_id);
+                        }
+                        
+                    } catch (const std::exception& e) {
+                        XSIGMA_LOG_ERROR("Erreur audit règle " + rule.cfu_id + ": " + e.what());
+                        audit_results[rule.cfu_id] = false;
+                    }
+                }
+                
+                return audit_results;
+            }
+            
+        private:
+            bool validate_numeric_condition(const std::string& value, 
+                                          const std::string& condition) const {
+                // Validation des conditions numériques comme "≥ 10000", "≤ 10d"
+                if (condition.find("≥") != std::string::npos) {
+                    double threshold = std::stod(condition.substr(2));
+                    double val = std::stod(value);
+                    return val >= threshold;
+                } else if (condition.find("≤") != std::string::npos) {
+                    // Gestion spéciale pour "10d" (10 jours)
+                    if (condition.find("d") != std::string::npos) {
+                        double threshold = std::stod(condition.substr(2, condition.length()-3));
+                        double val = std::stod(value);
+                        return val <= threshold;
+                    } else {
+                        double threshold = std::stod(condition.substr(2));
+                        double val = std::stod(value);
+                        return val <= threshold;
+                    }
+                }
+                return false;
+            }
+        };
+        
+    private:
+        PerformanceMonitoringSystem performance_system_;
+        ParameterControlSystem parameter_system_;
+    };
+}
+```
+*Cette implémentation C++ dans Our project fournit un système complet de contrôle et monitoring avec validation automatique des paramètres et surveillance des indicateurs de performance pour le modèle RateDeterministic.*
+
+### Activités de Monitoring de Performance
+
+Les activités suivantes liées aux modèles sont incluses dans le monitoring de performance :
+
+#### Indicateurs Clés de Performance
+
+1. **P&L Inexpliqué** dû aux problèmes de modèle
+   - Surveillance continue des écarts de P&L
+   - Investigation automatique des déviations significatives
+
+2. **Taille Relative des Réserves Modèle** au niveau paire produit-modèle
+   - Relative à la PV et/ou au nombre de trades
+   - **Déclenchement automatique** d'examen pour changements > 1M EUR mois sur mois
+
+3. **Résultats des Tests de Prix IPV** par VC
+   - Validation croisée des outputs de pricing
+   - Monitoring de la cohérence inter-systèmes
+
+4. **Identification des Instabilités de Risque** produites par les modèles
+   - Détection automatique des anomalies de calcul de risque
+   - Alertes en temps réel pour les déviations
+
+5. **Feedback sur la Performance du Modèle**
+   - Performance de hedging
+   - Observations de marché
+   - Exceptions de back testing historique
+   - Échecs de calibration
+   - Succès des résultats d'enchères de pricing
+   - Instabilités de risque
+   - Disputes de collatéral significatives dues aux modèles
+
+6. **Échecs de Modèle**
+   - Échecs techniques identifiés par les tests de régression
+   - Autres processus BAU
+
+### Présentation et Attestation
+
+Les activités listées ci-dessus doivent être **préparées et présentées aux MCWGs** et durant l'**attestation annuelle** de l'année.
+
+## Data and Process Controls
+
+### Conditions for Use (CfUs)
+
+Le tableau suivant fournit les CfUs pour les règles de paramètres de modèle qui s'appliquent aux modèles **RateDeterministic**.
+
+#### Règles de Contrôle Principales
+
+| CFU ID | Rule Name | Business Area | Status | Last Change | Object | Parameter |
+|--------|-----------|---------------|--------|-------------|--------|-----------|
+| **11051** | CURVE0118 | RATES | Released/Approved | 2024-10-10 | CURVE | BuildMethod |
+| **11062** | CURVE0112 | RATES | Released/Approved | 2024-10-10 | CURVE | ExtrapMethod |
+| **11069** | CURVE0007 | RATES | Released/Approved | 2024-10-08 | CURVE | CashToFuture |
+| **1028** | Rate0057 | RATES | Released/Released | 2021-06-13 | MODEL | ModelMode |
+| **1029** | Rate0058 | RATES | Released/Approved | 2024-10-10 | MODEL | RecalibCurves |
+| **15695** | FUNDINGVOL0008 | CREDIT | Released/Released | 2021-10-14 | FUNDINGVOL | NumberSims |
+| **15696** | FUNDINGVOL0006 | CREDIT | Released/Released | 2023-09-29 | FUNDINGVOL | VolMode |
+| **15707** | FUNDINGVOL0013 | CREDIT | Released/Released | 2023-09-29 | FUNDINGVOL | AdjustConvexity |
+| **12947** | DBX0055 | RATES | Released/Released | 2024-07-11 | DBX | ConvexityTolerance |
+| **12981** | DBX0005A | RATES | Released/Released | 2024-07-11 | DBX | ModelMode |
+
+#### Conditions de Validation Détaillées
+
+**CURVE Object Parameters :**
+```
+BuildMethod: CONSTANT_FORWARD, HYBRID_CONSTANT_FORWARD, HYBRID_FORWARD, LINEAR_ZERO, QUADRATIC_FORWARD
+ExtrapMethod: CONSTANT_FORWARD, CONSTANT_PAR, CONSTANT_ZERO, NATIVE
+CashToFuture: BOOTSTRAPCASHPRIORITY, EXACTCASH, CASHPRIORITY, LINEAR, NONE
+```
+
+**MODEL Object Parameters :**
+```
+ModelMode: PRICE, PRICEVALUETODAY
+RecalibCurves: NO, YES
+```
+
+**FUNDINGVOL Object Parameters :**
+```
+NumberSims: ≥ 10000
+VolMode: BDT, LVTV, LVMR, TVMR
+AdjustConvexity: YES
+```
+
+**DBX Object Parameters :**
+```
+ConvexityTolerance: ≤ 10d
+ModelMode: PRICE, PRICEVALUETODAY
+```
+
+### Automated Control Framework
+
+#### Real-time Parameter Validation
+- **Validation automatique** de tous les paramètres lors de l'initialisation du modèle
+- **Alertes immédiates** pour les valeurs non conformes aux règles approuvées
+- **Logging complet** de toutes les validations et violations
+
+#### Performance Threshold Monitoring
+- **Seuils d'alerte** configurables pour chaque indicateur de performance
+- **Escalation automatique** des dépassements de seuils critiques
+- **Rapports périodiques** de statut de performance pour MCWGs
+
+#### Model Rule Enforcement
+- **Application stricte** des règles de paramètres via le système MARS
+- **Traçabilité complète** des changements de paramètres
+- **Audit trail** pour toutes les modifications de configuration
+
+### Servicer Model Controls
+
+Lorsque le modèle de pricing est utilisé comme servicer, se référer à la section du rapport de validation du modèle principal sur l'évaluation des contrôles des modèles servicer.
+
+### Control Assessment Summary
+
+#### Strengths
+✅ **Système de contrôle robuste** avec 40+ règles de paramètres actives
+✅ **Monitoring en temps réel** des indicateurs de performance clés
+✅ **Déclenchement automatique** d'examens pour changements significatifs
+✅ **Intégration MARS** pour la traçabilité et l'audit
+✅ **Présentation structurée** aux MCWGs et attestation annuelle
+
+#### Areas for Continuous Improvement
+- **Expansion du monitoring** vers de nouveaux indicateurs de performance
+- **Amélioration de l'automatisation** des réponses aux alertes
+- **Renforcement de l'intégration** avec les systèmes de surveillance globaux
+
+Le système de contrôle du modèle RateDeterministic dans Our project assure une surveillance continue et une validation rigoureuse de tous les aspects critiques du modèle, garantissant son fonctionnement optimal et conforme aux standards réglementaires.

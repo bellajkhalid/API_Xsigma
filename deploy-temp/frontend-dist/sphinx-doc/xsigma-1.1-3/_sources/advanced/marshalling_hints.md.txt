@@ -1,0 +1,54 @@
+# Marshalling Hints
+
+## Classes
+
+XSIGMA auto generates (de)serialization code in C++ for classes annotated by
+the `XSIGMA_MARSHALAUTO` wrapping hint.
+
+On the other hand, the `XSIGMA_MARSHALMANUAL` macro is used to indicate that a class
+will take part in marshalling, but it cannot trivially (de)serialize it's properties.
+This is because one or more of the class's properties may not have an appropriate
+setter/getter function that is recognized by the XSIGMA property parser.
+
+For such classes, a developer is expected to provide the code to serialize and deserialize the class in `xsigmaClassNameSerDes.cxx`. This file must satisfy three conditions:
+
+1. It must live in the same module as `xsigmaClassName`.
+2. It must export a function `int RegisterHandlers_xsigmaClassNameSerDesHelper(void*, void*)` with C linkage.
+3. It must define and declare these three C++ functions:
+
+    1. A serializer function
+
+        ```c++
+        nlohmann:json Serialize_xsigmaClassName(xsigmaObjectBase*, xsigmaSerializer*)
+        ```
+    2. A deserializer function
+
+        ```c++
+        void Deserialize_xsigmaClassName(const nlohmann::json&, xsigmaObjectBase*, xsigmaDeserializer*)
+        ```
+    3. A registrar function
+
+        ```c++
+        int RegisterHandlers_xsigmaClassNameSerDesHelper(void* ser, void* deser)
+        ```
+        that registers:
+        - a serializer function with a serializer instance
+        - a deserializer function with a deserializer instance
+        - a constructor of the XSIGMA class with a deserializer instance
+
+## Properties
+
+### Excluding properties
+
+You can exclude certain properties of a class by simply annotating the relevant setter/getter functions
+with `XSIGMA_MARSHALEXCLUDE(reason)`, where reason is one of `XSIGMA_MARSHAL_EXCLUDE_REASON_IS_INTERNAL` or
+`XSIGMA_MARSHAL_EXCLUDE_REASON_NOT_SUPPORTED`. This reason will be printed in the generated
+C++ source code explaining why the property was not serialized.
+
+## Custom get/set functions
+
+Some properties may not be correctly recognized by the property parser because
+they have different names for their get and set functions. You can override this
+by annotating the get function with the `XSIGMA_MARSHALGETTER(property)` macro. Doing
+so will ensure that the function gets recognized as a getter for `property`.
+`XSIGMA_MARSHALSETTER(property)` serves a similar purpose.

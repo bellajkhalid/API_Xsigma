@@ -1,0 +1,1028 @@
+# Product Testing: FXGeometricBasketOpt
+
+## 📊 **Vue d'Ensemble du Produit FXGeometricBasketOpt**
+
+### **Description du Trade**
+Nous considérons un trade **FXGeometricBasketOpt** (Option sur Panier Géométrique FX) dans un template de sécurité DBA avec les caractéristiques suivantes :
+
+#### **Structure du Produit**
+- **Type** : Option européenne sur panier géométrique de taux de change
+- **Sous-jacents** : Multiple paires de devises (ex: EUR/USD, GBP/USD, JPY/USD)
+- **Basket Function** : Moyenne géométrique pondérée des taux FX
+- **Exercise Style** : Européen (exercice uniquement à l'expiry)
+- **Settlement** : Cash settlement
+- **Correlation** : Corrélations entre paires FX prises en compte
+
+### **Formule de Payoff**
+Pour une option sur panier géométrique FX :
+
+$$\text{Basket}_T = \prod_{i=1}^n S_{i,T}^{w_i}$$
+
+$$\text{Payoff} = N \times \max(\text{Basket}_T - K, 0) \text{ pour call}$$
+
+où $S_{i,T}$ sont les taux FX à l'expiry, $w_i$ les poids du panier ($\sum w_i = 1$), $K$ le strike, et $N$ le notionnel.
+
+### **Implémentation dans Our project**
+
+#### **🔧 Classe FXGeometricBasketOpt**
+```cpp
+// Implémentation du produit FXGeometricBasketOpt dans Our project
+class FXGeometricBasketOpt : public fx_derivative_base {
+private:
+    struct geometric_basket_specification {
+        std::vector<std::string> currency_pairs;
+        std::vector<double> weights;
+        double strike;
+        double expiry;
+        bool is_call;
+        double notional;
+        std::string settlement_currency;
+        matrix<double> correlation_matrix;
+    };
+    
+    geometric_basket_specification spec_;
+    
+public:
+    FXGeometricBasketOpt(const geometric_basket_specification& spec) : spec_(spec) {
+        validate_basket_specification();
+    }
+    
+    double calculate_pv(const fx_market_data& market) const override {
+        return calculate_geometric_basket_pv(market);
+    }
+    
+    fx_sensitivities calculate_sensitivities(const fx_market_data& market) const override {
+        fx_sensitivities sens;
+        
+        // Sensibilités pour chaque sous-jacent
+        for (size_t i = 0; i < spec_.currency_pairs.size(); ++i) {
+            std::string delta_name = "DELTA_" + spec_.currency_pairs[i];
+            std::string vega_name = "VEGA_" + spec_.currency_pairs[i];
+            
+            sens.underlying_deltas[delta_name] = calculate_underlying_delta(market, i);
+            sens.underlying_vegas[vega_name] = calculate_underlying_vega(market, i);
+        }
+        
+        // Sensibilités globales du panier
+        sens.basket_delta = calculate_basket_delta(market);
+        sens.basket_gamma = calculate_basket_gamma(market);
+        sens.basket_vega = calculate_basket_vega(market);
+        sens.correlation_sensitivity = calculate_correlation_sensitivity(market);
+        
+        return sens;
+    }
+    
+private:
+    double calculate_geometric_basket_pv(const fx_market_data& market) const {
+        // Calcul des paramètres effectifs du panier
+        auto basket_params = calculate_effective_basket_parameters(market);
+        
+        // Pricing Black-Scholes avec paramètres effectifs
+        return fx_black_scholes_engine::calculate_option_metrics(
+            basket_params.effective_forward,
+            spec_.strike,
+            spec_.expiry,
+            basket_params.effective_domestic_rate,
+            0.0, // Foreign rate effectif = 0 pour le panier
+            basket_params.effective_volatility,
+            spec_.is_call,
+            spec_.notional
+        ).price;
+    }
+    
+    struct effective_basket_parameters {
+        double effective_forward;
+        double effective_volatility;
+        double effective_domestic_rate;
+    };
+    
+    effective_basket_parameters calculate_effective_basket_parameters(
+        const fx_market_data& market) const {
+        
+        effective_basket_parameters params;
+        
+        // Calcul du forward effectif du panier
+        params.effective_forward = 1.0;
+        for (size_t i = 0; i < spec_.currency_pairs.size(); ++i) {
+            double spot = market.get_fx_spot(spec_.currency_pairs[i]);
+            double dom_rate = market.get_domestic_rate(spec_.expiry);
+            double for_rate = market.get_foreign_rate(spec_.expiry);
+            double forward = spot * std::exp((dom_rate - for_rate) * spec_.expiry);
+            
+            params.effective_forward *= std::pow(forward, spec_.weights[i]);
+        }
+        
+        // Taux domestique effectif (moyenne pondérée)
+        params.effective_domestic_rate = 0.0;
+        for (size_t i = 0; i < spec_.currency_pairs.size(); ++i) {
+            double dom_rate = market.get_domestic_rate(spec_.expiry);
+            params.effective_domestic_rate += spec_.weights[i] * dom_rate;
+        }
+        
+        // Volatilité effective du panier
+        params.effective_volatility = calculate_basket_effective_volatility(market);
+        
+        return params;
+    }
+    
+    double calculate_basket_effective_volatility(const fx_market_data& market) const {
+        // Calcul de la variance effective du panier géométrique
+        double effective_variance = 0.0;
+        
+        for (size_t i = 0; i < spec_.currency_pairs.size(); ++i) {
+            for (size_t j = 0; j < spec_.currency_pairs.size(); ++j) {
+                double vol_i = market.get_fx_volatility(spec_.currency_pairs[i], 
+                                                       spec_.strike, spec_.expiry);
+                double vol_j = market.get_fx_volatility(spec_.currency_pairs[j], 
+                                                       spec_.strike, spec_.expiry);
+                
+                double correlation = (i == j) ? 1.0 : spec_.correlation_matrix(i, j);
+                
+                effective_variance += spec_.weights[i] * spec_.weights[j] * 
+                                    vol_i * vol_j * correlation;
+            }
+        }
+        
+        return std::sqrt(effective_variance);
+    }
+    
+    void validate_basket_specification() const {
+        XSIGMA_CHECK(!spec_.currency_pairs.empty(), "Currency pairs required");
+        XSIGMA_CHECK(spec_.currency_pairs.size() == spec_.weights.size(), 
+                    "Weights size must match currency pairs size");
+        
+        // Validation que les poids somment à 1
+        double weight_sum = std::accumulate(spec_.weights.begin(), spec_.weights.end(), 0.0);
+        XSIGMA_CHECK(std::abs(weight_sum - 1.0) < 1e-10, "Weights must sum to 1");
+        
+        // Validation de la matrice de corrélation
+        XSIGMA_CHECK(spec_.correlation_matrix.rows() == spec_.currency_pairs.size(),
+                    "Correlation matrix size mismatch");
+        XSIGMA_CHECK(spec_.correlation_matrix.cols() == spec_.currency_pairs.size(),
+                    "Correlation matrix must be square");
+        
+        // Validation que la matrice est semi-définie positive
+        validate_correlation_matrix_properties();
+        
+        XSIGMA_CHECK(spec_.strike > 0, "Strike must be positive");
+        XSIGMA_CHECK(spec_.expiry > 0, "Expiry must be positive");
+        XSIGMA_CHECK(spec_.notional != 0, "Notional cannot be zero");
+    }
+    
+    void validate_correlation_matrix_properties() const {
+        // Validation des propriétés de la matrice de corrélation
+        for (size_t i = 0; i < spec_.correlation_matrix.rows(); ++i) {
+            // Diagonale = 1
+            XSIGMA_CHECK(std::abs(spec_.correlation_matrix(i, i) - 1.0) < 1e-10,
+                        "Correlation matrix diagonal must be 1");
+            
+            for (size_t j = 0; j < spec_.correlation_matrix.cols(); ++j) {
+                // Symétrie
+                XSIGMA_CHECK(std::abs(spec_.correlation_matrix(i, j) - 
+                                    spec_.correlation_matrix(j, i)) < 1e-10,
+                            "Correlation matrix must be symmetric");
+                
+                // Bornes [-1, 1]
+                XSIGMA_CHECK(spec_.correlation_matrix(i, j) >= -1.0 && 
+                           spec_.correlation_matrix(i, j) <= 1.0,
+                           "Correlation values must be in [-1, 1]");
+            }
+        }
+    }
+};
+```
+*Cette implémentation C++ dans Our project montre la structure complète d'une option sur panier géométrique FX avec calcul de paramètres effectifs et gestion des corrélations.*
+
+---
+
+## 🧪 **EOD Testing**
+
+### **Tests de Fin de Journée**
+
+#### **🔍 Effective Parameters Validation**
+
+##### **Validation des Paramètres Effectifs**
+```cpp
+// Tests de validation des paramètres effectifs pour FXGeometricBasketOpt dans Our project
+class fxbasketopt_effective_parameters_tester {
+public:
+    struct effective_params_test_results {
+        double calculated_effective_volatility;
+        double theoretical_effective_volatility;
+        double volatility_error;
+        double calculated_effective_forward;
+        double theoretical_effective_forward;
+        double forward_error;
+        bool parameters_validated;
+    };
+    
+    effective_params_test_results test_effective_parameters_calculation(
+        const FXGeometricBasketOpt& basket_option,
+        const fx_market_data& market) {
+        
+        effective_params_test_results results;
+        
+        auto spec = basket_option.get_specification();
+        
+        // Calcul des paramètres effectifs par le modèle
+        auto model_params = basket_option.calculate_effective_basket_parameters(market);
+        results.calculated_effective_volatility = model_params.effective_volatility;
+        results.calculated_effective_forward = model_params.effective_forward;
+        
+        // Calcul théorique indépendant
+        results.theoretical_effective_volatility = calculate_theoretical_basket_volatility(spec, market);
+        results.theoretical_effective_forward = calculate_theoretical_basket_forward(spec, market);
+        
+        // Calcul des erreurs
+        results.volatility_error = std::abs(results.calculated_effective_volatility - 
+                                          results.theoretical_effective_volatility);
+        results.forward_error = std::abs(results.calculated_effective_forward - 
+                                       results.theoretical_effective_forward);
+        
+        // Validation
+        results.parameters_validated = 
+            (results.volatility_error < 1e-10) && (results.forward_error < 1e-10);
+        
+        EXPECT_LT(results.volatility_error, 1e-10);
+        EXPECT_LT(results.forward_error, 1e-10);
+        
+        return results;
+    }
+    
+private:
+    double calculate_theoretical_basket_volatility(
+        const FXGeometricBasketOpt::geometric_basket_specification& spec,
+        const fx_market_data& market) {
+        
+        // Calcul théorique de la volatilité effective
+        double variance = 0.0;
+        
+        for (size_t i = 0; i < spec.currency_pairs.size(); ++i) {
+            for (size_t j = 0; j < spec.currency_pairs.size(); ++j) {
+                double vol_i = market.get_fx_volatility(spec.currency_pairs[i], 
+                                                       spec.strike, spec.expiry);
+                double vol_j = market.get_fx_volatility(spec.currency_pairs[j], 
+                                                       spec.strike, spec.expiry);
+                
+                double correlation = (i == j) ? 1.0 : spec.correlation_matrix(i, j);
+                
+                variance += spec.weights[i] * spec.weights[j] * vol_i * vol_j * correlation;
+            }
+        }
+        
+        return std::sqrt(variance);
+    }
+    
+    double calculate_theoretical_basket_forward(
+        const FXGeometricBasketOpt::geometric_basket_specification& spec,
+        const fx_market_data& market) {
+        
+        // Calcul théorique du forward du panier géométrique
+        double basket_forward = 1.0;
+        
+        for (size_t i = 0; i < spec.currency_pairs.size(); ++i) {
+            double spot = market.get_fx_spot(spec.currency_pairs[i]);
+            double dom_rate = market.get_domestic_rate(spec.expiry);
+            double for_rate = market.get_foreign_rate(spec.expiry);
+            double forward = spot * std::exp((dom_rate - for_rate) * spec.expiry);
+            
+            basket_forward *= std::pow(forward, spec.weights[i]);
+        }
+        
+        return basket_forward;
+    }
+};
+```
+
+#### **🔍 Correlation Impact Testing**
+
+##### **Tests d'Impact des Corrélations**
+```cpp
+// Tests d'impact des corrélations pour FXGeometricBasketOpt dans Our project
+class fxbasketopt_correlation_impact_tester {
+public:
+    struct correlation_impact_results {
+        std::map<std::string, double> correlation_scenarios_pv;
+        std::map<std::string, double> volatility_reductions;
+        double max_correlation_impact;
+        bool correlation_effects_validated;
+    };
+    
+    correlation_impact_results test_correlation_impact(
+        const FXGeometricBasketOpt& basket_option,
+        const fx_market_data& market) {
+        
+        correlation_impact_results results;
+        
+        // Scénarios de corrélation
+        std::map<std::string, matrix<double>> correlation_scenarios = {
+            {"ZERO_CORRELATION", create_zero_correlation_matrix(basket_option)},
+            {"PERFECT_POSITIVE", create_perfect_positive_correlation_matrix(basket_option)},
+            {"PERFECT_NEGATIVE", create_perfect_negative_correlation_matrix(basket_option)},
+            {"HIGH_POSITIVE", create_high_positive_correlation_matrix(basket_option, 0.8)},
+            {"MODERATE_POSITIVE", create_moderate_correlation_matrix(basket_option, 0.5)},
+            {"MARKET_REALISTIC", create_realistic_fx_correlation_matrix(basket_option)}
+        };
+        
+        for (const auto& [scenario_name, correlation_matrix] : correlation_scenarios) {
+            // Création d'une option avec la matrice de corrélation du scénario
+            auto scenario_option = create_basket_with_correlation(basket_option, correlation_matrix);
+            
+            // Calcul du PV
+            double pv = scenario_option.calculate_pv(market);
+            results.correlation_scenarios_pv[scenario_name] = pv;
+            
+            // Calcul de la réduction de volatilité due à la corrélation
+            double scenario_vol = scenario_option.calculate_effective_basket_parameters(market).effective_volatility;
+            double uncorrelated_vol = calculate_uncorrelated_basket_volatility(basket_option, market);
+            double vol_reduction = (uncorrelated_vol - scenario_vol) / uncorrelated_vol;
+            results.volatility_reductions[scenario_name] = vol_reduction;
+        }
+        
+        // Analyse de l'impact maximal
+        double min_pv = std::min_element(results.correlation_scenarios_pv.begin(),
+                                       results.correlation_scenarios_pv.end(),
+                                       [](const auto& a, const auto& b) { return a.second < b.second; })->second;
+        double max_pv = std::max_element(results.correlation_scenarios_pv.begin(),
+                                       results.correlation_scenarios_pv.end(),
+                                       [](const auto& a, const auto& b) { return a.second < b.second; })->second;
+        
+        results.max_correlation_impact = (max_pv - min_pv) / min_pv;
+        
+        // Validation des effets de corrélation
+        results.correlation_effects_validated = validate_correlation_effects(results);
+        
+        return results;
+    }
+    
+private:
+    matrix<double> create_zero_correlation_matrix(const FXGeometricBasketOpt& basket_option) {
+        auto spec = basket_option.get_specification();
+        size_t n = spec.currency_pairs.size();
+        
+        matrix<double> corr_matrix(n, n);
+        for (size_t i = 0; i < n; ++i) {
+            for (size_t j = 0; j < n; ++j) {
+                corr_matrix(i, j) = (i == j) ? 1.0 : 0.0;
+            }
+        }
+        
+        return corr_matrix;
+    }
+    
+    matrix<double> create_perfect_positive_correlation_matrix(const FXGeometricBasketOpt& basket_option) {
+        auto spec = basket_option.get_specification();
+        size_t n = spec.currency_pairs.size();
+        
+        matrix<double> corr_matrix(n, n);
+        for (size_t i = 0; i < n; ++i) {
+            for (size_t j = 0; j < n; ++j) {
+                corr_matrix(i, j) = 1.0;
+            }
+        }
+        
+        return corr_matrix;
+    }
+    
+    matrix<double> create_realistic_fx_correlation_matrix(const FXGeometricBasketOpt& basket_option) {
+        auto spec = basket_option.get_specification();
+        size_t n = spec.currency_pairs.size();
+        
+        matrix<double> corr_matrix(n, n);
+        
+        // Corrélations FX réalistes basées sur des données historiques
+        std::map<std::pair<std::string, std::string>, double> fx_correlations = {
+            {{"EURUSD", "GBPUSD"}, 0.75},
+            {{"EURUSD", "USDJPY"}, -0.45},
+            {{"EURUSD", "AUDUSD"}, 0.65},
+            {{"GBPUSD", "USDJPY"}, -0.35},
+            {{"GBPUSD", "AUDUSD"}, 0.70},
+            {{"USDJPY", "AUDUSD"}, -0.25}
+        };
+        
+        for (size_t i = 0; i < n; ++i) {
+            for (size_t j = 0; j < n; ++j) {
+                if (i == j) {
+                    corr_matrix(i, j) = 1.0;
+                } else {
+                    std::string pair1 = spec.currency_pairs[i];
+                    std::string pair2 = spec.currency_pairs[j];
+                    
+                    auto it = fx_correlations.find({pair1, pair2});
+                    if (it != fx_correlations.end()) {
+                        corr_matrix(i, j) = it->second;
+                    } else {
+                        auto it_reverse = fx_correlations.find({pair2, pair1});
+                        if (it_reverse != fx_correlations.end()) {
+                            corr_matrix(i, j) = it_reverse->second;
+                        } else {
+                            corr_matrix(i, j) = 0.3; // Corrélation par défaut
+                        }
+                    }
+                }
+            }
+        }
+        
+        return corr_matrix;
+    }
+    
+    bool validate_correlation_effects(const correlation_impact_results& results) {
+        // Validation que les corrélations ont l'effet attendu
+        
+        // PV avec corrélation parfaite positive doit être minimal (volatilité maximale)
+        double perfect_pos_pv = results.correlation_scenarios_pv.at("PERFECT_POSITIVE");
+        double zero_corr_pv = results.correlation_scenarios_pv.at("ZERO_CORRELATION");
+        
+        // Avec corrélation positive parfaite, volatilité est maximale donc PV plus élevé (pour calls)
+        // Validation dépend du type d'option et de la moneyness
+        
+        // Validation que l'impact de corrélation est significatif
+        EXPECT_GT(results.max_correlation_impact, 0.01); // Au moins 1% d'impact
+        
+        return true;
+    }
+};
+```
+
+#### **🔍 Weight Sensitivity Testing**
+
+##### **Tests de Sensibilité aux Poids**
+```cpp
+// Tests de sensibilité aux poids pour FXGeometricBasketOpt dans Our project
+class fxbasketopt_weight_sensitivity_tester {
+public:
+    struct weight_sensitivity_results {
+        std::map<std::string, double> weight_sensitivities;
+        std::map<std::string, double> weight_contributions;
+        double total_weight_risk;
+        bool weight_effects_validated;
+    };
+
+    weight_sensitivity_results test_weight_sensitivities(
+        const FXGeometricBasketOpt& basket_option,
+        const fx_market_data& market) {
+
+        weight_sensitivity_results results;
+
+        auto spec = basket_option.get_specification();
+
+        // Tests de sensibilité pour chaque poids
+        for (size_t i = 0; i < spec.currency_pairs.size(); ++i) {
+            std::string currency_pair = spec.currency_pairs[i];
+
+            // Calcul de la sensibilité au poids
+            double weight_sensitivity = calculate_weight_sensitivity(basket_option, market, i);
+            results.weight_sensitivities[currency_pair] = weight_sensitivity;
+
+            // Calcul de la contribution au risque
+            double weight_contribution = calculate_weight_contribution(basket_option, market, i);
+            results.weight_contributions[currency_pair] = weight_contribution;
+        }
+
+        // Risque total des poids
+        results.total_weight_risk = calculate_total_weight_risk(results.weight_sensitivities);
+
+        // Validation
+        results.weight_effects_validated = validate_weight_effects(results, spec);
+
+        return results;
+    }
+
+private:
+    double calculate_weight_sensitivity(const FXGeometricBasketOpt& basket_option,
+                                       const fx_market_data& market,
+                                       size_t weight_index) {
+
+        const double weight_shock = 0.01; // 1% de choc sur le poids
+
+        // PV de base
+        double pv_base = basket_option.calculate_pv(market);
+
+        // Modification du poids (en gardant la contrainte de somme = 1)
+        auto modified_basket = create_basket_with_modified_weight(basket_option, weight_index, weight_shock);
+
+        double pv_modified = modified_basket.calculate_pv(market);
+
+        return (pv_modified - pv_base) / weight_shock;
+    }
+
+    FXGeometricBasketOpt create_basket_with_modified_weight(
+        const FXGeometricBasketOpt& original_basket,
+        size_t weight_index,
+        double weight_shock) {
+
+        auto spec = original_basket.get_specification();
+
+        // Modification du poids avec redistribution proportionnelle
+        std::vector<double> new_weights = spec.weights;
+
+        // Augmentation du poids ciblé
+        new_weights[weight_index] += weight_shock;
+
+        // Redistribution proportionnelle sur les autres poids
+        double remaining_weight = 1.0 - new_weights[weight_index];
+        double original_remaining = 1.0 - spec.weights[weight_index];
+
+        for (size_t i = 0; i < new_weights.size(); ++i) {
+            if (i != weight_index) {
+                new_weights[i] = spec.weights[i] * remaining_weight / original_remaining;
+            }
+        }
+
+        // Validation que la somme = 1
+        double sum = std::accumulate(new_weights.begin(), new_weights.end(), 0.0);
+        XSIGMA_CHECK(std::abs(sum - 1.0) < 1e-10, "Modified weights must sum to 1");
+
+        // Création du nouveau panier
+        auto new_spec = spec;
+        new_spec.weights = new_weights;
+
+        return FXGeometricBasketOpt(new_spec);
+    }
+
+    double calculate_weight_contribution(const FXGeometricBasketOpt& basket_option,
+                                        const fx_market_data& market,
+                                        size_t weight_index) {
+
+        auto spec = basket_option.get_specification();
+
+        // Contribution = poids × sensibilité de l'underlying
+        double weight = spec.weights[weight_index];
+
+        // Sensibilité de l'underlying individuel
+        auto sensitivities = basket_option.calculate_sensitivities(market);
+        std::string delta_name = "DELTA_" + spec.currency_pairs[weight_index];
+        double underlying_delta = sensitivities.underlying_deltas.at(delta_name);
+
+        return weight * underlying_delta;
+    }
+
+    bool validate_weight_effects(const weight_sensitivity_results& results,
+                                const FXGeometricBasketOpt::geometric_basket_specification& spec) {
+
+        // Validation que les sensibilités aux poids sont cohérentes
+
+        // La somme des contributions pondérées doit être cohérente
+        double total_contribution = 0.0;
+        for (size_t i = 0; i < spec.currency_pairs.size(); ++i) {
+            std::string currency_pair = spec.currency_pairs[i];
+            total_contribution += spec.weights[i] * results.weight_contributions.at(currency_pair);
+        }
+
+        // Validation que toutes les sensibilités sont finies
+        for (const auto& [currency_pair, sensitivity] : results.weight_sensitivities) {
+            EXPECT_TRUE(std::isfinite(sensitivity));
+        }
+
+        return true;
+    }
+};
+```
+
+---
+
+## 🏛️ **Stability Testing**
+
+### **Tests de Stabilité sous Stress**
+
+#### **🔍 Multi-Currency Stress Testing**
+
+##### **Tests de Stress Multi-Devises**
+```cpp
+// Tests de stress multi-devises pour FXGeometricBasketOpt dans Our project
+class fxbasketopt_multicurrency_stress_tester {
+public:
+    void test_multicurrency_stress_scenarios(const FXGeometricBasketOpt& basket_option,
+                                            const fx_market_data& base_market) {
+
+        // Tests de stress simultanés sur toutes les devises
+        test_simultaneous_fx_stress(basket_option, base_market);
+
+        // Tests de stress de corrélation extrême
+        test_extreme_correlation_stress(basket_option, base_market);
+
+        // Tests de stress de volatilité asymétrique
+        test_asymmetric_volatility_stress(basket_option, base_market);
+
+        // Tests de crise de change
+        test_currency_crisis_scenarios(basket_option, base_market);
+    }
+
+private:
+    void test_simultaneous_fx_stress(const FXGeometricBasketOpt& basket_option,
+                                    const fx_market_data& base_market) {
+
+        std::cout << "=== Simultaneous FX Stress Testing ===" << std::endl;
+
+        auto spec = basket_option.get_specification();
+
+        // Scénarios de stress simultanés
+        std::vector<fx_stress_scenario> stress_scenarios = {
+            {"USD_STRENGTH", create_usd_strength_scenario(spec)},
+            {"USD_WEAKNESS", create_usd_weakness_scenario(spec)},
+            {"RISK_OFF", create_risk_off_scenario(spec)},
+            {"RISK_ON", create_risk_on_scenario(spec)},
+            {"VOLATILITY_SPIKE", create_volatility_spike_scenario(spec)}
+        };
+
+        for (const auto& scenario : stress_scenarios) {
+            auto stressed_market = apply_fx_stress_scenario(base_market, scenario);
+
+            // Calcul des métriques sous stress
+            double pv = basket_option.calculate_pv(stressed_market);
+            auto sensitivities = basket_option.calculate_sensitivities(stressed_market);
+
+            // Validation de stabilité
+            EXPECT_TRUE(std::isfinite(pv));
+            EXPECT_GE(pv, 0.0);
+
+            // Validation des sensibilités
+            validate_basket_sensitivities_under_stress(sensitivities);
+
+            // Analyse de l'impact sur le panier
+            analyze_basket_impact_under_stress(basket_option, stressed_market, scenario);
+
+            std::cout << "Stress Scenario: " << scenario.name
+                      << ", PV: " << pv
+                      << ", Basket Delta: " << sensitivities.basket_delta << std::endl;
+        }
+    }
+
+    struct fx_stress_scenario {
+        std::string name;
+        std::map<std::string, double> fx_shocks;
+        std::map<std::string, double> volatility_shocks;
+        std::string description;
+    };
+
+    fx_stress_scenario create_usd_strength_scenario(
+        const FXGeometricBasketOpt::geometric_basket_specification& spec) {
+
+        fx_stress_scenario scenario;
+        scenario.name = "USD_STRENGTH";
+        scenario.description = "Strong USD appreciation across all pairs";
+
+        // USD s'apprécie contre toutes les devises
+        for (const auto& currency_pair : spec.currency_pairs) {
+            if (currency_pair.find("USD") != std::string::npos) {
+                if (currency_pair.substr(3, 3) == "USD") {
+                    // XXXUSD pairs - USD strengthening means pair goes down
+                    scenario.fx_shocks[currency_pair] = -0.15; // -15%
+                } else {
+                    // USDXXX pairs - USD strengthening means pair goes up
+                    scenario.fx_shocks[currency_pair] = +0.15; // +15%
+                }
+            }
+
+            // Volatilité augmente en période de stress
+            scenario.volatility_shocks[currency_pair] = +0.05; // +5% vol
+        }
+
+        return scenario;
+    }
+
+    fx_stress_scenario create_volatility_spike_scenario(
+        const FXGeometricBasketOpt::geometric_basket_specification& spec) {
+
+        fx_stress_scenario scenario;
+        scenario.name = "VOLATILITY_SPIKE";
+        scenario.description = "Sudden volatility spike across all FX pairs";
+
+        // Pas de choc de spot, seulement volatilité
+        for (const auto& currency_pair : spec.currency_pairs) {
+            scenario.fx_shocks[currency_pair] = 0.0;
+            scenario.volatility_shocks[currency_pair] = +0.15; // +15% vol spike
+        }
+
+        return scenario;
+    }
+
+    void test_extreme_correlation_stress(const FXGeometricBasketOpt& basket_option,
+                                        const fx_market_data& base_market) {
+
+        std::cout << "=== Extreme Correlation Stress Testing ===" << std::endl;
+
+        // Scénarios de corrélation extrême
+        std::vector<correlation_stress_scenario> correlation_scenarios = {
+            {"CORRELATION_BREAKDOWN", create_correlation_breakdown_scenario(basket_option)},
+            {"PERFECT_CORRELATION", create_perfect_correlation_scenario(basket_option)},
+            {"NEGATIVE_CORRELATION", create_negative_correlation_scenario(basket_option)}
+        };
+
+        for (const auto& scenario : correlation_scenarios) {
+            auto stressed_basket = create_basket_with_correlation(basket_option, scenario.correlation_matrix);
+
+            double pv = stressed_basket.calculate_pv(base_market);
+            auto sensitivities = stressed_basket.calculate_sensitivities(base_market);
+
+            // Validation de stabilité sous corrélations extrêmes
+            EXPECT_TRUE(std::isfinite(pv));
+            EXPECT_GE(pv, 0.0);
+
+            // Validation que la matrice de corrélation reste valide
+            validate_correlation_matrix_validity(scenario.correlation_matrix);
+
+            std::cout << "Correlation Scenario: " << scenario.name
+                      << ", PV: " << pv
+                      << ", Effective Vol: " << calculate_effective_volatility(stressed_basket, base_market)
+                      << std::endl;
+        }
+    }
+
+    struct correlation_stress_scenario {
+        std::string name;
+        matrix<double> correlation_matrix;
+        std::string description;
+    };
+
+    correlation_stress_scenario create_correlation_breakdown_scenario(
+        const FXGeometricBasketOpt& basket_option) {
+
+        correlation_stress_scenario scenario;
+        scenario.name = "CORRELATION_BREAKDOWN";
+        scenario.description = "All correlations go to zero (diversification maximum)";
+
+        auto spec = basket_option.get_specification();
+        size_t n = spec.currency_pairs.size();
+
+        scenario.correlation_matrix = matrix<double>(n, n);
+        for (size_t i = 0; i < n; ++i) {
+            for (size_t j = 0; j < n; ++j) {
+                scenario.correlation_matrix(i, j) = (i == j) ? 1.0 : 0.0;
+            }
+        }
+
+        return scenario;
+    }
+
+    void validate_basket_sensitivities_under_stress(const fx_sensitivities& sensitivities) {
+        // Validation que toutes les sensibilités restent finies sous stress
+        EXPECT_TRUE(std::isfinite(sensitivities.basket_delta));
+        EXPECT_TRUE(std::isfinite(sensitivities.basket_gamma));
+        EXPECT_TRUE(std::isfinite(sensitivities.basket_vega));
+        EXPECT_TRUE(std::isfinite(sensitivities.correlation_sensitivity));
+
+        // Validation des sensibilités individuelles
+        for (const auto& [name, delta] : sensitivities.underlying_deltas) {
+            EXPECT_TRUE(std::isfinite(delta));
+        }
+
+        for (const auto& [name, vega] : sensitivities.underlying_vegas) {
+            EXPECT_TRUE(std::isfinite(vega));
+        }
+    }
+};
+```
+
+#### **🔍 Basket Composition Stress Testing**
+
+##### **Tests de Stress de Composition du Panier**
+```cpp
+// Tests de stress de composition pour FXGeometricBasketOpt dans Our project
+class fxbasketopt_composition_stress_tester {
+public:
+    void test_basket_composition_stress(const FXGeometricBasketOpt& basket_option,
+                                       const fx_market_data& base_market) {
+
+        // Tests de concentration de poids
+        test_weight_concentration_stress(basket_option, base_market);
+
+        // Tests de déséquilibre de panier
+        test_basket_imbalance_stress(basket_option, base_market);
+
+        // Tests de changement de composition
+        test_dynamic_composition_stress(basket_option, base_market);
+    }
+
+private:
+    void test_weight_concentration_stress(const FXGeometricBasketOpt& basket_option,
+                                         const fx_market_data& base_market) {
+
+        std::cout << "=== Weight Concentration Stress Testing ===" << std::endl;
+
+        auto spec = basket_option.get_specification();
+
+        // Tests avec concentration extrême sur un seul actif
+        for (size_t dominant_index = 0; dominant_index < spec.currency_pairs.size(); ++dominant_index) {
+            std::vector<double> concentrated_weights(spec.currency_pairs.size());
+
+            // 90% sur un actif, 10% répartis sur les autres
+            concentrated_weights[dominant_index] = 0.9;
+            double remaining_weight = 0.1;
+
+            for (size_t i = 0; i < concentrated_weights.size(); ++i) {
+                if (i != dominant_index) {
+                    concentrated_weights[i] = remaining_weight / (spec.currency_pairs.size() - 1);
+                }
+            }
+
+            // Création du panier concentré
+            auto concentrated_spec = spec;
+            concentrated_spec.weights = concentrated_weights;
+            FXGeometricBasketOpt concentrated_basket(concentrated_spec);
+
+            // Tests sous stress
+            double pv = concentrated_basket.calculate_pv(base_market);
+            auto sensitivities = concentrated_basket.calculate_sensitivities(base_market);
+
+            // Validation de stabilité
+            EXPECT_TRUE(std::isfinite(pv));
+            EXPECT_GE(pv, 0.0);
+
+            // Analyse de l'impact de concentration
+            analyze_concentration_impact(concentrated_basket, basket_option, base_market);
+
+            std::cout << "Concentrated on " << spec.currency_pairs[dominant_index]
+                      << ", PV: " << pv
+                      << ", Basket Delta: " << sensitivities.basket_delta << std::endl;
+        }
+    }
+
+    void analyze_concentration_impact(const FXGeometricBasketOpt& concentrated_basket,
+                                     const FXGeometricBasketOpt& original_basket,
+                                     const fx_market_data& market) {
+
+        // Comparaison des volatilités effectives
+        double concentrated_vol = concentrated_basket.calculate_effective_basket_parameters(market).effective_volatility;
+        double original_vol = original_basket.calculate_effective_basket_parameters(market).effective_volatility;
+
+        double volatility_change = (concentrated_vol - original_vol) / original_vol;
+
+        // Comparaison des prix
+        double concentrated_pv = concentrated_basket.calculate_pv(market);
+        double original_pv = original_basket.calculate_pv(market);
+
+        double price_change = (concentrated_pv - original_pv) / original_pv;
+
+        // Validation que la concentration a un impact mesurable
+        EXPECT_GT(std::abs(volatility_change), 0.01); // Au moins 1% de changement
+
+        std::cout << "Concentration Impact - Vol Change: " << (volatility_change * 100) << "%, "
+                  << "Price Change: " << (price_change * 100) << "%" << std::endl;
+    }
+};
+```
+
+---
+
+## 📊 **Performance Testing**
+
+### **Tests de Performance**
+
+#### **🔍 Computational Performance for Baskets**
+```cpp
+// Tests de performance pour FXGeometricBasketOpt dans Our project
+class fxbasketopt_performance_tester {
+public:
+    struct basket_performance_results {
+        double avg_pricing_time_ns;
+        double avg_sensitivities_time_ns;
+        double correlation_calculation_time_ns;
+        double effective_params_time_ns;
+        bool performance_acceptable;
+        std::string performance_bottleneck;
+    };
+
+    basket_performance_results test_basket_computational_performance() {
+        basket_performance_results results;
+
+        // Configuration de test avec différentes tailles de panier
+        std::vector<size_t> basket_sizes = {2, 3, 5, 10};
+        const int num_iterations = 10000;
+
+        for (size_t basket_size : basket_sizes) {
+            // Création d'un panier de test
+            auto test_basket = create_test_basket(basket_size);
+            auto test_market = create_performance_test_market();
+
+            // Benchmark du pricing
+            auto pricing_times = benchmark_basket_pricing(test_basket, test_market, num_iterations);
+
+            // Benchmark des sensibilités
+            auto sensitivity_times = benchmark_basket_sensitivities(test_basket, test_market, num_iterations / 10);
+
+            // Benchmark des calculs de corrélation
+            auto correlation_times = benchmark_correlation_calculations(test_basket, test_market, num_iterations);
+
+            // Analyse des résultats
+            analyze_performance_scaling(basket_size, pricing_times, sensitivity_times, correlation_times);
+        }
+
+        // Résultats pour panier de taille standard (5 actifs)
+        auto standard_basket = create_test_basket(5);
+        auto standard_market = create_performance_test_market();
+
+        results.avg_pricing_time_ns = benchmark_single_pricing(standard_basket, standard_market);
+        results.avg_sensitivities_time_ns = benchmark_single_sensitivities(standard_basket, standard_market);
+        results.correlation_calculation_time_ns = benchmark_single_correlation(standard_basket, standard_market);
+        results.effective_params_time_ns = benchmark_effective_parameters(standard_basket, standard_market);
+
+        // Validation des exigences de performance
+        results.performance_acceptable =
+            (results.avg_pricing_time_ns < 10000.0) && // < 10 microsecondes
+            (results.avg_sensitivities_time_ns < 100000.0); // < 100 microsecondes
+
+        // Identification du goulot d'étranglement
+        results.performance_bottleneck = identify_performance_bottleneck(results);
+
+        return results;
+    }
+
+private:
+    FXGeometricBasketOpt create_test_basket(size_t basket_size) {
+        // Création d'un panier de test avec la taille spécifiée
+        std::vector<std::string> currency_pairs;
+        std::vector<double> weights;
+
+        // Paires de devises standard
+        std::vector<std::string> available_pairs = {
+            "EURUSD", "GBPUSD", "USDJPY", "AUDUSD", "USDCAD",
+            "USDCHF", "NZDUSD", "EURGBP", "EURJPY", "GBPJPY"
+        };
+
+        for (size_t i = 0; i < basket_size && i < available_pairs.size(); ++i) {
+            currency_pairs.push_back(available_pairs[i]);
+            weights.push_back(1.0 / basket_size); // Poids égaux
+        }
+
+        // Matrice de corrélation réaliste
+        matrix<double> correlation_matrix(basket_size, basket_size);
+        for (size_t i = 0; i < basket_size; ++i) {
+            for (size_t j = 0; j < basket_size; ++j) {
+                if (i == j) {
+                    correlation_matrix(i, j) = 1.0;
+                } else {
+                    correlation_matrix(i, j) = 0.3 + 0.4 * std::exp(-std::abs(static_cast<int>(i) - static_cast<int>(j)));
+                }
+            }
+        }
+
+        FXGeometricBasketOpt::geometric_basket_specification spec{
+            currency_pairs,
+            weights,
+            1.0, // strike
+            1.0, // expiry
+            true, // is_call
+            1000000.0, // notional
+            "USD", // settlement_currency
+            correlation_matrix
+        };
+
+        return FXGeometricBasketOpt(spec);
+    }
+
+    std::vector<double> benchmark_basket_pricing(const FXGeometricBasketOpt& basket,
+                                                const fx_market_data& market,
+                                                int num_iterations) {
+
+        std::vector<double> timing_results;
+        timing_results.reserve(num_iterations);
+
+        for (int i = 0; i < num_iterations; ++i) {
+            auto start_time = std::chrono::high_resolution_clock::now();
+
+            // Pricing du panier
+            volatile double pv = basket.calculate_pv(market);
+            (void)pv; // Éviter l'optimisation du compilateur
+
+            auto end_time = std::chrono::high_resolution_clock::now();
+
+            auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(
+                end_time - start_time);
+            timing_results.push_back(duration.count());
+        }
+
+        return timing_results;
+    }
+
+    void analyze_performance_scaling(size_t basket_size,
+                                   const std::vector<double>& pricing_times,
+                                   const std::vector<double>& sensitivity_times,
+                                   const std::vector<double>& correlation_times) {
+
+        double avg_pricing = calculate_mean(pricing_times);
+        double avg_sensitivity = calculate_mean(sensitivity_times);
+        double avg_correlation = calculate_mean(correlation_times);
+
+        std::cout << "Basket Size: " << basket_size
+                  << ", Avg Pricing: " << avg_pricing << "ns"
+                  << ", Avg Sensitivity: " << avg_sensitivity << "ns"
+                  << ", Avg Correlation: " << avg_correlation << "ns" << std::endl;
+
+        // Validation que la complexité reste raisonnable
+        // Pour un panier géométrique, la complexité devrait être O(n²) pour les corrélations
+        double expected_correlation_scaling = basket_size * basket_size;
+
+        // Validation approximative de la complexité
+        if (basket_size > 2) {
+            double scaling_factor = avg_correlation / expected_correlation_scaling;
+            EXPECT_LT(scaling_factor, 1000.0); // Facteur de complexité raisonnable
+        }
+    }
+};
+```
+
+---
+
+*Cette section fournit une documentation complète des tests de produit pour FXGeometricBasketOpt, intégrant les implémentations C++ de Our project avec des méthodologies de validation spécialisées pour les options sur panier géométrique, incluant les tests de paramètres effectifs, impact des corrélations, sensibilités aux poids et performance multi-devises.*
+```

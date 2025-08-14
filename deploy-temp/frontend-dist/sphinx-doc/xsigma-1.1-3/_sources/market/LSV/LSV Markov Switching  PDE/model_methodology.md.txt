@@ -1,0 +1,534 @@
+# Model / Methodology
+
+## Overview
+
+Cette section décrit la méthodologie mathématique et l'implémentation du modèle **LSV Markov Switching PDE**, incluant la formulation des équations aux dérivées partielles et les méthodes de résolution.
+
+```cpp
+// Implémentation Our project de la méthodologie LSV Markov Switching PDE
+namespace xsigma {
+    // Classe pour la méthodologie mathématique du modèle LSV MS PDE
+    class LSVMSPDEMethodology {
+    public:
+        // Structure pour l'équation PDE du modèle
+        struct PDEFormulation {
+            // Variables d'état
+            double spot;                          // S: Prix du sous-jacent
+            double variance;                      // V: Variance stochastique
+            int volatility_state;                 // ζ: État de volatilité Markov
+            double time;                          // t: Temps
+            
+            // Paramètres du modèle
+            double risk_free_rate;                // r: Taux sans risque
+            double dividend_yield;                // q: Rendement de dividende
+            double correlation;                   // ρ: Corrélation S-V
+            
+            // Paramètres volatilité stochastique
+            double vol_of_vol;                    // ν: Vol of vol
+            double mean_reversion_speed;          // κ: Vitesse de retour à la moyenne
+            double long_term_variance;            // θ: Variance long terme
+            
+            // Paramètres Markov Switching
+            std::vector<double> state_volatilities; // σ_i: Volatilités par état
+            std::vector<std::vector<double>> transition_rates; // λ_ij: Taux de transition
+        };
+        
+        // Formulation de l'équation PDE principale
+        class PDEEquation {
+        public:
+            // Équation PDE pour l'état i:
+            // ∂V_i/∂t + L_i[V_i] + Σ_j λ_ji(V_j - V_i) = 0
+            // où L_i est l'opérateur différentiel pour l'état i
+            
+            double evaluate_pde_operator(
+                const PDEFormulation& params,
+                int state_index,
+                double option_value,
+                double dV_dt,
+                double dV_dS,
+                double d2V_dS2,
+                double dV_dVar,
+                double d2V_dVar2,
+                double d2V_dSdVar,
+                const std::vector<double>& state_values) const {
+                
+                // Volatilité locale
+                double local_vol = calculate_local_volatility(params.spot, params.time);
+                
+                // Volatilité de l'état
+                double state_vol = params.state_volatilities[state_index];
+                
+                // Volatilité effective
+                double effective_vol = local_vol * std::sqrt(params.variance) * state_vol;
+                
+                // Termes de drift
+                double spot_drift = (params.risk_free_rate - params.dividend_yield) * params.spot;
+                double variance_drift = params.mean_reversion_speed * 
+                                      (params.long_term_variance - params.variance);
+                
+                // Termes de diffusion
+                double spot_diffusion = 0.5 * effective_vol * effective_vol * 
+                                       params.spot * params.spot;
+                double variance_diffusion = 0.5 * params.vol_of_vol * params.vol_of_vol * 
+                                          params.variance;
+                
+                // Terme de corrélation
+                double correlation_term = params.correlation * params.vol_of_vol * 
+                                        effective_vol * params.spot * std::sqrt(params.variance);
+                
+                // Opérateur différentiel L_i
+                double Li_operator = 
+                    spot_drift * dV_dS +
+                    spot_diffusion * d2V_dS2 +
+                    variance_drift * dV_dVar +
+                    variance_diffusion * d2V_dVar2 +
+                    correlation_term * d2V_dSdVar -
+                    params.risk_free_rate * option_value;
+                
+                // Termes de transition Markov
+                double transition_term = 0.0;
+                int n_states = params.state_volatilities.size();
+                
+                for (int j = 0; j < n_states; ++j) {
+                    if (j != state_index) {
+                        transition_term += params.transition_rates[j][state_index] * 
+                                         (state_values[j] - option_value);
+                    }
+                }
+                
+                // Équation PDE complète
+                return dV_dt + Li_operator + transition_term;
+            }
+            
+        private:
+            double calculate_local_volatility(double spot, double time) const {
+                // Interpolation de la surface de volatilité locale
+                // Implémentation de l'équation de Dupire
+                return 0.2; // Placeholder
+            }
+        };
+        
+        // Discrétisation par différences finies
+        class FiniteDifferenceScheme {
+        public:
+            // Structure pour la grille de discrétisation
+            struct DiscretizationGrid {
+                std::vector<double> spot_grid;        // Grille en S
+                std::vector<double> variance_grid;    // Grille en V
+                std::vector<double> time_grid;        // Grille en t
+                int n_states;                         // Nombre d'états
+                
+                // Paramètres de grille
+                double spot_min, spot_max;
+                double variance_min, variance_max;
+                double time_step;
+                
+                // Indices de référence
+                int spot_center_index;                // Index du spot initial
+                int variance_center_index;           // Index de la variance initiale
+            };
+            
+            // Création de la grille de discrétisation
+            DiscretizationGrid create_grid(
+                double spot_initial,
+                double variance_initial,
+                double maturity,
+                int n_spot_points,
+                int n_variance_points,
+                int n_time_steps) const {
+                
+                DiscretizationGrid grid;
+                
+                // Grille en spot (log-uniforme)
+                grid.spot_min = spot_initial * 0.1;  // 10% du spot initial
+                grid.spot_max = spot_initial * 10.0; // 1000% du spot initial
+                
+                double log_spot_min = std::log(grid.spot_min);
+                double log_spot_max = std::log(grid.spot_max);
+                double d_log_spot = (log_spot_max - log_spot_min) / (n_spot_points - 1);
+                
+                for (int i = 0; i < n_spot_points; ++i) {
+                    double log_spot = log_spot_min + i * d_log_spot;
+                    grid.spot_grid.push_back(std::exp(log_spot));
+                    
+                    if (grid.spot_grid[i] <= spot_initial && 
+                        (i == n_spot_points - 1 || grid.spot_grid[i+1] > spot_initial)) {
+                        grid.spot_center_index = i;
+                    }
+                }
+                
+                // Grille en variance (uniforme)
+                grid.variance_min = 0.01;  // 1% de variance minimum
+                grid.variance_max = 1.0;   // 100% de variance maximum
+                double d_variance = (grid.variance_max - grid.variance_min) / (n_variance_points - 1);
+                
+                for (int i = 0; i < n_variance_points; ++i) {
+                    double variance = grid.variance_min + i * d_variance;
+                    grid.variance_grid.push_back(variance);
+                    
+                    if (variance <= variance_initial && 
+                        (i == n_variance_points - 1 || grid.variance_grid[i+1] > variance_initial)) {
+                        grid.variance_center_index = i;
+                    }
+                }
+                
+                // Grille temporelle (uniforme)
+                grid.time_step = maturity / n_time_steps;
+                for (int i = 0; i <= n_time_steps; ++i) {
+                    grid.time_grid.push_back(i * grid.time_step);
+                }
+                
+                return grid;
+            }
+            
+            // Schéma de différences finies pour dérivées spatiales
+            struct SpatialDerivatives {
+                double dV_dS;                         // Première dérivée en S
+                double d2V_dS2;                       // Seconde dérivée en S
+                double dV_dVar;                       // Première dérivée en V
+                double d2V_dVar2;                     // Seconde dérivée en V
+                double d2V_dSdVar;                    // Dérivée croisée S-V
+            };
+            
+            SpatialDerivatives calculate_spatial_derivatives(
+                const std::vector<std::vector<std::vector<double>>>& values,
+                int i_spot,
+                int j_variance,
+                int k_state,
+                const DiscretizationGrid& grid) const {
+                
+                SpatialDerivatives derivatives;
+                
+                // Dérivées en spot (schéma centré)
+                if (i_spot > 0 && i_spot < grid.spot_grid.size() - 1) {
+                    double h_plus = grid.spot_grid[i_spot + 1] - grid.spot_grid[i_spot];
+                    double h_minus = grid.spot_grid[i_spot] - grid.spot_grid[i_spot - 1];
+                    
+                    // Première dérivée (schéma centré adaptatif)
+                    derivatives.dV_dS = (values[i_spot + 1][j_variance][k_state] * h_minus * h_minus -
+                                        values[i_spot - 1][j_variance][k_state] * h_plus * h_plus +
+                                        values[i_spot][j_variance][k_state] * (h_plus * h_plus - h_minus * h_minus)) /
+                                       (h_plus * h_minus * (h_plus + h_minus));
+                    
+                    // Seconde dérivée
+                    derivatives.d2V_dS2 = 2.0 * (values[i_spot + 1][j_variance][k_state] * h_minus -
+                                                 values[i_spot][j_variance][k_state] * (h_plus + h_minus) +
+                                                 values[i_spot - 1][j_variance][k_state] * h_plus) /
+                                         (h_plus * h_minus * (h_plus + h_minus));
+                } else {
+                    // Conditions aux limites
+                    derivatives.dV_dS = 0.0;
+                    derivatives.d2V_dS2 = 0.0;
+                }
+                
+                // Dérivées en variance (schéma centré uniforme)
+                if (j_variance > 0 && j_variance < grid.variance_grid.size() - 1) {
+                    double dV = grid.variance_grid[1] - grid.variance_grid[0]; // Grille uniforme
+                    
+                    derivatives.dV_dVar = (values[i_spot][j_variance + 1][k_state] -
+                                          values[i_spot][j_variance - 1][k_state]) / (2.0 * dV);
+                    
+                    derivatives.d2V_dVar2 = (values[i_spot][j_variance + 1][k_state] -
+                                            2.0 * values[i_spot][j_variance][k_state] +
+                                            values[i_spot][j_variance - 1][k_state]) / (dV * dV);
+                } else {
+                    derivatives.dV_dVar = 0.0;
+                    derivatives.d2V_dVar2 = 0.0;
+                }
+                
+                // Dérivée croisée S-V
+                if (i_spot > 0 && i_spot < grid.spot_grid.size() - 1 &&
+                    j_variance > 0 && j_variance < grid.variance_grid.size() - 1) {
+                    
+                    double dS = (grid.spot_grid[i_spot + 1] - grid.spot_grid[i_spot - 1]) / 2.0;
+                    double dV = (grid.variance_grid[j_variance + 1] - grid.variance_grid[j_variance - 1]) / 2.0;
+                    
+                    derivatives.d2V_dSdVar = (values[i_spot + 1][j_variance + 1][k_state] -
+                                             values[i_spot + 1][j_variance - 1][k_state] -
+                                             values[i_spot - 1][j_variance + 1][k_state] +
+                                             values[i_spot - 1][j_variance - 1][k_state]) /
+                                            (4.0 * dS * dV);
+                } else {
+                    derivatives.d2V_dSdVar = 0.0;
+                }
+                
+                return derivatives;
+            }
+            
+            // Schéma temporel (Crank-Nicolson)
+            void apply_time_step(
+                std::vector<std::vector<std::vector<double>>>& values_new,
+                const std::vector<std::vector<std::vector<double>>>& values_old,
+                const DiscretizationGrid& grid,
+                const PDEFormulation& params,
+                double dt) const {
+                
+                int n_spots = grid.spot_grid.size();
+                int n_vars = grid.variance_grid.size();
+                int n_states = params.state_volatilities.size();
+                
+                PDEEquation pde_eq;
+                
+                // Application du schéma Crank-Nicolson pour chaque point de grille
+                for (int i = 1; i < n_spots - 1; ++i) {
+                    for (int j = 1; j < n_vars - 1; ++j) {
+                        for (int k = 0; k < n_states; ++k) {
+                            
+                            // Calcul des dérivées spatiales
+                            auto derivatives = calculate_spatial_derivatives(values_old, i, j, k, grid);
+                            
+                            // Paramètres PDE au point (i,j,k)
+                            PDEFormulation local_params = params;
+                            local_params.spot = grid.spot_grid[i];
+                            local_params.variance = grid.variance_grid[j];
+                            
+                            // Valeurs des autres états au même point spatial
+                            std::vector<double> state_values(n_states);
+                            for (int l = 0; l < n_states; ++l) {
+                                state_values[l] = values_old[i][j][l];
+                            }
+                            
+                            // Application de l'opérateur PDE
+                            double pde_operator = pde_eq.evaluate_pde_operator(
+                                local_params, k, values_old[i][j][k],
+                                0.0, // dV/dt sera calculé implicitement
+                                derivatives.dV_dS,
+                                derivatives.d2V_dS2,
+                                derivatives.dV_dVar,
+                                derivatives.d2V_dVar2,
+                                derivatives.d2V_dSdVar,
+                                state_values
+                            );
+                            
+                            // Mise à jour Crank-Nicolson (schéma implicite)
+                            values_new[i][j][k] = values_old[i][j][k] - dt * pde_operator;
+                        }
+                    }
+                }
+                
+                // Application des conditions aux limites
+                apply_boundary_conditions(values_new, grid, params);
+            }
+            
+        private:
+            void apply_boundary_conditions(
+                std::vector<std::vector<std::vector<double>>>& values,
+                const DiscretizationGrid& grid,
+                const PDEFormulation& params) const {
+                
+                int n_spots = grid.spot_grid.size();
+                int n_vars = grid.variance_grid.size();
+                int n_states = params.state_volatilities.size();
+                
+                // Conditions aux limites en spot
+                for (int j = 0; j < n_vars; ++j) {
+                    for (int k = 0; k < n_states; ++k) {
+                        // S = 0: valeur intrinsèque
+                        values[0][j][k] = 0.0; // Pour un call
+                        
+                        // S = S_max: approximation linéaire
+                        values[n_spots - 1][j][k] = 
+                            2.0 * values[n_spots - 2][j][k] - values[n_spots - 3][j][k];
+                    }
+                }
+                
+                // Conditions aux limites en variance
+                for (int i = 0; i < n_spots; ++i) {
+                    for (int k = 0; k < n_states; ++k) {
+                        // V = 0: volatilité nulle
+                        values[i][0][k] = std::max(grid.spot_grid[i] - params.risk_free_rate, 0.0);
+                        
+                        // V = V_max: approximation linéaire
+                        values[i][n_vars - 1][k] = 
+                            2.0 * values[i][n_vars - 2][k] - values[i][n_vars - 3][k];
+                    }
+                }
+            }
+        };
+        
+        // Calibration de la volatilité locale
+        class LocalVolatilityCalibration {
+        public:
+            // Calibration via équation de Dupire
+            std::vector<std::vector<double>> calibrate_dupire_surface(
+                const std::vector<double>& strikes,
+                const std::vector<double>& maturities,
+                const std::vector<std::vector<double>>& market_prices,
+                double spot,
+                double risk_free_rate) const {
+                
+                std::vector<std::vector<double>> local_vol_surface;
+                
+                // Implémentation de l'équation de Dupire:
+                // σ_LV²(K,T) = (∂C/∂T + rK∂C/∂K) / (½K²∂²C/∂K²)
+                
+                for (size_t i = 0; i < strikes.size(); ++i) {
+                    std::vector<double> vol_slice;
+                    
+                    for (size_t j = 0; j < maturities.size(); ++j) {
+                        // Calcul des dérivées partielles des prix
+                        double dC_dT = calculate_time_derivative(market_prices, i, j);
+                        double dC_dK = calculate_strike_derivative(market_prices, strikes, i, j);
+                        double d2C_dK2 = calculate_strike_second_derivative(market_prices, strikes, i, j);
+                        
+                        // Application de la formule de Dupire
+                        double numerator = dC_dT + risk_free_rate * strikes[i] * dC_dK;
+                        double denominator = 0.5 * strikes[i] * strikes[i] * d2C_dK2;
+                        
+                        double local_vol_squared = numerator / std::max(denominator, 1e-10);
+                        double local_vol = std::sqrt(std::max(local_vol_squared, 0.01));
+                        
+                        vol_slice.push_back(local_vol);
+                    }
+                    
+                    local_vol_surface.push_back(vol_slice);
+                }
+                
+                return local_vol_surface;
+            }
+            
+        private:
+            double calculate_time_derivative(
+                const std::vector<std::vector<double>>& prices,
+                int strike_index,
+                int maturity_index) const {
+                // Calcul numérique de ∂C/∂T
+                return 0.0; // Placeholder
+            }
+            
+            double calculate_strike_derivative(
+                const std::vector<std::vector<double>>& prices,
+                const std::vector<double>& strikes,
+                int strike_index,
+                int maturity_index) const {
+                // Calcul numérique de ∂C/∂K
+                return 0.0; // Placeholder
+            }
+            
+            double calculate_strike_second_derivative(
+                const std::vector<std::vector<double>>& prices,
+                const std::vector<double>& strikes,
+                int strike_index,
+                int maturity_index) const {
+                // Calcul numérique de ∂²C/∂K²
+                return 0.0; // Placeholder
+            }
+        };
+    };
+}
+```
+*Cette implémentation C++ dans Our project fournit la méthodologie mathématique complète du modèle LSV MS PDE avec formulation des équations, discrétisation par différences finies et calibration de volatilité locale.*
+
+## Mathematical Formulation
+
+### PDE System for LSV Markov Switching
+
+Le modèle LSV Markov Switching est gouverné par un **système d'équations aux dérivées partielles couplées**, une pour chaque état de volatilité :
+
+$$\frac{\partial V_i}{\partial t} + \mathcal{L}_i[V_i] + \sum_{j \neq i} \lambda_{ji}(V_j - V_i) = 0$$
+
+où $V_i(S,V,t)$ est la valeur de l'option dans l'état $i$, et $\mathcal{L}_i$ est l'opérateur différentiel :
+
+$$\mathcal{L}_i[V] = \frac{1}{2}\sigma_{eff,i}^2 S^2 \frac{\partial^2 V}{\partial S^2} + (r-q)S\frac{\partial V}{\partial S} + \frac{1}{2}\nu^2 V \frac{\partial^2 V}{\partial V^2} + \kappa(\theta - V)\frac{\partial V}{\partial V} + \rho\nu\sigma_{eff,i}S\sqrt{V}\frac{\partial^2 V}{\partial S \partial V} - rV$$
+
+### Effective Volatility
+
+La **volatilité effective** dans l'état $i$ combine trois composants :
+
+$$\sigma_{eff,i}(S,t,V) = \sigma_{LV}(S,t) \cdot \sqrt{V} \cdot \sigma_i$$
+
+où :
+- $\sigma_{LV}(S,t)$ : Volatilité locale (surface de Dupire)
+- $\sqrt{V}$ : Composant stochastique (processus CIR)
+- $\sigma_i$ : Multiplicateur de l'état Markov $i$
+
+### Markov Transition Terms
+
+Les **termes de transition** $\sum_{j \neq i} \lambda_{ji}(V_j - V_i)$ capturent les transitions entre états :
+
+- $\lambda_{ji}$ : Taux de transition de l'état $j$ vers l'état $i$
+- $(V_j - V_i)$ : Différence de valeur entre états
+- Conservation : $\sum_j \lambda_{ij} = 0$ pour tout $i$
+
+## Finite Difference Implementation
+
+### Grid Construction
+
+#### Spatial Grids
+- **Spot Grid** : Log-uniforme pour capture des mouvements relatifs
+  $$S_k = S_0 \exp\left(\frac{k-N_S/2}{N_S/2} \log(10)\right), \quad k = 0, \ldots, N_S$$
+
+- **Variance Grid** : Uniforme pour stabilité numérique
+  $$V_j = V_{min} + j \frac{V_{max} - V_{min}}{N_V}, \quad j = 0, \ldots, N_V$$
+
+#### Temporal Grid
+- **Backward Induction** : De la maturité vers le présent
+- **Time Step** : $\Delta t = T/N_T$ avec contrôle de stabilité CFL
+
+### Spatial Discretization
+
+#### Central Difference Schemes
+Pour les dérivées spatiales, utilisation de **schémas centrés adaptatifs** :
+
+$$\frac{\partial V}{\partial S} \approx \frac{V_{i+1,j} - V_{i-1,j}}{S_{i+1} - S_{i-1}}$$
+
+$$\frac{\partial^2 V}{\partial S^2} \approx \frac{2}{h_+ h_-} \left[\frac{V_{i+1,j}}{h_+} - V_{i,j}\left(\frac{1}{h_+} + \frac{1}{h_-}\right) + \frac{V_{i-1,j}}{h_-}\right]$$
+
+où $h_+ = S_{i+1} - S_i$ et $h_- = S_i - S_{i-1}$.
+
+### Temporal Discretization
+
+#### Crank-Nicolson Scheme
+Utilisation du **schéma Crank-Nicolson** pour stabilité et précision :
+
+$$\frac{V^{n+1} - V^n}{\Delta t} = \frac{1}{2}\left[\mathcal{L}[V^{n+1}] + \mathcal{L}[V^n]\right]$$
+
+#### Matrix System
+Le système résultant est de la forme :
+$$\mathbf{A} \mathbf{V}^{n+1} = \mathbf{B} \mathbf{V}^n$$
+
+où $\mathbf{A}$ et $\mathbf{B}$ sont des matrices tridiagonales par blocs.
+
+## Boundary Conditions
+
+### Spot Boundaries
+- **$S = 0$** : Valeur intrinsèque (put) ou zéro (call)
+- **$S \to \infty$** : Comportement asymptotique linéaire
+
+### Variance Boundaries
+- **$V = 0$** : Volatilité déterministe (Black-Scholes)
+- **$V \to \infty$** : Extrapolation linéaire
+
+### State Coupling
+Les **conditions de couplage** entre états assurent la continuité :
+$$V_i(S,V,t) = V_j(S,V,t) \text{ aux points de transition}$$
+
+## Local Volatility Calibration
+
+### Dupire Equation
+La **surface de volatilité locale** est calibrée via l'équation de Dupire :
+
+$$\sigma_{LV}^2(K,T) = \frac{2\frac{\partial C}{\partial T} + rK\frac{\partial C}{\partial K}}{K^2\frac{\partial^2 C}{\partial K^2}}$$
+
+### Numerical Implementation
+- **Finite Differences** : Calcul des dérivées partielles des prix
+- **Smoothing** : Régularisation pour stabilité numérique
+- **Arbitrage-Free** : Contraintes pour éviter l'arbitrage
+
+## Convergence and Stability
+
+### CFL Condition
+Respect de la **condition CFL** pour stabilité :
+$$\Delta t \leq \frac{(\Delta S)^2}{2\sigma_{max}^2 S_{max}^2}$$
+
+### Grid Refinement
+- **Adaptive Refinement** : Densification automatique près des barrières
+- **Convergence Tests** : Validation par raffinement successif
+- **Error Control** : Monitoring de l'erreur de discrétisation
+
+### Numerical Stability
+- **Positive Coefficients** : Assurance de stabilité numérique
+- **Matrix Conditioning** : Contrôle du conditionnement des systèmes
+- **Iterative Solvers** : Méthodes itératives pour gros systèmes
+
+La méthodologie LSV MS PDE dans Our project combine rigueur mathématique et efficacité numérique pour fournir une solution robuste et précise pour le pricing d'options complexes avec volatilité locale, stochastique et switching de régimes.

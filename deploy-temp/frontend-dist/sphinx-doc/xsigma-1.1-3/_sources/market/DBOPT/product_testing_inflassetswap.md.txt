@@ -1,0 +1,530 @@
+# Product Testing: InflAssetSwap
+
+## 📊 **Vue d'Ensemble du Produit InflAssetSwap**
+
+### **Description du Trade**
+Nous considérons un trade **InflAssetSwap** dans un template de sécurité DBA SWAP avec les caractéristiques suivantes :
+
+#### **Structure du Produit**
+- **Receive Leg** : Paiements semi-annuels basés sur le ratio d'INFLATION avec USCPI comme sous-jacent
+- **Pay Leg** : Paiements trimestriels avec Libor plus un spread
+- **Date effective** : 15 juillet 2015
+- **Date de fin** : 15 juillet 2025
+- **Maturité** : 10 ans
+
+### **Implémentation dans Our project**
+
+#### **🔧 Classe InflAssetSwap**
+```cpp
+// Implémentation du produit InflAssetSwap dans Our project
+class InflAssetSwap : public inflation_product_base {
+private:
+    struct leg_configuration {
+        payment_frequency frequency;
+        std::string index_name;
+        double spread;
+        day_count_convention day_count;
+        std::vector<datetime> payment_dates;
+    };
+    
+    leg_configuration receive_leg_;  // Leg inflation
+    leg_configuration pay_leg_;      // Leg taux fixe/flottant
+    double notional_;
+    datetime effective_date_;
+    datetime maturity_date_;
+    
+public:
+    InflAssetSwap(double notional,
+                  const datetime& effective_date,
+                  const datetime& maturity_date,
+                  const leg_configuration& receive_leg,
+                  const leg_configuration& pay_leg)
+        : notional_(notional),
+          effective_date_(effective_date),
+          maturity_date_(maturity_date),
+          receive_leg_(receive_leg),
+          pay_leg_(pay_leg) {
+        
+        // Génération des calendriers de paiement
+        generate_payment_schedules();
+        validate_configuration();
+    }
+    
+    double calculate_pv(const market_data& market) const override {
+        double receive_leg_pv = calculate_receive_leg_pv(market);
+        double pay_leg_pv = calculate_pay_leg_pv(market);
+        
+        return receive_leg_pv - pay_leg_pv;
+    }
+    
+private:
+    double calculate_receive_leg_pv(const market_data& market) const {
+        double total_pv = 0.0;
+        
+        auto inflation_curve = market.get_inflation_curve(receive_leg_.index_name);
+        auto discount_curve = market.get_discount_curve("USD");
+        
+        for (const auto& payment_date : receive_leg_.payment_dates) {
+            if (payment_date <= market.valuation_date) continue;
+            
+            // Calcul du ratio d'inflation
+            double inflation_ratio = calculate_inflation_ratio(
+                inflation_curve, payment_date);
+            
+            // Facteur d'actualisation
+            double discount_factor = discount_curve->get_discount_factor(payment_date);
+            
+            // Contribution au PV
+            double cashflow = notional_ * inflation_ratio * 
+                            calculate_accrual_factor(payment_date);
+            
+            total_pv += cashflow * discount_factor;
+        }
+        
+        return total_pv;
+    }
+    
+    double calculate_pay_leg_pv(const market_data& market) const {
+        double total_pv = 0.0;
+        
+        auto libor_curve = market.get_forward_curve("USD_LIBOR_3M");
+        auto discount_curve = market.get_discount_curve("USD");
+        
+        for (const auto& payment_date : pay_leg_.payment_dates) {
+            if (payment_date <= market.valuation_date) continue;
+            
+            // Taux forward Libor
+            double forward_rate = libor_curve->get_forward_rate(
+                get_fixing_date(payment_date), payment_date);
+            
+            // Taux total avec spread
+            double total_rate = forward_rate + pay_leg_.spread;
+            
+            // Facteur d'actualisation
+            double discount_factor = discount_curve->get_discount_factor(payment_date);
+            
+            // Contribution au PV
+            double cashflow = notional_ * total_rate * 
+                            calculate_accrual_factor(payment_date);
+            
+            total_pv += cashflow * discount_factor;
+        }
+        
+        return total_pv;
+    }
+};
+```
+*Cette implémentation C++ dans Our project montre la structure complète d'un InflAssetSwap avec calcul séparé des legs d'inflation et de taux d'intérêt.*
+
+---
+
+## 🧪 **4.2.1 EOD Testing**
+
+### **Tests de Fin de Journée**
+
+#### **🔍 4.2.1.1 Cashflow Replication of the Trade**
+
+##### **Réplication des Cashflows**
+```cpp
+// Réplication détaillée des cashflows pour validation
+class inflassetswap_cashflow_replicator {
+public:
+    struct cashflow_details {
+        datetime payment_date;
+        datetime fixing_date;
+        double inflation_ratio;
+        double accrual_factor;
+        double discount_factor;
+        double cashflow_amount;
+        double present_value;
+        std::string leg_type; // "RECEIVE" ou "PAY"
+    };
+    
+    std::vector<cashflow_details> replicate_all_cashflows(
+        const InflAssetSwap& swap,
+        const market_data& market) {
+        
+        std::vector<cashflow_details> all_cashflows;
+        
+        // Réplication receive leg (inflation)
+        auto receive_cashflows = replicate_receive_leg(swap, market);
+        all_cashflows.insert(all_cashflows.end(), 
+                           receive_cashflows.begin(), receive_cashflows.end());
+        
+        // Réplication pay leg (libor + spread)
+        auto pay_cashflows = replicate_pay_leg(swap, market);
+        all_cashflows.insert(all_cashflows.end(),
+                           pay_cashflows.begin(), pay_cashflows.end());
+        
+        return all_cashflows;
+    }
+    
+private:
+    std::vector<cashflow_details> replicate_receive_leg(
+        const InflAssetSwap& swap,
+        const market_data& market) {
+        
+        std::vector<cashflow_details> cashflows;
+        auto inflation_curve = market.get_inflation_curve("USCPI");
+        auto discount_curve = market.get_discount_curve("USD");
+        
+        // Dates de paiement semi-annuelles
+        auto payment_dates = generate_semiannual_dates(
+            swap.get_effective_date(), swap.get_maturity_date());
+        
+        for (const auto& payment_date : payment_dates) {
+            if (payment_date <= market.valuation_date) continue;
+            
+            cashflow_details cf;
+            cf.payment_date = payment_date;
+            cf.fixing_date = get_inflation_fixing_date(payment_date);
+            cf.leg_type = "RECEIVE";
+            
+            // Calcul du ratio d'inflation
+            double base_cpi = inflation_curve->cpi(swap.get_effective_date(), tenor("2M"));
+            double final_cpi = inflation_curve->cpi(cf.fixing_date, tenor("2M"));
+            cf.inflation_ratio = final_cpi / base_cpi;
+            
+            // Facteur d'accroissement
+            cf.accrual_factor = calculate_accrual_factor_30_360(
+                get_previous_payment_date(payment_date), payment_date);
+            
+            // Facteur d'actualisation
+            cf.discount_factor = discount_curve->get_discount_factor(payment_date);
+            
+            // Montant du cashflow
+            cf.cashflow_amount = swap.get_notional() * cf.inflation_ratio;
+            
+            // Valeur présente
+            cf.present_value = cf.cashflow_amount * cf.discount_factor;
+            
+            cashflows.push_back(cf);
+        }
+        
+        return cashflows;
+    }
+};
+```
+
+##### **Validation de la Réplication**
+```cpp
+// Validation que la somme des cashflows répliqués égale le PV DBA
+void validate_cashflow_replication(const InflAssetSwap& swap,
+                                  const market_data& market) {
+    // PV calculé par DBA
+    double dba_pv = swap.calculate_pv(market);
+    
+    // PV par réplication de cashflows
+    inflassetswap_cashflow_replicator replicator;
+    auto cashflows = replicator.replicate_all_cashflows(swap, market);
+    
+    double replicated_pv = 0.0;
+    for (const auto& cf : cashflows) {
+        if (cf.leg_type == "RECEIVE") {
+            replicated_pv += cf.present_value;
+        } else {
+            replicated_pv -= cf.present_value;
+        }
+    }
+    
+    // Validation de la cohérence
+    double replication_error = std::abs(dba_pv - replicated_pv);
+    EXPECT_LT(replication_error, 1e-8); // Erreur < 1e-8
+    
+    std::cout << "DBA PV: " << dba_pv << std::endl;
+    std::cout << "Replicated PV: " << replicated_pv << std::endl;
+    std::cout << "Replication Error: " << replication_error << std::endl;
+}
+```
+
+#### **🔍 Stability Testing: USD Curve Shift**
+
+##### **Tests de Stabilité sous Chocs de Courbe USD**
+```cpp
+// Tests de stabilité sous chocs parallèles de la courbe USD
+class usd_curve_stability_tester {
+public:
+    struct stability_results {
+        std::vector<double> shock_levels;
+        std::vector<double> pv_values;
+        std::vector<double> usd_flat_deltas;
+        std::vector<double> uscpi_flat_deltas;
+        std::vector<double> usd_flat_gammas;
+        std::vector<double> uscpi_flat_gammas;
+    };
+    
+    stability_results test_usd_curve_stability(
+        const InflAssetSwap& swap,
+        const market_data& base_market) {
+        
+        stability_results results;
+        
+        // Niveaux de choc de -200bp à +200bp
+        for (int shock_bp = -200; shock_bp <= 200; shock_bp += 25) {
+            double shock = shock_bp * 1e-4; // Conversion en décimal
+            results.shock_levels.push_back(shock_bp);
+            
+            // Application du choc à la courbe USD
+            auto shocked_market = apply_usd_curve_shock(base_market, shock);
+            
+            // Calcul des métriques
+            double pv = swap.calculate_pv(shocked_market);
+            results.pv_values.push_back(pv);
+            
+            // Calcul des sensibilités
+            auto sensitivities = calculate_sensitivities(swap, shocked_market);
+            results.usd_flat_deltas.push_back(sensitivities.usd_flat_delta);
+            results.uscpi_flat_deltas.push_back(sensitivities.uscpi_flat_delta);
+            results.usd_flat_gammas.push_back(sensitivities.usd_flat_gamma);
+            results.uscpi_flat_gammas.push_back(sensitivities.uscpi_flat_gamma);
+        }
+        
+        // Validation de la stabilité
+        validate_stability_properties(results);
+        
+        return results;
+    }
+    
+private:
+    void validate_stability_properties(const stability_results& results) {
+        // Validation de la monotonie du PV par rapport aux chocs
+        for (size_t i = 1; i < results.pv_values.size(); ++i) {
+            // Le PV doit varier de manière continue
+            double pv_change = results.pv_values[i] - results.pv_values[i-1];
+            double shock_change = results.shock_levels[i] - results.shock_levels[i-1];
+            
+            // Pas de discontinuités majeures
+            double relative_change = std::abs(pv_change) / std::abs(results.pv_values[i-1]);
+            EXPECT_LT(relative_change, 0.1); // < 10% de changement par step
+        }
+        
+        // Validation de la stabilité des deltas
+        for (const auto& delta : results.usd_flat_deltas) {
+            EXPECT_TRUE(std::isfinite(delta));
+            EXPECT_LT(std::abs(delta), 1e6); // Limite raisonnable
+        }
+    }
+};
+```
+
+#### **🔍 Taylor Expansion Consistency Testing**
+
+##### **Tests de Cohérence d'Expansion de Taylor**
+```cpp
+// Validation de la cohérence des approximations de Taylor
+class taylor_consistency_tester {
+public:
+    void test_taylor_consistency(const InflAssetSwap& swap,
+                                const market_data& market) {
+        
+        // Calcul des sensibilités analytiques
+        auto base_sensitivities = calculate_sensitivities(swap, market);
+        double base_pv = swap.calculate_pv(market);
+        
+        // Test avec différentes tailles de choc
+        std::vector<double> shock_sizes = {0.1e-4, 0.5e-4, 1.0e-4, 2.0e-4, 5.0e-4};
+        
+        for (double shock : shock_sizes) {
+            // Choc de la courbe USD
+            auto shocked_market_usd = apply_usd_curve_shock(market, shock);
+            double pv_shocked_usd = swap.calculate_pv(shocked_market_usd);
+            
+            // Approximation Taylor premier ordre
+            double taylor_pv_usd = base_pv + base_sensitivities.usd_flat_delta * shock;
+            
+            // Erreur relative
+            double relative_error_usd = std::abs(pv_shocked_usd - taylor_pv_usd) / 
+                                       std::abs(base_pv);
+            
+            // La convergence doit s'améliorer avec des chocs plus petits
+            EXPECT_LT(relative_error_usd, tolerance_for_shock_size(shock));
+            
+            std::cout << "USD Shock: " << shock 
+                      << ", PV Shocked: " << pv_shocked_usd
+                      << ", Taylor PV: " << taylor_pv_usd
+                      << ", Relative Error: " << relative_error_usd << std::endl;
+            
+            // Test similaire pour la courbe d'inflation
+            auto shocked_market_infl = apply_inflation_curve_shock(market, shock);
+            double pv_shocked_infl = swap.calculate_pv(shocked_market_infl);
+            
+            double taylor_pv_infl = base_pv + base_sensitivities.uscpi_flat_delta * shock;
+            
+            double relative_error_infl = std::abs(pv_shocked_infl - taylor_pv_infl) / 
+                                        std::abs(base_pv);
+            
+            EXPECT_LT(relative_error_infl, tolerance_for_shock_size(shock));
+        }
+    }
+    
+private:
+    double tolerance_for_shock_size(double shock) const {
+        // Tolérance qui diminue avec la taille du choc
+        return std::min(0.01, shock * 100.0); // Max 1%, proportionnel au choc
+    }
+};
+```
+
+---
+
+## 🏛️ **4.2.2 CCAR Testing**
+
+### **Tests sous Scénarios CCAR 2023**
+
+#### **🔍 4.2.2.1 Scenario Curves**
+
+##### **Courbes de Scénarios CCAR**
+```cpp
+// Gestion des scénarios CCAR pour InflAssetSwap
+class ccar_scenario_manager {
+public:
+    enum class ccar_scenario_type {
+        BASELINE,
+        SEVERELY_ADVERSE,
+        ADVERSE
+    };
+    
+    struct ccar_scenario_data {
+        ccar_scenario_type scenario;
+        std::vector<market_data_snapshot> quarterly_snapshots; // 9 trimestres
+        std::string description;
+    };
+    
+    std::vector<ccar_scenario_data> load_ccar_2023_scenarios() {
+        std::vector<ccar_scenario_data> scenarios;
+        
+        // Scénario Baseline
+        ccar_scenario_data baseline;
+        baseline.scenario = ccar_scenario_type::BASELINE;
+        baseline.description = "CCAR 2023 Baseline Scenario";
+        baseline.quarterly_snapshots = load_baseline_quarterly_data();
+        scenarios.push_back(baseline);
+        
+        // Scénario Severely Adverse
+        ccar_scenario_data severely_adverse;
+        severely_adverse.scenario = ccar_scenario_type::SEVERELY_ADVERSE;
+        severely_adverse.description = "CCAR 2023 Severely Adverse Scenario";
+        severely_adverse.quarterly_snapshots = load_severely_adverse_quarterly_data();
+        scenarios.push_back(severely_adverse);
+        
+        // Scénario Adverse
+        ccar_scenario_data adverse;
+        adverse.scenario = ccar_scenario_type::ADVERSE;
+        adverse.description = "CCAR 2023 Adverse Scenario";
+        adverse.quarterly_snapshots = load_adverse_quarterly_data();
+        scenarios.push_back(adverse);
+        
+        return scenarios;
+    }
+    
+    void plot_scenario_curves(const std::vector<ccar_scenario_data>& scenarios) {
+        // Génération de graphiques comparatifs des courbes de scénarios
+        for (const auto& scenario : scenarios) {
+            for (int quarter = 1; quarter <= 9; ++quarter) {
+                const auto& market_data = scenario.quarterly_snapshots[quarter-1];
+                
+                // Extraction des taux zero USD
+                auto usd_curve = market_data.get_discount_curve("USD");
+                
+                std::vector<double> maturities = {0.25, 0.5, 1, 2, 3, 5, 7, 10, 15, 20, 30};
+                std::vector<double> zero_rates;
+                
+                for (double maturity : maturities) {
+                    datetime maturity_date = market_data.valuation_date + 
+                                           days(static_cast<int>(maturity * 365));
+                    double zero_rate = usd_curve->get_zero_rate(maturity_date);
+                    zero_rates.push_back(zero_rate);
+                }
+                
+                // Sauvegarde pour plotting
+                save_curve_data_for_plotting(scenario.description, quarter, 
+                                            maturities, zero_rates);
+            }
+        }
+    }
+};
+```
+
+#### **🔍 4.2.2.2 Stability Testing: USD Curve Shift**
+
+##### **Tests de Stabilité sous CCAR**
+```cpp
+// Tests de stabilité sous scénarios CCAR
+void test_ccar_stability(const InflAssetSwap& swap) {
+    ccar_scenario_manager manager;
+    auto scenarios = manager.load_ccar_2023_scenarios();
+    
+    for (const auto& scenario : scenarios) {
+        std::cout << "Testing scenario: " << scenario.description << std::endl;
+        
+        for (int quarter = 1; quarter <= 9; ++quarter) {
+            const auto& market_data = scenario.quarterly_snapshots[quarter-1];
+            
+            // Tests de stabilité avec chocs additionnels
+            for (int shock_bp = -100; shock_bp <= 100; shock_bp += 25) {
+                double shock = shock_bp * 1e-4;
+                
+                auto shocked_market = apply_usd_curve_shock(market_data, shock);
+                
+                // Calcul des métriques
+                double pv = swap.calculate_pv(shocked_market);
+                auto sensitivities = calculate_sensitivities(swap, shocked_market);
+                
+                // Validation de stabilité
+                EXPECT_TRUE(std::isfinite(pv));
+                EXPECT_TRUE(std::isfinite(sensitivities.usd_flat_delta));
+                EXPECT_TRUE(std::isfinite(sensitivities.usd_flat_gamma));
+                
+                // Documentation des résultats
+                document_ccar_stability_result(scenario.scenario, quarter, 
+                                             shock_bp, pv, sensitivities);
+            }
+        }
+    }
+}
+```
+
+---
+
+## 📊 **4.2.3 IRRBB Testing**
+
+### **Tests sous Framework IRRBB**
+
+#### **🔍 Scenario Curves et Stability Testing**
+```cpp
+// Tests IRRBB pour InflAssetSwap
+class irrbb_testing_framework {
+public:
+    void run_irrbb_tests(const InflAssetSwap& swap, const market_data& base_market) {
+        // Scénarios IRRBB standard
+        std::vector<irrbb_scenario> scenarios = {
+            create_parallel_up_scenario(200),      // +200bp parallèle
+            create_parallel_down_scenario(200),    // -200bp parallèle
+            create_steepener_scenario(),           // Steepener
+            create_flattener_scenario(),           // Flattener
+            create_short_rate_up_scenario(200),    // Short rates +200bp
+            create_short_rate_down_scenario(200)   // Short rates -200bp
+        };
+        
+        double base_eve = calculate_economic_value_equity(swap, base_market);
+        
+        for (const auto& scenario : scenarios) {
+            auto stressed_market = apply_irrbb_scenario(base_market, scenario);
+            double stressed_eve = calculate_economic_value_equity(swap, stressed_market);
+            
+            double delta_eve = stressed_eve - base_eve;
+            double eve_ratio = std::abs(delta_eve) / base_eve;
+            
+            // Validation contre limites réglementaires
+            validate_irrbb_limits(scenario.name, eve_ratio);
+            
+            // Tests de stabilité sous chocs additionnels
+            test_stability_under_irrbb_scenario(swap, stressed_market, scenario);
+        }
+    }
+};
+```
+
+---
+
+*Cette section fournit une documentation complète des tests de produit pour InflAssetSwap, intégrant les implémentations C++ de Our project avec des méthodologies de validation rigoureuses sous différents frameworks réglementaires.*

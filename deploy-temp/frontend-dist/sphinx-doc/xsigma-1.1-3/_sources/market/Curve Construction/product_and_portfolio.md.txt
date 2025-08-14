@@ -1,0 +1,290 @@
+# Product and Portfolio
+
+## Framework Overview
+
+The New Curve Framework (NCF) does not produce payoffs in the traditional sense, but rather generates a comprehensive set of curves that satisfy fundamental market requirements. The framework ensures that all output curves are:
+
+### Core Curve Properties
+
+- **Market-Accurate**: Curves are defined by the businesses that mark them - FX, Rates Flow, and Inflation trading desks. Market-making desks provide primary marks, while broker quotes (typically from Reuters feeds) are used when no market-maker exists. All curves undergo control function review through price testing against external curves built with broker quotes or consensus data (such as Totem).
+
+- **Comprehensive Coverage**: The framework contains all curves required to price and value all products within scope. When no liquid market data exists for specific tenors, curves may be derived from related instruments (e.g., copying the 6M curve for 12M usage when 12M quotes are unavailable). This approach enables clean downstream processing and allows risk to be displayed for instruments against these curves, while maintaining flexibility for future implementation when market data becomes available.
+
+**Forecast curves and discount curves**: We differentiate curves that are used for valuing cashflows (i.e., provide a discount factor at the payment date) from those that forecast a rate (e.g., a LIBOR curve) or an index (projected index-value). Thus, we may use an OIS curve in both ways.
+
+### Curve Engine
+
+We will use the term "curve engine" in this document. This refers to a single object that builds all the curves required. It will take in the inputs, perform the calibration/optimization, and return curve objects. It will also internally hold a Jacobian matrix.
+
+## Relationship to Other Approved Models/Payoffs
+
+The NCF serves as a foundational component for numerous other models and pricing frameworks within the organization. It provides the fundamental interest rate and inflation curves that are consumed by:
+
+- **Linear Interest Rate Products**: Swaps, FRAs, bonds, and other linear instruments
+- **Option Pricing Models**: Volatility surface models that require underlying curves
+- **Credit Models**: Models requiring risk-free discount curves
+- **FX Models**: Cross-currency and FX derivative pricing models
+- **Structured Products**: Complex derivatives requiring multiple curve dependencies
+
+## Inputs
+
+### AD or FD
+
+A parameter to govern whether the build of the engine, and hence production of the Jacobian matrix, is performed with AD (Algorithmic Differentiation) or FD (Finite Difference).
+
+Before describing the inputs, we will describe three types of curve query (discount factor, forward rate, index value) and three types of curve (discount factor, forward rate, inflation) as seen from the perspective of both internal implementation and external interface. Internally, there are just two representations - discount factors or forward rates.
+
+### Curve Queries
+
+First, we could describe the types of data that can be validly requested from a curve:
+
+#### Discount Factor
+
+At time $T_0$ (curve is built at the evaluation date, 'today', $T_0$), we can query the curve for a discount factor at time $t$:
+
+$$df_{T_0,t} \quad \forall \quad t \geq T_0$$
+
+#### Forward Rate
+
+We can query the curve for a forward rate (simple interest, no compounding) at time $t$:
+
+$$R_{T_0,t}^{\theta}, \quad \forall \quad t \geq T_0$$
+
+The tenor, or length of the forecast period, is $\theta$.
+
+$R_{T_0,t_1,t_2-t_1}$ would indicate the continuously compounded rate between $t_1$ and $t_2$.
+
+$R_{T_0,t_i}$ would indicate the continuously compounded rate at $t_i$.
+
+#### Index Value
+
+This would typically be CPI (inflation); other uses are for the projection of a property index.
+
+$$CPI_{T_0,t}, \quad \forall \quad t \geq t_{\text{index.start}}$$
+
+$t_{\text{index.start}}$ is the date of the first inflation index value.
+
+We may query for $t$ in the past (the curve will contain historic index values as well as a projection of future index values).
+
+### Notation
+
+Above, we have used a strict notation, $R_{T_0,t}^{x}$, $df_{T_0,t}$, and $CPI_{T_0,t}$, referencing the evaluation date, $T_0$. However, we will, below, drop the $T_0$ notation, since all curves are built at a single evaluation date, so in all notation, $T_0$ would be the same.
+
+### Curve Types - Internal Representation
+
+#### Discount Factor Curves
+
+This would be the traditional representation of a "Yield Curve".
+
+This type of curve is internally represented as discount factors. The curve itself is a table of dates and discount factors, at a set of node points $(t_i)$. i.e., $(t_i, df_i)$, $df_i = 1.0$. Intermediate discount factors, not on node dates, are interpolated.
+
+Only a discount factor is directly queried from the curve. To query a forward rate from the curve, a start date ($s$), end date ($e$), and day count fraction ($\tau_{s,e}$) are required.
+
+$$R_{s}^{\theta} = \frac{(\frac{df_{s}}{df_{e}} - 1)}{\tau_{s,e}}$$
+
+$$\theta \equiv e - s$$
+
+We query for any $\theta$ - any term/period.
+
+$$R_{s,e} = \frac{\log(\frac{df_{s}}{df_{e}})}{\tau_{s,e}}$$
+
+This type of curve can be used as a curve that represents the forecast of an index (e.g., 3M LIBOR) or for discounting.
+
+#### Forward Rate Curves
+
+These only validly return a forward rate of tenor $\theta$, $R_{s}^{\theta}$. This forward rate will be of a single tenor, e.g., $\theta$ is 3M (LIBOR). In this case, the curve is a table of dates and forward rates, at a set of node points $(t_i)$. The node points are connected using interpolation (one or more interpolators) in forward rate space.
+
+They are currently not used in end-of-day (EOD) valuation curves, only for intraday pricing.
+
+### Curve Types - External Usage (Taxonomy)
+
+#### Discount Curve
+
+This is a curve used to discount cashflows.
+
+A discount curve can only be a discount factor curve.
+
+#### Forecast Curve
+
+This is a curve used to project the forward rate of a single index (forecast curve).
+
+A forecast curve can be either a discount factor curve or forward rate curve.
+
+#### Inflation (Index) Curves
+
+These are internally represented as discount factors, but externally will only return index values.
+
+The curve will also contain the full published inflation (CPI) history.
+
+Typically, the node dates will only be set at the inflation day of month (inflation_day_of_month) for the index. E.g., JPY CPI has inflation_day_of_month = 10, so all node dates in the JPY CPI curve will be on the $10^{th}$. This is enforced for all node dates derived from instrument interpolation, except for Natural.
+
+$b$ is the base date for the Index (latest published CPI), so the discount factor representation of the curve will be used for index value queries where $t > b$, $df_{b} = 1.0$.
+
+Index values can be queried at any date $t$, $t \geq b$.
+
+$$CPI_{t} = \frac{df_{b}}{df_{t}} CPI_{b} = \frac{CPI_{b}}{df_{t}}$$
+
+If $t < b$, the inflation curve will return a value with flat interpolation, i.e., if $t_i \leq t < t_{i+1}$, $CPI_{t} = CPI_{t_{i}}$. $t_i, t_{i+1}$ are successive published CPIs and therefore fall on inflation_day_of_month.
+
+### Curve Query Summary Table
+
+We can represent this use of curve types and curve queries as a table:
+
+| Curve Type        | Discount Factor | Forward Rate | Index Value |
+| ----------------- | --------------- | ------------ | ----------- |
+| Discount Factor   | Y               | Y            |             |
+| Inflation (Index) |                 |              | Y           |
+| Forward Rate      |                 | Y            |             |
+
+### Price/Rate
+
+The calibration of the engine will be to fit the price $p$ of each instrument. For the majority of instruments, $p$ is the rate (swap, deposit, basis swap, ...), price (Future, bond), forward points (FX Forward).
+
+For the calibration, a penalty function is provided for each instrument for which an _equivalent rate_ will be used. Thus, a scaling factor may be required.
+
+- For a Future, the penalty will be scaled by -0.01.
+- For bonds, FX forwards, the scaling factor will be calculated. This is noted below.
+
+This scaling will also be used when shocking curves for risk, since any instrument shock is also of an equivalent rate.
+
+### Instruments
+
+It is important to note that instruments for curve construction are not necessarily trades; they are chosen for one of two purposes:
+
+- **Pricing**: Accurate curve calibration, generally to allow ease of use, and the correct level of control (enough granularity, as choice of spot or forward space).
+- **Risk**: A choice of how to view risk in terms of bucketing (e.g., the same buckets across several curves to allow a view in a "grid") and curve dependencies (e.g., choice of discounting, choice of a single (or multiple) curve(s) with outright instruments).
+
+Either of these purposes can lead to a situation where a curve calibration instrument is neither a potential trade nor even has financial meaning.
+
+**Examples:**
+
+- **Market Risk**: Consumer risk for V&R in the same buckets across all curves - 1D, 1W, 1M, 3M, ... if we have a 3M curve (forecast of 3m rate) that has instruments with no financial meaning and are untraded.
+- **Curve Calibration**: The 6M curve (e.g., EURIBOR 6M) may use 3m-tenor instruments at IMM intervals. This is to allow accurate marking of the curve (i.e., 6M has the same granularity as the 3M curve marked against, which has Futures on the IMM points), but is marked with instruments of the same tenor.
+
+The following instruments can be used as inputs to curve construction:
+
+#### Rates Instruments
+
+**Swap legs**: For greater detail on the formulae and calculation of all swap legs, and all swap types, please see "Linear Interest Rate Swaps" referenced below. MPV and DV01 calculations would be used.
+
+**Deposits**: Simple interest rate deposits with various tenors and conventions.
+
+**Futures**: Interest rate futures contracts, typically quarterly IMM dates.
+
+**FRAs (Forward Rate Agreements)**: Forward-starting deposits with specified start and end dates.
+
+**Basis Swaps**: Swaps between different floating rate indices (e.g., 3M vs 6M LIBOR).
+
+**OIS (Overnight Index Swaps)**: Swaps against overnight rates.
+
+**Cross-Currency Swaps**: Multi-currency instruments involving currency exchange and interest rate payments.
+
+#### FX Instruments
+
+**FX Forwards**: Forward foreign exchange contracts.
+
+**FX Swaps**: Combination of spot and forward FX transactions.
+
+**Cross-Currency Basis Swaps**: Currency swaps with basis spread adjustments.
+
+#### Inflation Instruments
+
+**Zero-Coupon Inflation Swaps**: Swaps against inflation index performance.
+
+**Year-on-Year Inflation Swaps**: Swaps against annual inflation rates.
+
+**Inflation Bonds**: Government bonds linked to inflation indices.
+
+### Outputs
+
+The primary outputs of the NCF are:
+
+#### Curve Objects
+
+**Discount Factor Curves**: Used for present value calculations and cashflow discounting.
+
+**Forward Rate Curves**: Used for projecting floating rate fixings and forward rate calculations.
+
+**Inflation Curves**: Used for projecting inflation index values and real rate calculations.
+
+#### Risk Metrics
+
+**Jacobian Matrix**: Analytical derivatives of curve values with respect to input market data.
+
+**Shocked Curves**: Curves rebuilt with perturbed market data for risk calculation.
+
+**Risk Sensitivities**: Delta, gamma, and other risk metrics derived from curve sensitivities.
+
+#### Quality Control Metrics
+
+**Repricing Accuracy**: Verification that input instruments reprice correctly from output curves.
+
+**Interpolation Adherence**: Confirmation that curves follow specified interpolation methods.
+
+**Optimization Convergence**: Monitoring of optimization algorithm performance and convergence.
+
+### Curve Dependencies
+
+The framework handles complex dependencies between curves:
+
+#### Single Currency Dependencies
+
+- **OIS Discounting**: Overnight index swap curves used for discounting
+- **LIBOR Forecasting**: Forward rate curves for various LIBOR tenors
+- **Basis Relationships**: Spread relationships between different rate indices
+
+#### Cross-Currency Dependencies
+
+- **USD Base Curves**: USD curves used as foundation for other currencies
+- **FX Forward Curves**: Currency-specific curves derived from FX forward markets
+- **Cross-Currency Basis**: Basis adjustments for multi-currency instruments
+
+#### Inflation Dependencies
+
+- **Real Rate Curves**: Inflation-adjusted interest rate curves
+- **Breakeven Curves**: Implied inflation expectations from bond markets
+- **Index Projections**: Forward-looking inflation index values
+
+### Configuration Parameters
+
+The framework accepts various configuration parameters:
+
+#### Optimization Settings
+
+- **Convergence Tolerance**: Accuracy requirements for optimization convergence
+- **Maximum Iterations**: Limits on optimization algorithm iterations
+- **Penalty Weights**: Relative importance of different calibration instruments
+
+#### Interpolation Settings
+
+- **Primary Interpolation**: Main interpolation method for curve construction
+- **Secondary Interpolation**: Alternative method for different curve regions
+- **Smoothing Parameters**: Controls for curve smoothness and stability
+
+#### Node Date Settings
+
+- **Automatic Node Placement**: Algorithm-driven optimal node positioning
+- **Manual Node Specification**: User-defined node dates for specific requirements
+- **Minimum Node Spacing**: Constraints on node date proximity
+
+### Performance Characteristics
+
+The framework is designed for high-performance production use:
+
+#### Speed Requirements
+
+- **Real-Time Pricing**: Sub-second curve construction for intraday pricing
+- **Batch Processing**: Efficient handling of large curve sets for EOD processing
+- **Risk Calculation**: Fast Jacobian computation for real-time risk metrics
+
+#### Memory Efficiency
+
+- **Optimized Data Structures**: Efficient storage of curve data and dependencies
+- **Sparse Matrix Handling**: Efficient Jacobian matrix storage and computation
+- **Memory Pooling**: Reuse of memory allocations for performance optimization
+
+#### Scalability
+
+- **Multi-Currency Support**: Simultaneous construction of curves across all currencies
+- **Large Instrument Sets**: Handling of thousands of calibration instruments
+- **Complex Dependencies**: Management of intricate cross-curve relationships

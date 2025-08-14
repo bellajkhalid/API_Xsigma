@@ -1,0 +1,373 @@
+# Model Monitoring – KPIs
+
+## Overview
+
+Cette section définit les indicateurs clés de performance (KPIs) pour le monitoring continu du modèle **FX LSV Markov Switching Monte Carlo** en environnement de production.
+
+## Key Performance Indicators (KPIs)
+
+### 1. Pricing Accuracy KPIs
+
+#### Monte Carlo Convergence Error
+- **Métrique** : Erreur de convergence Monte Carlo
+- **Formule** : $\text{Error} = \frac{\text{StdError}}{\sqrt{N}} \times 1.96$
+- **Seuil Warning** : 0.1%
+- **Seuil Critical** : 0.5%
+- **Fréquence** : Par pricing
+- **Action** : Augmenter le nombre de chemins si nécessaire
+
+#### Cross-Validation Error vs Reference Models
+- **Métrique** : Erreur relative vs pricers de référence
+- **Formule** : $\frac{|P_{LSVMS} - P_{Ref}|}{|P_{Ref}|}$
+- **Seuil Warning** : 0.2%
+- **Seuil Critical** : 1.0%
+- **Fréquence** : Échantillon quotidien
+- **Action** : Investiguer divergences et recalibrer si nécessaire
+
+#### Greeks Stability Index
+- **Métrique** : Stabilité des Greeks entre calculs successifs
+- **Formule** : $\text{CV} = \frac{\sigma(\text{Greeks})}{\mu(\text{Greeks})}$
+- **Seuil Warning** : 2%
+- **Seuil Critical** : 5%
+- **Fréquence** : Échantillon quotidien
+- **Action** : Vérifier stabilité numérique et paramètres MC
+
+### 2. Calibration Quality KPIs
+
+#### FX Volatility Surface RMSE
+- **Métrique** : RMSE entre volatilités de marché et modèle
+- **Formule** : $\sqrt{\frac{1}{N}\sum_{i=1}^N (\sigma_{market,i} - \sigma_{model,i})^2}$
+- **Seuil Warning** : 1%
+- **Seuil Critical** : 2%
+- **Fréquence** : Quotidienne
+- **Action** : Recalibration si seuil dépassé
+
+#### Maximum Calibration Error
+- **Métrique** : Erreur maximale sur tous les instruments FX
+- **Formule** : $\max_i |\sigma_{market,i} - \sigma_{model,i}|$
+- **Seuil Warning** : 3%
+- **Seuil Critical** : 5%
+- **Fréquence** : Quotidienne
+- **Action** : Investiguer instruments problématiques
+
+#### Calibration Convergence Time
+- **Métrique** : Temps de convergence de la calibration FX
+- **Seuil Warning** : 120 secondes
+- **Seuil Critical** : 300 secondes
+- **Fréquence** : Quotidienne
+- **Action** : Optimiser paramètres de calibration
+
+#### Markov State Stability
+- **Métrique** : Stabilité des paramètres d'états Markov
+- **Formule** : Variation quotidienne des taux de transition
+- **Seuil Warning** : 20% de variation
+- **Seuil Critical** : 50% de variation
+- **Fréquence** : Quotidienne
+- **Action** : Analyser changements de régime de marché
+
+### 3. Performance KPIs
+
+#### Average Pricing Time per Option
+- **Métrique** : Temps de pricing moyen par option FX
+- **Seuil Warning** : 200ms
+- **Seuil Critical** : 500ms
+- **Fréquence** : Continue
+- **Action** : Optimiser algorithmes ou infrastructure
+
+#### Portfolio Pricing Throughput
+- **Métrique** : Nombre d'options FX pricées par seconde
+- **Seuil Warning** : < 10 options/sec
+- **Seuil Critical** : < 5 options/sec
+- **Fréquence** : Continue
+- **Action** : Analyser goulots d'étranglement
+
+#### Memory Usage Efficiency
+- **Métrique** : Utilisation mémoire par chemin Monte Carlo
+- **Seuil Warning** : 500MB
+- **Seuil Critical** : 1GB
+- **Fréquence** : Continue
+- **Action** : Optimiser gestion mémoire
+
+#### Greeks Calculation Speed
+- **Métrique** : Temps de calcul des Greeks FX
+- **Seuil Warning** : 50ms par Greek
+- **Seuil Critical** : 100ms par Greek
+- **Fréquence** : Échantillon quotidien
+- **Action** : Optimiser calculs de sensibilités
+
+### 4. FX Market Data Quality KPIs
+
+#### FX Spot Rate Validation Score
+- **Métrique** : Score de validation des taux de change spot
+- **Formule** : Pourcentage de taux passant les contrôles de qualité
+- **Seuil Warning** : < 95%
+- **Seuil Critical** : < 90%
+- **Fréquence** : Continue
+- **Action** : Investiguer sources de données
+
+#### Volatility Surface Smoothness Index
+- **Métrique** : Indice de lissage de la surface de volatilité FX
+- **Formule** : Mesure de la régularité de la surface
+- **Seuil Warning** : < 0.8
+- **Seuil Critical** : < 0.6
+- **Fréquence** : Quotidienne
+- **Action** : Appliquer techniques de lissage
+
+#### Cross-Currency Arbitrage Violations
+- **Métrique** : Nombre de violations d'arbitrage triangulaire
+- **Seuil Warning** : > 0 violations
+- **Seuil Critical** : > 5 violations
+- **Fréquence** : Continue
+- **Action** : Corriger incohérences de données
+
+#### Interest Rate Curve Consistency
+- **Métrique** : Cohérence des courbes de taux multi-devises
+- **Seuil Warning** : Écart > 5bp vs marché
+- **Seuil Critical** : Écart > 10bp vs marché
+- **Fréquence** : Quotidienne
+- **Action** : Mettre à jour courbes de taux
+
+### 5. Risk Management KPIs
+
+#### Portfolio Delta Accuracy
+- **Métrique** : Précision du delta portfolio FX
+- **Formule** : Comparaison avec calculs de référence
+- **Seuil Warning** : Erreur > 2%
+- **Seuil Critical** : Erreur > 5%
+- **Fréquence** : Quotidienne
+- **Action** : Vérifier calculs d'agrégation
+
+#### VaR Model Performance
+- **Métrique** : Performance du modèle VaR FX
+- **Formule** : Taux de couverture vs réalisations
+- **Seuil Warning** : Couverture < 94% ou > 97%
+- **Seuil Critical** : Couverture < 90% ou > 99%
+- **Fréquence** : Mensuelle
+- **Action** : Recalibrer modèle de risque
+
+#### Stress Test Stability
+- **Métrique** : Stabilité sous scénarios de stress FX
+- **Seuil Warning** : Échec de convergence > 5%
+- **Seuil Critical** : Échec de convergence > 10%
+- **Fréquence** : Quotidienne
+- **Action** : Renforcer robustesse numérique
+
+#### Correlation Model Accuracy
+- **Métrique** : Précision du modèle de corrélations FX
+- **Formule** : RMSE vs corrélations réalisées
+- **Seuil Warning** : RMSE > 0.1
+- **Seuil Critical** : RMSE > 0.2
+- **Fréquence** : Hebdomadaire
+- **Action** : Recalibrer matrice de corrélations
+
+### 6. Operational KPIs
+
+#### Model Availability
+- **Métrique** : Disponibilité du système de pricing FX
+- **Seuil Warning** : < 99.5%
+- **Seuil Critical** : < 99%
+- **Fréquence** : Continue
+- **Action** : Investiguer causes d'indisponibilité
+
+#### Calibration Success Rate
+- **Métrique** : Taux de succès de calibration quotidienne
+- **Seuil Warning** : < 95%
+- **Seuil Critical** : < 90%
+- **Fréquence** : Quotidienne
+- **Action** : Analyser échecs de calibration
+
+#### Error Rate
+- **Métrique** : Taux d'erreur de pricing FX
+- **Seuil Warning** : > 0.1%
+- **Seuil Critical** : > 1%
+- **Fréquence** : Continue
+- **Action** : Investiguer causes d'erreurs
+
+#### Data Latency
+- **Métrique** : Latence des données de marché FX
+- **Seuil Warning** : > 100ms
+- **Seuil Critical** : > 500ms
+- **Fréquence** : Continue
+- **Action** : Optimiser flux de données
+
+## Monitoring Framework Implementation
+
+### Real-Time Dashboard
+
+```cpp
+// Dashboard de monitoring en temps réel
+class FXLSVMSMonitoringDashboard {
+public:
+    struct DashboardMetrics {
+        // Métriques de précision
+        double current_calibration_rmse;
+        double max_calibration_error;
+        double greeks_stability_index;
+        
+        // Métriques de performance
+        double avg_pricing_time_ms;
+        double portfolio_throughput;
+        double memory_usage_mb;
+        
+        // Métriques de qualité des données
+        double fx_data_quality_score;
+        int arbitrage_violations_count;
+        double vol_surface_smoothness;
+        
+        // Métriques opérationnelles
+        double system_availability;
+        double calibration_success_rate;
+        double error_rate;
+        
+        // Statut global
+        std::string overall_status; // "GREEN", "YELLOW", "RED"
+        std::vector<std::string> active_alerts;
+        std::time_t last_update;
+    };
+    
+    DashboardMetrics collect_current_metrics() {
+        DashboardMetrics metrics;
+        
+        // Collection des métriques en temps réel
+        metrics.current_calibration_rmse = get_latest_calibration_rmse();
+        metrics.max_calibration_error = get_max_calibration_error();
+        metrics.greeks_stability_index = calculate_greeks_stability();
+        
+        metrics.avg_pricing_time_ms = get_avg_pricing_time();
+        metrics.portfolio_throughput = get_portfolio_throughput();
+        metrics.memory_usage_mb = get_current_memory_usage();
+        
+        metrics.fx_data_quality_score = assess_fx_data_quality();
+        metrics.arbitrage_violations_count = count_arbitrage_violations();
+        metrics.vol_surface_smoothness = calculate_vol_surface_smoothness();
+        
+        metrics.system_availability = calculate_system_availability();
+        metrics.calibration_success_rate = get_calibration_success_rate();
+        metrics.error_rate = calculate_current_error_rate();
+        
+        // Détermination du statut global
+        metrics.overall_status = determine_overall_status(metrics);
+        metrics.active_alerts = get_active_alerts();
+        metrics.last_update = std::time(nullptr);
+        
+        return metrics;
+    }
+    
+    void generate_alerts(const DashboardMetrics& metrics) {
+        // Génération d'alertes basées sur les seuils
+        if (metrics.current_calibration_rmse > 0.02) {
+            send_critical_alert("Calibration RMSE exceeded critical threshold: " + 
+                               std::to_string(metrics.current_calibration_rmse));
+        } else if (metrics.current_calibration_rmse > 0.01) {
+            send_warning_alert("Calibration RMSE exceeded warning threshold: " + 
+                              std::to_string(metrics.current_calibration_rmse));
+        }
+        
+        if (metrics.avg_pricing_time_ms > 500) {
+            send_critical_alert("Pricing time exceeded critical threshold: " + 
+                               std::to_string(metrics.avg_pricing_time_ms) + "ms");
+        } else if (metrics.avg_pricing_time_ms > 200) {
+            send_warning_alert("Pricing time exceeded warning threshold: " + 
+                              std::to_string(metrics.avg_pricing_time_ms) + "ms");
+        }
+        
+        if (metrics.arbitrage_violations_count > 5) {
+            send_critical_alert("Multiple arbitrage violations detected: " + 
+                               std::to_string(metrics.arbitrage_violations_count));
+        } else if (metrics.arbitrage_violations_count > 0) {
+            send_warning_alert("Arbitrage violations detected: " + 
+                              std::to_string(metrics.arbitrage_violations_count));
+        }
+        
+        if (metrics.system_availability < 0.99) {
+            send_critical_alert("System availability below critical threshold: " + 
+                               std::to_string(metrics.system_availability * 100) + "%");
+        } else if (metrics.system_availability < 0.995) {
+            send_warning_alert("System availability below warning threshold: " + 
+                              std::to_string(metrics.system_availability * 100) + "%");
+        }
+    }
+    
+private:
+    double get_latest_calibration_rmse() { return 0.008; }
+    double get_max_calibration_error() { return 0.025; }
+    double calculate_greeks_stability() { return 0.015; }
+    double get_avg_pricing_time() { return 150.0; }
+    double get_portfolio_throughput() { return 12.5; }
+    double get_current_memory_usage() { return 320.0; }
+    double assess_fx_data_quality() { return 0.96; }
+    int count_arbitrage_violations() { return 0; }
+    double calculate_vol_surface_smoothness() { return 0.85; }
+    double calculate_system_availability() { return 0.998; }
+    double get_calibration_success_rate() { return 0.994; }
+    double calculate_current_error_rate() { return 0.0005; }
+    
+    std::string determine_overall_status(const DashboardMetrics& metrics) {
+        if (metrics.current_calibration_rmse > 0.02 || 
+            metrics.avg_pricing_time_ms > 500 ||
+            metrics.system_availability < 0.99) {
+            return "RED";
+        } else if (metrics.current_calibration_rmse > 0.01 || 
+                   metrics.avg_pricing_time_ms > 200 ||
+                   metrics.system_availability < 0.995) {
+            return "YELLOW";
+        } else {
+            return "GREEN";
+        }
+    }
+    
+    std::vector<std::string> get_active_alerts() {
+        return {}; // Placeholder
+    }
+    
+    void send_critical_alert(const std::string& message) {
+        // Envoi d'alerte critique
+    }
+    
+    void send_warning_alert(const std::string& message) {
+        // Envoi d'alerte d'avertissement
+    }
+};
+```
+
+### Automated Reporting
+
+#### Daily KPI Report
+- **Executive Summary** : Résumé pour management
+- **Technical Metrics** : Métriques détaillées pour équipes techniques
+- **Trend Analysis** : Analyse des tendances sur 30 jours
+- **Action Items** : Actions recommandées
+
+#### Weekly Performance Review
+- **Model Performance** : Performance globale du modèle
+- **Calibration Quality** : Qualité de calibration sur la semaine
+- **Operational Metrics** : Métriques opérationnelles
+- **Improvement Recommendations** : Recommandations d'amélioration
+
+#### Monthly Model Validation Report
+- **Accuracy Assessment** : Évaluation de la précision
+- **Performance Benchmarks** : Comparaison avec benchmarks
+- **Risk Metrics Validation** : Validation des métriques de risque
+- **Model Enhancement Roadmap** : Feuille de route d'amélioration
+
+### Alert Management System
+
+#### Alert Levels
+- **INFO** : Information générale
+- **WARNING** : Attention requise dans les 4 heures
+- **CRITICAL** : Action immédiate requise dans l'heure
+- **EMERGENCY** : Escalation automatique immédiate
+
+#### Notification Channels
+- **Email** : Notifications par email pour WARNING et CRITICAL
+- **SMS** : Alertes CRITICAL et EMERGENCY par SMS
+- **Dashboard** : Affichage temps réel de tous les niveaux
+- **API** : Intégration avec systèmes de monitoring externes
+
+#### Escalation Procedures
+- **Level 1** : Équipe de support FX (WARNING)
+- **Level 2** : Équipe quantitative FX (CRITICAL)
+- **Level 3** : Management et risk management (EMERGENCY)
+- **Emergency Response** : Procédures d'urgence activées
+
+Le système de monitoring FX LSV Markov Switching Monte Carlo dans Our project assure une surveillance complète et proactive de la qualité, performance et stabilité du modèle avec des KPIs précis, des alertes automatisées et des procédures d'escalation appropriées pour maintenir l'excellence opérationnelle en environnement FX.
