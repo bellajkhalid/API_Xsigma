@@ -5,6 +5,7 @@ import AnimatedBackground from "@/components/AnimatedBackground";
 import Navigation from "@/components/Navigation";
 import ThemeToggle from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
+import { authService, User } from "@/services/authService";
 import {
   User, Settings, Key, CreditCard, FileText, LogOut,
   Eye, EyeOff, Copy, Check, TrendingUp, Activity,
@@ -35,8 +36,10 @@ import {
 export default function Account() {
   const { isDark } = useTheme();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [loginForm, setLoginForm] = useState({ email: '', password: '' });
+  const [loginError, setLoginError] = useState('');
   const [showApiKeys, setShowApiKeys] = useState({});
   const [copiedKey, setCopiedKey] = useState('');
   const [realTimeData, setRealTimeData] = useState({
@@ -46,6 +49,26 @@ export default function Account() {
     latency: 23,
     errors: 12,
     activeConnections: 156
+  });
+
+  // User management states
+  const [allUsers, setAllUsers] = useState<User[]>([]);
+  const [showAddUser, setShowAddUser] = useState(false);
+  const [newUserForm, setNewUserForm] = useState({
+    username: '',
+    email: '',
+    password: '',
+    role: 'user' as 'admin' | 'user',
+    firstName: '',
+    lastName: '',
+    department: '',
+    phone: ''
+  });
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
   });
   const [notifications, setNotifications] = useState([
     { id: 1, type: 'warning', message: 'API rate limit approaching (85% used)', time: '2 min ago' },
@@ -120,6 +143,18 @@ export default function Account() {
     }
   ]);
 
+  // Check authentication on component mount
+  useEffect(() => {
+    if (authService.isAuthenticated()) {
+      const user = authService.getCurrentUser();
+      if (user) {
+        setIsLoggedIn(true);
+        setCurrentUser(user);
+        loadUsers();
+      }
+    }
+  }, []);
+
   // Real-time data simulation
   useEffect(() => {
     if (!isLoggedIn) return;
@@ -137,17 +172,117 @@ export default function Account() {
     return () => clearInterval(interval);
   }, [isLoggedIn]);
 
-  const handleLogin = (e: React.FormEvent) => {
+  // Load users (admin only)
+  const loadUsers = async () => {
+    try {
+      const users = authService.getAllUsers();
+      setAllUsers(users);
+    } catch (error) {
+      console.error('Failed to load users:', error);
+    }
+  };
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (loginForm.email && loginForm.password) {
+    setLoginError('');
+
+    const result = await authService.login(loginForm.email, loginForm.password);
+
+    if (result.success && result.user) {
       setIsLoggedIn(true);
+      setCurrentUser(result.user);
+      setLoginForm({ email: '', password: '' });
+      loadUsers();
+    } else {
+      setLoginError(result.error || 'Login failed');
     }
   };
 
   const handleLogout = () => {
+    authService.logout();
     setIsLoggedIn(false);
+    setCurrentUser(null);
+    setAllUsers([]);
     setLoginForm({ email: '', password: '' });
     setActiveTab('dashboard');
+  };
+
+  // Add new user
+  const handleAddUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const result = await authService.addUser({
+      username: newUserForm.username,
+      email: newUserForm.email,
+      role: newUserForm.role,
+      permissions: newUserForm.role === 'admin'
+        ? ['admin', 'billing', 'api', 'analytics', 'user_management', 'system_settings']
+        : ['api', 'analytics'],
+      isActive: true,
+      profile: {
+        firstName: newUserForm.firstName,
+        lastName: newUserForm.lastName,
+        department: newUserForm.department,
+        phone: newUserForm.phone
+      },
+      password: newUserForm.password
+    });
+
+    if (result.success) {
+      setShowAddUser(false);
+      setNewUserForm({
+        username: '',
+        email: '',
+        password: '',
+        role: 'user',
+        firstName: '',
+        lastName: '',
+        department: '',
+        phone: ''
+      });
+      loadUsers();
+    } else {
+      alert(result.error);
+    }
+  };
+
+  // Delete user
+  const handleDeleteUser = async (userId: string) => {
+    if (confirm('Are you sure you want to delete this user?')) {
+      const result = authService.deleteUser(userId);
+      if (result.success) {
+        loadUsers();
+      } else {
+        alert(result.error);
+      }
+    }
+  };
+
+  // Change password
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      alert('New passwords do not match');
+      return;
+    }
+
+    const result = await authService.changePassword(
+      passwordForm.currentPassword,
+      passwordForm.newPassword
+    );
+
+    if (result.success) {
+      setShowChangePassword(false);
+      setPasswordForm({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+      });
+      alert('Password changed successfully');
+    } else {
+      alert(result.error);
+    }
   };
 
   const copyToClipboard = (text: string, keyId: string) => {
@@ -163,6 +298,9 @@ export default function Account() {
   const tabs = [
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3, badge: null },
     { id: 'profile', label: 'Profile', icon: User, badge: null },
+    ...(currentUser?.role === 'admin' ? [
+      { id: 'users', label: 'User Management', icon: UserPlus, badge: allUsers.length.toString() }
+    ] : []),
     { id: 'api', label: 'API Keys', icon: Key, badge: '3' },
     { id: 'webhooks', label: 'Webhooks', icon: Webhook, badge: webhooks.length.toString() },
     { id: 'team', label: 'Team', icon: Users, badge: teamMembers.filter(m => m.status === 'pending').length.toString() || null },
@@ -211,6 +349,12 @@ export default function Account() {
                   </div>
 
                   <form onSubmit={handleLogin} className="space-y-6">
+                    {loginError && (
+                      <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
+                        {loginError}
+                      </div>
+                    )}
+
                     <div>
                       <label className="block text-sm font-medium mb-2">Email Address</label>
                       <input
@@ -219,7 +363,7 @@ export default function Account() {
                         value={loginForm.email}
                         onChange={(e) => setLoginForm({ ...loginForm, email: e.target.value })}
                         className={`w-full px-4 py-3 rounded-lg border ${isDark ? 'bg-gray-900 border-gray-700 focus:border-blue-500' : 'bg-white border-gray-300 focus:border-blue-500'} focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all`}
-                        placeholder="john@company.com"
+                        placeholder="Toufik.Bellaj@xsigma.co.uk"
                       />
                     </div>
                     <div>
@@ -232,6 +376,16 @@ export default function Account() {
                         className={`w-full px-4 py-3 rounded-lg border ${isDark ? 'bg-gray-900 border-gray-700 focus:border-blue-500' : 'bg-white border-gray-300 focus:border-blue-500'} focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all`}
                         placeholder="••••••••"
                       />
+                    </div>
+
+                    {/* Admin Account Credentials Info */}
+                    <div className={`p-4 rounded-lg ${isDark ? 'bg-blue-900/20 border-blue-800' : 'bg-blue-50 border-blue-200'} border`}>
+                      <h4 className="text-sm font-medium mb-2 text-blue-600">Demo Admin Accounts:</h4>
+                      <div className="text-xs space-y-1 text-blue-600">
+                        <div>• Toufik.Bellaj@xsigma.co.uk / Toufik@xsigm@1*</div>
+                        <div>• Hicham.Nait-Yahia@xsigma.co.uk / Hicham@xsigma2*</div>
+                        <div>• Khalid.Bellaj@xsigma.co.uk / Khalid@xsigm@3*</div>
+                      </div>
                     </div>
 
                     <div className="flex items-center justify-between">
@@ -274,11 +428,19 @@ export default function Account() {
                     <div className={`p-6 rounded-xl border ${isDark ? 'bg-black border-gray-700' : 'bg-white border-gray-200'} shadow-lg`}>
                       <div className="flex items-center gap-4 mb-4">
                         <div className={`w-12 h-12 rounded-full ${isDark ? 'bg-blue-900' : 'bg-blue-100'} flex items-center justify-center`}>
-                          <User className={`w-6 h-6 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
+                          {currentUser?.role === 'admin' ? (
+                            <Crown className={`w-6 h-6 ${isDark ? 'text-yellow-400' : 'text-yellow-600'}`} />
+                          ) : (
+                            <User className={`w-6 h-6 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
+                          )}
                         </div>
                         <div>
-                          <div className="font-medium">John Doe</div>
-                          <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Developer Pro</div>
+                          <div className="font-medium">
+                            {currentUser?.profile.firstName} {currentUser?.profile.lastName}
+                          </div>
+                          <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                            {currentUser?.role === 'admin' ? 'Administrator' : 'Developer Pro'} • {currentUser?.profile.department}
+                          </div>
                         </div>
                       </div>
                       <div className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-500'} mb-2`}>Account Status</div>
@@ -520,6 +682,229 @@ export default function Account() {
                               </div>
                             </div>
                           </div>
+                        </motion.div>
+                      )}
+
+                      {/* User Management Tab (Admin Only) */}
+                      {activeTab === 'users' && currentUser?.role === 'admin' && (
+                        <motion.div
+                          key="users"
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -20 }}
+                          className="space-y-6"
+                        >
+                          {/* Header with Add User Button */}
+                          <div className={`p-6 rounded-xl border ${isDark ? 'bg-black border-gray-700' : 'bg-white border-gray-200'} shadow-lg`}>
+                            <div className="flex items-center justify-between mb-6">
+                              <div>
+                                <h3 className="text-xl font-medium flex items-center gap-2">
+                                  <UserPlus className="w-5 h-5" />
+                                  User Management
+                                </h3>
+                                <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'} mt-1`}>
+                                  Manage user accounts and permissions
+                                </p>
+                              </div>
+                              <Button
+                                onClick={() => setShowAddUser(true)}
+                                className={`${isDark ? 'bg-white text-black hover:bg-gray-100' : 'bg-black text-white hover:bg-gray-800'} rounded-lg px-4`}
+                              >
+                                <Plus className="w-4 h-4 mr-2" />
+                                Add User
+                              </Button>
+                            </div>
+
+                            {/* Users Table */}
+                            <div className="overflow-x-auto">
+                              <table className="w-full">
+                                <thead>
+                                  <tr className={`border-b ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
+                                    <th className="text-left py-3 px-4 font-medium">User</th>
+                                    <th className="text-left py-3 px-4 font-medium">Role</th>
+                                    <th className="text-left py-3 px-4 font-medium">Department</th>
+                                    <th className="text-left py-3 px-4 font-medium">Status</th>
+                                    <th className="text-left py-3 px-4 font-medium">Last Login</th>
+                                    <th className="text-left py-3 px-4 font-medium">Actions</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {allUsers.map((user) => (
+                                    <tr key={user.id} className={`border-b ${isDark ? 'border-gray-800' : 'border-gray-100'}`}>
+                                      <td className="py-4 px-4">
+                                        <div className="flex items-center gap-3">
+                                          <div className={`w-8 h-8 rounded-full ${isDark ? 'bg-blue-900' : 'bg-blue-100'} flex items-center justify-center`}>
+                                            {user.role === 'admin' ? (
+                                              <Crown className={`w-4 h-4 ${isDark ? 'text-yellow-400' : 'text-yellow-600'}`} />
+                                            ) : (
+                                              <User className={`w-4 h-4 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
+                                            )}
+                                          </div>
+                                          <div>
+                                            <div className="font-medium">
+                                              {user.profile.firstName} {user.profile.lastName}
+                                            </div>
+                                            <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                                              {user.email}
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </td>
+                                      <td className="py-4 px-4">
+                                        <span className={`px-2 py-1 rounded-full text-xs ${
+                                          user.role === 'admin'
+                                            ? isDark ? 'bg-yellow-900 text-yellow-300' : 'bg-yellow-100 text-yellow-600'
+                                            : isDark ? 'bg-blue-900 text-blue-300' : 'bg-blue-100 text-blue-600'
+                                        }`}>
+                                          {user.role === 'admin' ? 'Administrator' : 'User'}
+                                        </span>
+                                      </td>
+                                      <td className="py-4 px-4">
+                                        <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                                          {user.profile.department || 'N/A'}
+                                        </span>
+                                      </td>
+                                      <td className="py-4 px-4">
+                                        <div className="flex items-center gap-2">
+                                          <div className={`w-2 h-2 rounded-full ${user.isActive ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                                          <span className={`text-sm ${user.isActive ? 'text-green-600' : 'text-red-600'}`}>
+                                            {user.isActive ? 'Active' : 'Inactive'}
+                                          </span>
+                                        </div>
+                                      </td>
+                                      <td className="py-4 px-4">
+                                        <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                                          {user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : 'Never'}
+                                        </span>
+                                      </td>
+                                      <td className="py-4 px-4">
+                                        <div className="flex items-center gap-2">
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="p-2"
+                                          >
+                                            <Edit3 className="w-4 h-4" />
+                                          </Button>
+                                          {user.id !== currentUser?.id && (
+                                            <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              className="p-2 text-red-600 hover:text-red-700"
+                                              onClick={() => handleDeleteUser(user.id)}
+                                            >
+                                              <Trash2 className="w-4 h-4" />
+                                            </Button>
+                                          )}
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+
+                          {/* Add User Modal */}
+                          {showAddUser && (
+                            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                              <motion.div
+                                initial={{ opacity: 0, scale: 0.95 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                className={`max-w-md w-full mx-4 p-6 rounded-xl border ${isDark ? 'bg-black border-gray-700' : 'bg-white border-gray-200'} shadow-2xl`}
+                              >
+                                <h3 className="text-lg font-medium mb-4">Add New User</h3>
+                                <form onSubmit={handleAddUser} className="space-y-4">
+                                  <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                      <label className="block text-sm font-medium mb-1">First Name</label>
+                                      <input
+                                        required
+                                        value={newUserForm.firstName}
+                                        onChange={(e) => setNewUserForm({ ...newUserForm, firstName: e.target.value })}
+                                        className={`w-full px-3 py-2 rounded-lg border ${isDark ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-300'} focus:outline-none focus:ring-2 focus:ring-blue-500/20`}
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="block text-sm font-medium mb-1">Last Name</label>
+                                      <input
+                                        required
+                                        value={newUserForm.lastName}
+                                        onChange={(e) => setNewUserForm({ ...newUserForm, lastName: e.target.value })}
+                                        className={`w-full px-3 py-2 rounded-lg border ${isDark ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-300'} focus:outline-none focus:ring-2 focus:ring-blue-500/20`}
+                                      />
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-medium mb-1">Username</label>
+                                    <input
+                                      required
+                                      value={newUserForm.username}
+                                      onChange={(e) => setNewUserForm({ ...newUserForm, username: e.target.value })}
+                                      className={`w-full px-3 py-2 rounded-lg border ${isDark ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-300'} focus:outline-none focus:ring-2 focus:ring-blue-500/20`}
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-medium mb-1">Email</label>
+                                    <input
+                                      type="email"
+                                      required
+                                      value={newUserForm.email}
+                                      onChange={(e) => setNewUserForm({ ...newUserForm, email: e.target.value })}
+                                      className={`w-full px-3 py-2 rounded-lg border ${isDark ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-300'} focus:outline-none focus:ring-2 focus:ring-blue-500/20`}
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-medium mb-1">Password</label>
+                                    <input
+                                      type="password"
+                                      required
+                                      value={newUserForm.password}
+                                      onChange={(e) => setNewUserForm({ ...newUserForm, password: e.target.value })}
+                                      className={`w-full px-3 py-2 rounded-lg border ${isDark ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-300'} focus:outline-none focus:ring-2 focus:ring-blue-500/20`}
+                                    />
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                      <label className="block text-sm font-medium mb-1">Role</label>
+                                      <select
+                                        value={newUserForm.role}
+                                        onChange={(e) => setNewUserForm({ ...newUserForm, role: e.target.value as 'admin' | 'user' })}
+                                        className={`w-full px-3 py-2 rounded-lg border ${isDark ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-300'} focus:outline-none focus:ring-2 focus:ring-blue-500/20`}
+                                      >
+                                        <option value="user">User</option>
+                                        <option value="admin">Administrator</option>
+                                      </select>
+                                    </div>
+                                    <div>
+                                      <label className="block text-sm font-medium mb-1">Department</label>
+                                      <input
+                                        value={newUserForm.department}
+                                        onChange={(e) => setNewUserForm({ ...newUserForm, department: e.target.value })}
+                                        className={`w-full px-3 py-2 rounded-lg border ${isDark ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-300'} focus:outline-none focus:ring-2 focus:ring-blue-500/20`}
+                                      />
+                                    </div>
+                                  </div>
+                                  <div className="flex gap-3 pt-4">
+                                    <Button
+                                      type="submit"
+                                      className={`flex-1 ${isDark ? 'bg-white text-black hover:bg-gray-100' : 'bg-black text-white hover:bg-gray-800'} rounded-lg`}
+                                    >
+                                      Add User
+                                    </Button>
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      onClick={() => setShowAddUser(false)}
+                                      className="flex-1 rounded-lg"
+                                    >
+                                      Cancel
+                                    </Button>
+                                  </div>
+                                </form>
+                              </motion.div>
+                            </div>
+                          )}
                         </motion.div>
                       )}
 
@@ -1375,6 +1760,23 @@ export default function Account() {
                           <h3 className="text-xl font-medium mb-6">Security Settings</h3>
 
                           <div className="space-y-6">
+                            {/* Change Password */}
+                            <div className={`p-4 rounded-lg ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <div className="font-medium mb-1">Password</div>
+                                  <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Update your account password</div>
+                                </div>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setShowChangePassword(true)}
+                                >
+                                  Change Password
+                                </Button>
+                              </div>
+                            </div>
+
                             {/* Two-Factor Authentication */}
                             <div className={`p-4 rounded-lg ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
                               <div className="flex items-center justify-between">
@@ -1591,6 +1993,67 @@ export default function Account() {
           </div>
         </div>
       </section>
+
+      {/* Change Password Modal */}
+      {showChangePassword && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className={`max-w-md w-full mx-4 p-6 rounded-xl border ${isDark ? 'bg-black border-gray-700' : 'bg-white border-gray-200'} shadow-2xl`}
+          >
+            <h3 className="text-lg font-medium mb-4">Change Password</h3>
+            <form onSubmit={handleChangePassword} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Current Password</label>
+                <input
+                  type="password"
+                  required
+                  value={passwordForm.currentPassword}
+                  onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
+                  className={`w-full px-3 py-2 rounded-lg border ${isDark ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-300'} focus:outline-none focus:ring-2 focus:ring-blue-500/20`}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">New Password</label>
+                <input
+                  type="password"
+                  required
+                  value={passwordForm.newPassword}
+                  onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                  className={`w-full px-3 py-2 rounded-lg border ${isDark ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-300'} focus:outline-none focus:ring-2 focus:ring-blue-500/20`}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Confirm New Password</label>
+                <input
+                  type="password"
+                  required
+                  value={passwordForm.confirmPassword}
+                  onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+                  className={`w-full px-3 py-2 rounded-lg border ${isDark ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-300'} focus:outline-none focus:ring-2 focus:ring-blue-500/20`}
+                />
+              </div>
+              <div className="flex gap-3 pt-4">
+                <Button
+                  type="submit"
+                  className={`flex-1 ${isDark ? 'bg-white text-black hover:bg-gray-100' : 'bg-black text-white hover:bg-gray-800'} rounded-lg`}
+                >
+                  Change Password
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowChangePassword(false)}
+                  className="flex-1 rounded-lg"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }
