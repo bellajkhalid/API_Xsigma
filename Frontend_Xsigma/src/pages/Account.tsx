@@ -363,7 +363,7 @@ export default function Account() {
                         value={loginForm.email}
                         onChange={(e) => setLoginForm({ ...loginForm, email: e.target.value })}
                         className={`w-full px-4 py-3 rounded-lg border ${isDark ? 'bg-gray-900 border-gray-700 focus:border-blue-500' : 'bg-white border-gray-300 focus:border-blue-500'} focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all`}
-                        placeholder="Toufik.Bellaj@xsigma.co.uk"
+                        placeholder="your.email@xsigma.co.uk"
                       />
                     </div>
                     <div>
@@ -378,15 +378,7 @@ export default function Account() {
                       />
                     </div>
 
-                    {/* Admin Account Credentials Info */}
-                    <div className={`p-4 rounded-lg ${isDark ? 'bg-blue-900/20 border-blue-800' : 'bg-blue-50 border-blue-200'} border`}>
-                      <h4 className="text-sm font-medium mb-2 text-blue-600">Demo Admin Accounts:</h4>
-                      <div className="text-xs space-y-1 text-blue-600">
-                        <div>• Toufik.Bellaj@xsigma.co.uk / Toufik@xsigm@1*</div>
-                        <div>• Hicham.Nait-Yahia@xsigma.co.uk / Hicham@xsigma2*</div>
-                        <div>• Khalid.Bellaj@xsigma.co.uk / Khalid@xsigm@3*</div>
-                      </div>
-                    </div>
+
 
                     <div className="flex items-center justify-between">
                       <label className="flex items-center">
