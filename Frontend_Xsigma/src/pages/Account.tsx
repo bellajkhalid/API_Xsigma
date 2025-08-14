@@ -7,7 +7,7 @@ import ThemeToggle from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { authService, User } from "@/services/authService";
 import {
-  User, Settings, Key, CreditCard, FileText, LogOut,
+  Settings, Key, CreditCard, FileText, LogOut,
   Eye, EyeOff, Copy, Check, TrendingUp, Activity,
   AlertTriangle, Shield, Zap, Globe, Clock, Download,
   BarChart3, PieChart, LineChart, RefreshCw, Bell,

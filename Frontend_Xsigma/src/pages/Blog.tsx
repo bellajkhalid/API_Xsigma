@@ -6,6 +6,8 @@ import ThemeToggle from "@/components/ThemeToggle";
 import AnimatedBackground from "@/components/AnimatedBackground";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import BlogPost from "@/components/BlogPost";
 
 interface BlogPost {
   id: string;
@@ -22,10 +24,97 @@ interface BlogPost {
 
 const Blog = () => {
   const { isDark } = useTheme();
+  const { postId } = useParams();
+  const navigate = useNavigate();
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
 
   // XSigma Research Articles
   const blogPosts: BlogPost[] = [
+    {
+      id: "coherent-market-simulations",
+      title: "Coherent Global Market Simulations and Securitization Measures for Counterparty Credit Risk",
+      excerpt: "Exploring advanced methodologies for coherent market simulations and securitization measures in counterparty credit risk management. This comprehensive analysis demonstrates how XSigma's quantitative solutions address the complex challenges of global market modeling and credit risk assessment in modern financial markets.",
+      content: `
+        <article>
+          <h2>Introduction</h2>
+          <p>In the evolving landscape of quantitative finance, the accurate modeling of counterparty credit risk remains one of the most critical challenges facing financial institutions. The research paper "Coherent global market simulations and securitization measures for counterparty credit risk" provides groundbreaking insights into advanced methodologies that directly align with XSigma's mission to deliver cutting-edge quantitative solutions.</p>
+
+          <h2>The Challenge of Counterparty Credit Risk</h2>
+          <p>Counterparty credit risk represents the potential loss arising from a counterparty's failure to meet its contractual obligations. In today's interconnected financial markets, this risk is amplified by:</p>
+          <ul>
+            <li><strong>Complex derivative portfolios</strong> with multiple counterparties</li>
+            <li><strong>Market volatility</strong> affecting collateral values</li>
+            <li><strong>Regulatory requirements</strong> demanding sophisticated risk measurement</li>
+            <li><strong>Systemic risk considerations</strong> in global financial networks</li>
+          </ul>
+
+          <h2>Coherent Market Simulations: A Game-Changer</h2>
+          <p>The research emphasizes the importance of coherent market simulations that maintain mathematical consistency across different market scenarios. This approach ensures that:</p>
+          <ul>
+            <li><strong>Risk measures are additive</strong> across portfolios and business units</li>
+            <li><strong>Scenario generation</strong> reflects realistic market dynamics</li>
+            <li><strong>Correlation structures</strong> are preserved under stress conditions</li>
+            <li><strong>Regulatory capital calculations</strong> remain robust and defensible</li>
+          </ul>
+
+          <h2>XSigma's Implementation of Advanced Risk Models</h2>
+          <p>XSigma's quantitative platform incorporates these advanced concepts through our comprehensive API offerings:</p>
+
+          <h3>1. Analytical Sigma API</h3>
+          <p>Our flagship API provides coherent risk factor modeling that ensures consistency across different market scenarios, directly implementing the principles outlined in the research.</p>
+
+          <h3>2. FX Volatility Models</h3>
+          <p>Advanced foreign exchange volatility modeling that captures the complex dynamics essential for accurate counterparty credit risk assessment in multi-currency portfolios.</p>
+
+          <h3>3. Hartman-Watson Distribution</h3>
+          <p>Sophisticated probability distributions that enable accurate modeling of extreme market events, crucial for stress testing and scenario analysis in counterparty risk frameworks.</p>
+
+          <h3>4. ZABR Variables</h3>
+          <p>Extended SABR model implementations that provide the flexibility needed for coherent market simulations across different asset classes and market conditions.</p>
+
+          <h2>Securitization Measures and Modern Risk Management</h2>
+          <p>The research's focus on securitization measures is particularly relevant in today's market environment. XSigma's platform addresses these challenges by providing:</p>
+          <ul>
+            <li><strong>Real-time risk calculation</strong> for complex securitized products</li>
+            <li><strong>Stress testing capabilities</strong> that maintain model coherence</li>
+            <li><strong>Regulatory compliance tools</strong> for Basel III and IFRS 9 requirements</li>
+            <li><strong>Portfolio optimization</strong> considering counterparty credit risk</li>
+          </ul>
+
+          <h2>Practical Applications in Financial Institutions</h2>
+          <p>Financial institutions can leverage these advanced methodologies through XSigma's platform to:</p>
+          <ul>
+            <li><strong>Enhance risk measurement accuracy</strong> across trading portfolios</li>
+            <li><strong>Optimize capital allocation</strong> based on coherent risk metrics</li>
+            <li><strong>Improve regulatory reporting</strong> with robust, defensible models</li>
+            <li><strong>Strengthen counterparty risk management</strong> through advanced analytics</li>
+          </ul>
+
+          <h2>Future Developments and Research</h2>
+          <p>XSigma continues to advance the state-of-the-art in quantitative finance by:</p>
+          <ul>
+            <li>Developing next-generation coherent simulation frameworks</li>
+            <li>Enhancing machine learning applications in risk modeling</li>
+            <li>Expanding API capabilities for emerging market structures</li>
+            <li>Collaborating with academic institutions on cutting-edge research</li>
+          </ul>
+
+          <h2>Conclusion</h2>
+          <p>The research on coherent global market simulations and securitization measures represents a significant advancement in counterparty credit risk management. XSigma's platform embodies these principles, providing financial institutions with the tools needed to navigate today's complex risk landscape effectively.</p>
+
+          <p>By combining rigorous academic research with practical implementation, XSigma continues to bridge the gap between theoretical advances and real-world applications in quantitative finance.</p>
+
+          <h2>References</h2>
+          <p><a href="https://www.researchgate.net/publication/227624010_Coherent_global_market_simulations_and_securitization_measures_for_counterparty_credit_risk" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-700 underline">Coherent global market simulations and securitization measures for counterparty credit risk - ResearchGate</a></p>
+        </article>
+      `,
+      author: "XSigma Research Team",
+      date: "2024-08-14",
+      readTime: "12 min read",
+      category: "Credit Risk Management",
+      tags: ["Counterparty Risk", "Market Simulations", "Securitization", "Credit Risk", "Quantitative Finance", "Risk Management"],
+      featured: true
+    },
     {
       id: "1",
       title: "Closed-Form Asymptotic Method for Swaptions and CMS Spread Options Pricing",
@@ -76,13 +165,32 @@ const Blog = () => {
     }
   ];
 
-  const categories = ["All", "Interest Rate Models", "Model Risk Management", "Computational Finance", "Platform Research"];
+  const categories = ["All", "Credit Risk Management", "Interest Rate Models", "Model Risk Management", "Computational Finance", "Platform Research"];
 
   const filteredPosts = selectedCategory === "All" 
     ? blogPosts 
     : blogPosts.filter(post => post.category === selectedCategory);
 
   const featuredPosts = blogPosts.filter(post => post.featured);
+
+  // Handle individual blog post view
+  if (postId) {
+    const post = blogPosts.find(p => p.id === postId);
+    if (post) {
+      return <BlogPost post={post} />;
+    }
+    // If post not found, redirect to blog home
+    navigate('/blog');
+    return null;
+  }
+
+  const handlePostClick = (post: BlogPost) => {
+    if (post.content.startsWith('http')) {
+      window.open(post.content, '_blank');
+    } else {
+      navigate(`/blog/${post.id}`);
+    }
+  };
 
   return (
     <div className={`min-h-screen ${isDark ? 'bg-black text-white' : 'bg-white text-black'} transition-colors duration-300`}>
@@ -170,11 +278,7 @@ const Blog = () => {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => {
-                          if (post.content.startsWith('http')) {
-                            window.open(post.content, '_blank');
-                          }
-                        }}
+                        onClick={() => handlePostClick(post)}
                         className={`${isDark ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-700'} p-0 h-auto group-hover:translate-x-1 transition-transform cursor-pointer`}
                       >
                         {post.content.startsWith('http') ? 'Read Paper' : 'Read More'} <ArrowRight className="w-4 h-4 ml-1" />
@@ -281,11 +385,7 @@ const Blog = () => {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => {
-                            if (post.content.startsWith('http')) {
-                              window.open(post.content, '_blank');
-                            }
-                          }}
+                          onClick={() => handlePostClick(post)}
                           className={`${isDark ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-700'} p-0 h-auto group-hover:translate-x-1 transition-transform cursor-pointer`}
                         >
                           {post.content.startsWith('http') ? 'Read Paper' : 'Read More'} <ArrowRight className="w-4 h-4 ml-1" />

@@ -33,6 +33,7 @@ const App = () => (
               <Route path="/" element={<Index />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/blog" element={<Blog />} />
+              <Route path="/blog/:postId" element={<Blog />} />
               {/* Solution placeholder routes */}
               <Route path="/solutions/data" element={<Data />} />
               <Route path="/solutions/analytics" element={<Analytics />} />
