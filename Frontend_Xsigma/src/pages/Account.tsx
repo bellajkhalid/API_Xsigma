@@ -5,8 +5,7 @@ import AnimatedBackground from "@/components/AnimatedBackground";
 import Navigation from "@/components/Navigation";
 import ThemeToggle from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
-import { authService } from "@/services/authService";
-import type { User } from "@/types/auth";
+import { authService, type User } from "@/services/authService";
 import {
   Settings, Key, CreditCard, FileText, LogOut,
   Eye, EyeOff, Copy, Check, TrendingUp, Activity,

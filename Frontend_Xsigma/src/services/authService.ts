@@ -296,3 +296,6 @@ class AuthService {
 // Export singleton instance
 export const authService = new AuthService();
 export default authService;
+
+// Re-export types for convenience
+export type { User, AuthResult, LoginCredentials, CreateUserData } from '@/types/auth';
