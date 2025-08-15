@@ -12,10 +12,41 @@ const Navigation = () => {
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [hoverTimeout, setHoverTimeout] = useState<NodeJS.Timeout | null>(null);
   const { getThemeClasses, isDark } = useTheme();
   const theme = getThemeClasses();
 
   const navigate = useNavigate();
+
+  // Hover timeout functions for smooth dropdown interaction
+  const handleMouseEnter = (itemName: string) => {
+    if (hoverTimeout) {
+      clearTimeout(hoverTimeout);
+      setHoverTimeout(null);
+    }
+    setActiveDropdown(itemName);
+  };
+
+  const handleMouseLeave = () => {
+    const timeout = setTimeout(() => {
+      setActiveDropdown(null);
+    }, 250); // 250ms delay before closing
+    setHoverTimeout(timeout);
+  };
+
+  const handleDropdownMouseEnter = () => {
+    if (hoverTimeout) {
+      clearTimeout(hoverTimeout);
+      setHoverTimeout(null);
+    }
+  };
+
+  const handleDropdownMouseLeave = () => {
+    const timeout = setTimeout(() => {
+      setActiveDropdown(null);
+    }, 250); // 250ms delay before closing
+    setHoverTimeout(timeout);
+  };
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 50);
@@ -24,6 +55,15 @@ const Navigation = () => {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (hoverTimeout) {
+        clearTimeout(hoverTimeout);
+      }
+    };
+  }, [hoverTimeout]);
 
   const scrollToSection = (sectionId: string) => {
     if (sectionId === 'cta') {
@@ -179,14 +219,14 @@ const Navigation = () => {
     <header
       className={`fixed top-3.5 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 rounded-full ${
         isScrolled
-          ? `h-14 ${isDark ? 'bg-black border-gray-700' : theme.navBg} backdrop-blur-xl border ${theme.borderColor} scale-95 w-[90%] max-w-2xl`
-          : `h-14 ${isDark ? 'bg-black' : theme.navBg} w-[95%] max-w-3xl`
+          ? `h-14 ${isDark ? 'bg-black border-gray-700' : theme.navBg} backdrop-blur-xl border ${theme.borderColor} scale-95 w-[90%] max-w-3xl`
+          : `h-14 ${isDark ? 'bg-black' : theme.navBg} w-[95%] max-w-4xl`
       }`}
     >
       <div className="mx-auto h-full px-6">
         <nav className="flex items-center justify-between h-full">
           <motion.div
-            className="flex items-center gap-2 cursor-pointer"
+            className="flex items-center gap-2 cursor-pointer flex-shrink-0"
             onClick={() => navigate('/')}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
@@ -199,23 +239,23 @@ const Navigation = () => {
               whileHover={{ rotate: 5 }}
               transition={{ duration: 0.3, ease: "easeOut" }}
             />
-            <span className={`font-bold text-base ${isDark ? 'text-white' : 'text-black'} transition-all duration-300 hover:text-blue-600 hover:scale-105`}>
-              XsigmaSolution
+            <span className={`font-bold text-base ${isDark ? 'text-white' : 'text-black'} transition-all duration-300 hover:text-blue-600 hover:scale-105 whitespace-nowrap`}>
+              XSigma
             </span>
           </motion.div>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center gap-6">
+          <div className="hidden lg:flex items-center gap-4 ml-8">
             {navItems.map((item) => (
               <div key={item.name} className="relative">
                 {item.hasDropdown ? (
                   <div
                     className="relative"
-                    onMouseEnter={() => setActiveDropdown(item.name)}
-                    onMouseLeave={() => setActiveDropdown(null)}
+                    onMouseEnter={() => handleMouseEnter(item.name)}
+                    onMouseLeave={handleMouseLeave}
                   >
                     <motion.button
-                      className={`text-sm ${isDark ? 'text-white hover:text-blue-400' : 'text-black hover:text-blue-600'} transition-all duration-300 relative group cursor-pointer flex items-center gap-1`}
+                      className={`text-sm ${isDark ? 'text-white hover:text-blue-400' : 'text-black hover:text-blue-600'} transition-all duration-300 relative group cursor-pointer flex items-center gap-1 whitespace-nowrap`}
                       whileHover={{ scale: 1.05, y: -1 }}
                       whileTap={{ scale: 0.95 }}
                       transition={{ duration: 0.2, ease: "easeOut" }}
@@ -227,27 +267,38 @@ const Navigation = () => {
 
                     </motion.button>
 
-                    {/* Goldman Sachs Style Dropdown */}
+                    {/* Dropdown Menu */}
                     {activeDropdown === item.name && (
                       <motion.div
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: 10 }}
                         transition={{ duration: 0.2 }}
-                        className={`absolute top-full mt-2 w-screen max-w-4xl ${isDark ? 'bg-gray-900' : 'bg-white'} border ${isDark ? 'border-gray-700' : 'border-gray-200'} shadow-2xl rounded-lg overflow-hidden z-50`}
+                        className={`absolute top-full mt-2 ${
+                          item.name === 'Solutions'
+                            ? 'w-screen max-w-4xl'
+                            : 'w-screen max-w-3xl'
+                        } ${isDark ? 'bg-gray-900' : 'bg-white'} border ${isDark ? 'border-gray-700' : 'border-gray-200'} shadow-2xl rounded-lg overflow-hidden z-50`}
                         style={{
-                          left: '50%',
-                          transform: 'translateX(-50%)',
-                          marginLeft: '-50vw',
-                          width: '100vw',
-                          maxWidth: '1024px'
+                          left: item.name === 'Download' ? 'auto' : item.name === 'Solutions' ? '-400px' : '50%',
+                          right: item.name === 'Download' ? '0' : 'auto',
+                          transform: item.name === 'Download' || item.name === 'Solutions' ? 'none' : 'translateX(-50%)',
+                          marginLeft: '0',
+                          width: item.name === 'Solutions' ? '1024px' : item.name === 'Download' ? '768px' : '100vw',
+                          maxWidth: item.name === 'Solutions' ? '1024px' : '768px'
                         }}
+                        onMouseEnter={handleDropdownMouseEnter}
+                        onMouseLeave={handleDropdownMouseLeave}
                       >
                         <div className="p-6">
                           <div className="flex justify-between items-center mb-6">
-                            <span className={`text-sm ${theme.textMuted}`}>View Solutions</span>
+                            <span className={`text-sm ${theme.textMuted}`}>
+                              {item.name === 'Solutions' ? 'View Solutions' : 'Downloads & Resources'}
+                            </span>
                           </div>
-                          <div className="grid grid-cols-3 gap-8">
+                          <div className={`grid gap-8 ${
+                            item.name === 'Solutions' ? 'grid-cols-3' : 'grid-cols-3'
+                          }`}>
                             {item.dropdownSections?.map((section) => (
                               <div key={section.title} className="space-y-4">
                                 <div>
@@ -318,6 +369,71 @@ const Navigation = () => {
                 <span className="relative z-10">🔍</span>
               </Button>
             </motion.div>
+          </div>
+
+          {/* Medium Screen Navigation (Tablets) */}
+          <div className="hidden md:flex lg:hidden items-center gap-2">
+            <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
+              <SheetTrigger asChild>
+                <Button variant="outline" size="sm" className={`${theme.buttonOutline}`}>
+                  <Menu className="h-4 w-4" />
+                  <span className="ml-1 text-xs">Menu</span>
+                </Button>
+              </SheetTrigger>
+              <SheetContent className={theme.background}>
+                <div className="flex flex-col gap-4 mt-8">
+                  {navItems.map((item) => (
+                    <div key={item.name}>
+                      {item.hasDropdown ? (
+                        <div className="space-y-2">
+                          <div className={`text-lg font-semibold ${theme.text} mb-3`}>
+                            {item.name}
+                          </div>
+                          {item.dropdownSections?.map((section) => (
+                            <div key={section.title} className="ml-4 space-y-2">
+                              <div className={`text-sm font-medium ${theme.textMuted} uppercase tracking-wider`}>
+                                {section.title}
+                              </div>
+                              {section.items.map((subItem) => (
+                                <div
+                                  key={subItem.name}
+                                  className={`text-sm ${theme.textMuted} hover:text-primary transition-colors cursor-pointer ml-2 flex items-center gap-2`}
+                                  onClick={() => {
+                                    setIsMobileMenuOpen(false);
+                                    if ((subItem as any).external) {
+                                      window.open(subItem.href, '_blank');
+                                    } else {
+                                      navigate(subItem.href);
+                                    }
+                                  }}
+                                >
+                                  <span>{subItem.icon}</span>
+                                  <span>{subItem.name}</span>
+                                </div>
+                              ))}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <a
+                          href={item.href}
+                          className={`text-lg ${theme.textMuted} hover:text-primary transition-colors`}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setIsMobileMenuOpen(false);
+                            if (item.onClick) {
+                              item.onClick();
+                            }
+                          }}
+                        >
+                          {item.name}
+                        </a>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </SheetContent>
+            </Sheet>
           </div>
 
           {/* Mobile Navigation */}
