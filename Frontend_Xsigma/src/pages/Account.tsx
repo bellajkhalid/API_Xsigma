@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useTheme } from "@/contexts/ThemeContext";
 import AnimatedBackground from "@/components/AnimatedBackground";
 import Navigation from "@/components/Navigation";
-import ThemeToggle from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { authService } from "@/services/authService";
 import type { User } from "@/types/auth";
@@ -314,7 +313,6 @@ export default function Account() {
 
   return (
     <div className={`min-h-screen ${isDark ? 'bg-black text-white' : 'bg-white text-black'}`}>
-      <ThemeToggle />
       <Navigation />
 
       <section className="relative pt-28 pb-16 min-h-[40vh]">

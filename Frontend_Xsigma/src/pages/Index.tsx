@@ -2,7 +2,6 @@ import { motion } from "framer-motion";
 import { ArrowRight, MessageCircle, Sparkles, TrendingUp, Shield, Zap, Globe, BarChart3, Users, Code, Database, Cpu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Navigation from "@/components/Navigation";
-import ThemeToggle from "@/components/ThemeToggle";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useEffect, useState } from "react";
 import AnimatedBackground from "@/components/AnimatedBackground";
@@ -163,7 +162,6 @@ const Index = () => {
 
   return (
     <div className={`min-h-screen ${isDark ? 'bg-black text-white' : 'bg-white text-black'} transition-colors duration-300`}>
-      <ThemeToggle />
       <Navigation />
 
       {/* Hero Section - Goldman Sachs Style */}
