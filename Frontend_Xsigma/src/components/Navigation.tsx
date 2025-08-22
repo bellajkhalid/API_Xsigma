@@ -125,28 +125,27 @@ const Navigation = () => {
       hasDropdown: true,
       dropdownSections: [
         {
-          title: "Data",
-          description: "Discover, organize, manage, and analyze data on the cloud.",
+          title: "Market Models",
+          description: "Production-tested curve and volatility frameworks with enhanced AAD.",
           items: [
-            { name: "Curated Data", icon: "📊", href: "/solutions/data" },
-            { name: "Data Analytics", icon: "📈", href: "/solutions/analytics" }
+            { name: "XCF & XVF Models", icon: "�", href: "/solutions/market-models" },
+            { name: "Pricing & Risk", icon: "⚡", href: "/solutions/pricing-risk" }
           ]
         },
         {
-          title: "Analytics",
-          description: "Rapidly create custom data and risk analytics solutions spanning global markets.",
+          title: "Simulation Platforms",
+          description: "Monte Carlo and risk analytics powered by enhanced AAD technology.",
           items: [
-            { name: "PlotTool Pro", icon: "📊", href: "/solutions/plottool" },
-            { name: "Portfolio Analytics", icon: "💼", href: "/solutions/portfolio" },
-            { name: "GS Quant", icon: "🔬", href: "/solutions/quant" }
+            { name: "Monte Carlo Platform", icon: "🎲", href: "/solutions/monte-carlo" },
+            { name: "Portfolio Analytics", icon: "💼", href: "/solutions/portfolio" }
           ]
         },
         {
-          title: "Banking",
-          description: "Embed business and digital analytix products within your own experience.",
+          title: "Legacy Solutions",
+          description: "Previous generation tools and data services.",
           items: [
-            { name: "Transaction Banking", icon: "🏦", href: "/solutions/banking" },
-            { name: "GS DAP®", icon: "💳", href: "/solutions/dap" }
+            { name: "Data Services", icon: "📊", href: "/solutions/data" },
+            { name: "Analytics Tools", icon: "�", href: "/solutions/quant" }
           ]
         }
       ]
@@ -202,9 +201,9 @@ const Navigation = () => {
 
   return (
     <>
-      <div className="fixed top-0 left-0 right-0 z-50">
-        {/* Single Navigation Bar */}
-      <header className={`w-full ${isDark ? 'bg-black/70' : 'bg-white/70'} border-b ${isDark ? 'border-gray-800' : 'border-gray-200'} backdrop-blur-xl`}>
+      <div className="fixed top-0 left-0 right-0 z-50 section-transition">
+        {/* Professional Navigation Bar */}
+      <header className={`w-full ${isDark ? 'bg-black/95' : 'bg-white/95'} border-b ${isDark ? 'border-gray-800' : 'border-gray-200'} backdrop-blur-xl transition-all duration-500`}>
         <div className="max-w-7xl mx-auto px-6">
           <nav className="flex items-center justify-between h-16">
             {/* Left Section: Menu + Logo + Navigation */}
@@ -343,22 +342,26 @@ const Navigation = () => {
 
               {/* Logo */}
               <motion.div
-                className="flex items-center gap-2 cursor-pointer flex-shrink-0"
+                className="flex items-center gap-3 cursor-pointer flex-shrink-0"
                 onClick={() => navigate('/')}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 transition={{ duration: 0.2, ease: "easeOut" }}
               >
                 <motion.img
-                  src="/X_logo.ico"
+                  src="/xsigma_logo.ico"
                   alt="XSigma Logo"
-                  className="w-6 h-6 drop-shadow-lg"
+                  className="w-10 h-10 drop-shadow-lg"
                   whileHover={{ rotate: 5 }}
                   transition={{ duration: 0.3, ease: "easeOut" }}
                 />
-                <span className={`font-bold text-lg ${isDark ? 'text-white' : 'text-black'} transition-all duration-300 hover:text-blue-600 hover:scale-105 whitespace-nowrap`}>
-                  XSIGMA
-                </span>
+                <motion.div
+                  className="hidden sm:block"
+                  whileHover={{ x: 2 }}
+                  transition={{ duration: 0.2, ease: "easeOut" }}
+                >
+
+                </motion.div>
               </motion.div>
 
               {/* Desktop Navigation */}

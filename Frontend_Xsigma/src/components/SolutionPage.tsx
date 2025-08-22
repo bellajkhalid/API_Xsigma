@@ -30,24 +30,29 @@ const SolutionPage = ({ title, subtitle, description, features = [], highlight =
         <AnimatedBackground />
         <div className="relative z-10 container mx-auto px-6">
           <div className="max-w-5xl mx-auto text-center">
-            <h1 className="text-4xl md:text-5xl font-light mb-4">{title}</h1>
-            {subtitle && <div className={`text-lg ${isDark ? 'text-blue-300' : 'text-blue-700'} mb-3`}>{subtitle}</div>}
-            {description && <p className={`text-lg ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>{description}</p>}
+            <div className="mb-4">
+              <span className={`finance-caption px-3 py-1 rounded-full ${isDark ? 'bg-blue-900/30 text-blue-300' : 'bg-blue-100 text-blue-700'} border ${isDark ? 'border-blue-800' : 'border-blue-200'}`}>
+                Production-Tested
+              </span>
+            </div>
+            <h1 className="finance-heading text-4xl md:text-5xl mb-4">{title}</h1>
+            {subtitle && <div className={`finance-subheading text-lg ${isDark ? 'text-blue-300' : 'text-blue-700'} mb-3`}>{subtitle}</div>}
+            {description && <p className={`finance-body text-lg ${isDark ? 'text-gray-300' : 'text-gray-600'} max-w-4xl mx-auto`}>{description}</p>}
             <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
               <Button
                 size="lg"
-                className={`${isDark ? 'bg-white text-black hover:bg-gray-100' : 'bg-black text-white hover:bg-gray-800'} rounded-none`}
+                className={`finance-button ${isDark ? 'bg-white text-black hover:bg-gray-100' : 'bg-xsigma-navy text-white hover:bg-opacity-90'} rounded-none px-8 py-3`}
                 onClick={() => navigate('/register-interest')}
               >
-                Register Interest
+                <span className="relative z-10">Request Demo</span>
               </Button>
               <Button
                 size="lg"
                 variant="outline"
-                className={`${isDark ? 'border-white text-white hover:bg-white hover:text-black' : 'border-gray-900 text-gray-900 hover:bg-gray-900 hover:text-white'} rounded-none`}
+                className={`finance-button ${isDark ? 'border-white text-white hover:bg-white hover:text-black' : 'border-xsigma-navy text-xsigma-navy hover:bg-xsigma-navy hover:text-white'} rounded-none px-8 py-3`}
                 onClick={() => window.open('/sphinx-doc/xsigma-1.1-3/index.html', '_blank')}
               >
-                View Docs
+                <span className="relative z-10">Technical Documentation</span>
               </Button>
             </div>
           </div>

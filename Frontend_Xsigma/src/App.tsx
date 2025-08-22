@@ -12,6 +12,9 @@ import Analytics from "./pages/solutions/Analytics";
 import PlotTool from "./pages/solutions/PlotTool";
 import Portfolio from "./pages/solutions/Portfolio";
 import Quant from "./pages/solutions/Quant";
+import MarketModels from "./pages/solutions/MarketModels";
+import PricingRisk from "./pages/solutions/PricingRisk";
+import MonteCarlo from "./pages/solutions/MonteCarlo";
 import Banking from "./pages/solutions/Banking";
 import Dap from "./pages/solutions/Dap";
 import RegisterInterest from "./pages/RegisterInterest";
@@ -44,11 +47,15 @@ const App = () => (
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/blog" element={<Blog />} />
               <Route path="/blog/:postId" element={<Blog />} />
-              {/* Solution placeholder routes */}
+              {/* Production-Ready Solution Routes */}
+              <Route path="/solutions/market-models" element={<MarketModels />} />
+              <Route path="/solutions/pricing-risk" element={<PricingRisk />} />
+              <Route path="/solutions/monte-carlo" element={<MonteCarlo />} />
+              <Route path="/solutions/portfolio" element={<Portfolio />} />
+              {/* Legacy Solution Routes */}
               <Route path="/solutions/data" element={<Data />} />
               <Route path="/solutions/analytics" element={<Analytics />} />
               <Route path="/solutions/plottool" element={<PlotTool />} />
-              <Route path="/solutions/portfolio" element={<Portfolio />} />
               <Route path="/solutions/quant" element={<Quant />} />
               <Route path="/solutions/banking" element={<Banking />} />
               <Route path="/solutions/dap" element={<Dap />} />

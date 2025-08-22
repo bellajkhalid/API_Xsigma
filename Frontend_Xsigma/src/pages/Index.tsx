@@ -173,22 +173,53 @@ const Index = () => {
         <div className="relative z-10 container mx-auto px-6 pt-32 pb-20 min-h-screen flex items-center">
             <div className="max-w-4xl mx-auto text-center">
 
-              {/* Main Headline */}
+              {/* Logo and Main Headline */}
               <motion.div
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2, duration: 0.8 }}
                 className="mb-8"
               >
-                <h1 className={`text-5xl md:text-6xl lg:text-7xl font-light leading-tight ${isDark ? 'text-white' : 'text-gray-900'} mb-6 drop-shadow-lg`}>
-                  XSigma Analytix
-                </h1>
+                {/* Hero Logo */}
+
+
+                <motion.h1
+                  className={`finance-heading text-3xl md:text-4xl lg:text-5xl xl:text-6xl leading-tight ${isDark ? 'text-white' : 'text-gray-900'} mb-8`}
+                  initial={{ opacity: 0, y: 30 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2, duration: 0.8, ease: "easeOut" }}
+                >
+                  Trusted Market Models, Built by Practitioners,{' '}
+                  <span className="xsigma-teal">Used by Banks</span>
+                </motion.h1>
+
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.4, duration: 0.8 }}
+                  className="mb-8"
+                >
+                  <div className={`flex flex-wrap justify-center gap-4 mb-6`}>
+                    <span className={`finance-caption px-3 py-1 rounded-full ${isDark ? 'bg-blue-900/30 text-blue-300' : 'bg-blue-100 text-blue-700'} border ${isDark ? 'border-blue-800' : 'border-blue-200'}`}>
+                      Production-Tested
+                    </span>
+                    <span className={`finance-caption px-3 py-1 rounded-full ${isDark ? 'bg-teal-900/30 text-teal-300' : 'bg-teal-100 text-teal-700'} border ${isDark ? 'border-teal-800' : 'border-teal-200'}`}>
+                      Bank-Grade
+                    </span>
+                    <span className={`finance-caption px-3 py-1 rounded-full ${isDark ? 'bg-gray-800/50 text-gray-300' : 'bg-gray-100 text-gray-700'} border ${isDark ? 'border-gray-700' : 'border-gray-300'}`}>
+                      Practitioner-Built
+                    </span>
+                  </div>
+                  <p className={`finance-body text-lg md:text-xl lg:text-2xl ${isDark ? 'text-gray-200' : 'text-gray-700'} max-w-5xl mx-auto leading-relaxed`}>
+                    XSigma delivers curve and volatility frameworks, risk engines, and Monte Carlo simulation platforms — powered by models already implemented in production desks, and accelerated by our proprietary <span className="xsigma-teal font-medium">enhanced AAD</span>
+                  </p>
+                </motion.div>
 
                 <motion.p
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.4, duration: 0.8 }}
-                  className={`text-xl md:text-2xl ${isDark ? 'text-gray-200' : 'text-gray-700'} max-w-3xl mx-auto leading-relaxed drop-shadow-md`}
+                  transition={{ delay: 0.6, duration: 0.8 }}
+                  className={`text-base md:text-lg lg:text-xl ${isDark ? 'text-gray-300' : 'text-gray-600'} max-w-3xl mx-auto leading-relaxed`}
                 >
                   Unlock advanced quantitative finance capabilities by embedding our developer solutions into your ecosystem.
                 </motion.p>
@@ -197,24 +228,24 @@ const Index = () => {
               {/* Dynamic AI Chat */}
               <DynamicAIChat />
 
-              {/* CTA Buttons */}
+              {/* Professional CTA Buttons */}
               <motion.div
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.6, duration: 0.8 }}
-                className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-16 mt-16"
+                transition={{ delay: 0.8, duration: 0.8 }}
+                className="flex flex-col sm:flex-row gap-6 justify-center items-center mb-16 mt-16"
               >
                 <motion.div
-                  whileHover={{ scale: 1.05, y: -2 }}
-                  whileTap={{ scale: 0.95 }}
+                  whileHover={{ scale: 1.02, y: -1 }}
+                  whileTap={{ scale: 0.98 }}
                   transition={{ duration: 0.2, ease: "easeOut" }}
                 >
                   <Button
-                    onClick={() => window.location.href = '/register-interest'}
+                    onClick={() => window.location.href = '#aad-framework'}
                     size="lg"
-                    className={`px-8 py-4 text-lg font-medium ${isDark ? 'bg-white text-black hover:bg-gray-100' : 'bg-gray-900 text-white hover:bg-gray-800'} rounded-none transition-colors shadow-lg relative overflow-hidden group`}
+                    className={`finance-body px-10 py-4 text-base font-medium ${isDark ? 'bg-white text-black hover:bg-gray-100' : 'bg-xsigma-navy text-white hover:bg-opacity-90'} rounded-none transition-all duration-300 shadow-lg relative overflow-hidden group border-0`}
                   >
-                    <span className="relative z-10">Register Interest</span>
+                    <span className="relative z-10 tracking-wide">Discover AaD Framework</span>
                     <motion.div
                       className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-purple-500/20"
                       initial={{ scale: 0, opacity: 0 }}
@@ -229,12 +260,12 @@ const Index = () => {
                   transition={{ duration: 0.2, ease: "easeOut" }}
                 >
                   <Button
-                    onClick={() => window.location.href = '/solutions/analytics'}
+                    onClick={() => window.location.href = '#contact'}
                     size="lg"
                     variant="outline"
-                    className={`px-8 py-4 text-lg font-medium ${isDark ? 'border-white text-white hover:bg-white hover:text-black' : 'border-gray-900 text-gray-900 hover:bg-gray-900 hover:text-white'} rounded-none transition-colors shadow-lg backdrop-blur-sm relative overflow-hidden group`}
+                    className={`px-8 py-4 text-lg font-medium ${isDark ? 'border-white text-white hover:bg-white hover:text-black' : 'border-gray-900 text-gray-900 hover:bg-gray-900 hover:text-white'} rounded-lg transition-colors shadow-lg backdrop-blur-sm relative overflow-hidden group`}
                   >
-                    <span className="relative z-10">Discover Solutions</span>
+                    <span className="relative z-10">Request Demo</span>
                     <motion.div
                       className={`absolute inset-0 ${isDark ? 'bg-blue-500/10' : 'bg-blue-500/5'}`}
                       initial={{ scale: 0, opacity: 0 }}
@@ -248,13 +279,15 @@ const Index = () => {
           </div>
       </section>
 
-      {/* Featured Product Spotlight - Goldman Sachs Style */}
-      <section className={`${isDark ? 'bg-gray-900' : 'bg-gray-50'} py-20`}>
-        <div className="container mx-auto px-6">
-          <div className="max-w-6xl mx-auto">
-            <div className="grid md:grid-cols-2 gap-12 items-center">
+      {/* About XSigma / AaD Framework Section - Professional Clean Background */}
+      <section id="aad-framework" className={`relative py-24 ${isDark ? 'bg-gray-900' : 'bg-white'} aad-framework-section gpu-accelerated border-t ${isDark ? 'border-gray-800' : 'border-gray-100'}`}>
 
-              {/* XVA Engine Spotlight */}
+
+        <div className="container mx-auto px-6">
+          <div className="max-w-7xl mx-auto">
+            <div className="grid lg:grid-cols-2 gap-20 items-center">
+
+              {/* AaD Framework Content */}
               <motion.div
                 initial={{ opacity: 0, x: -50 }}
                 whileInView={{ opacity: 1, x: 0 }}
@@ -262,49 +295,193 @@ const Index = () => {
                 transition={{ duration: 0.8 }}
                 className="space-y-6"
               >
-                <div className="inline-flex items-center space-x-2 text-blue-600 font-medium">
-                  <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
-                  <span>XVA Engine®</span>
-                </div>
-
-                <h2 className={`text-4xl md:text-5xl font-light ${isDark ? 'text-white' : 'text-black'}`}>
-                  Advanced Risk Analytics
-                </h2>
-
-                <p className={`text-lg ${isDark ? 'text-gray-300' : 'text-gray-600'} leading-relaxed`}>
-                  A comprehensive platform for XVA calculations, risk management, and regulatory reporting.
-                  Leverage our quantitative expertise built over decades of analytix innovation.
-                </p>
-
-                <Button
-                  onClick={() => window.location.href = '/solutions/analytics'}
-                  variant="outline"
-                  className={`${isDark ? 'border-white text-white hover:bg-white hover:text-black' : 'border-black text-black hover:bg-black hover:text-white'} rounded-none px-6 py-3`}
+                <motion.div
+                  className={`inline-flex items-center ${isDark ? 'bg-gray-800 border-gray-600' : 'bg-blue-50 border-blue-200'} backdrop-blur-md border rounded-full px-5 py-2 mb-8`}
+                  animate={{
+                    boxShadow: [
+                      '0 0 20px rgba(59, 130, 246, 0.2)',
+                      '0 0 30px rgba(59, 130, 246, 0.4)',
+                      '0 0 20px rgba(59, 130, 246, 0.2)'
+                    ]
+                  }}
+                  transition={{
+                    duration: 2,
+                    repeat: Infinity,
+                    ease: "easeInOut"
+                  }}
                 >
-                  Learn more
-                  <ArrowRight className="ml-2 w-4 h-4" />
-                </Button>
+                  <motion.div
+                    className="w-2 h-2 bg-blue-500 rounded-full mr-2"
+                    animate={{
+                      scale: [1, 1.2, 1],
+                      opacity: [0.7, 1, 0.7]
+                    }}
+                    transition={{
+                      duration: 2,
+                      repeat: Infinity,
+                      ease: "easeInOut"
+                    }}
+                  />
+                  <span className={`${isDark ? 'text-white' : 'text-blue-700'} font-semibold text-sm uppercase tracking-wider`}>
+                    Enhanced AAD Technology
+                  </span>
+                </motion.div>
+
+                <motion.h2
+                  className={`finance-heading text-4xl md:text-5xl lg:text-6xl leading-tight ${isDark ? 'text-white' : 'text-gray-900'} mb-8`}
+                  initial={{ opacity: 0, y: 30 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.8, delay: 0.2 }}
+                >
+                  Proprietary <span className="xsigma-teal">Enhanced AAD</span><br />
+                  <span className="text-3xl md:text-4xl lg:text-5xl font-normal">Accelerating Production Models</span>
+                </motion.h2>
+
+                <motion.div
+                  className="grid md:grid-cols-3 gap-6 mb-8"
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.8, delay: 0.4 }}
+                >
+                  <div className={`p-4 rounded-lg ${isDark ? 'bg-gray-800/50' : 'bg-blue-50'} border ${isDark ? 'border-gray-700' : 'border-blue-200'}`}>
+                    <h4 className={`finance-subheading text-lg ${isDark ? 'text-white' : 'text-gray-900'} mb-2`}>Faster Calibration</h4>
+                    <p className={`finance-body text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                      Enhanced AAD accelerates model calibration by orders of magnitude compared to finite differences
+                    </p>
+                  </div>
+                  <div className={`p-4 rounded-lg ${isDark ? 'bg-gray-800/50' : 'bg-teal-50'} border ${isDark ? 'border-gray-700' : 'border-teal-200'}`}>
+                    <h4 className={`finance-subheading text-lg ${isDark ? 'text-white' : 'text-gray-900'} mb-2`}>Accurate Sensitivities</h4>
+                    <p className={`finance-body text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                      Machine-precision Greeks and risk sensitivities for all model parameters and market inputs
+                    </p>
+                  </div>
+                  <div className={`p-4 rounded-lg ${isDark ? 'bg-gray-800/50' : 'bg-gray-50'} border ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
+                    <h4 className={`finance-subheading text-lg ${isDark ? 'text-white' : 'text-gray-900'} mb-2`}>Scalable Analytics</h4>
+                    <p className={`finance-body text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                      Efficient computation of portfolio-level risk metrics and regulatory capital requirements
+                    </p>
+                  </div>
+                </motion.div>
+
+                <motion.p
+                  className={`finance-body text-lg ${isDark ? 'text-gray-300' : 'text-gray-600'} leading-relaxed mb-10`}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.8, delay: 0.6 }}
+                >
+                  Our enhanced AAD technology powers production-tested market models already deployed in bank trading desks.
+                  The orbital diagram below showcases the seamless integration of <strong>Calibration, Pricing, Risk Management,
+                  PDE Solvers, and Monte Carlo Simulation</strong> — all accelerated by our proprietary algorithmic automatic differentiation.
+                </motion.p>
+
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.8, delay: 0.8 }}
+                >
+                  <motion.button
+                    onClick={() => window.location.href = '#offerings'}
+                    className={`inline-flex items-center ${isDark ? 'bg-gradient-to-r from-blue-600 to-blue-800 text-white' : 'bg-gradient-to-r from-gray-900 to-gray-800 text-white'} px-8 py-4 rounded-lg font-semibold text-lg transition-all duration-300 relative overflow-hidden shadow-lg`}
+                    whileHover={{
+                      y: -2,
+                      boxShadow: isDark
+                        ? '0 15px 35px rgba(59, 130, 246, 0.4)'
+                        : '0 15px 35px rgba(0, 0, 0, 0.2)'
+                    }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <span className="relative z-10">Explore Our Solutions</span>
+                    <motion.div
+                      className="ml-3 relative z-10"
+                      animate={{ x: [0, 5, 0] }}
+                      transition={{ duration: 2, repeat: Infinity }}
+                    >
+                      <ArrowRight className="w-5 h-5" />
+                    </motion.div>
+                    <motion.div
+                      className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-20"
+                      initial={{ x: '-100%' }}
+                      whileHover={{ x: '100%' }}
+                      transition={{ duration: 0.5 }}
+                    />
+                  </motion.button>
+                </motion.div>
               </motion.div>
 
-              {/* Visual Element */}
+              {/* Enhanced AaD Framework Diagram */}
               <motion.div
                 initial={{ opacity: 0, x: 50 }}
                 whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.8, delay: 0.2 }}
-                className={`${isDark ? 'bg-black' : 'bg-white'} p-8 rounded-lg shadow-lg`}
+                className="flex justify-center items-center"
               >
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-4">
-                    <div className="h-4 bg-blue-200 rounded"></div>
-                    <div className="h-4 bg-purple-200 rounded w-3/4"></div>
-                    <div className="h-4 bg-green-200 rounded w-1/2"></div>
+                <div className="relative w-[500px] h-[500px] max-w-full flex items-center justify-center lg:w-[500px] lg:h-[500px] md:w-[400px] md:h-[400px] sm:w-[350px] sm:h-[350px] aad-diagram">
+                  {/* Central Core - Static */}
+                  <div
+                    className={`absolute w-32 h-32 lg:w-32 lg:h-32 md:w-28 md:h-28 sm:w-24 sm:h-24 ${isDark ? 'bg-gradient-to-br from-blue-900 to-purple-900' : 'bg-gradient-to-br from-gray-900 to-gray-800'} rounded-full flex flex-col items-center justify-center border-4 ${isDark ? 'border-white border-opacity-10' : 'border-gray-200'} z-20 aad-core gpu-accelerated`}
+                    style={{
+                      boxShadow: isDark
+                        ? '0 20px 40px rgba(0, 0, 0, 0.3), 0 0 60px rgba(59, 130, 246, 0.4), inset 0 2px 10px rgba(255, 255, 255, 0.2)'
+                        : '0 20px 40px rgba(0, 0, 0, 0.15), 0 0 30px rgba(59, 130, 246, 0.2), inset 0 2px 10px rgba(255, 255, 255, 0.1)'
+                    }}
+                  >
+                    <h3 className="text-white text-3xl lg:text-3xl md:text-2xl sm:text-xl font-extrabold tracking-wider mb-1" style={{ textShadow: '0 2px 10px rgba(0, 0, 0, 0.5)' }}>
+                      AaD
+                    </h3>
+                    <span className="text-blue-400 text-sm lg:text-sm md:text-xs sm:text-xs font-semibold uppercase tracking-wide">Core</span>
                   </div>
-                  <div className="space-y-4">
-                    <div className="h-4 bg-gray-200 rounded w-2/3"></div>
-                    <div className="h-4 bg-blue-200 rounded"></div>
-                    <div className="h-4 bg-purple-200 rounded w-3/4"></div>
-                  </div>
+
+                  {/* Orbital Modules - True Mobile Animation like HTML version */}
+                  {[
+                    { name: 'χ', label: 'CALIB', color: 'from-blue-600 to-blue-800', title: 'Calibration', shadow: 'rgba(59, 130, 246, 0.3)', orbitClass: 'orbit-module-1' },
+                    { name: 'Σ', label: 'PRICE', color: 'from-green-600 to-green-800', title: 'Pricing', shadow: 'rgba(16, 185, 129, 0.3)', orbitClass: 'orbit-module-2' },
+                    { name: 'API', label: 'INTEG', color: 'from-purple-600 to-purple-800', title: 'API Integration', shadow: 'rgba(139, 92, 246, 0.3)', orbitClass: 'orbit-module-3' },
+                    { name: '⚡', label: 'RISK', color: 'from-green-600 to-green-800', title: 'Risk Management', shadow: 'rgba(16, 185, 129, 0.3)', orbitClass: 'orbit-module-4' },
+                    { name: '∂', label: 'PDE', color: 'from-blue-600 to-blue-800', title: 'PDE Solvers', shadow: 'rgba(59, 130, 246, 0.3)', orbitClass: 'orbit-module-5' },
+                    { name: 'MC', label: 'SIM', color: 'from-green-600 to-green-800', title: 'Monte Carlo Simulation', shadow: 'rgba(16, 185, 129, 0.3)', orbitClass: 'orbit-module-6' }
+                  ].map((module) => (
+                    <div
+                      key={module.name}
+                      className={`absolute top-1/2 left-1/2 ${module.orbitClass} gpu-accelerated`}
+                      style={{
+                        marginLeft: '-40px',
+                        marginTop: '-40px'
+                      }}
+                    >
+                      <motion.div
+                        className={`w-20 h-20 lg:w-20 lg:h-20 md:w-16 md:h-16 sm:w-14 sm:h-14 bg-gradient-to-br ${module.color} rounded-full flex flex-col items-center justify-center cursor-pointer border-2 border-white border-opacity-20 backdrop-blur-md aad-module`}
+                        style={{
+                          boxShadow: `0 10px 25px ${module.shadow}`
+                        }}
+                        whileHover={{
+                          scale: 1.2,
+                          zIndex: 25,
+                          filter: 'brightness(1.2)',
+                          boxShadow: `0 20px 40px ${module.shadow.replace('0.3', '0.6')}`
+                        }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => {
+                          // Interactive click functionality
+                          console.log(`Exploring ${module.title}...`);
+                          // You can add navigation or modal functionality here
+                          // Example: window.location.href = `#${module.name.toLowerCase()}`;
+                        }}
+                        title={`Click to explore ${module.title}`}
+                      >
+                        <div className="text-white text-lg lg:text-lg md:text-base sm:text-sm font-bold mb-1" style={{ textShadow: '0 2px 10px rgba(0, 0, 0, 0.3)' }}>
+                          {module.name}
+                        </div>
+                        <div className="text-white text-xs lg:text-xs md:text-xs sm:text-xs font-semibold uppercase tracking-wide opacity-90">
+                          {module.label}
+                        </div>
+                      </motion.div>
+                    </div>
+                  ))}
                 </div>
               </motion.div>
             </div>
@@ -312,8 +489,193 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Browse Solutions Section - Goldman Sachs Style */}
-      <section className={`${isDark ? 'bg-black' : 'bg-white'} py-20`}>
+      {/* Offerings Grid Section */}
+      <section id="offerings" className={`${isDark ? 'bg-black' : 'bg-white'} py-20`}>
+        <div className="container mx-auto px-6">
+          <div className="max-w-6xl mx-auto">
+
+            {/* Professional Section Header */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.8 }}
+              className="text-center mb-20"
+            >
+              <motion.p
+                className={`finance-caption ${isDark ? 'text-blue-400' : 'text-blue-600'} mb-4`}
+                initial={{ opacity: 0 }}
+                whileInView={{ opacity: 1 }}
+                transition={{ delay: 0.2 }}
+              >
+                Production-Ready Solutions
+              </motion.p>
+              <h2 className={`finance-heading text-3xl md:text-4xl lg:text-5xl ${isDark ? 'text-white' : 'text-gray-900'} mb-8`}>
+                Market Models & Risk Engines
+              </h2>
+              <p className={`finance-body text-lg md:text-xl ${isDark ? 'text-gray-300' : 'text-gray-600'} max-w-4xl mx-auto leading-relaxed`}>
+                Practitioner-grade curve and volatility frameworks, pricing engines, and Monte Carlo platforms —
+                all powered by models already implemented in production trading desks
+              </p>
+            </motion.div>
+
+            {/* Solutions Grid - 2x2 Layout */}
+            <div className="grid md:grid-cols-2 gap-8">
+
+              {/* Market Construction & Calibration */}
+              <motion.div
+                initial={{ opacity: 0, y: 50 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.8, delay: 0.1 }}
+                className={`${isDark ? 'bg-gray-900' : 'bg-gray-50'} p-8 rounded-xl shadow-lg border ${isDark ? 'border-gray-700' : 'border-gray-200'} hover:shadow-xl transition-all duration-300 hover:-translate-y-1`}
+              >
+                <div className="w-16 h-16 bg-blue-500 bg-opacity-10 rounded-lg flex items-center justify-center mb-6">
+                  <TrendingUp className="w-8 h-8 text-blue-500" />
+                </div>
+                <h3 className={`text-xl md:text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'} mb-4 leading-tight`}>
+                  Market Construction & Calibration
+                </h3>
+                <ul className={`${isDark ? 'text-gray-300' : 'text-gray-600'} space-y-3 mb-6 text-sm md:text-base leading-relaxed`}>
+                  <li className="flex items-start">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
+                    Advanced interest rate curve construction and bootstrapping
+                  </li>
+                  <li className="flex items-start">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
+                    SABR and stochastic volatility model calibration
+                  </li>
+                  <li className="flex items-start">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
+                    Multi-currency yield curve framework
+                  </li>
+                </ul>
+                <Button
+                  onClick={() => window.location.href = '#contact'}
+                  variant="ghost"
+                  className={`p-0 h-auto ${isDark ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-700'} font-semibold`}
+                >
+                  Learn More <ArrowRight className="w-4 h-4 ml-1" />
+                </Button>
+              </motion.div>
+
+              {/* Instrument Pricing & Risk */}
+              <motion.div
+                initial={{ opacity: 0, y: 50 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.8, delay: 0.2 }}
+                className={`${isDark ? 'bg-gray-900' : 'bg-gray-50'} p-8 rounded-xl shadow-lg border ${isDark ? 'border-gray-700' : 'border-gray-200'} hover:shadow-xl transition-all duration-300 hover:-translate-y-1`}
+              >
+                <div className="w-16 h-16 bg-green-500 bg-opacity-10 rounded-lg flex items-center justify-center mb-6">
+                  <BarChart3 className="w-8 h-8 text-green-500" />
+                </div>
+                <h3 className={`text-xl md:text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'} mb-4 leading-tight`}>
+                  Instrument Pricing & Risk
+                </h3>
+                <ul className={`${isDark ? 'text-gray-300' : 'text-gray-600'} space-y-3 mb-6 text-sm md:text-base leading-relaxed`}>
+                  <li className="flex items-start">
+                    <div className="w-2 h-2 bg-green-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
+                    Vanilla and exotic option pricing engines
+                  </li>
+                  <li className="flex items-start">
+                    <div className="w-2 h-2 bg-green-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
+                    Real-time Greeks calculation and risk sensitivities
+                  </li>
+                  <li className="flex items-start">
+                    <div className="w-2 h-2 bg-green-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
+                    Portfolio-level risk aggregation and reporting
+                  </li>
+                </ul>
+                <Button
+                  onClick={() => window.location.href = '#contact'}
+                  variant="ghost"
+                  className={`p-0 h-auto ${isDark ? 'text-green-400 hover:text-green-300' : 'text-green-600 hover:text-green-700'} font-semibold`}
+                >
+                  Learn More <ArrowRight className="w-4 h-4 ml-1" />
+                </Button>
+              </motion.div>
+
+              {/* Complex Derivatives & XVA */}
+              <motion.div
+                initial={{ opacity: 0, y: 50 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.8, delay: 0.3 }}
+                className={`${isDark ? 'bg-gray-900' : 'bg-gray-50'} p-8 rounded-xl shadow-lg border ${isDark ? 'border-gray-700' : 'border-gray-200'} hover:shadow-xl transition-all duration-300 hover:-translate-y-1`}
+              >
+                <div className="w-16 h-16 bg-purple-500 bg-opacity-10 rounded-lg flex items-center justify-center mb-6">
+                  <Database className="w-8 h-8 text-purple-500" />
+                </div>
+                <h3 className={`text-xl md:text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'} mb-4 leading-tight`}>
+                  Complex Derivatives & XVA
+                </h3>
+                <ul className={`${isDark ? 'text-gray-300' : 'text-gray-600'} space-y-3 mb-6 text-sm md:text-base leading-relaxed`}>
+                  <li className="flex items-start">
+                    <div className="w-2 h-2 bg-purple-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
+                    High-performance PDE solvers for exotic derivatives
+                  </li>
+                  <li className="flex items-start">
+                    <div className="w-2 h-2 bg-purple-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
+                    Monte Carlo simulation with variance reduction
+                  </li>
+                  <li className="flex items-start">
+                    <div className="w-2 h-2 bg-purple-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
+                    Comprehensive XVA calculations (CVA, DVA, FVA, KVA)
+                  </li>
+                </ul>
+                <Button
+                  onClick={() => window.location.href = '#contact'}
+                  variant="ghost"
+                  className={`p-0 h-auto ${isDark ? 'text-purple-400 hover:text-purple-300' : 'text-purple-600 hover:text-purple-700'} font-semibold`}
+                >
+                  Learn More <ArrowRight className="w-4 h-4 ml-1" />
+                </Button>
+              </motion.div>
+
+              {/* Multi-Factor Simulation */}
+              <motion.div
+                initial={{ opacity: 0, y: 50 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.8, delay: 0.4 }}
+                className={`${isDark ? 'bg-gray-900' : 'bg-gray-50'} p-8 rounded-xl shadow-lg border ${isDark ? 'border-gray-700' : 'border-gray-200'} hover:shadow-xl transition-all duration-300 hover:-translate-y-1`}
+              >
+                <div className="w-16 h-16 bg-orange-500 bg-opacity-10 rounded-lg flex items-center justify-center mb-6">
+                  <Cpu className="w-8 h-8 text-orange-500" />
+                </div>
+                <h3 className={`text-xl md:text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'} mb-4 leading-tight`}>
+                  Multi-Factor Simulation
+                </h3>
+                <ul className={`${isDark ? 'text-gray-300' : 'text-gray-600'} space-y-3 mb-6 text-sm md:text-base leading-relaxed`}>
+                  <li className="flex items-start">
+                    <div className="w-2 h-2 bg-orange-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
+                    Unified interest rates, FX, and equity modeling
+                  </li>
+                  <li className="flex items-start">
+                    <div className="w-2 h-2 bg-orange-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
+                    Inflation and commodity derivative pricing
+                  </li>
+                  <li className="flex items-start">
+                    <div className="w-2 h-2 bg-orange-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
+                    Cross-asset correlation and dependency modeling
+                  </li>
+                </ul>
+                <Button
+                  onClick={() => window.location.href = '#contact'}
+                  variant="ghost"
+                  className={`p-0 h-auto ${isDark ? 'text-orange-400 hover:text-orange-300' : 'text-orange-600 hover:text-orange-700'} font-semibold`}
+                >
+                  Learn More <ArrowRight className="w-4 h-4 ml-1" />
+                </Button>
+              </motion.div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Why Choose XSigma Section */}
+      <section className={`${isDark ? 'bg-gray-900' : 'bg-gray-50'} py-20`}>
         <div className="container mx-auto px-6">
           <div className="max-w-6xl mx-auto">
 
@@ -325,127 +687,240 @@ const Index = () => {
               transition={{ duration: 0.8 }}
               className="text-center mb-16"
             >
-              <h2 className={`text-4xl md:text-5xl font-light ${isDark ? 'text-white' : 'text-black'} mb-4`}>
-                Browse Solutions
+              <h2 className={`text-3xl md:text-4xl lg:text-5xl font-bold ${isDark ? 'text-white' : 'text-gray-900'} mb-6`}>
+                Why Choose XSigma?
               </h2>
+              <p className={`text-lg md:text-xl ${isDark ? 'text-gray-300' : 'text-gray-600'} max-w-3xl mx-auto leading-relaxed`}>
+                Built by quants, for quants. Experience the difference of practitioner-developed solutions.
+              </p>
             </motion.div>
 
-            {/* Solutions Grid */}
-            <div className="grid md:grid-cols-3 gap-8">
+            {/* Features Grid */}
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
 
-              {/* Data Solution */}
+              {/* Python-First APIs */}
               <motion.div
                 initial={{ opacity: 0, y: 50 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.8, delay: 0.1 }}
-                className="space-y-6"
+                className={`${isDark ? 'bg-black' : 'bg-white'} p-6 rounded-xl shadow-lg text-center hover:shadow-xl transition-all duration-300 hover:-translate-y-1`}
               >
-                <h3 className={`text-2xl font-medium ${isDark ? 'text-white' : 'text-black'}`}>
-                  Data
+                <div className="w-16 h-16 bg-blue-500 bg-opacity-10 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Code className="w-8 h-8 text-blue-500" />
+                </div>
+                <h3 className={`text-lg md:text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'} mb-3 leading-tight`}>
+                  Python-First APIs
                 </h3>
-                <p className={`text-lg ${isDark ? 'text-gray-300' : 'text-gray-600'} leading-relaxed`}>
-                  Discover, organize, manage, and analyze data. Leverage our unique position as a leading quantitative finance platform.
-                  Access historical and real-time cross-asset data through our unified data platform.
+                <p className={`${isDark ? 'text-gray-300' : 'text-gray-600'} text-sm md:text-base leading-relaxed`}>
+                  Intuitive Python interfaces designed for rapid development and seamless integration with your existing workflows.
                 </p>
-                <Button
-                  onClick={() => window.location.href = '/solutions/data'}
-                  variant="ghost"
-                  className={`p-0 h-auto ${isDark ? 'text-white hover:text-gray-300' : 'text-black hover:text-gray-700'} font-medium`}
-                >
-                  <ArrowRight className="w-4 h-4 mr-2" />
-                  Learn more
-                </Button>
               </motion.div>
 
-              {/* Analytics Solution */}
+              {/* Multi-Asset Integration */}
               <motion.div
                 initial={{ opacity: 0, y: 50 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.8, delay: 0.2 }}
-                className="space-y-6"
+                className={`${isDark ? 'bg-black' : 'bg-white'} p-6 rounded-xl shadow-lg text-center hover:shadow-xl transition-all duration-300 hover:-translate-y-1`}
               >
-                <h3 className={`text-2xl font-medium ${isDark ? 'text-white' : 'text-black'}`}>
-                  Analytics
+                <div className="w-16 h-16 bg-green-500 bg-opacity-10 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Globe className="w-8 h-8 text-green-500" />
+                </div>
+                <h3 className={`text-lg md:text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'} mb-3 leading-tight`}>
+                  Multi-Asset Integration
                 </h3>
-                <p className={`text-lg ${isDark ? 'text-gray-300' : 'text-gray-600'} leading-relaxed`}>
-                  Analyze and interpret data at scale using our front-office tools for investment analysis and risk management.
-                  Advanced XVA calculations and portfolio optimization.
+                <p className={`${isDark ? 'text-gray-300' : 'text-gray-600'} text-sm md:text-base leading-relaxed`}>
+                  Unified framework spanning interest rates, FX, equities, commodities, and inflation derivatives.
                 </p>
-                <Button
-                  onClick={() => window.location.href = '/solutions/analytics'}
-                  variant="ghost"
-                  className={`p-0 h-auto ${isDark ? 'text-white hover:text-gray-300' : 'text-black hover:text-gray-700'} font-medium`}
-                >
-                  <ArrowRight className="w-4 h-4 mr-2" />
-                  Learn more
-                </Button>
               </motion.div>
 
-              {/* Risk Management Solution */}
+              {/* High-Performance Engine */}
               <motion.div
                 initial={{ opacity: 0, y: 50 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.8, delay: 0.3 }}
-                className="space-y-6"
+                className={`${isDark ? 'bg-black' : 'bg-white'} p-6 rounded-xl shadow-lg text-center hover:shadow-xl transition-all duration-300 hover:-translate-y-1`}
               >
-                <h3 className={`text-2xl font-medium ${isDark ? 'text-white' : 'text-black'}`}>
-                  Risk Management
+                <div className="w-16 h-16 bg-purple-500 bg-opacity-10 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Zap className="w-8 h-8 text-purple-500" />
+                </div>
+                <h3 className={`text-lg md:text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'} mb-3 leading-tight`}>
+                  High-Performance Engine
                 </h3>
-                <p className={`text-lg ${isDark ? 'text-gray-300' : 'text-gray-600'} leading-relaxed`}>
-                  Comprehensive risk assessment and regulatory reporting tools. Real-time monitoring and stress testing
-                  capabilities for complex analytix portfolios.
+                <p className={`${isDark ? 'text-gray-300' : 'text-gray-600'} text-sm md:text-base leading-relaxed`}>
+                  C++/Rust computational backend delivering institutional-grade performance without compromising ease of use.
                 </p>
-                <Button
-                  onClick={() => window.location.href = '/solutions/portfolio'}
-                  variant="ghost"
-                  className={`p-0 h-auto ${isDark ? 'text-white hover:text-gray-300' : 'text-black hover:text-gray-700'} font-medium`}
-                >
-                  <ArrowRight className="w-4 h-4 mr-2" />
-                  Learn more
-                </Button>
+              </motion.div>
+
+              {/* Practitioner-Trusted */}
+              <motion.div
+                initial={{ opacity: 0, y: 50 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.8, delay: 0.4 }}
+                className={`${isDark ? 'bg-black' : 'bg-white'} p-6 rounded-xl shadow-lg text-center hover:shadow-xl transition-all duration-300 hover:-translate-y-1`}
+              >
+                <div className="w-16 h-16 bg-orange-500 bg-opacity-10 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Shield className="w-8 h-8 text-orange-500" />
+                </div>
+                <h3 className={`text-lg md:text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'} mb-3 leading-tight`}>
+                  Practitioner-Trusted
+                </h3>
+                <p className={`${isDark ? 'text-gray-300' : 'text-gray-600'} text-sm md:text-base leading-relaxed`}>
+                  Developed by industry experts with decades of experience in quantitative finance and risk management.
+                </p>
               </motion.div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Call to Action Section */}
-      <section className={`${isDark ? 'bg-gray-900' : 'bg-gray-50'} py-20`}>
+      {/* Contact/CTA Footer Section */}
+      <section id="contact" className={`${isDark ? 'bg-black' : 'bg-white'} py-20`}>
         <div className="container mx-auto px-6">
-          <div className="max-w-4xl mx-auto text-center">
+          <div className="max-w-6xl mx-auto">
+            <div className="grid lg:grid-cols-2 gap-12">
 
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.8 }}
-              className="space-y-8"
-            >
-              <h2 className={`text-4xl md:text-5xl font-light ${isDark ? 'text-white' : 'text-black'}`}>
-                Find which solutions are right for your business
-              </h2>
-
-              <p className={`text-xl ${isDark ? 'text-gray-300' : 'text-gray-600'} max-w-2xl mx-auto leading-relaxed`}>
-                Contact our team to make sure our services meet your unique quantitative finance needs.
-              </p>
-
+              {/* Demo Request Form */}
               <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
+                initial={{ opacity: 0, x: -50 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.8 }}
+              >
+                <h2 className={`text-2xl md:text-3xl lg:text-4xl font-bold ${isDark ? 'text-white' : 'text-gray-900'} mb-6 leading-tight`}>
+                  Ready to Transform Your Quant Operations?
+                </h2>
+                <p className={`text-lg md:text-xl ${isDark ? 'text-gray-300' : 'text-gray-600'} mb-8 leading-relaxed`}>
+                  Schedule a personalized demo and discover how XSigma can accelerate your quantitative finance workflows.
+                </p>
+
+                <form className="space-y-6">
+                  <div className="grid md:grid-cols-2 gap-6">
+                    <div>
+                      <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                        Full Name *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        className={`w-full px-4 py-3 ${isDark ? 'bg-gray-800 border-gray-600 text-white' : 'bg-white border-gray-300 text-black'} border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
+                        placeholder="John Doe"
+                      />
+                    </div>
+                    <div>
+                      <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                        Email Address *
+                      </label>
+                      <input
+                        type="email"
+                        required
+                        className={`w-full px-4 py-3 ${isDark ? 'bg-gray-800 border-gray-600 text-white' : 'bg-white border-gray-300 text-black'} border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
+                        placeholder="john@company.com"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                      Company
+                    </label>
+                    <input
+                      type="text"
+                      className={`w-full px-4 py-3 ${isDark ? 'bg-gray-800 border-gray-600 text-white' : 'bg-white border-gray-300 text-black'} border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
+                      placeholder="Your Financial Institution"
+                    />
+                  </div>
+
+                  <div>
+                    <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                      Message
+                    </label>
+                    <textarea
+                      rows={4}
+                      className={`w-full px-4 py-3 ${isDark ? 'bg-gray-800 border-gray-600 text-white' : 'bg-white border-gray-300 text-black'} border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
+                      placeholder="Tell us about your quantitative finance requirements..."
+                    />
+                  </div>
+
+                  <Button
+                    type="submit"
+                    size="lg"
+                    className={`w-full px-6 py-4 text-lg font-semibold ${isDark ? 'bg-white text-black hover:bg-gray-100' : 'bg-black text-white hover:bg-gray-800'} rounded-lg transition-colors`}
+                  >
+                    Request Demo
+                  </Button>
+                </form>
+              </motion.div>
+
+              {/* Newsletter & Contact Info */}
+              <motion.div
+                initial={{ opacity: 0, x: 50 }}
+                whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.8, delay: 0.2 }}
               >
-                <Button
-                  size="lg"
-                  className={`px-8 py-4 text-lg font-medium ${isDark ? 'bg-white text-black hover:bg-gray-100' : 'bg-black text-white hover:bg-gray-800'} rounded-none transition-colors`}
-                >
-                  Register Interest
-                </Button>
+                <div className="mb-12">
+                  <h3 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-black'} mb-4`}>
+                    Stay Updated
+                  </h3>
+                  <p className={`${isDark ? 'text-gray-300' : 'text-gray-600'} mb-6`}>
+                    Subscribe to our newsletter for the latest insights in quantitative finance and XSigma updates.
+                  </p>
+
+                  <form className="flex gap-4">
+                    <input
+                      type="email"
+                      placeholder="Enter your email"
+                      className={`flex-1 px-4 py-3 ${isDark ? 'bg-gray-800 border-gray-600 text-white' : 'bg-white border-gray-300 text-black'} border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
+                    />
+                    <Button
+                      type="submit"
+                      className={`px-6 py-3 font-semibold ${isDark ? 'bg-white text-black hover:bg-gray-100' : 'bg-black text-white hover:bg-gray-800'} rounded-lg`}
+                    >
+                      Subscribe
+                    </Button>
+                  </form>
+                </div>
+
+                <div className="space-y-6">
+                  <div>
+                    <h4 className={`text-lg font-semibold mb-3 ${isDark ? 'text-white' : 'text-black'}`}>
+                      Connect With Us
+                    </h4>
+                    <div className="flex space-x-4">
+                      <a href="#" className="w-12 h-12 bg-blue-500 bg-opacity-20 rounded-full flex items-center justify-center hover:bg-opacity-30 transition-colors">
+                        <Users className="w-6 h-6 text-blue-500" />
+                      </a>
+                      <a href="#" className="w-12 h-12 bg-blue-500 bg-opacity-20 rounded-full flex items-center justify-center hover:bg-opacity-30 transition-colors">
+                        <Code className="w-6 h-6 text-blue-500" />
+                      </a>
+                      <a href="#" className="w-12 h-12 bg-blue-500 bg-opacity-20 rounded-full flex items-center justify-center hover:bg-opacity-30 transition-colors">
+                        <MessageCircle className="w-6 h-6 text-blue-500" />
+                      </a>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h4 className={`text-lg font-semibold mb-3 ${isDark ? 'text-white' : 'text-black'}`}>
+                      Contact Information
+                    </h4>
+                    <div className={`space-y-2 ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                      <p>📧 contact@xsigma.com</p>
+                      <p>📞 +1 (555) 123-4567</p>
+                      <p>📍 New York, NY | London, UK</p>
+                    </div>
+                  </div>
+                </div>
               </motion.div>
-            </motion.div>
+            </div>
+
+            <div className={`border-t ${isDark ? 'border-gray-700' : 'border-gray-300'} mt-12 pt-8 text-center ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+              <p>&copy; 2024 XSigma - Advanced Quantitative Finance Solutions. All rights reserved.</p>
+            </div>
           </div>
         </div>
       </section>
