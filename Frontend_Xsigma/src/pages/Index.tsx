@@ -1,72 +1,78 @@
+import React, { useEffect, useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import { ArrowRight, MessageCircle, Sparkles, TrendingUp, Shield, Zap, Globe, BarChart3, Users, Code, Database, Cpu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Navigation from "@/components/Navigation";
 import { useTheme } from "@/contexts/ThemeContext";
-import { useEffect, useState } from "react";
 import AnimatedBackground from "@/components/AnimatedBackground";
 
-// Dynamic AI Chat Component (without blue button)
-const DynamicAIChat = () => {
+// Dynamic AI Chat Component - Optimized for Performance
+const DynamicAIChat = React.memo(() => {
   const { isDark } = useTheme();
   const [currentPhrase, setCurrentPhrase] = useState(0);
   const [isTyping, setIsTyping] = useState(false);
   const [displayedText, setDisplayedText] = useState('');
 
-  const aiPhrases = [
-    "💡 Ask me about XVA calculations and risk analytics...",
-    "🚀 Discover our advanced portfolio optimization tools...",
-    "📊 Learn about real-time market data integration...",
-    "⚡ Explore our high-performance computing solutions...",
-    "🔬 Get insights on quantitative modeling frameworks...",
-    "🎯 Find out about regulatory reporting automation...",
-    "🌐 Understand our cross-asset pricing engines...",
-    "🔧 See how our APIs can transform your workflow..."
-  ];
+  // Memoize phrases to prevent recreation on every render
+  const aiPhrases = useMemo(() => [
+    "💡 Ask about CVA/DVA calculations and counterparty risk analytics...",
+    "📊 Discover our SABR volatility calibration and curve construction...",
+    "⚡ Explore Monte Carlo simulation with enhanced AAD acceleration...",
+    "🔬 Learn about multi-factor interest rate and FX modeling...",
+    "🎯 Find out about regulatory capital and FRTB compliance...",
+    "🌐 Understand our cross-asset derivative pricing engines...",
+    "🔧 See how our Python APIs integrate with your risk systems...",
+    "📈 Get insights on exotic option pricing and Greeks calculation..."
+  ], []);
 
+  // Optimize typing animation with proper cleanup
   useEffect(() => {
-    const phraseInterval = setInterval(() => {
+    let phraseInterval: NodeJS.Timeout;
+    let typingInterval: NodeJS.Timeout;
+    let timeoutId: NodeJS.Timeout;
+
+    const startTyping = (phrase: string, isInitial = false) => {
       setIsTyping(true);
       setDisplayedText('');
-
-      const phrase = aiPhrases[currentPhrase];
       let charIndex = 0;
 
-      const typingInterval = setInterval(() => {
+      typingInterval = setInterval(() => {
         if (charIndex < phrase.length) {
           setDisplayedText(phrase.substring(0, charIndex + 1));
           charIndex++;
         } else {
           clearInterval(typingInterval);
           setIsTyping(false);
-          setTimeout(() => {
-            setCurrentPhrase((prev) => (prev + 1) % aiPhrases.length);
-          }, 3000);
+
+          if (!isInitial) {
+            timeoutId = setTimeout(() => {
+              setCurrentPhrase((prev) => (prev + 1) % aiPhrases.length);
+            }, 3000);
+          }
         }
       }, 50);
-
-      return () => clearInterval(typingInterval);
-    }, 6000);
+    };
 
     // Initial typing
-    setIsTyping(true);
-    const initialPhrase = aiPhrases[0];
-    let charIndex = 0;
-    const initialTyping = setInterval(() => {
-      if (charIndex < initialPhrase.length) {
-        setDisplayedText(initialPhrase.substring(0, charIndex + 1));
-        charIndex++;
-      } else {
-        clearInterval(initialTyping);
-        setIsTyping(false);
-      }
-    }, 50);
+    startTyping(aiPhrases[0], true);
+
+    // Set up phrase rotation after initial load
+    const setupRotation = () => {
+      phraseInterval = setInterval(() => {
+        const nextPhrase = aiPhrases[(currentPhrase + 1) % aiPhrases.length];
+        startTyping(nextPhrase);
+      }, 6000);
+    };
+
+    const rotationTimeout = setTimeout(setupRotation, 4000);
 
     return () => {
       clearInterval(phraseInterval);
-      clearInterval(initialTyping);
+      clearInterval(typingInterval);
+      clearTimeout(timeoutId);
+      clearTimeout(rotationTimeout);
     };
-  }, [currentPhrase]);
+  }, [aiPhrases, currentPhrase]);
 
   return (
     <motion.div
@@ -85,6 +91,15 @@ const DynamicAIChat = () => {
         hover: { duration: 0.3, ease: "easeOut" }
       }}
       className={`mt-8 mx-auto max-w-2xl ${isDark ? 'bg-gray-900/80' : 'bg-white/80'} backdrop-blur-md rounded-2xl border ${isDark ? 'border-gray-700 hover:border-blue-500/50' : 'border-gray-200 hover:border-blue-400/50'} shadow-xl cursor-pointer transition-colors duration-300`}
+      role="region"
+      aria-label="AI Assistant Preview"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          // Handle keyboard interaction
+          console.log('AI Chat activated via keyboard');
+        }
+      }}
     >
       <div className="p-6">
         <div className="flex items-start space-x-4">
@@ -152,26 +167,50 @@ const DynamicAIChat = () => {
       </div>
     </motion.div>
   );
-};
+});
 
 
 
 
 const Index = () => {
   const { isDark } = useTheme();
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Simulate loading state for better UX
+  useEffect(() => {
+    const timer = setTimeout(() => setIsLoading(false), 1000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (isLoading) {
+    return (
+      <div className={`min-h-screen flex items-center justify-center ${isDark ? 'bg-black' : 'bg-white'}`}>
+        <div className="text-center">
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+            className={`w-12 h-12 border-4 border-t-transparent rounded-full mx-auto mb-4 ${isDark ? 'border-white' : 'border-gray-900'}`}
+          />
+          <p className={`${isDark ? 'text-white' : 'text-gray-900'} font-medium`}>
+            Loading XSigma Analytics...
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`min-h-screen ${isDark ? 'bg-black text-white' : 'bg-white text-black'} transition-colors duration-300`}>
       <Navigation />
 
-      {/* Hero Section - Goldman Sachs Style */}
-      <section className="relative min-h-screen">
+      {/* Hero Section - Professional Quantitative Finance */}
+      <section className="relative min-h-screen" role="banner" aria-label="XSigma Homepage Hero">
         {/* Animated Background */}
         <AnimatedBackground />
 
         {/* Hero Content */}
         <div className="relative z-10 container mx-auto px-6 pt-32 pb-20 min-h-screen flex items-center">
-            <div className="max-w-4xl mx-auto text-center">
+            <header className="max-w-4xl mx-auto text-center">
 
               {/* Logo and Main Headline */}
               <motion.div
@@ -189,8 +228,9 @@ const Index = () => {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.2, duration: 0.8, ease: "easeOut" }}
                 >
-                  Trusted Market Models, Built by Practitioners,{' '}
-                  <span className="xsigma-teal">Used by Banks</span>
+                  Production-Tested Market Models,{' '}
+                  <span className="xsigma-teal">Built by Practitioners</span>,{' '}
+                  Trusted by Banks
                 </motion.h1>
 
                 <motion.div
@@ -211,7 +251,7 @@ const Index = () => {
                     </span>
                   </div>
                   <p className={`finance-body text-lg md:text-xl lg:text-2xl ${isDark ? 'text-gray-200' : 'text-gray-700'} max-w-5xl mx-auto leading-relaxed`}>
-                    XSigma delivers curve and volatility frameworks, risk engines, and Monte Carlo simulation platforms — powered by models already implemented in production desks, and accelerated by our proprietary <span className="xsigma-teal font-medium">enhanced AAD</span>
+                    Enterprise-grade quantitative analytics delivering curve construction, volatility calibration, and Monte Carlo simulation — powered by models deployed in tier-1 bank trading desks, accelerated by our proprietary <span className="xsigma-teal font-medium">enhanced AAD technology</span>
                   </p>
                 </motion.div>
 
@@ -221,7 +261,7 @@ const Index = () => {
                   transition={{ delay: 0.6, duration: 0.8 }}
                   className={`text-base md:text-lg lg:text-xl ${isDark ? 'text-gray-300' : 'text-gray-600'} max-w-3xl mx-auto leading-relaxed`}
                 >
-                  Unlock advanced quantitative finance capabilities by embedding our developer solutions into your ecosystem.
+                  Integrate institutional-grade quantitative analytics into your risk management and trading infrastructure through our comprehensive Python SDK and C++ libraries.
                 </motion.p>
               </motion.div>
 
@@ -245,7 +285,7 @@ const Index = () => {
                     size="lg"
                     className={`finance-body px-10 py-4 text-base font-medium ${isDark ? 'bg-white text-black hover:bg-gray-100' : 'bg-xsigma-navy text-white hover:bg-opacity-90'} rounded-none transition-all duration-300 shadow-lg relative overflow-hidden group border-0`}
                   >
-                    <span className="relative z-10 tracking-wide">Discover AaD Framework</span>
+                    <span className="relative z-10 tracking-wide">Discover AAD Framework</span>
                     <motion.div
                       className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-purple-500/20"
                       initial={{ scale: 0, opacity: 0 }}
@@ -275,11 +315,11 @@ const Index = () => {
                   </Button>
                 </motion.div>
               </motion.div>
-            </div>
+            </header>
           </div>
       </section>
 
-      {/* About XSigma / AaD Framework Section - Professional Clean Background */}
+      {/* About XSigma / AAD Framework Section - Professional Clean Background */}
       <section id="aad-framework" className={`relative py-24 ${isDark ? 'bg-gray-900' : 'bg-white'} aad-framework-section gpu-accelerated border-t ${isDark ? 'border-gray-800' : 'border-gray-100'}`}>
 
 
@@ -287,7 +327,7 @@ const Index = () => {
           <div className="max-w-7xl mx-auto">
             <div className="grid lg:grid-cols-2 gap-20 items-center">
 
-              {/* AaD Framework Content */}
+              {/* AAD Framework Content */}
               <motion.div
                 initial={{ opacity: 0, x: -50 }}
                 whileInView={{ opacity: 1, x: 0 }}
@@ -412,7 +452,7 @@ const Index = () => {
                 </motion.div>
               </motion.div>
 
-              {/* Enhanced AaD Framework Diagram */}
+              {/* Enhanced AAD Framework Diagram */}
               <motion.div
                 initial={{ opacity: 0, x: 50 }}
                 whileInView={{ opacity: 1, x: 0 }}
@@ -431,7 +471,7 @@ const Index = () => {
                     }}
                   >
                     <h3 className="text-white text-3xl lg:text-3xl md:text-2xl sm:text-xl font-extrabold tracking-wider mb-1" style={{ textShadow: '0 2px 10px rgba(0, 0, 0, 0.5)' }}>
-                      AaD
+                      AAD
                     </h3>
                     <span className="text-blue-400 text-sm lg:text-sm md:text-xs sm:text-xs font-semibold uppercase tracking-wide">Core</span>
                   </div>
@@ -798,27 +838,47 @@ const Index = () => {
                   Schedule a personalized demo and discover how XSigma can accelerate your quantitative finance workflows.
                 </p>
 
-                <form className="space-y-6">
+                <form
+                  className="space-y-6"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    // Handle form submission
+                    console.log('Demo request submitted');
+                  }}
+                  noValidate
+                >
                   <div className="grid md:grid-cols-2 gap-6">
                     <div>
-                      <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                      <label
+                        htmlFor="fullName"
+                        className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}
+                      >
                         Full Name *
                       </label>
                       <input
+                        id="fullName"
+                        name="fullName"
                         type="text"
                         required
-                        className={`w-full px-4 py-3 ${isDark ? 'bg-gray-800 border-gray-600 text-white' : 'bg-white border-gray-300 text-black'} border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
+                        aria-required="true"
+                        className={`w-full px-4 py-3 ${isDark ? 'bg-gray-800 border-gray-600 text-white' : 'bg-white border-gray-300 text-black'} border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors`}
                         placeholder="John Doe"
                       />
                     </div>
                     <div>
-                      <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                      <label
+                        htmlFor="email"
+                        className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}
+                      >
                         Email Address *
                       </label>
                       <input
+                        id="email"
+                        name="email"
                         type="email"
                         required
-                        className={`w-full px-4 py-3 ${isDark ? 'bg-gray-800 border-gray-600 text-white' : 'bg-white border-gray-300 text-black'} border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
+                        aria-required="true"
+                        className={`w-full px-4 py-3 ${isDark ? 'bg-gray-800 border-gray-600 text-white' : 'bg-white border-gray-300 text-black'} border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors`}
                         placeholder="john@company.com"
                       />
                     </div>
