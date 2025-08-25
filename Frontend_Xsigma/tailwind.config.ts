@@ -60,6 +60,9 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        // XSigma brand colors
+        'xsigma-navy': '#0A1F44',
+        'xsigma-teal': '#00BFC4',
       },
       keyframes: {
         marquee: {

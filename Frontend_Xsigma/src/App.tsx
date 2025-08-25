@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "@/contexts/ThemeContext";
+import { HelmetProvider } from "react-helmet-async";
 import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
 import Blog from "./pages/Blog";
@@ -31,17 +32,38 @@ import CaseStudies from "./pages/downloads/CaseStudies";
 import UserManual from "./pages/downloads/UserManual";
 import DeveloperGuide from "./pages/downloads/DeveloperGuide";
 import Tutorials from "./pages/downloads/Tutorials";
+// Company pages
+import About from "./pages/company/About";
+import Leadership from "./pages/company/Leadership";
+import Partners from "./pages/company/Partners";
+import News from "./pages/company/News";
+import Academic from "./pages/company/Academic";
+import Integrations from "./pages/company/Integrations";
+import PartnerProgram from "./pages/company/PartnerProgram";
+
+// Support pages
+import ApiDocumentation from "./pages/support/ApiDocumentation";
+import XSigmaApiReference from "./pages/support/XSigmaApiReference";
+import ComprehensiveDocumentation from "./pages/support/ComprehensiveDocumentation";
+import Developers from "./pages/support/Developers";
+import Integration from "./pages/support/Integration";
+import Releases from "./pages/support/Releases";
+import Technical from "./pages/support/Technical";
+import Training from "./pages/support/Training";
+import Professional from "./pages/support/Professional";
+import Community from "./pages/support/Community";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <ThemeProvider>
-      <TooltipProvider>
-        <div className="min-h-screen bg-background">
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
+    <HelmetProvider>
+      <ThemeProvider>
+        <TooltipProvider>
+          <div className="min-h-screen bg-background">
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/dashboard" element={<Dashboard />} />
@@ -71,6 +93,26 @@ const App = () => (
               <Route path="/downloads/user-manual" element={<UserManual />} />
               <Route path="/downloads/developer-guide" element={<DeveloperGuide />} />
               <Route path="/downloads/tutorials" element={<Tutorials />} />
+              {/* Company routes */}
+              <Route path="/company/about" element={<About />} />
+              <Route path="/company/leadership" element={<Leadership />} />
+              <Route path="/company/partners" element={<Partners />} />
+              <Route path="/company/news" element={<News />} />
+              <Route path="/company/academic" element={<Academic />} />
+              <Route path="/company/integrations" element={<Integrations />} />
+              <Route path="/company/partner-program" element={<PartnerProgram />} />
+
+              {/* Support routes */}
+              <Route path="/support/api-documentation" element={<ApiDocumentation />} />
+              <Route path="/support/api-reference" element={<XSigmaApiReference />} />
+              <Route path="/support/documentation" element={<ComprehensiveDocumentation />} />
+              <Route path="/support/developers" element={<Developers />} />
+              <Route path="/support/integration" element={<Integration />} />
+              <Route path="/support/releases" element={<Releases />} />
+              <Route path="/support/technical" element={<Technical />} />
+              <Route path="/support/training" element={<Training />} />
+              <Route path="/support/professional" element={<Professional />} />
+              <Route path="/support/community" element={<Community />} />
               <Route path="/linkedin" element={<LinkedIn />} />
               <Route path="/linkedin/callback" element={<LinkedInCallback />} />
             </Routes>
@@ -78,6 +120,7 @@ const App = () => (
         </div>
       </TooltipProvider>
     </ThemeProvider>
+    </HelmetProvider>
   </QueryClientProvider>
 );
 

@@ -228,7 +228,8 @@ const Navigation = () => {
           title: "Documentation",
           description: "Comprehensive technical documentation and API references",
           items: [
-            { name: "API Documentation", icon: "📚", href: "/sphinx-doc/xsigma-1.1-3/index.html", external: true },
+            { name: "Complete Documentation", icon: "📖", href: "/support/documentation" },
+            { name: "API Reference", icon: "📚", href: "/support/api-reference" },
             { name: "Developer Portal", icon: "👨‍💻", href: "/support/developers" },
             { name: "Integration Guides", icon: "🔧", href: "/support/integration" },
             { name: "Release Notes", icon: "📝", href: "/support/releases" }
