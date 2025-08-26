@@ -18,6 +18,10 @@ import PricingRisk from "./pages/solutions/PricingRisk";
 import MonteCarlo from "./pages/solutions/MonteCarlo";
 import Banking from "./pages/solutions/Banking";
 import Dap from "./pages/solutions/Dap";
+import XcfModel from "./pages/solutions/XcfModel";
+import XvfModel from "./pages/solutions/XvfModel";
+import CvaDva from "./pages/solutions/CvaDva";
+import Greeks from "./pages/solutions/Greeks";
 import RegisterInterest from "./pages/RegisterInterest";
 import Account from "./pages/Account";
 import Careers from "./pages/Careers";
@@ -70,6 +74,10 @@ const App = () => (
               <Route path="/blog" element={<Blog />} />
               <Route path="/blog/:postId" element={<Blog />} />
               {/* Production-Ready Solution Routes */}
+              <Route path="/solutions/xcf-model" element={<XcfModel />} />
+              <Route path="/solutions/xvf-model" element={<XvfModel />} />
+              <Route path="/solutions/cva-dva" element={<CvaDva />} />
+              <Route path="/solutions/greeks" element={<Greeks />} />
               <Route path="/solutions/market-models" element={<MarketModels />} />
               <Route path="/solutions/pricing-risk" element={<PricingRisk />} />
               <Route path="/solutions/monte-carlo" element={<MonteCarlo />} />

@@ -105,8 +105,8 @@ const SolutionPage = ({ title, subtitle, description, features = [], highlight =
       <section className={`${isDark ? 'bg-gray-900' : 'bg-gray-50'} py-16`}>
         <div className="container mx-auto px-6">
           <div className="max-w-4xl mx-auto text-center">
-            <h3 className="text-3xl font-light mb-4">Prêt à démarrer ?</h3>
-            <p className={`${isDark ? 'text-gray-300' : 'text-gray-600'} mb-8`}>Contactez‑nous pour une démonstration et un accès API.</p>
+            <h3 className="text-3xl font-light mb-4">Ready to get started?</h3>
+            <p className={`${isDark ? 'text-gray-300' : 'text-gray-600'} mb-8`}>Contact us for a demonstration and API access.</p>
             <Button
               size="lg"
               className={`${isDark ? 'bg-white text-black hover:bg-gray-100' : 'bg-black text-white hover:bg-gray-800'} rounded-none`}

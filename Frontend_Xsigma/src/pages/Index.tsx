@@ -223,7 +223,7 @@ const Index = () => {
 
 
                 <motion.h1
-                  className={`finance-heading text-3xl md:text-4xl lg:text-5xl xl:text-6xl leading-tight ${isDark ? 'text-white' : 'text-gray-900'} mb-8`}
+                  className={`finance-heading text-2xl md:text-3xl lg:text-4xl xl:text-5xl leading-tight ${isDark ? 'text-white' : 'text-gray-900'} mb-8`}
                   initial={{ opacity: 0, y: 30 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.2, duration: 0.8, ease: "easeOut" }}
@@ -250,7 +250,7 @@ const Index = () => {
                       Practitioner-Built
                     </span>
                   </div>
-                  <p className={`finance-body text-lg md:text-xl lg:text-2xl ${isDark ? 'text-gray-200' : 'text-gray-700'} max-w-5xl mx-auto leading-relaxed`}>
+                  <p className={`finance-body text-base md:text-lg lg:text-xl ${isDark ? 'text-gray-200' : 'text-gray-700'} max-w-5xl mx-auto leading-relaxed`}>
                     Enterprise-grade quantitative analytics delivering curve construction, volatility calibration, and Monte Carlo simulation — powered by models deployed in tier-1 bank trading desks, accelerated by our proprietary <span className="xsigma-teal font-medium">enhanced AAD technology</span>
                   </p>
                 </motion.div>
@@ -283,7 +283,7 @@ const Index = () => {
                   <Button
                     onClick={() => window.location.href = '#aad-framework'}
                     size="lg"
-                    className={`finance-body px-10 py-4 text-base font-medium ${isDark ? 'bg-white text-black hover:bg-gray-100' : 'bg-xsigma-navy text-white hover:bg-opacity-90'} rounded-none transition-all duration-300 shadow-lg relative overflow-hidden group border-0`}
+                    className={`finance-body px-10 py-4 text-base font-semibold ${isDark ? 'bg-white text-black hover:bg-gray-100' : 'bg-xsigma-navy text-white hover:bg-opacity-90'} rounded-none transition-all duration-300 shadow-lg relative overflow-hidden group border-0`}
                   >
                     <span className="relative z-10 tracking-wide">Discover AAD Framework</span>
                     <motion.div
@@ -303,7 +303,7 @@ const Index = () => {
                     onClick={() => window.location.href = '#contact'}
                     size="lg"
                     variant="outline"
-                    className={`px-8 py-4 text-lg font-medium ${isDark ? 'border-white text-white hover:bg-white hover:text-black' : 'border-gray-900 text-gray-900 hover:bg-gray-900 hover:text-white'} rounded-lg transition-colors shadow-lg backdrop-blur-sm relative overflow-hidden group`}
+                    className={`finance-body px-8 py-4 text-base font-semibold ${isDark ? 'border-white text-white hover:bg-white hover:text-black' : 'border-gray-900 text-gray-900 hover:bg-gray-900 hover:text-white'} rounded-lg transition-colors shadow-lg backdrop-blur-sm relative overflow-hidden group`}
                   >
                     <span className="relative z-10">Request Demo</span>
                     <motion.div
@@ -727,10 +727,10 @@ const Index = () => {
               transition={{ duration: 0.8 }}
               className="text-center mb-16"
             >
-              <h2 className={`text-3xl md:text-4xl lg:text-5xl font-bold ${isDark ? 'text-white' : 'text-gray-900'} mb-6`}>
+              <h2 className={`finance-heading text-2xl md:text-3xl lg:text-4xl font-bold ${isDark ? 'text-white' : 'text-gray-900'} mb-6`}>
                 Why Choose XSigma?
               </h2>
-              <p className={`text-lg md:text-xl ${isDark ? 'text-gray-300' : 'text-gray-600'} max-w-3xl mx-auto leading-relaxed`}>
+              <p className={`finance-body text-base md:text-lg ${isDark ? 'text-gray-300' : 'text-gray-600'} max-w-3xl mx-auto leading-relaxed`}>
                 Built by quants, for quants. Experience the difference of practitioner-developed solutions.
               </p>
             </motion.div>
@@ -749,10 +749,10 @@ const Index = () => {
                 <div className="w-16 h-16 bg-blue-500 bg-opacity-10 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Code className="w-8 h-8 text-blue-500" />
                 </div>
-                <h3 className={`text-lg md:text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'} mb-3 leading-tight`}>
+                <h3 className={`finance-heading text-base md:text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'} mb-3 leading-tight`}>
                   Python-First APIs
                 </h3>
-                <p className={`${isDark ? 'text-gray-300' : 'text-gray-600'} text-sm md:text-base leading-relaxed`}>
+                <p className={`finance-body ${isDark ? 'text-gray-300' : 'text-gray-600'} text-sm md:text-base leading-relaxed`}>
                   Intuitive Python interfaces designed for rapid development and seamless integration with your existing workflows.
                 </p>
               </motion.div>
@@ -768,10 +768,10 @@ const Index = () => {
                 <div className="w-16 h-16 bg-green-500 bg-opacity-10 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Globe className="w-8 h-8 text-green-500" />
                 </div>
-                <h3 className={`text-lg md:text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'} mb-3 leading-tight`}>
+                <h3 className={`finance-heading text-base md:text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'} mb-3 leading-tight`}>
                   Multi-Asset Integration
                 </h3>
-                <p className={`${isDark ? 'text-gray-300' : 'text-gray-600'} text-sm md:text-base leading-relaxed`}>
+                <p className={`finance-body ${isDark ? 'text-gray-300' : 'text-gray-600'} text-sm md:text-base leading-relaxed`}>
                   Unified framework spanning interest rates, FX, equities, commodities, and inflation derivatives.
                 </p>
               </motion.div>
@@ -787,10 +787,10 @@ const Index = () => {
                 <div className="w-16 h-16 bg-purple-500 bg-opacity-10 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Zap className="w-8 h-8 text-purple-500" />
                 </div>
-                <h3 className={`text-lg md:text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'} mb-3 leading-tight`}>
+                <h3 className={`finance-heading text-base md:text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'} mb-3 leading-tight`}>
                   High-Performance Engine
                 </h3>
-                <p className={`${isDark ? 'text-gray-300' : 'text-gray-600'} text-sm md:text-base leading-relaxed`}>
+                <p className={`finance-body ${isDark ? 'text-gray-300' : 'text-gray-600'} text-sm md:text-base leading-relaxed`}>
                   C++/Rust computational backend delivering institutional-grade performance without compromising ease of use.
                 </p>
               </motion.div>
@@ -806,10 +806,10 @@ const Index = () => {
                 <div className="w-16 h-16 bg-orange-500 bg-opacity-10 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Shield className="w-8 h-8 text-orange-500" />
                 </div>
-                <h3 className={`text-lg md:text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'} mb-3 leading-tight`}>
+                <h3 className={`finance-heading text-base md:text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'} mb-3 leading-tight`}>
                   Practitioner-Trusted
                 </h3>
-                <p className={`${isDark ? 'text-gray-300' : 'text-gray-600'} text-sm md:text-base leading-relaxed`}>
+                <p className={`finance-body ${isDark ? 'text-gray-300' : 'text-gray-600'} text-sm md:text-base leading-relaxed`}>
                   Developed by industry experts with decades of experience in quantitative finance and risk management.
                 </p>
               </motion.div>
