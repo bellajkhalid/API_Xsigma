@@ -223,14 +223,37 @@ const Index = () => {
 
 
                 <motion.h1
-                  className={`finance-heading text-2xl md:text-3xl lg:text-4xl xl:text-5xl leading-tight ${isDark ? 'text-white' : 'text-gray-900'} mb-8`}
+                  className={`finance-heading text-2xl md:text-3xl lg:text-4xl xl:text-5xl leading-tight mb-8`}
                   initial={{ opacity: 0, y: 30 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.2, duration: 0.8, ease: "easeOut" }}
                 >
-                  Production-Tested Market Models,{' '}
-                  <span className="xsigma-teal">Built by Practitioners</span>,{' '}
-                  Trusted by Banks
+                  <span className={`${isDark ? 'text-white' : 'xsigma-navy'} font-semibold xsigma-hero-segment transition-colors duration-300 ${isDark ? '' : 'xsigma-hero-light-glow'}`}>
+                    <span className="xsigma-hero-emphasis">Production-Tested</span> Market Models
+                  </span>,{' '}
+                  <span
+                    className={`${isDark ? 'xsigma-teal xsigma-hero-glow' : 'text-white'} font-bold xsigma-hero-segment relative transition-all duration-300`}
+                    style={{
+                      textShadow: isDark
+                        ? '0 0 20px rgba(0, 191, 196, 0.4), 0 0 40px rgba(0, 191, 196, 0.2)'
+                        : '0 2px 12px rgba(0, 0, 0, 0.5), 0 4px 24px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.1)'
+                    }}
+                  >
+                    Built by Practitioners
+                  </span>,{' '}
+                  <span className={`${isDark ? 'text-gray-200' : 'xsigma-navy'} font-medium xsigma-hero-segment transition-colors duration-300 ${isDark ? '' : 'xsigma-hero-light-glow'}`}>
+                    Trusted by{' '}
+                    <span
+                      className={`xsigma-teal font-semibold xsigma-hero-emphasis transition-all duration-300`}
+                      style={{
+                        textShadow: isDark
+                          ? '0 0 15px rgba(0, 191, 196, 0.4), 0 0 25px rgba(0, 191, 196, 0.2)'
+                          : '0 1px 8px rgba(0, 191, 196, 0.3), 0 2px 16px rgba(0, 191, 196, 0.2)'
+                      }}
+                    >
+                      Banks
+                    </span>
+                  </span>
                 </motion.h1>
 
                 <motion.div
@@ -255,14 +278,6 @@ const Index = () => {
                   </p>
                 </motion.div>
 
-                <motion.p
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.6, duration: 0.8 }}
-                  className={`text-base md:text-lg lg:text-xl ${isDark ? 'text-gray-300' : 'text-gray-600'} max-w-3xl mx-auto leading-relaxed`}
-                >
-                  Integrate institutional-grade quantitative analytics into your risk management and trading infrastructure through our comprehensive Python SDK and C++ libraries.
-                </motion.p>
               </motion.div>
 
               {/* Dynamic AI Chat */}
