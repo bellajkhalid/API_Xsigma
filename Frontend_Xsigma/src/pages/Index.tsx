@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import Navigation from "@/components/Navigation";
 import { useTheme } from "@/contexts/ThemeContext";
 import AnimatedBackground from "@/components/AnimatedBackground";
+import { authService } from "@/services/authService";
 
 // Dynamic AI Chat Component - Optimized for Performance
 const DynamicAIChat = React.memo(() => {

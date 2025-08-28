@@ -27,6 +27,7 @@ import Account from "./pages/Account";
 import Careers from "./pages/Careers";
 import LinkedIn from "./pages/LinkedIn";
 import LinkedInCallback from "./pages/LinkedInCallback";
+import AuthTest from "./pages/AuthTest";
 // Download pages
 import CppLibraries from "./pages/downloads/CppLibraries";
 import InstallationGuide from "./pages/downloads/InstallationGuide";
@@ -123,6 +124,7 @@ const App = () => (
               <Route path="/support/community" element={<Community />} />
               <Route path="/linkedin" element={<LinkedIn />} />
               <Route path="/linkedin/callback" element={<LinkedInCallback />} />
+              <Route path="/auth-test" element={<AuthTest />} />
             </Routes>
           </BrowserRouter>
         </div>
