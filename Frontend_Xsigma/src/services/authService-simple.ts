@@ -104,12 +104,96 @@ class AuthService {
           emailVerified: true,
           twoFactorEnabled: false,
         };
-        
+
         localStorage.setItem('xsigma_user_cache', JSON.stringify(this.currentUser));
       }
     } catch (error) {
       console.error('Failed to load user profile:', error);
-      // Don't clear session on profile load failure - user might still be authenticated
+      // For OAuth users, the profile might not exist yet - try to create it
+      await this.handleOAuthUserProfile();
+    }
+  }
+
+  private async handleOAuthUserProfile(): Promise<void> {
+    try {
+      const user = await authHelpers.getUser();
+      if (user && user.app_metadata?.provider && user.app_metadata.provider !== 'email') {
+        // This is an OAuth user, create profile if it doesn't exist
+        const profileData = this.extractOAuthProfileData(user);
+
+        // Try to create the profile
+        await this.createOAuthProfile(profileData);
+
+        // Retry loading the profile
+        await this.loadUserProfile();
+      }
+    } catch (error) {
+      console.error('Failed to handle OAuth user profile:', error);
+    }
+  }
+
+  private extractOAuthProfileData(user: any): any {
+    const provider = user.app_metadata?.provider;
+    const metadata = user.user_metadata || {};
+
+    let firstName = 'User';
+    let lastName = 'Name';
+    let username = user.email?.split('@')[0] || 'user';
+
+    if (provider === 'google') {
+      firstName = metadata.given_name || metadata.first_name || 'User';
+      lastName = metadata.family_name || metadata.last_name || 'Name';
+      username = metadata.preferred_username || user.email?.split('@')[0] || 'user';
+    } else if (provider === 'github') {
+      const fullName = metadata.full_name || metadata.name || '';
+      if (fullName) {
+        const nameParts = fullName.split(' ');
+        firstName = nameParts[0] || 'User';
+        lastName = nameParts.slice(1).join(' ') || 'Name';
+      }
+      username = metadata.user_name || metadata.login || user.email?.split('@')[0] || 'user';
+    }
+
+    return {
+      id: user.id,
+      username: username,
+      first_name: firstName,
+      last_name: lastName,
+      role: 'user',
+      company: metadata.company || null,
+      job_title: metadata.job_title || null,
+      department: null,
+      phone: null,
+      country: null,
+    };
+  }
+
+  private async createOAuthProfile(profileData: any): Promise<void> {
+    try {
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .insert([profileData])
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Failed to create OAuth profile:', error);
+        return;
+      }
+
+      // Also create default permissions
+      const { error: permError } = await supabase
+        .from('user_permissions')
+        .insert([
+          { user_id: profileData.id, permission: 'api' },
+          { user_id: profileData.id, permission: 'analytics' }
+        ]);
+
+      if (permError) {
+        console.error('Failed to create OAuth permissions:', permError);
+      }
+    } catch (error) {
+      console.error('Error creating OAuth profile:', error);
     }
   }
 
@@ -183,6 +267,58 @@ class AuthService {
       return {
         success: false,
         message: error.message || 'Registration failed. Please try again.'
+      };
+    }
+  }
+
+  // Sign in with Google OAuth
+  async signInWithGoogle(): Promise<AuthResult> {
+    try {
+      const result = await authHelpers.signInWithGoogle();
+
+      if (result.url) {
+        // OAuth redirect initiated successfully
+        return {
+          success: true,
+          message: 'Redirecting to Google...'
+        };
+      } else {
+        return {
+          success: false,
+          message: 'Failed to initiate Google sign-in'
+        };
+      }
+    } catch (error: any) {
+      console.error('Google sign-in error:', error);
+      return {
+        success: false,
+        message: error.message || 'Google sign-in failed. Please try again.'
+      };
+    }
+  }
+
+  // Sign in with GitHub OAuth
+  async signInWithGitHub(): Promise<AuthResult> {
+    try {
+      const result = await authHelpers.signInWithGitHub();
+
+      if (result.url) {
+        // OAuth redirect initiated successfully
+        return {
+          success: true,
+          message: 'Redirecting to GitHub...'
+        };
+      } else {
+        return {
+          success: false,
+          message: 'Failed to initiate GitHub sign-in'
+        };
+      }
+    } catch (error: any) {
+      console.error('GitHub sign-in error:', error);
+      return {
+        success: false,
+        message: error.message || 'GitHub sign-in failed. Please try again.'
       };
     }
   }

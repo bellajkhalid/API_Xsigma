@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "@/contexts/ThemeContext";
+import { AuthProvider } from "@/contexts/AuthContext";
 import { HelmetProvider } from "react-helmet-async";
 import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
@@ -28,6 +29,9 @@ import Careers from "./pages/Careers";
 import LinkedIn from "./pages/LinkedIn";
 import LinkedInCallback from "./pages/LinkedInCallback";
 import AuthTest from "./pages/AuthTest";
+import OAuthTest from "./pages/OAuthTest";
+import AuthCallback from "./pages/AuthCallback";
+import OAuthSetup from "./pages/OAuthSetup";
 // Download pages
 import CppLibraries from "./pages/downloads/CppLibraries";
 import InstallationGuide from "./pages/downloads/InstallationGuide";
@@ -64,7 +68,8 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <HelmetProvider>
       <ThemeProvider>
-        <TooltipProvider>
+        <AuthProvider>
+          <TooltipProvider>
           <div className="min-h-screen bg-background">
             <Toaster />
             <Sonner />
@@ -125,10 +130,14 @@ const App = () => (
               <Route path="/linkedin" element={<LinkedIn />} />
               <Route path="/linkedin/callback" element={<LinkedInCallback />} />
               <Route path="/auth-test" element={<AuthTest />} />
+              <Route path="/oauth-test" element={<OAuthTest />} />
+              <Route path="/oauth-setup" element={<OAuthSetup />} />
+              <Route path="/auth/callback" element={<AuthCallback />} />
             </Routes>
           </BrowserRouter>
         </div>
       </TooltipProvider>
+        </AuthProvider>
     </ThemeProvider>
     </HelmetProvider>
   </QueryClientProvider>

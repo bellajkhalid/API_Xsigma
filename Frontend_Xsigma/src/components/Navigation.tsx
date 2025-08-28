@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
-import { Menu, ChevronDown } from "lucide-react";
+import { Menu, ChevronDown, User, LogOut, Settings } from "lucide-react";
 import { Button } from "./ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
 import { useTheme } from "@/contexts/ThemeContext";
-import { motion } from "framer-motion";
+import { useAuth } from "@/contexts/AuthContext";
+import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
+import AuthModal from "@/components/auth/AuthModal";
 
 const Navigation = () => {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -13,7 +15,12 @@ const Navigation = () => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [hoverTimeout, setHoverTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState<'login' | 'register'>('login');
+  const [showUserMenu, setShowUserMenu] = useState(false);
+
   const { getThemeClasses, isDark, toggleTheme } = useTheme();
+  const { user, isAuthenticated, logout, isLoading } = useAuth();
   const theme = getThemeClasses();
   const navigate = useNavigate();
 
@@ -65,6 +72,21 @@ const Navigation = () => {
     };
   }, [hoverTimeout]);
 
+  // Close user menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showUserMenu) {
+        const target = event.target as Element;
+        if (!target.closest('[data-user-menu]')) {
+          setShowUserMenu(false);
+        }
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showUserMenu]);
+
   const scrollToSection = (sectionId: string) => {
     if (sectionId === 'cta') {
       const ctaSection = document.getElementById('cta');
@@ -114,6 +136,26 @@ const Navigation = () => {
         scrollToSection(searchMappings[partialMatch]);
       }
     }
+  };
+
+  // Authentication handlers
+  const handleLogin = () => {
+    setAuthModalMode('login');
+    setIsAuthModalOpen(true);
+  };
+
+  const handleRegister = () => {
+    setAuthModalMode('register');
+    setIsAuthModalOpen(true);
+  };
+
+  const handleLogout = async () => {
+    await logout();
+    setShowUserMenu(false);
+  };
+
+  const handleUserMenuToggle = () => {
+    setShowUserMenu(!showUserMenu);
   };
 
   // Professional navigation items optimized for quantitative finance industry
@@ -797,16 +839,143 @@ const Navigation = () => {
             {/* XSigma Professional Right Section */}
             <div className="hidden lg:flex items-center gap-6">
 
-              {/* Utility Navigation */}
-              <motion.a
-                href="/login"
-                onClick={(e) => { e.preventDefault(); navigate('/account'); }}
-                className={`text-sm ${isDark ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'} transition-colors`}
-                whileHover={{ scale: 1.02 }}
-                transition={{ duration: 0.2, ease: "easeOut" }}
-              >
-                Client Portal
-              </motion.a>
+              {/* Authentication Section */}
+              {!isAuthenticated ? (
+                <div className="flex items-center gap-4">
+                  <motion.button
+                    onClick={handleLogin}
+                    className={`text-sm ${isDark ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'} transition-colors`}
+                    whileHover={{ scale: 1.02 }}
+                    transition={{ duration: 0.2, ease: "easeOut" }}
+                  >
+                    Sign In
+                  </motion.button>
+                  <motion.button
+                    onClick={handleRegister}
+                    className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                      isDark
+                        ? 'bg-xsigma-teal/10 text-xsigma-teal hover:bg-xsigma-teal/20 border border-xsigma-teal/30'
+                        : 'bg-xsigma-navy/10 text-xsigma-navy hover:bg-xsigma-navy/20 border border-xsigma-navy/30'
+                    }`}
+                    whileHover={{ scale: 1.02 }}
+                    transition={{ duration: 0.2, ease: "easeOut" }}
+                  >
+                    Get Started
+                  </motion.button>
+                </div>
+              ) : (
+                <div className="relative" data-user-menu>
+                  <motion.button
+                    onClick={handleUserMenuToggle}
+                    className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
+                      isDark
+                        ? 'hover:bg-gray-800 text-white'
+                        : 'hover:bg-gray-100 text-gray-900'
+                    }`}
+                    whileHover={{ scale: 1.02 }}
+                    transition={{ duration: 0.2, ease: "easeOut" }}
+                  >
+                    {user?.avatar ? (
+                      <img
+                        src={user.avatar}
+                        alt={user.profile?.firstName || user.username}
+                        className="w-8 h-8 rounded-full"
+                      />
+                    ) : (
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                        isDark ? 'bg-xsigma-teal/20 text-xsigma-teal' : 'bg-xsigma-navy/20 text-xsigma-navy'
+                      }`}>
+                        <User className="w-4 h-4" />
+                      </div>
+                    )}
+                    <div className="text-left">
+                      <div className="text-sm font-medium">
+                        {user?.profile?.firstName || user?.username}
+                      </div>
+                      <div className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                        {user?.role === 'admin' ? 'Administrator' : 'User'}
+                      </div>
+                    </div>
+                    <ChevronDown className="w-4 h-4" />
+                  </motion.button>
+
+                  {/* User Dropdown Menu */}
+                  <AnimatePresence>
+                    {showUserMenu && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                        transition={{ duration: 0.2, ease: "easeOut" }}
+                        className={`absolute right-0 top-full mt-2 w-64 rounded-xl shadow-2xl border z-50 ${
+                          isDark
+                            ? 'bg-gray-900 border-gray-700'
+                            : 'bg-white border-gray-200'
+                        }`}
+                      >
+                        <div className={`p-4 border-b ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
+                          <div className="flex items-center gap-3">
+                            {user?.avatar ? (
+                              <img
+                                src={user.avatar}
+                                alt={user.profile?.firstName || user.username}
+                                className="w-10 h-10 rounded-full"
+                              />
+                            ) : (
+                              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                                isDark ? 'bg-xsigma-teal/20 text-xsigma-teal' : 'bg-xsigma-navy/20 text-xsigma-navy'
+                              }`}>
+                                <User className="w-5 h-5" />
+                              </div>
+                            )}
+                            <div>
+                              <div className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                                {user?.profile?.firstName} {user?.profile?.lastName}
+                              </div>
+                              <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                                {user?.email}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="p-2">
+                          <motion.button
+                            onClick={() => {
+                              navigate('/account');
+                              setShowUserMenu(false);
+                            }}
+                            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors ${
+                              isDark
+                                ? 'hover:bg-gray-800 text-gray-300'
+                                : 'hover:bg-gray-100 text-gray-700'
+                            }`}
+                            whileHover={{ x: 2 }}
+                            transition={{ duration: 0.2, ease: "easeOut" }}
+                          >
+                            <User className="w-4 h-4" />
+                            Account Settings
+                          </motion.button>
+
+                          <motion.button
+                            onClick={handleLogout}
+                            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors ${
+                              isDark
+                                ? 'hover:bg-red-900/20 text-red-400'
+                                : 'hover:bg-red-50 text-red-600'
+                            }`}
+                            whileHover={{ x: 2 }}
+                            transition={{ duration: 0.2, ease: "easeOut" }}
+                          >
+                            <LogOut className="w-4 h-4" />
+                            Sign Out
+                          </motion.button>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              )}
 
               {/* Premium Request Demo CTA */}
               <motion.button
@@ -888,6 +1057,12 @@ const Navigation = () => {
     </div>
 
 
+      {/* Authentication Modal */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        initialMode={authModalMode}
+      />
     </>
   );
 }

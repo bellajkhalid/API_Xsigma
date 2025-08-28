@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { authService } from '../services/authService-simple';
 import Navigation from '@/components/Navigation';
 import { useTheme } from '@/contexts/ThemeContext';
+import OAuthButtons from '@/components/auth/OAuthButtons';
 
 const AuthTest: React.FC = () => {
   const { isDark } = useTheme();
@@ -232,6 +233,24 @@ const AuthTest: React.FC = () => {
                     {loading ? 'Logging in...' : 'Login'}
                   </button>
                 </form>
+
+                {/* OAuth Divider */}
+                <div className="my-6 flex items-center">
+                  <div className={`flex-1 border-t ${isDark ? 'border-gray-600' : 'border-gray-300'}`}></div>
+                  <span className={`px-4 text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                    Or continue with
+                  </span>
+                  <div className={`flex-1 border-t ${isDark ? 'border-gray-600' : 'border-gray-300'}`}></div>
+                </div>
+
+                {/* OAuth Buttons */}
+                <OAuthButtons
+                  onSuccess={() => {
+                    setMessage('OAuth sign-in initiated...');
+                  }}
+                  onError={(error) => setMessage(`OAuth Error: ${error}`)}
+                  disabled={loading}
+                />
               </div>
 
               {/* Registration Form */}
@@ -330,6 +349,24 @@ const AuthTest: React.FC = () => {
                     {loading ? 'Registering...' : 'Register'}
                   </button>
                 </form>
+
+                {/* OAuth Divider */}
+                <div className="my-6 flex items-center">
+                  <div className={`flex-1 border-t ${isDark ? 'border-gray-600' : 'border-gray-300'}`}></div>
+                  <span className={`px-4 text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                    Or sign up with
+                  </span>
+                  <div className={`flex-1 border-t ${isDark ? 'border-gray-600' : 'border-gray-300'}`}></div>
+                </div>
+
+                {/* OAuth Buttons */}
+                <OAuthButtons
+                  onSuccess={() => {
+                    setMessage('OAuth sign-up initiated...');
+                  }}
+                  onError={(error) => setMessage(`OAuth Error: ${error}`)}
+                  disabled={loading}
+                />
               </div>
             </div>
           )}
